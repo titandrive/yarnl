@@ -1695,3 +1695,154 @@ header h1 {
     border-radius: 12px;
     border: 1px solid var(--border-color);
 }
+
+/* Hashtag styles */
+.hashtags-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.hashtag-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+}
+
+.hashtag-name {
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.hashtag-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.add-hashtag-form {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+}
+
+.add-hashtag-form input {
+    flex: 1;
+    padding: 10px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.add-hashtag-form input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+/* Hashtag selector for forms */
+.hashtag-selector {
+    width: 100%;
+}
+
+.hashtag-selector-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.hashtag-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 0.85rem;
+}
+
+.hashtag-tag input {
+    display: none;
+}
+
+.hashtag-tag span {
+    color: var(--text-color);
+}
+
+.hashtag-tag:hover {
+    border-color: var(--primary-color);
+}
+
+.hashtag-tag.selected {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.hashtag-tag.selected span {
+    color: white;
+}
+
+.hashtag-empty {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* Pattern card hashtags */
+.pattern-hashtags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.pattern-hashtag {
+    display: inline-block;
+    padding: 3px 10px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    font-size: 0.75rem;
+    color: var(--primary-color);
+}
+
+.empty-state-small {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 16px;
+}
+
+/* Inline hashtag add input */
+.hashtag-add-inline {
+    display: inline-flex;
+}
+
+.hashtag-add-inline input {
+    padding: 6px 12px;
+    border: 1px dashed var(--border-color);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--text-color);
+    font-size: 0.85rem;
+    width: 100px;
+    transition: all 0.2s ease;
+}
+
+.hashtag-add-inline input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    border-style: solid;
+    width: 140px;
+}
+
+.hashtag-add-inline input::placeholder {
+    color: var(--text-muted);
+}

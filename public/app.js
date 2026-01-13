@@ -6,6 +6,7 @@ let patterns = [];
 let currentPatterns = [];
 let allCategories = []; // All possible categories for editing/uploading
 let populatedCategories = []; // Only categories with patterns (for filtering)
+let allHashtags = []; // All available hashtags
 let selectedFile = null;
 let editingPatternId = null;
 let stagedFiles = []; // Array to hold staged files with metadata
@@ -46,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadPatterns();
     loadCurrentPatterns();
     loadCategories();
+    loadHashtags();
 });
 
 // Theme toggle
@@ -181,6 +183,7 @@ function handleFiles(files) {
             name: file.name.replace('.pdf', ''),
             category: 'Amigurumi',
             description: '',
+            hashtagIds: [],
             isCurrent: false,
             status: 'staged', // staged, uploading, success, error
             progress: 0,
@@ -272,6 +275,10 @@ function renderStagedFiles() {
                         <textarea rows="2"
                                   onchange="updateStagedFile('${stagedFile.id}', 'description', this.value)"
                                   ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>${escapeHtml(stagedFile.description)}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Hashtags</label>
+                        ${createHashtagSelector(`staged-${stagedFile.id}`, stagedFile.hashtagIds || [], isUploading || stagedFile.status === 'success')}
                     </div>
                     <div class="form-group checkbox-group">
                         <label>
@@ -381,11 +388,12 @@ async function uploadStagedFile(stagedFile) {
     stagedFile.status = 'uploading';
     stagedFile.progress = 0;
     stagedFile.error = null;
-    renderStagedFiles();
 
-    console.log('About to upload staged file:', stagedFile);
-    console.log('stagedFile.name:', stagedFile.name);
-    console.log('stagedFile.file.name:', stagedFile.file.name);
+    // Get current hashtag selections before rendering (which might reset them)
+    const hashtagIds = getSelectedHashtagIds(`staged-${stagedFile.id}`);
+    stagedFile.hashtagIds = hashtagIds;
+
+    renderStagedFiles();
 
     const formData = new FormData();
     formData.append('pdf', stagedFile.file);
@@ -393,8 +401,6 @@ async function uploadStagedFile(stagedFile) {
     formData.append('category', stagedFile.category);
     formData.append('description', stagedFile.description);
     formData.append('isCurrent', stagedFile.isCurrent);
-
-    console.log('FormData name value:', stagedFile.name || stagedFile.file.name.replace('.pdf', ''));
 
     try {
         const xhr = new XMLHttpRequest();
@@ -412,7 +418,11 @@ async function uploadStagedFile(stagedFile) {
         const uploadPromise = new Promise((resolve, reject) => {
             xhr.addEventListener('load', () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    resolve(xhr.response);
+                    try {
+                        resolve(JSON.parse(xhr.response));
+                    } catch {
+                        resolve(xhr.response);
+                    }
                 } else {
                     reject(new Error(xhr.statusText));
                 }
@@ -424,7 +434,16 @@ async function uploadStagedFile(stagedFile) {
         xhr.open('POST', `${API_URL}/api/patterns`);
         xhr.send(formData);
 
-        await uploadPromise;
+        const result = await uploadPromise;
+
+        // Save hashtags if any were selected
+        if (result && result.id && hashtagIds.length > 0) {
+            await fetch(`${API_URL}/api/patterns/${result.id}/hashtags`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hashtagIds })
+            });
+        }
 
         stagedFile.status = 'success';
         stagedFile.progress = 100;
@@ -485,6 +504,23 @@ async function loadCategories() {
         populatedCategories = [];
         updateCategorySelects();
         renderCategoriesList();
+    }
+}
+
+async function loadHashtags() {
+    try {
+        const response = await fetch(`${API_URL}/api/hashtags`);
+        allHashtags = await response.json();
+        renderHashtagsList();
+
+        // Re-render staged files if any exist to populate hashtag selectors
+        if (stagedFiles.length > 0) {
+            renderStagedFiles();
+        }
+    } catch (error) {
+        console.error('Error loading hashtags:', error);
+        allHashtags = [];
+        renderHashtagsList();
     }
 }
 
@@ -665,6 +701,21 @@ function initSettings() {
             }
         });
     }
+
+    const addHashtagBtn = document.getElementById('add-hashtag-btn');
+    const newHashtagInput = document.getElementById('new-hashtag-input');
+
+    if (addHashtagBtn) {
+        addHashtagBtn.addEventListener('click', addHashtag);
+    }
+
+    if (newHashtagInput) {
+        newHashtagInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addHashtag();
+            }
+        });
+    }
 }
 
 function updateTabCounts() {
@@ -841,6 +892,197 @@ async function deleteCategory(name, patternCount) {
     }
 }
 
+// Hashtag management functions
+function renderHashtagsList() {
+    const hashtagsList = document.getElementById('hashtags-list');
+    if (!hashtagsList) return;
+
+    if (allHashtags.length === 0) {
+        hashtagsList.innerHTML = '<p class="empty-state-small">No hashtags yet. Add one below!</p>';
+        return;
+    }
+
+    hashtagsList.innerHTML = allHashtags.map(hashtag => `
+        <div class="hashtag-item" data-hashtag-id="${hashtag.id}">
+            <span class="hashtag-name">#${escapeHtml(hashtag.name)}</span>
+            <div class="hashtag-actions">
+                <button class="btn btn-small btn-secondary" onclick="editHashtag(${hashtag.id}, '${escapeHtml(hashtag.name)}')">Edit</button>
+                <button class="btn btn-small btn-danger" onclick="deleteHashtag(${hashtag.id})">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function addHashtag() {
+    const input = document.getElementById('new-hashtag-input');
+    let name = input.value.trim().replace(/^#/, '').toLowerCase();
+
+    if (!name) return;
+
+    if (allHashtags.some(h => h.name === name)) {
+        alert('Hashtag already exists');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/hashtags`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to add hashtag');
+        }
+
+        input.value = '';
+        await loadHashtags();
+    } catch (error) {
+        console.error('Error adding hashtag:', error);
+        alert(error.message);
+    }
+}
+
+async function editHashtag(id, oldName) {
+    const newName = prompt('Enter new hashtag name:', oldName);
+    if (!newName || newName.replace(/^#/, '').toLowerCase() === oldName) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/hashtags/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to update hashtag');
+        }
+
+        await loadHashtags();
+    } catch (error) {
+        console.error('Error updating hashtag:', error);
+        alert(error.message);
+    }
+}
+
+async function deleteHashtag(id) {
+    if (!confirm('Are you sure you want to delete this hashtag?')) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/hashtags/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete hashtag');
+        }
+
+        await loadHashtags();
+    } catch (error) {
+        console.error('Error deleting hashtag:', error);
+        alert(error.message);
+    }
+}
+
+// Create hashtag selector for forms
+function createHashtagSelector(id, selectedHashtagIds = [], disabled = false) {
+    return `
+        <div class="hashtag-selector ${disabled ? 'disabled' : ''}" data-id="${id}">
+            <div class="hashtag-selector-tags" id="hashtag-tags-${id}">
+                ${allHashtags.map(h => `
+                    <label class="hashtag-tag ${selectedHashtagIds.includes(h.id) ? 'selected' : ''}">
+                        <input type="checkbox" value="${h.id}"
+                               ${selectedHashtagIds.includes(h.id) ? 'checked' : ''}
+                               ${disabled ? 'disabled' : ''}
+                               onchange="toggleHashtagSelection('${id}', ${h.id}, this.checked)">
+                        <span>#${escapeHtml(h.name)}</span>
+                    </label>
+                `).join('')}
+                ${!disabled ? `
+                    <div class="hashtag-add-inline">
+                        <input type="text" placeholder="Add new..."
+                               onkeydown="handleNewHashtagInline(event, '${id}')"
+                               onclick="event.stopPropagation()">
+                    </div>
+                ` : ''}
+            </div>
+            ${allHashtags.length === 0 && disabled ? '<p class="hashtag-empty">No hashtags available.</p>' : ''}
+        </div>
+    `;
+}
+
+async function handleNewHashtagInline(event, selectorId) {
+    if (event.key !== 'Enter') return;
+    event.preventDefault();
+
+    const input = event.target;
+    let name = input.value.trim().replace(/^#/, '').toLowerCase();
+
+    if (!name) return;
+
+    if (allHashtags.some(h => h.name === name)) {
+        alert('Hashtag already exists');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/hashtags`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to add hashtag');
+        }
+
+        const newHashtag = await response.json();
+
+        // Reload hashtags
+        await loadHashtags();
+
+        // Get current selections and add the new one
+        const currentSelections = getSelectedHashtagIds(selectorId);
+        currentSelections.push(newHashtag.id);
+
+        // Re-render the selector with new hashtag selected
+        const selector = document.querySelector(`.hashtag-selector[data-id="${selectorId}"]`);
+        if (selector) {
+            selector.outerHTML = createHashtagSelector(selectorId, currentSelections, false);
+        }
+    } catch (error) {
+        console.error('Error adding hashtag:', error);
+        alert(error.message);
+    }
+}
+
+function toggleHashtagSelection(selectorId, hashtagId, isSelected) {
+    const selector = document.querySelector(`.hashtag-selector[data-id="${selectorId}"]`);
+    if (!selector) return;
+
+    // Update visual state
+    const label = selector.querySelector(`input[value="${hashtagId}"]`).parentElement;
+    label.classList.toggle('selected', isSelected);
+
+    // Trigger callback for staged files
+    const event = new CustomEvent('hashtagchange', {
+        detail: { id: selectorId, hashtagId, isSelected }
+    });
+    selector.dispatchEvent(event);
+}
+
+function getSelectedHashtagIds(selectorId) {
+    const selector = document.querySelector(`.hashtag-selector[data-id="${selectorId}"]`);
+    if (!selector) return [];
+
+    const checkboxes = selector.querySelectorAll('input[type="checkbox"]:checked');
+    return Array.from(checkboxes).map(cb => parseInt(cb.value));
+}
+
 function initLibraryFilters() {
     const searchInput = document.getElementById('search-input');
     const sortSelect = document.getElementById('sort-select');
@@ -884,17 +1126,25 @@ function displayCurrentPatterns() {
         return;
     }
 
-    grid.innerHTML = currentPatterns.map(pattern => `
-        <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
-            ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : '<span class="current-badge">CURRENT</span>'}
-            ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
-            ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
-            <h3>${escapeHtml(pattern.name)}</h3>
-            <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
-            ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
-            ${pattern.completed && pattern.completed_date ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}</p>` : ''}
-        </div>
-    `).join('');
+    grid.innerHTML = currentPatterns.map(pattern => {
+        const hashtags = pattern.hashtags || [];
+        const hashtagsHtml = hashtags.length > 0
+            ? `<div class="pattern-hashtags">${hashtags.map(h => `<span class="pattern-hashtag">#${escapeHtml(h.name)}</span>`).join('')}</div>`
+            : '';
+
+        return `
+            <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
+                ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : '<span class="current-badge">CURRENT</span>'}
+                ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
+                ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
+                <h3>${escapeHtml(pattern.name)}</h3>
+                <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
+                ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
+                ${hashtagsHtml}
+                ${pattern.completed && pattern.completed_date ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}</p>` : ''}
+            </div>
+        `;
+    }).join('');
 }
 
 function displayPatterns() {
@@ -905,13 +1155,20 @@ function displayPatterns() {
         return;
     }
 
-    // Filter patterns by search query
+    // Filter patterns by search query (including hashtags)
     let filteredPatterns = patterns;
     if (searchQuery) {
-        filteredPatterns = filteredPatterns.filter(p =>
-            p.name.toLowerCase().includes(searchQuery) ||
-            (p.description && p.description.toLowerCase().includes(searchQuery))
-        );
+        // Remove # prefix if searching for hashtag and lowercase
+        const searchTerm = searchQuery.replace(/^#/, '').toLowerCase();
+        filteredPatterns = filteredPatterns.filter(p => {
+            // Check name
+            if (p.name.toLowerCase().includes(searchTerm)) return true;
+            // Check description
+            if (p.description && p.description.toLowerCase().includes(searchTerm)) return true;
+            // Check hashtags
+            if (p.hashtags && p.hashtags.some(h => h.name.toLowerCase().includes(searchTerm))) return true;
+            return false;
+        });
     }
 
     // Filter patterns by selected category
@@ -947,30 +1204,38 @@ function displayPatterns() {
         return;
     }
 
-    grid.innerHTML = filteredPatterns.map(pattern => `
-        <div class="pattern-card" onclick="openPDFViewer(${pattern.id})" style="cursor: pointer;">
-            ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
-            ${!pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
-            ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
-            ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
-            <h3>${escapeHtml(pattern.name)}</h3>
-            <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
-            <div class="pattern-actions" onclick="event.stopPropagation()">
-                <button class="btn btn-success btn-small"
-                        onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})">
-                    ${pattern.is_current ? 'Remove from Current' : 'Make Current'}
-                </button>
-                <button class="btn btn-warning btn-small"
-                        onclick="toggleComplete('${pattern.id}', ${!pattern.completed})">
-                    ${pattern.completed ? 'Mark Incomplete' : 'Mark Complete'}
-                </button>
-                <button class="btn btn-secondary btn-small" onclick="openEditModal('${pattern.id}')">Edit</button>
-                <button class="btn btn-danger btn-small" onclick="deletePattern('${pattern.id}')">Delete</button>
+    grid.innerHTML = filteredPatterns.map(pattern => {
+        const hashtags = pattern.hashtags || [];
+        const hashtagsHtml = hashtags.length > 0
+            ? `<div class="pattern-hashtags">${hashtags.map(h => `<span class="pattern-hashtag">#${escapeHtml(h.name)}</span>`).join('')}</div>`
+            : '';
+
+        return `
+            <div class="pattern-card" onclick="openPDFViewer(${pattern.id})" style="cursor: pointer;">
+                ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
+                ${!pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
+                ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
+                ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
+                <h3>${escapeHtml(pattern.name)}</h3>
+                <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
+                <div class="pattern-actions" onclick="event.stopPropagation()">
+                    <button class="btn btn-success btn-small"
+                            onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})">
+                        ${pattern.is_current ? 'Remove from Current' : 'Make Current'}
+                    </button>
+                    <button class="btn btn-warning btn-small"
+                            onclick="toggleComplete('${pattern.id}', ${!pattern.completed})">
+                        ${pattern.completed ? 'Mark Incomplete' : 'Mark Complete'}
+                    </button>
+                    <button class="btn btn-secondary btn-small" onclick="openEditModal('${pattern.id}')">Edit</button>
+                    <button class="btn btn-danger btn-small" onclick="deletePattern('${pattern.id}')">Delete</button>
+                </div>
+                ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
+                ${hashtagsHtml}
+                ${pattern.completed && pattern.completed_date ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}</p>` : ''}
             </div>
-            ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
-            ${pattern.completed && pattern.completed_date ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}</p>` : ''}
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 async function toggleCurrent(id, isCurrent) {
@@ -1440,6 +1705,12 @@ async function openEditModal(patternId) {
     categoryContainer.innerHTML = createCategoryDropdown('edit-category', pattern.category || 'Amigurumi');
 
     document.getElementById('edit-pattern-description').value = pattern.description || '';
+
+    // Create hashtag selector with current pattern's hashtags
+    const hashtagContainer = document.getElementById('edit-pattern-hashtags-container');
+    const selectedHashtagIds = (pattern.hashtags || []).map(h => h.id);
+    hashtagContainer.innerHTML = createHashtagSelector('edit-hashtags', selectedHashtagIds);
+
     document.getElementById('edit-thumbnail').value = '';
 
     document.getElementById('edit-modal').style.display = 'flex';
@@ -1457,6 +1728,7 @@ async function savePatternEdits() {
     const category = getCategoryDropdownValue('edit-category');
     const description = document.getElementById('edit-pattern-description').value;
     const thumbnailFile = document.getElementById('edit-thumbnail').files[0];
+    const hashtagIds = getSelectedHashtagIds('edit-hashtags');
 
     try {
         // Update pattern details
@@ -1471,6 +1743,13 @@ async function savePatternEdits() {
             console.error('Error updating pattern:', error.error);
             return;
         }
+
+        // Update hashtags
+        await fetch(`${API_URL}/api/patterns/${editingPatternId}/hashtags`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hashtagIds })
+        });
 
         // If custom thumbnail was uploaded, handle it separately
         if (thumbnailFile) {
@@ -1487,7 +1766,6 @@ async function savePatternEdits() {
         await loadPatterns();
         await loadCurrentPatterns();
         await loadCategories();
-        await loadTags();
     } catch (error) {
         console.error('Error updating pattern:', error);
     }

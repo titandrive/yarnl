@@ -159,6 +159,18 @@
                     </section>
 
                     <section class="settings-section">
+                        <h3>Hashtags</h3>
+                        <p class="section-description">Manage hashtags for tagging patterns</p>
+                        <div class="hashtags-list" id="hashtags-list">
+                            <!-- Hashtags will be populated here -->
+                        </div>
+                        <div class="add-hashtag-form">
+                            <input type="text" id="new-hashtag-input" placeholder="New hashtag...">
+                            <button id="add-hashtag-btn" class="btn btn-primary">Add Hashtag</button>
+                        </div>
+                    </section>
+
+                    <section class="settings-section">
                         <h3>Library Info</h3>
                         <div class="library-stats" id="library-stats">
                             <!-- Stats will be populated here -->
@@ -217,6 +229,12 @@
                 <div class="form-group">
                     <label for="edit-pattern-description">Description</label>
                     <textarea id="edit-pattern-description" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Hashtags</label>
+                    <div id="edit-pattern-hashtags-container">
+                        <!-- Hashtag selector will be populated dynamically -->
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="edit-thumbnail">Custom Thumbnail (optional)</label>

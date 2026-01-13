@@ -203,13 +203,26 @@ initDatabase()
 
 // Routes
 
-// Get all patterns
+// Get all patterns with their hashtags
 app.get('/api/patterns', async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM patterns ORDER BY upload_date DESC'
     );
-    res.json(result.rows);
+
+    // Fetch hashtags for each pattern
+    const patterns = await Promise.all(result.rows.map(async (pattern) => {
+      const hashtagsResult = await pool.query(
+        `SELECT h.* FROM hashtags h
+         JOIN pattern_hashtags ph ON h.id = ph.hashtag_id
+         WHERE ph.pattern_id = $1
+         ORDER BY h.name`,
+        [pattern.id]
+      );
+      return { ...pattern, hashtags: hashtagsResult.rows };
+    }));
+
+    res.json(patterns);
   } catch (error) {
     console.error('Error fetching patterns:', error);
     res.status(500).json({ error: error.message });
@@ -344,7 +357,20 @@ app.get('/api/patterns/current', async (req, res) => {
     const result = await pool.query(
       'SELECT * FROM patterns WHERE is_current = true ORDER BY updated_at DESC'
     );
-    res.json(result.rows);
+
+    // Fetch hashtags for each pattern
+    const patterns = await Promise.all(result.rows.map(async (pattern) => {
+      const hashtagsResult = await pool.query(
+        `SELECT h.* FROM hashtags h
+         JOIN pattern_hashtags ph ON h.id = ph.hashtag_id
+         WHERE ph.pattern_id = $1
+         ORDER BY h.name`,
+        [pattern.id]
+      );
+      return { ...pattern, hashtags: hashtagsResult.rows };
+    }));
+
+    res.json(patterns);
   } catch (error) {
     console.error('Error fetching current patterns:', error);
     res.status(500).json({ error: error.message });
@@ -363,7 +389,16 @@ app.get('/api/patterns/:id', async (req, res) => {
       return res.status(404).json({ error: 'Pattern not found' });
     }
 
-    res.json(result.rows[0]);
+    // Fetch hashtags for the pattern
+    const hashtagsResult = await pool.query(
+      `SELECT h.* FROM hashtags h
+       JOIN pattern_hashtags ph ON h.id = ph.hashtag_id
+       WHERE ph.pattern_id = $1
+       ORDER BY h.name`,
+      [req.params.id]
+    );
+
+    res.json({ ...result.rows[0], hashtags: hashtagsResult.rows });
   } catch (error) {
     console.error('Error fetching pattern:', error);
     res.status(500).json({ error: error.message });
@@ -682,6 +717,146 @@ app.delete('/api/categories/:name', async (req, res) => {
     res.json({ message: 'Category deleted', name });
   } catch (error) {
     console.error('Error deleting category:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Hashtag endpoints
+
+// Get all hashtags
+app.get('/api/hashtags', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM hashtags ORDER BY position, name');
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching hashtags:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add a new hashtag
+app.post('/api/hashtags', async (req, res) => {
+  try {
+    let { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Hashtag name is required' });
+    }
+
+    // Remove # if provided and normalize
+    name = name.trim().replace(/^#/, '').toLowerCase();
+
+    // Get the next position
+    const posResult = await pool.query('SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM hashtags');
+    const nextPos = posResult.rows[0].next_pos;
+
+    const result = await pool.query(
+      'INSERT INTO hashtags (name, position) VALUES ($1, $2) RETURNING *',
+      [name, nextPos]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    if (error.code === '23505') { // unique violation
+      return res.status(400).json({ error: 'Hashtag already exists' });
+    }
+    console.error('Error creating hashtag:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update a hashtag name
+app.put('/api/hashtags/:id', async (req, res) => {
+  try {
+    let { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'New hashtag name is required' });
+    }
+
+    name = name.trim().replace(/^#/, '').toLowerCase();
+
+    const result = await pool.query(
+      'UPDATE hashtags SET name = $1 WHERE id = $2 RETURNING *',
+      [name, req.params.id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Hashtag not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'Hashtag name already exists' });
+    }
+    console.error('Error updating hashtag:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a hashtag
+app.delete('/api/hashtags/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM hashtags WHERE id = $1 RETURNING *', [req.params.id]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Hashtag not found' });
+    }
+
+    res.json({ message: 'Hashtag deleted' });
+  } catch (error) {
+    console.error('Error deleting hashtag:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get hashtags for a pattern
+app.get('/api/patterns/:id/hashtags', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT h.* FROM hashtags h
+       JOIN pattern_hashtags ph ON h.id = ph.hashtag_id
+       WHERE ph.pattern_id = $1
+       ORDER BY h.name`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching pattern hashtags:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Set hashtags for a pattern (replaces existing)
+app.put('/api/patterns/:id/hashtags', async (req, res) => {
+  try {
+    const { hashtagIds } = req.body;
+    const patternId = req.params.id;
+
+    // Delete existing associations
+    await pool.query('DELETE FROM pattern_hashtags WHERE pattern_id = $1', [patternId]);
+
+    // Insert new associations
+    if (hashtagIds && hashtagIds.length > 0) {
+      for (const hashtagId of hashtagIds) {
+        await pool.query(
+          'INSERT INTO pattern_hashtags (pattern_id, hashtag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [patternId, hashtagId]
+        );
+      }
+    }
+
+    // Return updated hashtags
+    const result = await pool.query(
+      `SELECT h.* FROM hashtags h
+       JOIN pattern_hashtags ph ON h.id = ph.hashtag_id
+       WHERE ph.pattern_id = $1
+       ORDER BY h.name`,
+      [patternId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error setting pattern hashtags:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -65,6 +65,25 @@ async function initDatabase() {
       }
     }
 
+    // Create hashtags table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hashtags (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL UNIQUE,
+        position INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create pattern_hashtags junction table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pattern_hashtags (
+        pattern_id INTEGER NOT NULL REFERENCES patterns(id) ON DELETE CASCADE,
+        hashtag_id INTEGER NOT NULL REFERENCES hashtags(id) ON DELETE CASCADE,
+        PRIMARY KEY (pattern_id, hashtag_id)
+      )
+    `);
+
     // Add columns to existing patterns table if they don't exist
     await client.query(`
       DO $$

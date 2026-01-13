@@ -616,6 +616,20 @@ header h1 {
     z-index: 10;
 }
 
+.pattern-card .category-badge-overlay {
+    position: absolute;
+    top: 30px;
+    left: 30px;
+    background: var(--primary-color);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+}
+
 /* Modal */
 .modal {
     position: fixed;

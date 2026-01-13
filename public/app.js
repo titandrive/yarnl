@@ -523,14 +523,10 @@ function displayCurrentPatterns() {
     grid.innerHTML = currentPatterns.map(pattern => `
         <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
             <span class="current-badge">CURRENT</span>
+            ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
             ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
             <h3>${escapeHtml(pattern.name)}</h3>
             <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
-            ${pattern.category ? `
-                <div class="pattern-category">
-                    <span class="category-badge">${escapeHtml(pattern.category)}</span>
-                </div>
-            ` : ''}
             ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
         </div>
     `).join('');
@@ -557,14 +553,10 @@ function displayPatterns() {
     grid.innerHTML = filteredPatterns.map(pattern => `
         <div class="pattern-card" onclick="openPDFViewer(${pattern.id})" style="cursor: pointer;">
             ${pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
+            ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
             ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
             <h3>${escapeHtml(pattern.name)}</h3>
             <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
-            ${pattern.category ? `
-                <div class="pattern-category">
-                    <span class="category-badge">${escapeHtml(pattern.category)}</span>
-                </div>
-            ` : ''}
             <div class="pattern-actions" onclick="event.stopPropagation()">
                 <button class="btn btn-primary btn-small" onclick="openPDFViewer('${pattern.id}')">View PDF</button>
                 <button class="btn btn-${pattern.is_current ? 'secondary' : 'success'} btn-small"

@@ -44,6 +44,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initPDFViewer();
     initLibraryFilters();
     initSettings();
+    initAddMenu();
+    initNewPatternPanel();
     loadPatterns();
     loadCurrentPatterns();
     loadCategories();
@@ -718,6 +720,324 @@ function initSettings() {
     }
 }
 
+// Add Pattern Menu
+function initAddMenu() {
+    const addBtn = document.getElementById('add-pattern-btn');
+    const addMenu = document.getElementById('add-menu');
+    const uploadPdfBtn = document.getElementById('add-upload-pdf');
+    const newPatternBtn = document.getElementById('add-new-pattern');
+    const closeUploadPanel = document.getElementById('close-upload-panel');
+    const closeNewPatternPanel = document.getElementById('close-new-pattern-panel');
+
+    if (addBtn && addMenu) {
+        addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isOpen = addMenu.style.display !== 'none';
+            addMenu.style.display = isOpen ? 'none' : 'block';
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!addBtn.contains(e.target) && !addMenu.contains(e.target)) {
+                addMenu.style.display = 'none';
+            }
+        });
+    }
+
+    if (uploadPdfBtn) {
+        uploadPdfBtn.addEventListener('click', () => {
+            addMenu.style.display = 'none';
+            showUploadPanel();
+        });
+    }
+
+    if (newPatternBtn) {
+        newPatternBtn.addEventListener('click', () => {
+            addMenu.style.display = 'none';
+            showNewPatternPanel();
+        });
+    }
+
+    if (closeUploadPanel) {
+        closeUploadPanel.addEventListener('click', hideUploadPanel);
+    }
+
+    if (closeNewPatternPanel) {
+        closeNewPatternPanel.addEventListener('click', hideNewPatternPanel);
+    }
+}
+
+function showUploadPanel() {
+    const uploadPanel = document.getElementById('upload-panel');
+    const patternsContainer = document.querySelector('#library .patterns-container');
+    if (uploadPanel) {
+        uploadPanel.style.display = 'flex';
+    }
+    if (patternsContainer) {
+        patternsContainer.style.display = 'none';
+    }
+    // Switch to library tab if not there
+    switchToTab('library');
+}
+
+function hideUploadPanel() {
+    const uploadPanel = document.getElementById('upload-panel');
+    const patternsContainer = document.querySelector('#library .patterns-container');
+    if (uploadPanel) {
+        uploadPanel.style.display = 'none';
+    }
+    if (patternsContainer) {
+        patternsContainer.style.display = 'block';
+    }
+    // Refresh patterns list
+    loadPatterns();
+    loadCurrentPatterns();
+}
+
+async function showNewPatternPanel() {
+    const newPatternPanel = document.getElementById('new-pattern-panel');
+    const patternsContainer = document.querySelector('#library .patterns-container');
+
+    // Always reload categories and hashtags to ensure fresh data
+    await loadCategories();
+    await loadHashtags();
+
+    // Populate category dropdown
+    const categoryContainer = document.getElementById('new-pattern-category-container');
+    if (categoryContainer) {
+        categoryContainer.innerHTML = createCategoryDropdown('new-pattern-category', 'Amigurumi');
+    }
+
+    // Populate hashtag selector
+    const hashtagContainer = document.getElementById('new-pattern-hashtags-container');
+    if (hashtagContainer) {
+        hashtagContainer.innerHTML = createHashtagSelector('new-pattern-hashtags', []);
+    }
+
+    // Clear form
+    document.getElementById('new-pattern-name').value = '';
+    document.getElementById('new-pattern-description').value = '';
+    document.getElementById('new-pattern-content').value = '';
+    document.getElementById('new-pattern-is-current').checked = false;
+    document.getElementById('new-pattern-thumbnail').value = '';
+    document.getElementById('new-pattern-preview').innerHTML = '<p style="color: var(--text-muted);">Preview will appear here...</p>';
+
+    // Reset editor to edit mode
+    const editorWrapper = document.querySelector('.new-pattern-editor-wrapper');
+    const livePreviewCheckbox = document.getElementById('new-pattern-live-preview');
+    const tabs = document.querySelectorAll('.new-pattern-tab');
+
+    if (editorWrapper) {
+        editorWrapper.classList.remove('edit-mode', 'preview-mode', 'live-preview-mode');
+        editorWrapper.classList.add('edit-mode');
+    }
+    if (livePreviewCheckbox) {
+        livePreviewCheckbox.checked = false;
+    }
+    tabs.forEach(tab => {
+        tab.style.display = '';
+        tab.classList.toggle('active', tab.dataset.tab === 'edit');
+    });
+
+    if (newPatternPanel) {
+        newPatternPanel.style.display = 'flex';
+    }
+    if (patternsContainer) {
+        patternsContainer.style.display = 'none';
+    }
+    // Switch to library tab if not there
+    switchToTab('library');
+}
+
+function hideNewPatternPanel() {
+    const newPatternPanel = document.getElementById('new-pattern-panel');
+    const patternsContainer = document.querySelector('#library .patterns-container');
+    if (newPatternPanel) {
+        newPatternPanel.style.display = 'none';
+    }
+    if (patternsContainer) {
+        patternsContainer.style.display = 'block';
+    }
+}
+
+// New Pattern Panel
+function initNewPatternPanel() {
+    const contentEditor = document.getElementById('new-pattern-content');
+    const preview = document.getElementById('new-pattern-preview');
+    const editorWrapper = document.querySelector('.new-pattern-editor-wrapper');
+    const saveBtn = document.getElementById('save-new-pattern');
+    const cancelBtn = document.getElementById('cancel-new-pattern');
+    const livePreviewCheckbox = document.getElementById('new-pattern-live-preview');
+
+    // Set initial mode to edit
+    if (editorWrapper) {
+        editorWrapper.classList.add('edit-mode');
+    }
+
+    // Tab switching
+    document.querySelectorAll('.new-pattern-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const mode = tab.dataset.tab;
+            switchNewPatternTab(mode);
+        });
+    });
+
+    // Live preview toggle
+    if (livePreviewCheckbox) {
+        livePreviewCheckbox.addEventListener('change', () => {
+            toggleNewPatternLivePreview(livePreviewCheckbox.checked);
+        });
+    }
+
+    // Update preview on input (for live preview mode)
+    if (contentEditor && preview) {
+        contentEditor.addEventListener('input', () => {
+            updateNewPatternPreview();
+        });
+    }
+
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveNewPattern);
+    }
+
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', hideNewPatternPanel);
+    }
+}
+
+function switchNewPatternTab(mode) {
+    const editorWrapper = document.querySelector('.new-pattern-editor-wrapper');
+    const tabs = document.querySelectorAll('.new-pattern-tab');
+    const livePreviewCheckbox = document.getElementById('new-pattern-live-preview');
+
+    // Update tab active states
+    tabs.forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === mode);
+    });
+
+    // Remove all mode classes
+    editorWrapper.classList.remove('edit-mode', 'preview-mode', 'live-preview-mode');
+
+    // Check if live preview is enabled
+    if (livePreviewCheckbox && livePreviewCheckbox.checked) {
+        editorWrapper.classList.add('live-preview-mode');
+    } else {
+        editorWrapper.classList.add(mode + '-mode');
+    }
+
+    // Update preview content when switching to preview
+    if (mode === 'preview' || (livePreviewCheckbox && livePreviewCheckbox.checked)) {
+        updateNewPatternPreview();
+    }
+}
+
+function toggleNewPatternLivePreview(enabled) {
+    const editorWrapper = document.querySelector('.new-pattern-editor-wrapper');
+    const tabs = document.querySelectorAll('.new-pattern-tab');
+
+    // Remove all mode classes
+    editorWrapper.classList.remove('edit-mode', 'preview-mode', 'live-preview-mode');
+
+    if (enabled) {
+        // Enable live preview - show both panes
+        editorWrapper.classList.add('live-preview-mode');
+        // Hide tabs when in live preview
+        tabs.forEach(tab => tab.style.display = 'none');
+        updateNewPatternPreview();
+    } else {
+        // Disable live preview - go back to edit mode
+        editorWrapper.classList.add('edit-mode');
+        // Show tabs
+        tabs.forEach(tab => tab.style.display = '');
+        // Reset to edit tab
+        tabs.forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.tab === 'edit');
+        });
+    }
+}
+
+function updateNewPatternPreview() {
+    const contentEditor = document.getElementById('new-pattern-content');
+    const preview = document.getElementById('new-pattern-preview');
+
+    if (contentEditor && preview) {
+        const content = contentEditor.value;
+        preview.innerHTML = content
+            ? renderMarkdown(content)
+            : '<p style="color: var(--text-muted);">Preview will appear here...</p>';
+    }
+}
+
+async function saveNewPattern() {
+    const name = document.getElementById('new-pattern-name').value.trim();
+    const category = getCategoryDropdownValue('new-pattern-category');
+    const description = document.getElementById('new-pattern-description').value.trim();
+    const content = document.getElementById('new-pattern-content').value;
+    const isCurrent = document.getElementById('new-pattern-is-current').checked;
+    const hashtagIds = getSelectedHashtagIds('new-pattern-hashtags');
+    const thumbnailFile = document.getElementById('new-pattern-thumbnail').files[0];
+
+    if (!name) {
+        alert('Please enter a pattern name');
+        return;
+    }
+
+    if (!content.trim()) {
+        alert('Please enter pattern content');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/markdown`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name,
+                category,
+                description,
+                content,
+                isCurrent,
+                hashtagIds
+            })
+        });
+
+        if (!response.ok) {
+            const text = await response.text();
+            let errorMsg = 'Failed to create pattern';
+            try {
+                const error = JSON.parse(text);
+                errorMsg = error.error || errorMsg;
+            } catch {
+                console.error('Server response:', text);
+            }
+            throw new Error(errorMsg);
+        }
+
+        const pattern = await response.json();
+        console.log('Created markdown pattern:', pattern);
+
+        // Upload thumbnail if provided
+        if (thumbnailFile && pattern.id) {
+            const formData = new FormData();
+            formData.append('thumbnail', thumbnailFile);
+
+            await fetch(`${API_URL}/api/patterns/${pattern.id}/thumbnail`, {
+                method: 'POST',
+                body: formData
+            });
+        }
+
+        hideNewPatternPanel();
+        await loadPatterns();
+        await loadCurrentPatterns();
+        await loadCategories();
+
+    } catch (error) {
+        console.error('Error creating pattern:', error);
+        alert(error.message);
+    }
+}
+
 function updateTabCounts() {
     const currentCount = document.getElementById('current-tab-count');
     const libraryCount = document.getElementById('library-tab-count');
@@ -1136,7 +1456,16 @@ function displayCurrentPatterns() {
             <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
                 ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : '<span class="current-badge">CURRENT</span>'}
                 ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
-                ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
+                ${pattern.thumbnail
+                    ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
+                    : `<div class="pattern-thumbnail-placeholder">
+                        <svg viewBox="0 0 100 100" width="80" height="80">
+                            <circle cx="50" cy="50" r="35" fill="none" stroke="currentColor" stroke-width="3"/>
+                            <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(60 50 50)"/>
+                            <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(120 50 50)"/>
+                        </svg>
+                      </div>`}
                 <h3>${escapeHtml(pattern.name)}</h3>
                 <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
                 ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
@@ -1219,7 +1548,16 @@ function displayPatterns() {
                 ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
                 ${!pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
                 ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
-                ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
+                ${pattern.thumbnail
+                    ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
+                    : `<div class="pattern-thumbnail-placeholder">
+                        <svg viewBox="0 0 100 100" width="80" height="80">
+                            <circle cx="50" cy="50" r="35" fill="none" stroke="currentColor" stroke-width="3"/>
+                            <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(60 50 50)"/>
+                            <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(120 50 50)"/>
+                        </svg>
+                      </div>`}
                 <h3>${escapeHtml(pattern.name)}</h3>
                 <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
                 <div class="pattern-actions" onclick="event.stopPropagation()">
@@ -1329,6 +1667,11 @@ function initPDFViewer() {
     const notesClearBtn = document.getElementById('notes-clear-btn');
     notesClearBtn.addEventListener('click', clearNotes);
 
+    // Notes live preview toggle
+    const livePreviewCheckbox = document.getElementById('notes-live-preview');
+    livePreviewCheckbox.checked = localStorage.getItem('notesLivePreview') === 'true';
+    livePreviewCheckbox.addEventListener('change', toggleLivePreview);
+
     // Notes tab switching
     document.querySelectorAll('.notes-tab').forEach(tab => {
         tab.addEventListener('click', () => switchNotesTab(tab.dataset.tab));
@@ -1385,6 +1728,12 @@ async function openPDFViewer(patternId) {
             return;
         }
         const pattern = await response.json();
+
+        // Route to appropriate viewer based on pattern type
+        if (pattern.pattern_type === 'markdown') {
+            await openMarkdownViewer(pattern);
+            return;
+        }
 
         currentPattern = pattern;
         currentPageNum = pattern.current_page || 1;
@@ -1526,6 +1875,13 @@ async function loadCounters(patternId) {
 }
 
 function displayCounters() {
+    // Check if markdown viewer is active
+    const markdownViewer = document.getElementById('markdown-viewer-container');
+    if (markdownViewer && markdownViewer.style.display !== 'none') {
+        displayMarkdownCounters();
+        return;
+    }
+
     const countersList = document.getElementById('counters-list');
 
     if (counters.length === 0) {
@@ -1736,8 +2092,20 @@ async function openNotesPopover() {
         editor.value = '';
     }
 
-    // Reset to edit tab
-    switchNotesTab('edit');
+    // Apply live preview state
+    const livePreviewEnabled = localStorage.getItem('notesLivePreview') === 'true';
+    const body = document.querySelector('.notes-popover-body');
+    const tabs = document.querySelector('.notes-tabs');
+
+    if (livePreviewEnabled) {
+        body.classList.add('live-preview');
+        tabs.style.display = 'none';
+        updateLivePreview();
+    } else {
+        body.classList.remove('live-preview');
+        tabs.style.display = 'flex';
+        switchNotesTab('edit');
+    }
 
     popover.style.display = 'flex';
 }
@@ -1878,6 +2246,37 @@ function scheduleNotesAutoSave() {
     notesAutoSaveTimeout = setTimeout(() => {
         saveNotes(true);
     }, 1000); // Save after 1 second of inactivity
+
+    // Update live preview if enabled
+    updateLivePreview();
+}
+
+function toggleLivePreview() {
+    const checkbox = document.getElementById('notes-live-preview');
+    const body = document.querySelector('.notes-popover-body');
+    const tabs = document.querySelector('.notes-tabs');
+
+    localStorage.setItem('notesLivePreview', checkbox.checked);
+
+    if (checkbox.checked) {
+        body.classList.add('live-preview');
+        tabs.style.display = 'none';
+        updateLivePreview();
+    } else {
+        body.classList.remove('live-preview');
+        tabs.style.display = 'flex';
+        // Reset to edit tab when turning off live preview
+        switchNotesTab('edit');
+    }
+}
+
+function updateLivePreview() {
+    const checkbox = document.getElementById('notes-live-preview');
+    if (!checkbox.checked) return;
+
+    const editor = document.getElementById('notes-editor');
+    const preview = document.getElementById('notes-preview');
+    preview.innerHTML = renderMarkdown(editor.value);
 }
 
 function clearNotes() {
@@ -2056,6 +2455,304 @@ async function savePatternEdits() {
         await loadCategories();
     } catch (error) {
         console.error('Error updating pattern:', error);
+    }
+}
+
+// Markdown Viewer Functions
+const markdownViewerContainer = document.getElementById('markdown-viewer-container');
+let markdownNotesAutoSaveTimeout = null;
+
+async function openMarkdownViewer(pattern) {
+    try {
+        currentPattern = pattern;
+
+        // Hide tabs and show markdown viewer
+        document.querySelector('.tabs').style.display = 'none';
+        tabContents.forEach(c => c.style.display = 'none');
+        markdownViewerContainer.style.display = 'flex';
+
+        // Update header
+        document.getElementById('markdown-pattern-name').textContent = pattern.name;
+
+        // Load markdown content from file
+        const contentResponse = await fetch(`${API_URL}/api/patterns/${pattern.id}/content`);
+        if (contentResponse.ok) {
+            const data = await contentResponse.json();
+            const markdownContent = document.getElementById('markdown-content');
+            markdownContent.innerHTML = renderMarkdown(data.content || '');
+        }
+
+        // Load counters
+        await loadMarkdownCounters(pattern.id);
+
+        // Initialize markdown viewer events
+        initMarkdownViewerEvents();
+
+    } catch (error) {
+        console.error('Error opening markdown viewer:', error);
+    }
+}
+
+function initMarkdownViewerEvents() {
+    // Back button
+    const backBtn = document.getElementById('markdown-back-btn');
+    backBtn.onclick = closeMarkdownViewer;
+
+    // Notes button
+    const notesBtn = document.getElementById('markdown-notes-btn');
+    notesBtn.onclick = toggleMarkdownNotes;
+
+    // Edit button
+    const editBtn = document.getElementById('markdown-edit-btn');
+    editBtn.onclick = openMarkdownEditModal;
+
+    // Notes close button
+    const notesCloseBtn = document.getElementById('markdown-notes-close-btn');
+    notesCloseBtn.onclick = closeMarkdownNotes;
+
+    // Notes clear button
+    const notesClearBtn = document.getElementById('markdown-notes-clear-btn');
+    notesClearBtn.onclick = clearMarkdownNotes;
+
+    // Notes tabs
+    const notesTabs = document.querySelectorAll('#markdown-notes-popover .notes-tab');
+    notesTabs.forEach(tab => {
+        tab.onclick = () => switchMarkdownNotesTab(tab.dataset.tab);
+    });
+
+    // Notes live preview checkbox
+    const livePreviewCheckbox = document.getElementById('markdown-notes-live-preview');
+    livePreviewCheckbox.onchange = (e) => {
+        if (e.target.checked) {
+            switchMarkdownNotesTab('preview');
+        }
+    };
+
+    // Notes editor auto-save
+    const notesEditor = document.getElementById('markdown-notes-editor');
+    notesEditor.oninput = handleMarkdownNotesInput;
+
+    // Add counter button
+    const addCounterBtn = document.getElementById('markdown-add-counter-btn');
+    addCounterBtn.onclick = () => addCounter('Counter');
+
+    // Edit modal events
+    const closeEditModalBtn = document.getElementById('close-markdown-edit-modal');
+    closeEditModalBtn.onclick = closeMarkdownEditModal;
+
+    const cancelEditBtn = document.getElementById('cancel-markdown-edit');
+    cancelEditBtn.onclick = closeMarkdownEditModal;
+
+    const saveEditBtn = document.getElementById('save-markdown-edit');
+    saveEditBtn.onclick = saveMarkdownEdit;
+
+    const editModal = document.getElementById('markdown-edit-modal');
+    editModal.onclick = (e) => {
+        if (e.target === editModal) closeMarkdownEditModal();
+    };
+
+    // Live preview in edit modal
+    const editContent = document.getElementById('markdown-edit-content');
+    editContent.oninput = () => {
+        document.getElementById('markdown-edit-preview').innerHTML = renderMarkdown(editContent.value);
+    };
+}
+
+async function closeMarkdownViewer() {
+    markdownViewerContainer.style.display = 'none';
+    document.querySelector('.tabs').style.display = 'flex';
+
+    // Restore the previously active tab
+    const lastActiveTab = localStorage.getItem('activeTab') || 'current';
+    switchToTab(lastActiveTab);
+
+    currentPattern = null;
+    lastUsedCounterId = null;
+
+    // Reload the appropriate content
+    if (lastActiveTab === 'current') {
+        loadCurrentPatterns();
+    } else if (lastActiveTab === 'library') {
+        loadPatterns();
+    }
+}
+
+// Markdown notes functionality
+async function toggleMarkdownNotes() {
+    const popover = document.getElementById('markdown-notes-popover');
+    const isVisible = popover.style.display !== 'none';
+
+    if (isVisible) {
+        closeMarkdownNotes();
+    } else {
+        // Load notes from pattern
+        const notesEditor = document.getElementById('markdown-notes-editor');
+        notesEditor.value = currentPattern.notes || '';
+
+        // Reset to edit tab
+        switchMarkdownNotesTab('edit');
+
+        popover.style.display = 'flex';
+    }
+}
+
+function closeMarkdownNotes() {
+    document.getElementById('markdown-notes-popover').style.display = 'none';
+}
+
+function switchMarkdownNotesTab(tab) {
+    const tabs = document.querySelectorAll('#markdown-notes-popover .notes-tab');
+    const editor = document.getElementById('markdown-notes-editor');
+    const preview = document.getElementById('markdown-notes-preview');
+
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+
+    if (tab === 'edit') {
+        editor.style.display = 'block';
+        preview.style.display = 'none';
+    } else {
+        editor.style.display = 'none';
+        preview.style.display = 'block';
+        preview.innerHTML = renderMarkdown(editor.value);
+    }
+}
+
+function handleMarkdownNotesInput() {
+    const livePreview = document.getElementById('markdown-notes-live-preview').checked;
+    if (livePreview) {
+        const editor = document.getElementById('markdown-notes-editor');
+        document.getElementById('markdown-notes-preview').innerHTML = renderMarkdown(editor.value);
+    }
+    scheduleMarkdownNotesAutoSave();
+}
+
+function scheduleMarkdownNotesAutoSave() {
+    if (markdownNotesAutoSaveTimeout) {
+        clearTimeout(markdownNotesAutoSaveTimeout);
+    }
+    const statusEl = document.getElementById('markdown-notes-save-status');
+    statusEl.textContent = 'Saving...';
+
+    markdownNotesAutoSaveTimeout = setTimeout(async () => {
+        await saveMarkdownNotes();
+    }, 1000);
+}
+
+async function saveMarkdownNotes() {
+    if (!currentPattern) return;
+
+    const notes = document.getElementById('markdown-notes-editor').value;
+    const statusEl = document.getElementById('markdown-notes-save-status');
+
+    try {
+        await fetch(`${API_URL}/api/patterns/${currentPattern.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notes })
+        });
+        currentPattern.notes = notes;
+        statusEl.textContent = 'Saved';
+        setTimeout(() => { statusEl.textContent = ''; }, 2000);
+    } catch (error) {
+        console.error('Error saving notes:', error);
+        statusEl.textContent = 'Error saving';
+    }
+}
+
+async function clearMarkdownNotes() {
+    if (!confirm('Clear all notes?')) return;
+    document.getElementById('markdown-notes-editor').value = '';
+    await saveMarkdownNotes();
+    switchMarkdownNotesTab('edit');
+}
+
+// Markdown counters (reuse existing counter logic)
+async function loadMarkdownCounters(patternId) {
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${patternId}/counters`);
+        counters = await response.json();
+
+        if (counters.length === 0) {
+            await addCounter('Row Counter');
+        } else {
+            displayMarkdownCounters();
+        }
+    } catch (error) {
+        console.error('Error loading counters:', error);
+    }
+}
+
+function displayMarkdownCounters() {
+    const countersList = document.getElementById('markdown-counters-list');
+
+    if (!countersList) return;
+
+    if (counters.length === 0) {
+        countersList.innerHTML = '<p style="text-align: center; color: #6b7280;">No counters. Click "Add Counter" to create one.</p>';
+        return;
+    }
+
+    countersList.innerHTML = counters.map(counter => `
+        <div class="counter-item" data-counter-id="${counter.id}">
+            <div class="counter-name">
+                <input type="text" value="${escapeHtml(counter.name)}"
+                       onchange="updateCounterName(${counter.id}, this.value)"
+                       placeholder="Counter name">
+            </div>
+            <div class="counter-value">${counter.value}</div>
+            <div class="counter-controls">
+                <button class="counter-btn counter-btn-minus" onclick="decrementCounter(${counter.id})">−</button>
+                <button class="counter-btn counter-btn-plus" onclick="incrementCounter(${counter.id})">+</button>
+                <button class="counter-btn counter-btn-delete" onclick="deleteCounter(${counter.id})">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Markdown edit modal
+async function openMarkdownEditModal() {
+    const modal = document.getElementById('markdown-edit-modal');
+    const textarea = document.getElementById('markdown-edit-content');
+    const preview = document.getElementById('markdown-edit-preview');
+
+    // Load content from file
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/content`);
+        if (response.ok) {
+            const data = await response.json();
+            textarea.value = data.content || '';
+            preview.innerHTML = renderMarkdown(data.content || '');
+        }
+    } catch (error) {
+        console.error('Error loading content:', error);
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closeMarkdownEditModal() {
+    document.getElementById('markdown-edit-modal').style.display = 'none';
+}
+
+async function saveMarkdownEdit() {
+    const content = document.getElementById('markdown-edit-content').value;
+
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/content`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+
+        if (response.ok) {
+            // Update the viewer
+            document.getElementById('markdown-content').innerHTML = renderMarkdown(content);
+            closeMarkdownEditModal();
+        } else {
+            console.error('Error saving content');
+        }
+    } catch (error) {
+        console.error('Error saving content:', error);
     }
 }
 

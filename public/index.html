@@ -15,20 +15,41 @@
 <body>
     <div class="container">
         <header>
-            <h1>🧶 Yarnl</h1>
-            <p class="subtitle">Your Crochet Project Companion</p>
-            <button id="settings-btn" class="settings-btn" aria-label="Settings">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                </svg>
-            </button>
+            <div class="header-btn-container header-left">
+                <button id="add-pattern-btn" class="header-btn" aria-label="Add pattern">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                </button>
+                <div id="add-menu" class="add-menu" style="display: none;">
+                    <button class="add-menu-item" id="add-upload-pdf">
+                        <span class="add-menu-icon">📄</span>
+                        <span>Upload PDF</span>
+                    </button>
+                    <button class="add-menu-item" id="add-new-pattern">
+                        <span class="add-menu-icon">✍️</span>
+                        <span>New Pattern</span>
+                    </button>
+                </div>
+            </div>
+            <div class="header-title">
+                <h1>🧶 Yarnl</h1>
+                <p class="subtitle">Your Crochet Project Companion</p>
+            </div>
+            <div class="header-btn-container header-right">
+                <button id="settings-btn" class="header-btn" aria-label="Settings">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                </button>
+            </div>
         </header>
 
         <nav class="tabs">
             <button class="tab-btn active" data-tab="current">Current<span class="tab-count" id="current-tab-count"></span></button>
             <button class="tab-btn" data-tab="library">Library<span class="tab-count" id="library-tab-count"></span></button>
-            <button class="tab-btn" data-tab="upload">Upload</button>
         </nav>
 
         <!-- Current Patterns Tab -->
@@ -81,32 +102,117 @@
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- Upload Tab -->
-        <div id="upload" class="tab-content">
-            <div class="upload-container">
-                <div id="drop-zone" class="drop-zone">
-                    <div class="drop-zone-content">
-                        <span class="drop-zone-icon">📄</span>
-                        <p class="drop-zone-text">Drag & drop PDF files here or click to browse</p>
-                        <p class="drop-zone-subtext">You can select multiple files at once</p>
-                        <input type="file" id="file-input" accept=".pdf" multiple hidden>
-                        <button type="button" id="browse-btn" class="btn btn-secondary">Browse Files</button>
-                    </div>
+            <!-- Upload Panel (hidden until needed) -->
+            <div id="upload-panel" class="upload-panel" style="display: none;">
+                <div class="upload-panel-header">
+                    <h3>Upload Patterns</h3>
+                    <button id="close-upload-panel" class="btn btn-secondary">← Back to Library</button>
                 </div>
-
-                <!-- Staging Area -->
-                <div id="staging-area" class="staging-area" style="display: none;">
-                    <div class="staging-header">
-                        <h3>Staged Files (<span id="staged-count">0</span>)</h3>
-                        <div class="staging-actions">
-                            <button type="button" id="upload-all-btn" class="btn btn-primary">Upload All</button>
-                            <button type="button" id="clear-all-btn" class="btn btn-secondary">Clear All</button>
+                <div class="upload-container">
+                    <div id="drop-zone" class="drop-zone">
+                        <div class="drop-zone-content">
+                            <span class="drop-zone-icon">📄</span>
+                            <p class="drop-zone-text">Drag & drop PDF files here or click to browse</p>
+                            <p class="drop-zone-subtext">You can select multiple files at once</p>
+                            <input type="file" id="file-input" accept=".pdf" multiple hidden>
+                            <button type="button" id="browse-btn" class="btn btn-secondary">Browse Files</button>
                         </div>
                     </div>
-                    <div id="staged-files-list" class="staged-files-list">
-                        <!-- Staged files will be added here -->
+
+                    <!-- Staging Area -->
+                    <div id="staging-area" class="staging-area" style="display: none;">
+                        <div class="staging-header">
+                            <h3>Staged Files (<span id="staged-count">0</span>)</h3>
+                            <div class="staging-actions">
+                                <button type="button" id="upload-all-btn" class="btn btn-primary">Upload All</button>
+                                <button type="button" id="clear-all-btn" class="btn btn-secondary">Clear All</button>
+                            </div>
+                        </div>
+                        <div id="staged-files-list" class="staged-files-list">
+                            <!-- Staged files will be added here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Pattern Panel (for markdown patterns) -->
+            <div id="new-pattern-panel" class="new-pattern-panel" style="display: none;">
+                <div class="new-pattern-header">
+                    <h3>Create New Pattern</h3>
+                    <button id="close-new-pattern-panel" class="btn btn-secondary">← Back to Library</button>
+                </div>
+                <div class="new-pattern-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="new-pattern-name">Pattern Name *</label>
+                            <input type="text" id="new-pattern-name" required placeholder="Enter pattern name">
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <div id="new-pattern-category-container">
+                                <!-- Category dropdown will be populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-pattern-description">Description</label>
+                        <input type="text" id="new-pattern-description" placeholder="Brief description (optional)">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Hashtags</label>
+                            <div id="new-pattern-hashtags-container">
+                                <!-- Hashtag selector will be populated dynamically -->
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="new-pattern-thumbnail">Thumbnail (optional)</label>
+                            <input type="file" id="new-pattern-thumbnail" accept="image/*">
+                            <small class="form-hint">Upload an image for the pattern card</small>
+                        </div>
+                    </div>
+                    <div class="form-group new-pattern-content-group">
+                        <div class="new-pattern-content-header">
+                            <label>Pattern Content (Markdown)</label>
+                            <div class="new-pattern-tabs">
+                                <button type="button" class="new-pattern-tab active" data-tab="edit">Edit</button>
+                                <button type="button" class="new-pattern-tab" data-tab="preview">Preview</button>
+                                <label class="new-pattern-live-preview-label">
+                                    <input type="checkbox" id="new-pattern-live-preview">
+                                    <span>Live preview</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div class="new-pattern-editor-wrapper">
+                            <textarea id="new-pattern-content" placeholder="Write your pattern here... Markdown supported!
+
+Example:
+# My Pattern
+
+## Materials
+- Yarn: Worsted weight
+- Hook: 5mm
+
+## Instructions
+### Round 1
+6 sc in magic ring (6)
+
+### Round 2
+Inc in each st around (12)
+"></textarea>
+                            <div id="new-pattern-preview" class="new-pattern-preview"></div>
+                        </div>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="new-pattern-is-current">
+                            Mark as current pattern
+                        </label>
+                    </div>
+                    <div class="new-pattern-actions">
+                        <button type="button" id="cancel-new-pattern" class="btn btn-secondary">Cancel</button>
+                        <button type="button" id="save-new-pattern" class="btn btn-primary">Create Pattern</button>
                     </div>
                 </div>
             </div>
@@ -223,9 +329,84 @@
                     <div id="notes-preview" class="notes-preview" style="display: none;"></div>
                 </div>
                 <div class="notes-popover-footer">
-                    <span class="notes-hint">Markdown supported</span>
+                    <label class="notes-live-preview-label">
+                        <input type="checkbox" id="notes-live-preview">
+                        <span>Live preview</span>
+                    </label>
                     <span id="notes-save-status" class="notes-save-status"></span>
                     <button id="notes-clear-btn" class="btn btn-secondary btn-small">Clear</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Markdown Pattern Viewer -->
+    <div id="markdown-viewer-container" class="markdown-viewer-container" style="display: none;">
+        <div class="markdown-header">
+            <div class="markdown-header-left">
+                <button id="markdown-back-btn" class="btn btn-secondary">← Back</button>
+                <button id="markdown-notes-btn" class="btn btn-secondary">Notes</button>
+                <button id="markdown-edit-btn" class="btn btn-secondary">Edit</button>
+            </div>
+            <h2 id="markdown-pattern-name"></h2>
+            <div class="markdown-header-right">
+                <!-- Placeholder for symmetry -->
+            </div>
+        </div>
+
+        <div class="markdown-viewer-wrapper">
+            <div id="markdown-content" class="markdown-content">
+                <!-- Rendered markdown content will go here -->
+            </div>
+        </div>
+
+        <!-- Counter Overlay at Bottom (same as PDF viewer) -->
+        <div class="counter-overlay">
+            <div id="markdown-counters-list" class="counters-list">
+                <!-- Counters will be dynamically added here -->
+            </div>
+            <div class="counter-actions">
+                <button id="markdown-add-counter-btn" class="btn btn-success">+ Add Counter</button>
+            </div>
+        </div>
+
+        <!-- Notes Popover (reuse same structure) -->
+        <div id="markdown-notes-popover" class="notes-popover" style="display: none;">
+            <div class="notes-popover-header">
+                <div class="notes-tabs">
+                    <button class="notes-tab active" data-tab="edit">Edit</button>
+                    <button class="notes-tab" data-tab="preview">Preview</button>
+                </div>
+                <button id="markdown-notes-close-btn" class="notes-close">&times;</button>
+            </div>
+            <div class="notes-popover-body">
+                <textarea id="markdown-notes-editor" placeholder="Write your notes here... Markdown supported!"></textarea>
+                <div id="markdown-notes-preview" class="notes-preview" style="display: none;"></div>
+            </div>
+            <div class="notes-popover-footer">
+                <label class="notes-live-preview-label">
+                    <input type="checkbox" id="markdown-notes-live-preview">
+                    <span>Live preview</span>
+                </label>
+                <span id="markdown-notes-save-status" class="notes-save-status"></span>
+                <button id="markdown-notes-clear-btn" class="btn btn-secondary btn-small">Clear</button>
+            </div>
+        </div>
+
+        <!-- Edit Pattern Content Modal -->
+        <div id="markdown-edit-modal" class="modal" style="display: none;">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h2>Edit Pattern Content</h2>
+                    <button class="modal-close" id="close-markdown-edit-modal">&times;</button>
+                </div>
+                <div class="markdown-edit-body">
+                    <textarea id="markdown-edit-content" placeholder="Edit pattern content..."></textarea>
+                    <div id="markdown-edit-preview" class="markdown-edit-preview"></div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancel-markdown-edit">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="save-markdown-edit">Save Changes</button>
                 </div>
             </div>
         </div>

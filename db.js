@@ -144,6 +144,18 @@ async function initDatabase() {
                       WHERE table_name='patterns' AND column_name='notes') THEN
           ALTER TABLE patterns ADD COLUMN notes TEXT;
         END IF;
+
+        -- Add pattern_type column if it doesn't exist (pdf or markdown)
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='pattern_type') THEN
+          ALTER TABLE patterns ADD COLUMN pattern_type VARCHAR(20) DEFAULT 'pdf';
+        END IF;
+
+        -- Add content column for markdown patterns if it doesn't exist
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='content') THEN
+          ALTER TABLE patterns ADD COLUMN content TEXT;
+        END IF;
       END $$;
     `);
 

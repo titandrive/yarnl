@@ -17,11 +17,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Ensure uploads and thumbnails directories exist
-const uploadsDir = path.join(__dirname, 'uploads');
-const thumbnailsDir = path.join(__dirname, 'uploads', 'thumbnails');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+// Ensure patterns and thumbnails directories exist
+const patternsDir = path.join(__dirname, 'patterns');
+const thumbnailsDir = path.join(__dirname, 'patterns', 'thumbnails');
+if (!fs.existsSync(patternsDir)) {
+  fs.mkdirSync(patternsDir, { recursive: true });
 }
 if (!fs.existsSync(thumbnailsDir)) {
   fs.mkdirSync(thumbnailsDir, { recursive: true });
@@ -29,7 +29,7 @@ if (!fs.existsSync(thumbnailsDir)) {
 
 // Helper function to get category folder path
 function getCategoryDir(categoryName) {
-  return path.join(uploadsDir, categoryName);
+  return path.join(patternsDir, categoryName);
 }
 
 // Helper function to ensure category folder exists
@@ -107,13 +107,13 @@ function getUniqueFilename(directory, baseName, extension) {
 // Helper function to clean up empty category directories
 async function cleanupEmptyCategories() {
   try {
-    const entries = fs.readdirSync(uploadsDir, { withFileTypes: true });
+    const entries = fs.readdirSync(patternsDir, { withFileTypes: true });
 
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
       if (entry.name === 'thumbnails') continue; // Skip thumbnails directory
 
-      const categoryPath = path.join(uploadsDir, entry.name);
+      const categoryPath = path.join(patternsDir, entry.name);
       const files = fs.readdirSync(categoryPath);
 
       // If directory is empty, remove it
@@ -132,7 +132,7 @@ async function cleanupEmptyCategories() {
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     // Use a temp directory - we'll move to category folder after upload
-    cb(null, uploadsDir);
+    cb(null, patternsDir);
   },
   filename: (req, file, cb) => {
     // Use temp filename - we'll rename based on req.body.name after upload completes
@@ -248,7 +248,7 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
     console.log('  - req.file.originalname:', req.file.originalname);
 
     // Now we have access to req.body! Determine the final filename
-    const categoryDir = path.join(uploadsDir, category);
+    const categoryDir = path.join(patternsDir, category);
 
     let finalFilename;
     if (req.body.name) {
@@ -291,6 +291,145 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
   }
 });
 
+// Create a new markdown pattern
+app.post('/api/patterns/markdown', async (req, res) => {
+  try {
+    const { name, category, description, content, isCurrent, hashtagIds } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Pattern name is required' });
+    }
+
+    if (!content || !content.trim()) {
+      return res.status(400).json({ error: 'Pattern content is required' });
+    }
+
+    const patternCategory = category || 'Amigurumi';
+    const patternDescription = description || '';
+    const patternIsCurrent = isCurrent === true || isCurrent === 'true';
+
+    // Create category directory if needed
+    const categoryDir = ensureCategoryDir(patternCategory);
+
+    // Create a unique filename based on the pattern name
+    const sanitizedName = sanitizeFilename(name);
+    const filename = getUniqueFilename(categoryDir, sanitizedName, '.md');
+
+    // Save the markdown file to disk
+    const filePath = path.join(categoryDir, filename);
+    fs.writeFileSync(filePath, content, 'utf8');
+
+    const result = await pool.query(
+      `INSERT INTO patterns (name, filename, original_name, category, description, is_current, pattern_type)
+       VALUES ($1, $2, $3, $4, $5, $6, 'markdown')
+       RETURNING *`,
+      [name.trim(), filename, filename, patternCategory, patternDescription, patternIsCurrent]
+    );
+
+    const pattern = result.rows[0];
+
+    // Save hashtags if provided
+    if (hashtagIds && hashtagIds.length > 0) {
+      for (const hashtagId of hashtagIds) {
+        await pool.query(
+          'INSERT INTO pattern_hashtags (pattern_id, hashtag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [pattern.id, hashtagId]
+        );
+      }
+    }
+
+    // Fetch hashtags to include in response
+    const hashtagsResult = await pool.query(
+      `SELECT h.* FROM hashtags h
+       JOIN pattern_hashtags ph ON h.id = ph.hashtag_id
+       WHERE ph.pattern_id = $1
+       ORDER BY h.name`,
+      [pattern.id]
+    );
+
+    res.json({ ...pattern, hashtags: hashtagsResult.rows });
+  } catch (error) {
+    console.error('Error creating markdown pattern:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get markdown content for a pattern
+app.get('/api/patterns/:id/content', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT filename, category, pattern_type FROM patterns WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Pattern not found' });
+    }
+
+    const pattern = result.rows[0];
+    if (pattern.pattern_type !== 'markdown') {
+      return res.status(400).json({ error: 'Pattern is not a markdown pattern' });
+    }
+
+    // Read content from file
+    let filePath = path.join(patternsDir, pattern.category, pattern.filename);
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(patternsDir, pattern.filename);
+    }
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'Pattern file not found' });
+    }
+
+    const content = fs.readFileSync(filePath, 'utf8');
+    res.json({ content });
+  } catch (error) {
+    console.error('Error fetching pattern content:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update markdown content for a pattern
+app.put('/api/patterns/:id/content', async (req, res) => {
+  try {
+    const { content } = req.body;
+
+    // First get the pattern details
+    const checkResult = await pool.query(
+      'SELECT filename, category, pattern_type FROM patterns WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({ error: 'Pattern not found' });
+    }
+
+    const pattern = checkResult.rows[0];
+    if (pattern.pattern_type !== 'markdown') {
+      return res.status(400).json({ error: 'Pattern is not a markdown pattern' });
+    }
+
+    // Write content to file
+    let filePath = path.join(patternsDir, pattern.category, pattern.filename);
+    if (!fs.existsSync(path.dirname(filePath))) {
+      filePath = path.join(patternsDir, pattern.filename);
+    }
+
+    fs.writeFileSync(filePath, content || '', 'utf8');
+
+    // Update timestamp in database
+    await pool.query(
+      'UPDATE patterns SET updated_at = CURRENT_TIMESTAMP WHERE id = $1',
+      [req.params.id]
+    );
+
+    res.json({ content: content || '' });
+  } catch (error) {
+    console.error('Error updating pattern content:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get a specific pattern PDF (must come before /api/patterns/:id)
 app.get('/api/patterns/:id/file', async (req, res) => {
   try {
@@ -304,11 +443,11 @@ app.get('/api/patterns/:id/file', async (req, res) => {
     }
 
     const pattern = result.rows[0];
-    let filePath = path.join(uploadsDir, pattern.category, pattern.filename);
+    let filePath = path.join(patternsDir, pattern.category, pattern.filename);
 
-    // Check if file exists in category folder, otherwise check root uploads folder (for legacy files)
+    // Check if file exists in category folder, otherwise check root patterns folder (for legacy files)
     if (!fs.existsSync(filePath)) {
-      filePath = path.join(uploadsDir, pattern.filename);
+      filePath = path.join(patternsDir, pattern.filename);
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: 'File not found' });
       }
@@ -427,14 +566,14 @@ app.patch('/api/patterns/:id', async (req, res) => {
 
     // Determine the working category (use new category if changing, otherwise current)
     const workingCategory = category !== undefined ? category : pattern.category;
-    const categoryDir = path.join(uploadsDir, workingCategory);
+    const categoryDir = path.join(patternsDir, workingCategory);
 
     // Find current file location (check category folder first, then root)
-    let oldFilePath = path.join(uploadsDir, pattern.category, pattern.filename);
+    let oldFilePath = path.join(patternsDir, pattern.category, pattern.filename);
     console.log(`Checking for file at: ${oldFilePath}`);
 
     if (!fs.existsSync(oldFilePath)) {
-      oldFilePath = path.join(uploadsDir, pattern.filename);
+      oldFilePath = path.join(patternsDir, pattern.filename);
       console.log(`Not found, checking root: ${oldFilePath}`);
     }
 
@@ -556,13 +695,13 @@ app.delete('/api/patterns/:id', async (req, res) => {
     }
 
     const pattern = result.rows[0];
-    let filePath = path.join(uploadsDir, pattern.category, pattern.filename);
+    let filePath = path.join(patternsDir, pattern.category, pattern.filename);
 
     // Delete the file (check category folder first, then root for legacy files)
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     } else {
-      filePath = path.join(uploadsDir, pattern.filename);
+      filePath = path.join(patternsDir, pattern.filename);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
@@ -1263,9 +1402,9 @@ app.get('/api/stats', async (req, res) => {
     let totalSize = 0;
     const patterns = await pool.query('SELECT filename, category FROM patterns');
     for (const pattern of patterns.rows) {
-      let filePath = path.join(uploadsDir, pattern.category, pattern.filename);
+      let filePath = path.join(patternsDir, pattern.category, pattern.filename);
       if (!fs.existsSync(filePath)) {
-        filePath = path.join(uploadsDir, pattern.filename);
+        filePath = path.join(patternsDir, pattern.filename);
       }
       if (fs.existsSync(filePath)) {
         const stats = fs.statSync(filePath);
@@ -1279,7 +1418,7 @@ app.get('/api/stats', async (req, res) => {
       completedPatterns,
       patternsByCategory,
       totalSize,
-      libraryPath: '/opt/yarnl/uploads'
+      libraryPath: '/opt/yarnl/patterns'
     });
   } catch (error) {
     console.error('Error fetching stats:', error);

@@ -165,15 +165,27 @@
     <div class="grid">
       <div class="card">
         <h3>📚 Pattern Library</h3>
-        <p>Upload, tag, review, and delete PDF crochet patterns.</p>
+        <p>Upload PDF patterns with automatic thumbnails. Organize by 8 categories. Smart file naming: "Pig Pattern" → <code>pig_pattern.pdf</code></p>
       </div>
       <div class="card">
-        <h3>📊 Stitch Counter</h3>
-        <p>Track stitches and rows with keyboard shortcuts.</p>
+        <h3>📊 Multiple Counters</h3>
+        <p>Built-in stitch/row counters plus unlimited custom counters. Track multiple projects simultaneously with keyboard shortcuts.</p>
       </div>
       <div class="card">
-        <h3>📝 Project Notes</h3>
-        <p>Log progress so you never lose your place.</p>
+        <h3>📄 Integrated PDF Viewer</h3>
+        <p>View patterns with page navigation. Your current page is saved. Counter persists alongside the PDF view.</p>
+      </div>
+      <div class="card">
+        <h3>🔄 Auto File Management</h3>
+        <p>Rename patterns and files update automatically. Duplicate detection with smart numbering. Category-based organization.</p>
+      </div>
+      <div class="card">
+        <h3>💾 Full Persistence</h3>
+        <p>PostgreSQL database stores all metadata. Pattern files and thumbnails in Docker volumes. Nothing lost on restart.</p>
+      </div>
+      <div class="card">
+        <h3>📝 Project Tracking</h3>
+        <p>Mark patterns as "Current" to track active projects. Add notes, custom counters, and manage progress all in one place.</p>
       </div>
     </div>
   </section>
@@ -209,32 +221,65 @@ npm run dev</code></pre>
 
     <h3>Adding Patterns</h3>
     <ol>
-      <li>Open Pattern Library</li>
-      <li>Add name, tags, notes</li>
-      <li>Upload PDF</li>
+      <li>Click <strong>Upload</strong> tab</li>
+      <li>Enter pattern name (creates clean filename)</li>
+      <li>Choose category (Amigurumi, Wearables, etc.)</li>
+      <li>Upload PDF (supports bulk upload)</li>
+      <li>Pattern auto-organized by category</li>
     </ol>
 
-    <h3>Stitch Counter Shortcuts</h3>
+    <h3>Working with Patterns</h3>
+    <ul>
+      <li><strong>View PDF</strong> — Opens integrated viewer with navigation</li>
+      <li><strong>Edit</strong> — Rename (auto-updates file), change category, notes</li>
+      <li><strong>Add to Current</strong> — Track active projects with counters</li>
+      <li><strong>Browse by Category</strong> — Filter patterns by type</li>
+    </ul>
+
+    <h3>Counter Shortcuts</h3>
     <ul>
       <li><code>+</code> / <code>=</code> — increment stitches</li>
       <li><code>-</code> — decrement stitches</li>
       <li><code>r</code> — increment rows</li>
+      <li><strong>Custom counters</strong> — Create unlimited named counters</li>
     </ul>
   </section>
 
   <section>
     <h2>💾 Data Persistence</h2>
     <p>
-      PDFs persist via Docker volumes. Metadata is currently in-memory.
-      Database support planned.
+      <strong>PostgreSQL database</strong> stores all pattern metadata, counters,
+      notes, and project state. <strong>Docker volumes</strong> preserve PDF files
+      and thumbnails. Everything persists across restarts — including your
+      current page position in each pattern.
     </p>
+  </section>
+
+  <section>
+    <h2>🆕 Recent Updates</h2>
+    <h3>v2.0 — Smart File Management (Jan 2026)</h3>
+    <ul>
+      <li>Clean filename generation from pattern names</li>
+      <li>Auto-rename files when editing pattern names</li>
+      <li>Duplicate handling with numbering</li>
+      <li>Category-based file organization</li>
+    </ul>
+
+    <h3>v1.5 — Full Persistence & Organization</h3>
+    <ul>
+      <li>PostgreSQL database integration</li>
+      <li>8 predefined pattern categories</li>
+      <li>Integrated PDF viewer with page memory</li>
+      <li>Custom counters and bulk upload</li>
+    </ul>
   </section>
 
   <section>
     <h2>🔮 Future Enhancements</h2>
     <p>
-      Project history, search, mobile support, yarn inventory,
-      and database-backed persistence.
+      Pattern search, project statistics, mobile PWA,
+      gauge calculator, yarn inventory, Ravelry integration,
+      and community pattern sharing.
     </p>
   </section>
 

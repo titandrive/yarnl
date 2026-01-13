@@ -1,0 +1,27 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment variables
+.env
+.env.*
+
+# Database
+postgres-data/
+*.sqlite3
+
+# Docker
+.dockerignore
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Python (legacy)
+__pycache__/
+*.py[cod]
+venv/
+

@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Yarnl - Crochet Project Manager</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🧶 Yarnl</h1>
+            <p class="subtitle">Your Crochet Project Companion</p>
+            <button id="theme-toggle" class="theme-toggle" aria-label="Toggle dark mode">
+                <span class="theme-icon">🌙</span>
+            </button>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="current">Current Patterns</button>
+            <button class="tab-btn" data-tab="library">Pattern Library</button>
+            <button class="tab-btn" data-tab="upload">Upload</button>
+        </nav>
+
+        <!-- Current Patterns Tab -->
+        <div id="current" class="tab-content active">
+            <div class="current-patterns-container">
+                <h2>Current Patterns</h2>
+                <div id="current-patterns-grid" class="patterns-grid">
+                    <p class="empty-state">No current patterns. Mark a pattern as current to start tracking!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Pattern Library Tab -->
+        <div id="library" class="tab-content">
+            <div class="patterns-container">
+                <h2>Pattern Library</h2>
+                <div id="patterns-grid" class="patterns-grid">
+                    <p class="empty-state">No patterns yet. Upload your first pattern!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upload Tab -->
+        <div id="upload" class="tab-content">
+            <div class="upload-container">
+                <h2>Upload Pattern</h2>
+
+                <div id="drop-zone" class="drop-zone">
+                    <div class="drop-zone-content">
+                        <span class="drop-zone-icon">📄</span>
+                        <p class="drop-zone-text">Drag & drop PDF here or click to browse</p>
+                        <input type="file" id="file-input" accept=".pdf" hidden>
+                        <button type="button" id="browse-btn" class="btn btn-secondary">Browse Files</button>
+                    </div>
+                </div>
+
+                <form id="upload-form">
+                    <div class="form-group">
+                        <label for="pattern-name">Pattern Name *</label>
+                        <input type="text" id="pattern-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="pattern-tags">Tags (comma-separated)</label>
+                        <input type="text" id="pattern-tags" placeholder="e.g., amigurumi, beginner, sweater" list="tag-suggestions">
+                        <datalist id="tag-suggestions"></datalist>
+                    </div>
+                    <div class="form-group">
+                        <label for="pattern-notes">Notes</label>
+                        <textarea id="pattern-notes" rows="3"></textarea>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox" id="is-current">
+                            Mark as current pattern
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="upload-btn" disabled>Upload Pattern</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Counter View (hidden by default, shown when clicking a current pattern) -->
+        <div id="counter-view" class="counter-view" style="display: none;">
+            <div class="counter-header">
+                <button id="back-btn" class="btn btn-secondary">← Back</button>
+                <h2 id="counter-pattern-name"></h2>
+                <button id="view-pdf-btn" class="btn btn-primary">View PDF</button>
+            </div>
+
+            <div class="counter-container">
+                <div class="counter-section">
+                    <div class="counter-card">
+                        <h3>Row Counter</h3>
+                        <div class="count-display" id="row-count">0</div>
+                        <div class="counter-buttons">
+                            <button id="row-decrement" class="btn btn-secondary">-1 Row</button>
+                            <button id="row-increment" class="btn btn-primary">+1 Row</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="reset-section">
+                    <button id="reset-btn" class="btn btn-danger">Reset Counter</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Pattern Modal -->
+    <div id="edit-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Edit Pattern</h2>
+                <button class="modal-close" id="close-edit-modal">&times;</button>
+            </div>
+            <form id="edit-form">
+                <div class="form-group">
+                    <label for="edit-pattern-name">Pattern Name *</label>
+                    <input type="text" id="edit-pattern-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-pattern-tags">Tags (comma-separated)</label>
+                    <input type="text" id="edit-pattern-tags" placeholder="e.g., amigurumi, beginner, sweater" list="tag-suggestions">
+                </div>
+                <div class="form-group">
+                    <label for="edit-pattern-notes">Notes</label>
+                    <textarea id="edit-pattern-notes" rows="3"></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="edit-thumbnail">Custom Thumbnail (optional)</label>
+                    <input type="file" id="edit-thumbnail" accept="image/*">
+                    <p class="help-text">Upload a custom image or leave blank to keep current thumbnail</p>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" id="cancel-edit-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

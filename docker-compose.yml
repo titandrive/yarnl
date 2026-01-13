@@ -1,0 +1,47 @@
+services:
+#--------------------
+#  Postgres Database
+#--------------------
+  postgres:
+    container_name: yarnl-db
+    image: postgres:16-alpine
+    volumes:
+      - /opt/yarnl/postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=yarnl
+      - POSTGRES_USER=yarnl
+      - POSTGRES_PASSWORD=yarnl
+    restart: unless-stopped
+    networks:
+      - yarn-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yarnl"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+#--------------------
+#  Yarnl Application
+#--------------------
+  yarnl:
+    container_name: yarnl
+    build: .
+    volumes:
+      - ./uploads:/app/uploads
+    environment:
+      - NODE_ENV=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=yarnl
+      - POSTGRES_USER=yarnl
+      - POSTGRES_PASSWORD=yarnl
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - yarn-net
+
+networks:
+  yarn-net:
+    external: true

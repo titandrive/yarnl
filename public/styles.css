@@ -293,6 +293,11 @@ header h1 {
     margin: 0 auto;
 }
 
+.patterns-container h2 {
+    color: var(--primary-color);
+    margin-bottom: 20px;
+}
+
 .upload-section {
     background: var(--upload-bg);
     padding: 30px;
@@ -360,6 +365,7 @@ header h1 {
     padding: 20px;
     box-shadow: var(--shadow);
     transition: all 0.3s ease;
+    position: relative;
 }
 
 .pattern-card:hover {
@@ -371,6 +377,9 @@ header h1 {
     color: var(--primary-color);
     margin-bottom: 10px;
     font-size: 1.2rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    hyphens: auto;
 }
 
 .pattern-card .pattern-date {
@@ -549,14 +558,17 @@ header h1 {
 }
 
 .pattern-card .current-badge {
-    display: inline-block;
+    position: absolute;
+    top: 30px;
+    right: 30px;
     background: var(--success-color);
     color: white;
-    padding: 4px 12px;
+    padding: 6px 12px;
     border-radius: 12px;
     font-size: 0.75rem;
     font-weight: 600;
-    margin-bottom: 10px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 10;
 }
 
 /* Modal */
@@ -636,6 +648,7 @@ header h1 {
     object-fit: cover;
     border-radius: 8px;
     margin-bottom: 10px;
+    position: relative;
 }
 
 .btn-success {

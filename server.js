@@ -28,7 +28,7 @@ if (!fs.existsSync(thumbnailsDir)) {
 }
 
 // Available categories
-const CATEGORIES = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace / Filet', 'Colorwork', 'Freeform', 'Micro', 'Other'];
+const CATEGORIES = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace', 'Colorwork', 'Freeform', 'Micro', 'Other'];
 
 // Helper function to sanitize filename
 function sanitizeFilename(name) {

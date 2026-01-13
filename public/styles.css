@@ -759,6 +759,25 @@ header {
     z-index: 10;
 }
 
+.pattern-card .type-badge {
+    position: absolute;
+    top: 192px;
+    left: 30px;
+    background: rgba(0, 0, 0, 0.6);
+    color: white;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10;
+}
+
+.pattern-card .type-badge svg {
+    opacity: 0.9;
+}
+
 .completion-date {
     color: var(--warning-color);
     font-size: 0.85rem;

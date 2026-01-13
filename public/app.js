@@ -52,6 +52,57 @@ document.addEventListener('DOMContentLoaded', () => {
     loadHashtags();
 });
 
+// Auto-continue lists in markdown editors (bullets, numbers, checkboxes)
+function setupMarkdownListContinuation(textarea) {
+    textarea.addEventListener('keydown', (e) => {
+        if (e.key !== 'Enter') return;
+
+        const { selectionStart, value } = textarea;
+        const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
+        const currentLine = value.substring(lineStart, selectionStart);
+
+        // Match bullet points (-, *, +), numbered lists (1. 2. etc), or checkboxes (- [ ] or - [x])
+        const bulletMatch = currentLine.match(/^(\s*)([-*+])\s+(\[[ x]\]\s+)?/);
+        const numberMatch = currentLine.match(/^(\s*)(\d+)\.\s+/);
+
+        let prefix = '';
+
+        if (bulletMatch) {
+            const [fullMatch, indent, bullet, checkbox] = bulletMatch;
+            // If line only has the bullet (empty item), remove it instead of continuing
+            if (currentLine.trim() === bullet || currentLine.trim() === `${bullet} [ ]` || currentLine.trim() === `${bullet} [x]`) {
+                e.preventDefault();
+                // Remove the empty bullet line
+                textarea.value = value.substring(0, lineStart) + value.substring(selectionStart);
+                textarea.selectionStart = textarea.selectionEnd = lineStart;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                return;
+            }
+            prefix = indent + bullet + ' ' + (checkbox ? '[ ] ' : '');
+        } else if (numberMatch) {
+            const [fullMatch, indent, num] = numberMatch;
+            // If line only has the number (empty item), remove it instead of continuing
+            if (currentLine.trim() === `${num}.`) {
+                e.preventDefault();
+                textarea.value = value.substring(0, lineStart) + value.substring(selectionStart);
+                textarea.selectionStart = textarea.selectionEnd = lineStart;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                return;
+            }
+            prefix = indent + (parseInt(num) + 1) + '. ';
+        }
+
+        if (prefix) {
+            e.preventDefault();
+            const before = value.substring(0, selectionStart);
+            const after = value.substring(selectionStart);
+            textarea.value = before + '\n' + prefix + after;
+            textarea.selectionStart = textarea.selectionEnd = selectionStart + 1 + prefix.length;
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    });
+}
+
 // Theme toggle
 function initTheme() {
     const themeCheckbox = document.getElementById('theme-toggle-checkbox');
@@ -894,6 +945,8 @@ function initNewPatternPanel() {
         contentEditor.addEventListener('input', () => {
             updateNewPatternPreview();
         });
+        // Enable auto-continue for lists
+        setupMarkdownListContinuation(contentEditor);
     }
 
     if (saveBtn) {
@@ -1662,6 +1715,8 @@ function initPDFViewer() {
     // Notes auto-save on input
     const notesEditor = document.getElementById('notes-editor');
     notesEditor.addEventListener('input', scheduleNotesAutoSave);
+    // Enable auto-continue for lists
+    setupMarkdownListContinuation(notesEditor);
 
     // Notes clear button
     const notesClearBtn = document.getElementById('notes-clear-btn');
@@ -1682,7 +1737,10 @@ function initPDFViewer() {
 
     // Keyboard shortcuts for page navigation and counter control
     document.addEventListener('keydown', (e) => {
-        if (pdfViewerContainer.style.display !== 'flex') {
+        const isPdfViewerOpen = pdfViewerContainer.style.display === 'flex';
+        const isMarkdownViewerOpen = markdownViewerContainer && markdownViewerContainer.style.display === 'flex';
+
+        if (!isPdfViewerOpen && !isMarkdownViewerOpen) {
             return;
         }
 
@@ -1693,12 +1751,18 @@ function initPDFViewer() {
 
         switch(e.key) {
             case 'ArrowLeft':
-                e.preventDefault();
-                changePage(-1);
+                // Only for PDF viewer (page navigation)
+                if (isPdfViewerOpen) {
+                    e.preventDefault();
+                    changePage(-1);
+                }
                 break;
             case 'ArrowRight':
-                e.preventDefault();
-                changePage(1);
+                // Only for PDF viewer (page navigation)
+                if (isPdfViewerOpen) {
+                    e.preventDefault();
+                    changePage(1);
+                }
                 break;
             case 'ArrowUp':
                 e.preventDefault();
@@ -2334,18 +2398,23 @@ function renderMarkdown(text) {
     // Blockquotes
     html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
 
-    // Unordered lists
-    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+    // Ordered lists (must come before unordered to avoid conflicts)
+    html = html.replace(/^(\d+)\. (.+)$/gm, '<oli>$2</oli>');
+    html = html.replace(/(<oli>.*<\/oli>\n?)+/g, (match) => {
+        return '<ol>' + match.replace(/<oli>/g, '<li>').replace(/<\/oli>/g, '</li>') + '</ol>';
+    });
 
-    // Ordered lists
-    html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+    // Unordered lists
+    html = html.replace(/^- (.+)$/gm, '<uli>$1</uli>');
+    html = html.replace(/(<uli>.*<\/uli>\n?)+/g, (match) => {
+        return '<ul>' + match.replace(/<uli>/g, '<li>').replace(/<\/uli>/g, '</li>') + '</ul>';
+    });
 
     // Line breaks to paragraphs
     html = html.split(/\n\n+/).map(p => {
         p = p.trim();
         if (!p) return '';
-        if (p.startsWith('<h') || p.startsWith('<pre') || p.startsWith('<ul') || p.startsWith('<ol') || p.startsWith('<blockquote')) {
+        if (p.startsWith('<h') || p.startsWith('<pre') || p.startsWith('<ul') || p.startsWith('<ol>') || p.startsWith('<blockquote')) {
             return p;
         }
         return `<p>${p.replace(/\n/g, '<br>')}</p>`;
@@ -2531,6 +2600,8 @@ function initMarkdownViewerEvents() {
     // Notes editor auto-save
     const notesEditor = document.getElementById('markdown-notes-editor');
     notesEditor.oninput = handleMarkdownNotesInput;
+    // Enable auto-continue for lists
+    setupMarkdownListContinuation(notesEditor);
 
     // Add counter button
     const addCounterBtn = document.getElementById('markdown-add-counter-btn');
@@ -2556,6 +2627,8 @@ function initMarkdownViewerEvents() {
     editContent.oninput = () => {
         document.getElementById('markdown-edit-preview').innerHTML = renderMarkdown(editContent.value);
     };
+    // Enable auto-continue for lists
+    setupMarkdownListContinuation(editContent);
 }
 
 async function closeMarkdownViewer() {

@@ -233,7 +233,7 @@ function renderStagedFiles() {
                         <label>Pattern Name</label>
                         <input type="text"
                                value="${escapeHtml(stagedFile.name)}"
-                               onchange="updateStagedFile('${stagedFile.id}', 'name', this.value)"
+                               oninput="updateStagedFile('${stagedFile.id}', 'name', this.value)"
                                ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
                     </div>
                     <div class="form-group">
@@ -287,7 +287,9 @@ function renderStagedFiles() {
 function updateStagedFile(fileId, field, value) {
     const stagedFile = stagedFiles.find(f => f.id === fileId);
     if (stagedFile) {
+        console.log(`Updating staged file ${fileId}: ${field} = "${value}"`);
         stagedFile[field] = value;
+        console.log('Updated stagedFile:', stagedFile);
     }
 }
 
@@ -350,12 +352,18 @@ async function uploadStagedFile(stagedFile) {
     stagedFile.error = null;
     renderStagedFiles();
 
+    console.log('About to upload staged file:', stagedFile);
+    console.log('stagedFile.name:', stagedFile.name);
+    console.log('stagedFile.file.name:', stagedFile.file.name);
+
     const formData = new FormData();
     formData.append('pdf', stagedFile.file);
     formData.append('name', stagedFile.name || stagedFile.file.name.replace('.pdf', ''));
     formData.append('category', stagedFile.category);
     formData.append('notes', stagedFile.notes);
     formData.append('isCurrent', stagedFile.isCurrent);
+
+    console.log('FormData name value:', stagedFile.name || stagedFile.file.name.replace('.pdf', ''));
 
     try {
         const xhr = new XMLHttpRequest();

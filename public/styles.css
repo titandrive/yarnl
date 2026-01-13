@@ -43,12 +43,24 @@ body {
     background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-color) 100%);
     color: var(--text-color);
     min-height: 100vh;
-    padding: 20px;
+    padding: 16px;
     transition: background 0.3s ease, color 0.3s ease;
 }
 
+@media (min-width: 768px) {
+    body {
+        padding: 20px;
+    }
+}
+
+@media (min-width: 1920px) {
+    body {
+        padding: 20px 40px;
+    }
+}
+
 .container {
-    max-width: 1200px;
+    max-width: 1600px;
     margin: 0 auto;
     background: var(--card-bg);
     border-radius: 20px;
@@ -346,8 +358,8 @@ header h1 {
 
 .patterns-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 24px;
 }
 
 .empty-state {

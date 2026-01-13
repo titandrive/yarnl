@@ -53,32 +53,16 @@ function getUniqueFilename(directory, baseName, extension) {
 }
 
 // Configure multer for PDF uploads
+// Note: req.body is NOT available in these callbacks, so we use temp filenames
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const category = req.body.category || 'Amigurumi';
-    const categoryDir = path.join(uploadsDir, category);
-
-    // Ensure category directory exists
-    if (!fs.existsSync(categoryDir)) {
-      fs.mkdirSync(categoryDir, { recursive: true });
-    }
-
-    cb(null, categoryDir);
+    // Use a temp directory - we'll move to category folder after upload
+    cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const category = req.body.category || 'Amigurumi';
-    const categoryDir = path.join(uploadsDir, category);
-    const customName = req.body.name;
-
-    if (customName) {
-      // User provided a name: sanitize it and use as filename
-      const sanitized = sanitizeFilename(customName);
-      const filename = getUniqueFilename(categoryDir, sanitized, '.pdf');
-      cb(null, filename);
-    } else {
-      // No name provided: keep original filename without appending anything
-      cb(null, file.originalname);
-    }
+    // Use temp filename - we'll rename based on req.body.name after upload completes
+    const tempFilename = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${file.originalname}`;
+    cb(null, tempFilename);
   }
 });
 
@@ -167,16 +151,45 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
     const notes = req.body.notes || '';
     const isCurrent = req.body.isCurrent === 'true' || req.body.isCurrent === true;
 
+    console.log('Upload received:');
+    console.log('  - req.body.name:', req.body.name);
+    console.log('  - computed name:', name);
+    console.log('  - req.file.filename:', req.file.filename);
+    console.log('  - req.file.originalname:', req.file.originalname);
+
+    // Now we have access to req.body! Determine the final filename
+    const categoryDir = path.join(uploadsDir, category);
+    if (!fs.existsSync(categoryDir)) {
+      fs.mkdirSync(categoryDir, { recursive: true });
+    }
+
+    let finalFilename;
+    if (req.body.name) {
+      // User provided a custom name
+      const sanitized = sanitizeFilename(req.body.name);
+      finalFilename = getUniqueFilename(categoryDir, sanitized, '.pdf');
+    } else {
+      // No custom name, use original filename
+      finalFilename = req.file.originalname;
+    }
+
+    // Move file from temp location to category folder with final name
+    const tempPath = req.file.path;
+    const finalPath = path.join(categoryDir, finalFilename);
+    fs.renameSync(tempPath, finalPath);
+
+    console.log(`Moved file from ${tempPath} to ${finalPath}`);
+
     // Generate thumbnail from PDF
-    const pdfPath = req.file.path;
-    const thumbnailFilename = `thumb-${category}-${req.file.filename}.jpg`;
+    const pdfPath = finalPath;
+    const thumbnailFilename = `thumb-${category}-${finalFilename}.jpg`;
     const thumbnail = await generateThumbnail(pdfPath, thumbnailFilename);
 
     const result = await pool.query(
       `INSERT INTO patterns (name, filename, original_name, category, notes, is_current, thumbnail)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [name, req.file.filename, req.file.originalname, category, notes, isCurrent, thumbnail]
+      [name, finalFilename, req.file.originalname, category, notes, isCurrent, thumbnail]
     );
 
     res.json(result.rows[0]);

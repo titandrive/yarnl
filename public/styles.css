@@ -334,7 +334,8 @@ header h1 {
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
     width: 100%;
     padding: 12px;
     border: 2px solid var(--border-color);
@@ -346,7 +347,8 @@ header h1 {
 }
 
 .form-group input:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.form-group select:focus {
     outline: none;
     border-color: var(--primary-color);
 }
@@ -1077,7 +1079,8 @@ header h1 {
 }
 
 .staged-file-form input,
-.staged-file-form textarea {
+.staged-file-form textarea,
+.staged-file-form select {
     font-size: 0.95rem;
 }
 

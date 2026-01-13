@@ -454,10 +454,21 @@ app.get('/api/patterns/current', async (req, res) => {
   }
 });
 
-// Get all available categories
+// Get all available categories (only those with patterns) with counts
 app.get('/api/categories', async (req, res) => {
   try {
-    res.json(CATEGORIES);
+    // Query database for categories with pattern counts
+    const result = await pool.query(
+      `SELECT category, COUNT(*) as count
+       FROM patterns
+       GROUP BY category
+       ORDER BY category`
+    );
+    const categoriesWithCounts = result.rows.map(row => ({
+      name: row.category,
+      count: parseInt(row.count)
+    }));
+    res.json(categoriesWithCounts);
   } catch (error) {
     console.error('Error fetching categories:', error);
     res.status(500).json({ error: error.message });

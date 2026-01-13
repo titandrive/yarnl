@@ -241,8 +241,8 @@ function renderStagedFiles() {
                         <select onchange="updateStagedFile('${stagedFile.id}', 'category', this.value)"
                                 ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
                             ${allCategories.length > 0 ? allCategories.map(cat => `
-                                <option value="${escapeHtml(cat)}" ${cat === stagedFile.category ? 'selected' : ''}>
-                                    ${escapeHtml(cat)}
+                                <option value="${escapeHtml(cat.name)}" ${cat.name === stagedFile.category ? 'selected' : ''}>
+                                    ${escapeHtml(cat.name)}
                                 </option>
                             `).join('') : `<option value="Amigurumi">Amigurumi</option>`}
                         </select>
@@ -440,27 +440,29 @@ async function loadCategories() {
         }
     } catch (error) {
         console.error('Error loading categories:', error);
-        // Fallback to default categories if API fails
-        allCategories = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace / Filet', 'Colorwork', 'Freeform', 'Micro', 'Other'];
+        // Fallback to default categories if API fails (with count of 0)
+        allCategories = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace / Filet', 'Colorwork', 'Freeform', 'Micro', 'Other']
+            .map(name => ({ name, count: 0 }));
         updateCategorySelects();
     }
 }
 
 function updateCategorySelects() {
-    // Update edit modal category select
+    // Update edit modal category select (just names, no counts)
     const editCategorySelect = document.getElementById('edit-pattern-category');
     if (editCategorySelect) {
         editCategorySelect.innerHTML = allCategories.map(cat =>
-            `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`
+            `<option value="${escapeHtml(cat.name)}">${escapeHtml(cat.name)}</option>`
         ).join('');
     }
 
-    // Update library filter select
+    // Update library filter select (with counts)
     const filterSelect = document.getElementById('category-filter-select');
     if (filterSelect) {
-        filterSelect.innerHTML = '<option value="all">All Categories</option>' +
+        const totalCount = allCategories.reduce((sum, cat) => sum + cat.count, 0);
+        filterSelect.innerHTML = `<option value="all">All Categories (${totalCount})</option>` +
             allCategories.map(cat =>
-                `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`
+                `<option value="${escapeHtml(cat.name)}">${escapeHtml(cat.name)} (${cat.count})</option>`
             ).join('');
 
         // Add event listener for filter

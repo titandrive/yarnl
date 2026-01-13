@@ -522,12 +522,13 @@ function displayCurrentPatterns() {
 
     grid.innerHTML = currentPatterns.map(pattern => `
         <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
-            <span class="current-badge">CURRENT</span>
+            ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : '<span class="current-badge">CURRENT</span>'}
             ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
             ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
             <h3>${escapeHtml(pattern.name)}</h3>
             <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
             ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
+            ${pattern.completed && pattern.completed_date ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}</p>` : ''}
         </div>
     `).join('');
 }
@@ -552,21 +553,26 @@ function displayPatterns() {
 
     grid.innerHTML = filteredPatterns.map(pattern => `
         <div class="pattern-card" onclick="openPDFViewer(${pattern.id})" style="cursor: pointer;">
-            ${pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
+            ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
+            ${!pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
             ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
             ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
             <h3>${escapeHtml(pattern.name)}</h3>
             <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
             <div class="pattern-actions" onclick="event.stopPropagation()">
-                <button class="btn btn-primary btn-small" onclick="openPDFViewer('${pattern.id}')">View PDF</button>
-                <button class="btn btn-${pattern.is_current ? 'secondary' : 'success'} btn-small"
+                <button class="btn btn-success btn-small"
                         onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})">
-                    ${pattern.is_current ? 'Remove from Current' : 'Mark as Current'}
+                    ${pattern.is_current ? 'Remove from Current' : 'Make Current'}
+                </button>
+                <button class="btn btn-warning btn-small"
+                        onclick="toggleComplete('${pattern.id}', ${!pattern.completed})">
+                    ${pattern.completed ? 'Mark Incomplete' : 'Mark Complete'}
                 </button>
                 <button class="btn btn-secondary btn-small" onclick="openEditModal('${pattern.id}')">Edit</button>
                 <button class="btn btn-danger btn-small" onclick="deletePattern('${pattern.id}')">Delete</button>
             </div>
             ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
+            ${pattern.completed && pattern.completed_date ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}</p>` : ''}
         </div>
     `).join('');
 }
@@ -588,6 +594,26 @@ async function toggleCurrent(id, isCurrent) {
         }
     } catch (error) {
         console.error('Error toggling current status:', error);
+    }
+}
+
+async function toggleComplete(id, completed) {
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${id}/complete`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ completed })
+        });
+
+        if (response.ok) {
+            await loadPatterns();
+            await loadCurrentPatterns();
+        } else {
+            const error = await response.json();
+            console.error('Error updating completion status:', error.error);
+        }
+    } catch (error) {
+        console.error('Error toggling completion status:', error);
     }
 }
 

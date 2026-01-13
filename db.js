@@ -85,6 +85,18 @@ async function initDatabase() {
                       WHERE table_name='patterns' AND column_name='description') THEN
           ALTER TABLE patterns ADD COLUMN description TEXT;
         END IF;
+
+        -- Add completed column if it doesn't exist
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='completed') THEN
+          ALTER TABLE patterns ADD COLUMN completed BOOLEAN DEFAULT false;
+        END IF;
+
+        -- Add completed_date column if it doesn't exist
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='completed_date') THEN
+          ALTER TABLE patterns ADD COLUMN completed_date TIMESTAMP;
+        END IF;
       END $$;
     `);
 

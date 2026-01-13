@@ -11,6 +11,7 @@
     --secondary-color: #ec4899;
     --danger-color: #ef4444;
     --success-color: #10b981;
+    --warning-color: #f59e0b;
     --bg-color: #faf5ff;
     --card-bg: #ffffff;
     --text-color: #1f2937;
@@ -27,6 +28,7 @@
     --secondary-color: #f472b6;
     --danger-color: #f87171;
     --success-color: #34d399;
+    --warning-color: #fbbf24;
     --bg-color: #0f0a1a;
     --card-bg: #1a1625;
     --text-color: #e5e7eb;
@@ -297,6 +299,15 @@ header h1 {
 
 .btn-danger:hover {
     background: #dc2626;
+}
+
+.btn-warning {
+    background: var(--warning-color);
+    color: white;
+}
+
+.btn-warning:hover {
+    background: #d97706;
 }
 
 /* Pattern Library */
@@ -628,6 +639,27 @@ header h1 {
     font-weight: 600;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     z-index: 10;
+}
+
+.pattern-card .completed-badge {
+    position: absolute;
+    top: 30px;
+    right: 30px;
+    background: var(--warning-color);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    z-index: 10;
+}
+
+.completion-date {
+    color: var(--warning-color);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin: 10px 0 0 0;
 }
 
 /* Modal */

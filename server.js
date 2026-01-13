@@ -534,8 +534,13 @@ app.get('/api/categories', async (req, res) => {
 app.patch('/api/patterns/:id/current', async (req, res) => {
   try {
     const { isCurrent } = req.body;
+
+    // When marking as current, un-complete it (but keep completed_date for history)
     const result = await pool.query(
-      `UPDATE patterns SET is_current = $1, updated_at = CURRENT_TIMESTAMP
+      `UPDATE patterns
+       SET is_current = $1,
+           completed = CASE WHEN $1 = true THEN false ELSE completed END,
+           updated_at = CURRENT_TIMESTAMP
        WHERE id = $2 RETURNING *`,
       [isCurrent, req.params.id]
     );
@@ -547,6 +552,34 @@ app.patch('/api/patterns/:id/current', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating pattern status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle pattern completion status
+app.patch('/api/patterns/:id/complete', async (req, res) => {
+  try {
+    const { completed } = req.body;
+    const completedDate = completed ? 'CURRENT_TIMESTAMP' : 'NULL';
+
+    // When marking as complete, remove from current. When marking incomplete, keep current status unchanged
+    const result = await pool.query(
+      `UPDATE patterns
+       SET completed = $1,
+           completed_date = ${completedDate},
+           is_current = CASE WHEN $1 = true THEN false ELSE is_current END,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 RETURNING *`,
+      [completed, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Pattern not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating completion status:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -667,21 +667,13 @@ async function openPDFViewer(patternId) {
         // Convert to number for comparison
         const id = parseInt(patternId);
 
-        // First try to find in current patterns, then in all patterns
-        let pattern = currentPatterns.find(p => p.id === id);
-        if (!pattern) {
-            pattern = patterns.find(p => p.id === id);
+        // Always fetch fresh data from API to ensure we have the latest current_page
+        const response = await fetch(`${API_URL}/api/patterns/${id}`);
+        if (!response.ok) {
+            console.error('Pattern not found');
+            return;
         }
-
-        // If still not found, fetch from API
-        if (!pattern) {
-            const response = await fetch(`${API_URL}/api/patterns/${id}`);
-            if (!response.ok) {
-                console.error('Pattern not found');
-                return;
-            }
-            pattern = await response.json();
-        }
+        const pattern = await response.json();
 
         currentPattern = pattern;
         currentPageNum = pattern.current_page || 1;
@@ -772,7 +764,20 @@ async function changePage(delta) {
     }
 }
 
-function closePDFViewer() {
+async function closePDFViewer() {
+    // Save current page before closing
+    if (currentPattern && currentPageNum) {
+        try {
+            await fetch(`${API_URL}/api/patterns/${currentPattern.id}/page`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPage: currentPageNum })
+            });
+        } catch (error) {
+            console.error('Error saving page on close:', error);
+        }
+    }
+
     pdfViewerContainer.style.display = 'none';
     document.querySelector('.tabs').style.display = 'flex';
 

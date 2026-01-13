@@ -224,7 +224,7 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
   }
 });
 
-// Get a specific pattern PDF
+// Get a specific pattern PDF (must come before /api/patterns/:id)
 app.get('/api/patterns/:id/file', async (req, res) => {
   try {
     const result = await pool.query(
@@ -280,6 +280,38 @@ app.get('/api/patterns/:id/thumbnail', async (req, res) => {
     res.sendFile(thumbnailPath);
   } catch (error) {
     console.error('Error fetching thumbnail:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get current patterns (must come before /api/patterns/:id)
+app.get('/api/patterns/current', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM patterns WHERE is_current = true ORDER BY updated_at DESC'
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching current patterns:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get a single pattern by ID (must come after all /api/patterns/:id/something routes)
+app.get('/api/patterns/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM patterns WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Pattern not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error fetching pattern:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -463,19 +495,6 @@ app.delete('/api/patterns/:id', async (req, res) => {
     res.json({ message: 'Pattern deleted successfully' });
   } catch (error) {
     console.error('Error deleting pattern:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get current patterns
-app.get('/api/patterns/current', async (req, res) => {
-  try {
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE is_current = true ORDER BY updated_at DESC'
-    );
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching current patterns:', error);
     res.status(500).json({ error: error.message });
   }
 });

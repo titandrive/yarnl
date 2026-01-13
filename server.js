@@ -30,6 +30,28 @@ if (!fs.existsSync(thumbnailsDir)) {
 // Available categories
 const CATEGORIES = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace / Filet', 'Colorwork', 'Freeform', 'Micro', 'Other'];
 
+// Helper function to sanitize filename
+function sanitizeFilename(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+}
+
+// Helper function to find unique filename
+function getUniqueFilename(directory, baseName, extension) {
+  let filename = `${baseName}${extension}`;
+  let counter = 2;
+
+  while (fs.existsSync(path.join(directory, filename))) {
+    filename = `${baseName}_${counter}${extension}`;
+    counter++;
+  }
+
+  return filename;
+}
+
 // Configure multer for PDF uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -44,7 +66,19 @@ const storage = multer.diskStorage({
     cb(null, categoryDir);
   },
   filename: (req, file, cb) => {
-    cb(null, file.originalname);
+    const category = req.body.category || 'Amigurumi';
+    const categoryDir = path.join(uploadsDir, category);
+    const customName = req.body.name;
+
+    if (customName) {
+      // User provided a name: sanitize it and use as filename
+      const sanitized = sanitizeFilename(customName);
+      const filename = getUniqueFilename(categoryDir, sanitized, '.pdf');
+      cb(null, filename);
+    } else {
+      // No name provided: keep original filename without appending anything
+      cb(null, file.originalname);
+    }
   }
 });
 
@@ -230,22 +264,40 @@ app.patch('/api/patterns/:id', async (req, res) => {
     }
 
     const pattern = currentPattern.rows[0];
+    let newFilename = pattern.filename;
 
-    // If category is being changed, move the file
-    if (category !== undefined && category !== pattern.category) {
-      console.log(`Category changing from "${pattern.category}" to "${category}"`);
+    // Determine the working category (use new category if changing, otherwise current)
+    const workingCategory = category !== undefined ? category : pattern.category;
+    const categoryDir = path.join(uploadsDir, workingCategory);
 
-      // Find current file location (check category folder first, then root)
-      let oldFilePath = path.join(uploadsDir, pattern.category, pattern.filename);
-      console.log(`Checking for file at: ${oldFilePath}`);
+    // Find current file location (check category folder first, then root)
+    let oldFilePath = path.join(uploadsDir, pattern.category, pattern.filename);
+    console.log(`Checking for file at: ${oldFilePath}`);
 
-      if (!fs.existsSync(oldFilePath)) {
-        oldFilePath = path.join(uploadsDir, pattern.filename);
-        console.log(`Not found, checking root: ${oldFilePath}`);
+    if (!fs.existsSync(oldFilePath)) {
+      oldFilePath = path.join(uploadsDir, pattern.filename);
+      console.log(`Not found, checking root: ${oldFilePath}`);
+    }
+
+    if (!fs.existsSync(oldFilePath)) {
+      console.log(`File not found at ${oldFilePath}, skipping file operations`);
+    } else {
+      console.log(`File found at: ${oldFilePath}`);
+
+      // If name is being changed, rename the file
+      if (name !== undefined && name !== pattern.name) {
+        console.log(`Name changing from "${pattern.name}" to "${name}"`);
+
+        // Generate new filename from the new name
+        const sanitized = sanitizeFilename(name);
+        const extension = path.extname(pattern.filename);
+        newFilename = getUniqueFilename(categoryDir, sanitized, extension);
+        console.log(`New filename will be: ${newFilename}`);
       }
 
-      if (fs.existsSync(oldFilePath)) {
-        console.log(`File found at: ${oldFilePath}`);
+      // If category is being changed, move the file
+      if (category !== undefined && category !== pattern.category) {
+        console.log(`Category changing from "${pattern.category}" to "${category}"`);
 
         // Create new category directory if it doesn't exist
         const newCategoryDir = path.join(uploadsDir, category);
@@ -253,14 +305,35 @@ app.patch('/api/patterns/:id', async (req, res) => {
           fs.mkdirSync(newCategoryDir, { recursive: true });
           console.log(`Created directory: ${newCategoryDir}`);
         }
+      }
 
-        // Move file to new category folder
-        const newFilePath = path.join(newCategoryDir, pattern.filename);
-        console.log(`Moving to: ${newFilePath}`);
+      // Perform the file move/rename if needed
+      const newFilePath = path.join(categoryDir, newFilename);
+      if (oldFilePath !== newFilePath) {
+        // Ensure target directory exists
+        if (!fs.existsSync(categoryDir)) {
+          fs.mkdirSync(categoryDir, { recursive: true });
+        }
+
         fs.renameSync(oldFilePath, newFilePath);
-        console.log(`Successfully moved file from ${oldFilePath} to ${newFilePath}`);
-      } else {
-        console.log(`File not found at ${oldFilePath}, skipping move`);
+        console.log(`Successfully moved/renamed file from ${oldFilePath} to ${newFilePath}`);
+
+        // Update thumbnail filename if it exists
+        if (pattern.thumbnail && newFilename !== pattern.filename) {
+          const oldThumbnailPath = path.join(thumbnailsDir, pattern.thumbnail);
+          if (fs.existsSync(oldThumbnailPath)) {
+            const newThumbnailFilename = `thumb-${workingCategory}-${newFilename}.jpg`;
+            const newThumbnailPath = path.join(thumbnailsDir, newThumbnailFilename);
+            fs.renameSync(oldThumbnailPath, newThumbnailPath);
+            console.log(`Renamed thumbnail from ${pattern.thumbnail} to ${newThumbnailFilename}`);
+
+            // Update thumbnail in database
+            await pool.query(
+              'UPDATE patterns SET thumbnail = $1 WHERE id = $2',
+              [newThumbnailFilename, req.params.id]
+            );
+          }
+        }
       }
     }
 
@@ -279,6 +352,12 @@ app.patch('/api/patterns/:id', async (req, res) => {
     if (category !== undefined) {
       updates.push(`category = $${paramCount++}`);
       values.push(category);
+    }
+
+    // Update filename if it changed
+    if (newFilename !== pattern.filename) {
+      updates.push(`filename = $${paramCount++}`);
+      values.push(newFilename);
     }
 
     if (updates.length === 0) {

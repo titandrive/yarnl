@@ -2128,6 +2128,7 @@ function initPDFViewer() {
     const addCounterBtn = document.getElementById('add-counter-btn');
     const notesBtn = document.getElementById('pdf-notes-btn');
     const notesCloseBtn = document.getElementById('notes-close-btn');
+    const editBtn = document.getElementById('pdf-edit-btn');
 
     backBtn.addEventListener('click', closePDFViewer);
     prevPageBtn.addEventListener('click', () => changePage(-1));
@@ -2135,6 +2136,12 @@ function initPDFViewer() {
     addCounterBtn.addEventListener('click', () => addCounter());
     notesBtn.addEventListener('click', toggleNotesPopover);
     notesCloseBtn.addEventListener('click', closeNotesPopover);
+    editBtn.addEventListener('click', openPdfEditModal);
+
+    // PDF Edit modal buttons
+    document.getElementById('close-pdf-edit-modal').addEventListener('click', closePdfEditModal);
+    document.getElementById('cancel-pdf-edit').addEventListener('click', closePdfEditModal);
+    document.getElementById('save-pdf-edit').addEventListener('click', savePdfEdit);
 
     // Notes auto-save on input
     const notesEditor = document.getElementById('notes-editor');
@@ -2342,6 +2349,108 @@ async function closePDFViewer() {
         loadCurrentPatterns();
     } else if (lastActiveTab === 'all-patterns') {
         loadPatterns();
+    }
+}
+
+// PDF Edit Modal functionality
+async function openPdfEditModal() {
+    const modal = document.getElementById('pdf-edit-modal');
+
+    // Populate form fields with current pattern data
+    document.getElementById('pdf-edit-name').value = currentPattern.name || '';
+    document.getElementById('pdf-edit-description').value = currentPattern.description || '';
+
+    // Populate category dropdown
+    const categoryContainer = document.getElementById('pdf-edit-category-container');
+    categoryContainer.innerHTML = createCategoryDropdown('pdf-edit-category', currentPattern.category || 'Amigurumi');
+
+    // Populate hashtags selector
+    const hashtagsContainer = document.getElementById('pdf-edit-hashtags-container');
+    const patternHashtags = currentPattern.hashtags || [];
+    hashtagsContainer.innerHTML = createHashtagSelector('pdf-edit-hashtags', patternHashtags);
+
+    // Set existing thumbnail in selector
+    if (currentPattern.thumbnail) {
+        setThumbnailSelectorImage('pdf-edit', `${API_URL}${currentPattern.thumbnail}`);
+    } else {
+        clearThumbnailSelector('pdf-edit');
+    }
+
+    modal.style.display = 'flex';
+}
+
+function closePdfEditModal() {
+    document.getElementById('pdf-edit-modal').style.display = 'none';
+}
+
+async function savePdfEdit() {
+    const name = document.getElementById('pdf-edit-name').value;
+    const category = getCategoryDropdownValue('pdf-edit-category');
+    const description = document.getElementById('pdf-edit-description').value;
+    const thumbnailFile = getThumbnailFile('pdf-edit');
+    const hashtagIds = getSelectedHashtagIds('pdf-edit-hashtags');
+
+    if (!name.trim()) {
+        alert('Pattern name is required');
+        return;
+    }
+
+    try {
+        // Update pattern metadata
+        const metaResponse = await fetch(`${API_URL}/api/patterns/${currentPattern.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, category, description })
+        });
+
+        if (!metaResponse.ok) {
+            const error = await metaResponse.json();
+            console.error('Error updating pattern metadata:', error.error);
+            alert('Error updating pattern: ' + (error.error || 'Unknown error'));
+            return;
+        }
+
+        // Update hashtags
+        await fetch(`${API_URL}/api/patterns/${currentPattern.id}/hashtags`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hashtagIds })
+        });
+
+        // Handle thumbnail upload if provided
+        if (thumbnailFile) {
+            console.log('Uploading PDF edit thumbnail:', thumbnailFile.name, thumbnailFile.size, 'bytes');
+            const formData = new FormData();
+            formData.append('thumbnail', thumbnailFile);
+
+            const thumbResponse = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/thumbnail`, {
+                method: 'POST',
+                body: formData
+            });
+            if (!thumbResponse.ok) {
+                console.error('Thumbnail upload failed:', await thumbResponse.text());
+            } else {
+                console.log('Thumbnail uploaded successfully');
+            }
+        }
+
+        // Update currentPattern with new values
+        currentPattern.name = name;
+        currentPattern.category = category;
+        currentPattern.description = description;
+
+        // Update the viewer header
+        document.getElementById('pdf-pattern-name').textContent = name;
+
+        closePdfEditModal();
+
+        // Reload patterns to reflect changes in the library
+        await loadPatterns();
+        await loadCurrentPatterns();
+        await loadCategories();
+    } catch (error) {
+        console.error('Error saving pattern:', error);
+        alert('Error saving pattern: ' + error.message);
     }
 }
 

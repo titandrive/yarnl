@@ -2964,3 +2964,49 @@ header {
 #thumbnail-clear-btn {
     margin-right: auto;
 }
+
+/* PDF Edit Modal */
+#pdf-edit-modal {
+    z-index: 2500;
+}
+
+.pdf-edit-modal-content {
+    max-width: 500px;
+    width: 90%;
+}
+
+.pdf-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 10px 0;
+}
+
+.pdf-edit-form .form-group {
+    margin-bottom: 0;
+}
+
+.pdf-edit-form label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+.pdf-edit-form input[type="text"],
+.pdf-edit-form textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.pdf-edit-form textarea {
+    resize: vertical;
+    min-height: 80px;
+}

@@ -307,6 +307,7 @@ Inc in each st around (12)
                 <div class="pdf-header-left">
                     <button id="pdf-back-btn" class="btn btn-secondary">← Back</button>
                     <button id="pdf-notes-btn" class="btn btn-secondary">Notes</button>
+                    <button id="pdf-edit-btn" class="btn btn-secondary">Edit</button>
                 </div>
                 <h2 id="pdf-pattern-name"></h2>
                 <div class="pdf-nav-controls">
@@ -350,6 +351,51 @@ Inc in each st around (12)
                     </label>
                     <span id="notes-save-status" class="notes-save-status"></span>
                     <button id="notes-clear-btn" class="btn btn-secondary btn-small">Clear</button>
+                </div>
+            </div>
+
+            <!-- Edit PDF Pattern Modal -->
+            <div id="pdf-edit-modal" class="modal" style="display: none;">
+                <div class="modal-content pdf-edit-modal-content">
+                    <div class="modal-header">
+                        <h2>Edit Pattern</h2>
+                        <button class="modal-close" id="close-pdf-edit-modal">&times;</button>
+                    </div>
+                    <div class="pdf-edit-form">
+                        <div class="form-group">
+                            <label for="pdf-edit-name">Pattern Name *</label>
+                            <input type="text" id="pdf-edit-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <div id="pdf-edit-category-container">
+                                <!-- Category dropdown will be populated dynamically -->
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="pdf-edit-description">Description</label>
+                            <textarea id="pdf-edit-description" rows="3" placeholder="Brief description..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Hashtags</label>
+                            <div id="pdf-edit-hashtags-container">
+                                <!-- Hashtag selector will be populated dynamically -->
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Thumbnail</label>
+                            <div class="thumbnail-selector" id="pdf-edit-thumbnail-selector" data-target="pdf-edit">
+                                <div class="thumbnail-selector-preview" id="pdf-edit-thumbnail-preview">
+                                    <span class="thumbnail-selector-placeholder">+</span>
+                                </div>
+                            </div>
+                            <small class="form-hint">Click to select or paste an image</small>
+                        </div>
+                    </div>
+                    <div class="modal-actions">
+                        <button type="button" class="btn btn-secondary" id="cancel-pdf-edit">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="save-pdf-edit">Save Changes</button>
+                    </div>
                 </div>
             </div>
         </div>

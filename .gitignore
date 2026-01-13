@@ -15,6 +15,9 @@ postgres-data/
 # Docker
 .dockerignore
 
+# Uploads (user-generated content)
+uploads/
+
 # OS / editor
 .DS_Store
 .idea/

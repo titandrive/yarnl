@@ -2855,6 +2855,10 @@ header {
 }
 
 /* Thumbnail Modal */
+#thumbnail-modal {
+    z-index: 3000;
+}
+
 .thumbnail-modal-content {
     max-width: 500px;
     width: 90%;
@@ -2883,6 +2887,11 @@ header {
 .thumbnail-preview-area.has-image {
     border-style: solid;
     border-color: var(--primary-color);
+}
+
+.thumbnail-preview-area.drag-over {
+    border-color: var(--primary-color);
+    background: var(--upload-bg);
 }
 
 .thumbnail-placeholder {

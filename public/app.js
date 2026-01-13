@@ -1123,6 +1123,29 @@ function initThumbnailSelector() {
             if (e.target === modal) closeThumbnailModal();
         });
     }
+
+    // Drag and drop on the preview area
+    const previewArea = document.getElementById('thumbnail-preview-area');
+    if (previewArea) {
+        previewArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            previewArea.classList.add('drag-over');
+        });
+
+        previewArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            previewArea.classList.remove('drag-over');
+        });
+
+        previewArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            previewArea.classList.remove('drag-over');
+            const file = e.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) {
+                handleThumbnailFile(file);
+            }
+        });
+    }
 }
 
 function openThumbnailModal(target) {

@@ -1915,15 +1915,13 @@ function displayCurrentPatterns() {
             ? `<div class="pattern-hashtags">${hashtags.map(h => `<span class="pattern-hashtag">#${escapeHtml(h.name)}</span>`).join('')}</div>`
             : '';
 
-        const typeIcon = pattern.pattern_type === 'markdown'
-            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.56 18H3.44C2.65 18 2 17.37 2 16.59V7.41C2 6.63 2.65 6 3.44 6h17.12c.79 0 1.44.63 1.44 1.41v9.18c0 .78-.65 1.41-1.44 1.41zM6.81 15.19v-3.66l1.92 2.35 1.92-2.35v3.66h1.93V8.81h-1.93l-1.92 2.35-1.92-2.35H4.89v6.38h1.92zM19.69 12h-1.92V8.81h-1.92V12h-1.93l2.89 3.28L19.69 12z"/></svg>'
-            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg>';
+        const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';
 
         return `
             <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
                 ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : '<span class="current-badge">CURRENT</span>'}
                 ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
-                <span class="type-badge" title="${pattern.pattern_type === 'markdown' ? 'Markdown' : 'PDF'}">${typeIcon}</span>
+                <span class="type-badge">${typeLabel}</span>
                 ${pattern.thumbnail
                     ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
                     : `<div class="pattern-thumbnail-placeholder">
@@ -2019,16 +2017,14 @@ function displayPatterns() {
             ? `<div class="pattern-hashtags">${hashtags.map(h => `<span class="pattern-hashtag">#${escapeHtml(h.name)}</span>`).join('')}</div>`
             : '';
 
-        const typeIcon = pattern.pattern_type === 'markdown'
-            ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M20.56 18H3.44C2.65 18 2 17.37 2 16.59V7.41C2 6.63 2.65 6 3.44 6h17.12c.79 0 1.44.63 1.44 1.41v9.18c0 .78-.65 1.41-1.44 1.41zM6.81 15.19v-3.66l1.92 2.35 1.92-2.35v3.66h1.93V8.81h-1.93l-1.92 2.35-1.92-2.35H4.89v6.38h1.92zM19.69 12h-1.92V8.81h-1.92V12h-1.93l2.89 3.28L19.69 12z"/></svg>'
-            : '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/></svg>';
+        const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';
 
         return `
             <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
                 ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
                 ${!pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
                 ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
-                <span class="type-badge" title="${pattern.pattern_type === 'markdown' ? 'Markdown' : 'PDF'}">${typeIcon}</span>
+                <span class="type-badge">${typeLabel}</span>
                 ${pattern.thumbnail
                     ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
                     : `<div class="pattern-thumbnail-placeholder">

@@ -10,6 +10,9 @@ let selectedFile = null;
 let editingPatternId = null;
 let stagedFiles = []; // Array to hold staged files with metadata
 let selectedCategoryFilter = 'all';
+let selectedSort = 'date-desc';
+let showCompleted = true;
+let showCurrent = true;
 
 // PDF Viewer State
 let pdfDoc = null;
@@ -35,6 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initUpload();
     initEditModal();
     initPDFViewer();
+    initLibraryFilters();
     loadPatterns();
     loadCurrentPatterns();
     loadCategories();
@@ -512,6 +516,33 @@ function handleCategoryFilter(e) {
     displayPatterns();
 }
 
+function initLibraryFilters() {
+    const sortSelect = document.getElementById('sort-select');
+    const showCompletedCheckbox = document.getElementById('show-completed');
+    const showCurrentCheckbox = document.getElementById('show-current');
+
+    if (sortSelect) {
+        sortSelect.addEventListener('change', (e) => {
+            selectedSort = e.target.value;
+            displayPatterns();
+        });
+    }
+
+    if (showCompletedCheckbox) {
+        showCompletedCheckbox.addEventListener('change', (e) => {
+            showCompleted = e.target.checked;
+            displayPatterns();
+        });
+    }
+
+    if (showCurrentCheckbox) {
+        showCurrentCheckbox.addEventListener('change', (e) => {
+            showCurrent = e.target.checked;
+            displayPatterns();
+        });
+    }
+}
+
 function displayCurrentPatterns() {
     const grid = document.getElementById('current-patterns-grid');
 
@@ -542,12 +573,35 @@ function displayPatterns() {
     }
 
     // Filter patterns by selected category
-    const filteredPatterns = selectedCategoryFilter === 'all'
+    let filteredPatterns = selectedCategoryFilter === 'all'
         ? patterns
         : patterns.filter(p => p.category === selectedCategoryFilter);
 
+    // Filter by show completed/current checkboxes
+    filteredPatterns = filteredPatterns.filter(p => {
+        if (p.completed && !showCompleted) return false;
+        if (p.is_current && !p.completed && !showCurrent) return false;
+        return true;
+    });
+
+    // Sort patterns
+    filteredPatterns = [...filteredPatterns].sort((a, b) => {
+        switch (selectedSort) {
+            case 'date-desc':
+                return new Date(b.upload_date) - new Date(a.upload_date);
+            case 'date-asc':
+                return new Date(a.upload_date) - new Date(b.upload_date);
+            case 'name-asc':
+                return a.name.localeCompare(b.name);
+            case 'name-desc':
+                return b.name.localeCompare(a.name);
+            default:
+                return 0;
+        }
+    });
+
     if (filteredPatterns.length === 0) {
-        grid.innerHTML = `<p class="empty-state">No patterns in category "${escapeHtml(selectedCategoryFilter)}"</p>`;
+        grid.innerHTML = `<p class="empty-state">No patterns match the current filters</p>`;
         return;
     }
 

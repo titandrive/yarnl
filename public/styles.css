@@ -2814,3 +2814,128 @@ header {
         margin: 10px;
     }
 }
+
+/* Thumbnail Selector */
+.thumbnail-selector {
+    width: 100%;
+    cursor: pointer;
+}
+
+.thumbnail-selector-preview {
+    width: 100%;
+    height: 120px;
+    border: 2px dashed var(--border-color);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--input-bg);
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.thumbnail-selector-preview:hover {
+    border-color: var(--primary-color);
+    background: var(--upload-bg);
+}
+
+.thumbnail-selector-preview.has-image {
+    border-style: solid;
+}
+
+.thumbnail-selector-placeholder {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.thumbnail-selector-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+/* Thumbnail Modal */
+.thumbnail-modal-content {
+    max-width: 500px;
+    width: 90%;
+}
+
+.thumbnail-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px 0;
+}
+
+.thumbnail-preview-area {
+    width: 100%;
+    height: 250px;
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--input-bg);
+    overflow: hidden;
+    position: relative;
+}
+
+.thumbnail-preview-area.has-image {
+    border-style: solid;
+    border-color: var(--primary-color);
+}
+
+.thumbnail-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-muted);
+}
+
+.thumbnail-placeholder-icon {
+    font-size: 3rem;
+    opacity: 0.5;
+}
+
+.thumbnail-placeholder p {
+    font-size: 0.9rem;
+}
+
+.thumbnail-preview-img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+}
+
+.thumbnail-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+}
+
+.thumbnail-action-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+}
+
+.thumbnail-action-btn .btn-icon {
+    font-size: 1.1rem;
+}
+
+.thumbnail-hint {
+    text-align: center;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.thumbnail-modal-content .modal-actions {
+    justify-content: space-between;
+}
+
+#thumbnail-clear-btn {
+    margin-right: auto;
+}

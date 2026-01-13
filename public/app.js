@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSettings();
     initAddMenu();
     initNewPatternPanel();
+    initThumbnailSelector();
     loadPatterns();
     loadCurrentPatterns();
     loadCategories();
@@ -909,6 +910,8 @@ function hideNewPatternPanel() {
     if (patternsContainer) {
         patternsContainer.style.display = 'block';
     }
+    // Clear the thumbnail selector
+    clearThumbnailSelector('new-pattern');
 }
 
 // New Pattern Panel
@@ -1021,6 +1024,335 @@ function updateNewPatternPreview() {
     }
 }
 
+// Thumbnail Selector
+const thumbnailData = {
+    currentTarget: null, // 'new-pattern', 'markdown-edit', 'edit'
+    selectedFile: null,
+    selectedBlob: null
+};
+
+function initThumbnailSelector() {
+    const modal = document.getElementById('thumbnail-modal');
+    const closeBtn = document.getElementById('close-thumbnail-modal');
+    const cancelBtn = document.getElementById('cancel-thumbnail-btn');
+    const confirmBtn = document.getElementById('confirm-thumbnail-btn');
+    const clearBtn = document.getElementById('thumbnail-clear-btn');
+    const browseBtn = document.getElementById('thumbnail-browse-btn');
+    const pasteBtn = document.getElementById('thumbnail-paste-btn');
+    const fileInput = document.getElementById('thumbnail-file-input');
+
+    // Click handlers for thumbnail selectors
+    document.querySelectorAll('.thumbnail-selector').forEach(selector => {
+        selector.addEventListener('click', () => {
+            const target = selector.dataset.target;
+            openThumbnailModal(target);
+        });
+    });
+
+    // Close modal
+    if (closeBtn) closeBtn.addEventListener('click', closeThumbnailModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeThumbnailModal);
+
+    // Confirm selection
+    if (confirmBtn) {
+        confirmBtn.addEventListener('click', () => {
+            confirmThumbnailSelection();
+        });
+    }
+
+    // Clear
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            clearThumbnailPreview();
+        });
+    }
+
+    // Browse files
+    if (browseBtn && fileInput) {
+        browseBtn.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                handleThumbnailFile(e.target.files[0]);
+            }
+        });
+    }
+
+    // Paste button
+    if (pasteBtn) {
+        pasteBtn.addEventListener('click', async () => {
+            try {
+                const clipboardItems = await navigator.clipboard.read();
+                for (const item of clipboardItems) {
+                    for (const type of item.types) {
+                        if (type.startsWith('image/')) {
+                            const blob = await item.getType(type);
+                            handleThumbnailBlob(blob);
+                            return;
+                        }
+                    }
+                }
+                alert('No image found in clipboard');
+            } catch (err) {
+                console.error('Failed to read clipboard:', err);
+                alert('Could not access clipboard. Try using Ctrl+V instead.');
+            }
+        });
+    }
+
+    // Global paste handler for the modal
+    document.addEventListener('paste', (e) => {
+        const modal = document.getElementById('thumbnail-modal');
+        if (modal.style.display !== 'none') {
+            const items = e.clipboardData?.items;
+            if (items) {
+                for (const item of items) {
+                    if (item.type.startsWith('image/')) {
+                        e.preventDefault();
+                        const blob = item.getAsFile();
+                        handleThumbnailBlob(blob);
+                        return;
+                    }
+                }
+            }
+        }
+    });
+
+    // Click outside to close
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeThumbnailModal();
+        });
+    }
+}
+
+function openThumbnailModal(target) {
+    thumbnailData.currentTarget = target;
+    thumbnailData.selectedFile = null;
+    thumbnailData.selectedBlob = null;
+
+    // Reset modal state
+    clearThumbnailPreview();
+
+    // Check if there's an existing thumbnail for this target
+    const selectorPreview = document.getElementById(`${target}-thumbnail-preview`);
+    const existingImg = selectorPreview?.querySelector('img');
+    if (existingImg) {
+        // Show existing thumbnail in modal
+        const previewImg = document.getElementById('thumbnail-preview-img');
+        const placeholder = document.getElementById('thumbnail-placeholder');
+        const previewArea = document.getElementById('thumbnail-preview-area');
+
+        previewImg.src = existingImg.src;
+        previewImg.style.display = 'block';
+        placeholder.style.display = 'none';
+        previewArea.classList.add('has-image');
+    }
+
+    document.getElementById('thumbnail-modal').style.display = 'flex';
+    document.getElementById('thumbnail-file-input').value = '';
+}
+
+function closeThumbnailModal() {
+    document.getElementById('thumbnail-modal').style.display = 'none';
+    thumbnailData.currentTarget = null;
+    thumbnailData.selectedFile = null;
+    thumbnailData.selectedBlob = null;
+}
+
+function clearThumbnailPreview() {
+    const previewImg = document.getElementById('thumbnail-preview-img');
+    const placeholder = document.getElementById('thumbnail-placeholder');
+    const previewArea = document.getElementById('thumbnail-preview-area');
+
+    previewImg.src = '';
+    previewImg.style.display = 'none';
+    placeholder.style.display = 'flex';
+    previewArea.classList.remove('has-image');
+
+    thumbnailData.selectedFile = null;
+    thumbnailData.selectedBlob = null;
+}
+
+function handleThumbnailFile(file) {
+    if (!file.type.startsWith('image/')) {
+        alert('Please select an image file');
+        return;
+    }
+    thumbnailData.selectedFile = file;
+    thumbnailData.selectedBlob = null;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        showThumbnailPreview(e.target.result);
+    };
+    reader.readAsDataURL(file);
+}
+
+function handleThumbnailBlob(blob) {
+    thumbnailData.selectedBlob = blob;
+    thumbnailData.selectedFile = null;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        showThumbnailPreview(e.target.result);
+    };
+    reader.readAsDataURL(blob);
+}
+
+function showThumbnailPreview(dataUrl) {
+    const previewImg = document.getElementById('thumbnail-preview-img');
+    const placeholder = document.getElementById('thumbnail-placeholder');
+    const previewArea = document.getElementById('thumbnail-preview-area');
+
+    previewImg.src = dataUrl;
+    previewImg.style.display = 'block';
+    placeholder.style.display = 'none';
+    previewArea.classList.add('has-image');
+}
+
+async function confirmThumbnailSelection() {
+    const target = thumbnailData.currentTarget;
+    const selectorPreview = document.getElementById(`${target}-thumbnail-preview`);
+
+    if (!selectorPreview) {
+        closeThumbnailModal();
+        return;
+    }
+
+    // Get the image data
+    let imageBlob = thumbnailData.selectedBlob;
+    if (thumbnailData.selectedFile) {
+        imageBlob = thumbnailData.selectedFile;
+    } else if (!imageBlob) {
+        // Check if we should clear the selection
+        const previewImg = document.getElementById('thumbnail-preview-img');
+        if (!previewImg.src || previewImg.style.display === 'none') {
+            // Clear the selector
+            selectorPreview.innerHTML = '<span class="thumbnail-selector-placeholder">+ Add Image</span>';
+            selectorPreview.classList.remove('has-image');
+            // Store null to indicate cleared
+            selectorPreview.dataset.thumbnailCleared = 'true';
+            delete selectorPreview.dataset.thumbnailBlob;
+            closeThumbnailModal();
+            return;
+        }
+        // No new selection, keep existing
+        closeThumbnailModal();
+        return;
+    }
+
+    // Resize the image and update the selector preview
+    try {
+        const resizedBlob = await resizeThumbnail(imageBlob, 400, 400);
+        const dataUrl = await blobToDataUrl(resizedBlob);
+
+        // Update the selector preview
+        selectorPreview.innerHTML = `<img src="${dataUrl}" alt="Thumbnail">`;
+        selectorPreview.classList.add('has-image');
+        selectorPreview.dataset.thumbnailCleared = 'false';
+
+        // Store the blob for later upload (convert to base64 for storage)
+        selectorPreview.dataset.thumbnailBlob = dataUrl;
+    } catch (err) {
+        console.error('Error processing thumbnail:', err);
+        alert('Error processing image');
+    }
+
+    closeThumbnailModal();
+}
+
+function resizeThumbnail(blob, maxWidth, maxHeight) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+            let { width, height } = img;
+
+            // Calculate new dimensions maintaining aspect ratio
+            if (width > maxWidth || height > maxHeight) {
+                const ratio = Math.min(maxWidth / width, maxHeight / height);
+                width = Math.round(width * ratio);
+                height = Math.round(height * ratio);
+            }
+
+            // Create canvas and draw resized image
+            const canvas = document.createElement('canvas');
+            canvas.width = width;
+            canvas.height = height;
+
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // Convert to blob
+            canvas.toBlob((resultBlob) => {
+                if (resultBlob) {
+                    resolve(resultBlob);
+                } else {
+                    reject(new Error('Failed to create blob'));
+                }
+            }, 'image/jpeg', 0.85);
+        };
+        img.onerror = () => reject(new Error('Failed to load image'));
+        img.src = URL.createObjectURL(blob);
+    });
+}
+
+function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(reader.error);
+        reader.readAsDataURL(blob);
+    });
+}
+
+function dataUrlToBlob(dataUrl) {
+    const parts = dataUrl.split(',');
+    const mime = parts[0].match(/:(.*?);/)[1];
+    const binary = atob(parts[1]);
+    const array = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        array[i] = binary.charCodeAt(i);
+    }
+    return new Blob([array], { type: mime });
+}
+
+function getThumbnailFile(target) {
+    const selectorPreview = document.getElementById(`${target}-thumbnail-preview`);
+    if (!selectorPreview) return null;
+
+    // Check if cleared
+    if (selectorPreview.dataset.thumbnailCleared === 'true') {
+        return null;
+    }
+
+    const dataUrl = selectorPreview.dataset.thumbnailBlob;
+    if (!dataUrl) return null;
+
+    // Convert data URL back to File for FormData
+    const blob = dataUrlToBlob(dataUrl);
+    return new File([blob], 'thumbnail.jpg', { type: 'image/jpeg' });
+}
+
+function clearThumbnailSelector(target) {
+    const selectorPreview = document.getElementById(`${target}-thumbnail-preview`);
+    if (selectorPreview) {
+        selectorPreview.innerHTML = '<span class="thumbnail-selector-placeholder">+ Add Image</span>';
+        selectorPreview.classList.remove('has-image');
+        delete selectorPreview.dataset.thumbnailBlob;
+        delete selectorPreview.dataset.thumbnailCleared;
+    }
+}
+
+function setThumbnailSelectorImage(target, imageUrl) {
+    const selectorPreview = document.getElementById(`${target}-thumbnail-preview`);
+    if (selectorPreview && imageUrl) {
+        selectorPreview.innerHTML = `<img src="${imageUrl}" alt="Thumbnail">`;
+        selectorPreview.classList.add('has-image');
+        delete selectorPreview.dataset.thumbnailBlob;
+        delete selectorPreview.dataset.thumbnailCleared;
+    }
+}
+
 async function saveNewPattern() {
     const name = document.getElementById('new-pattern-name').value.trim();
     const category = getCategoryDropdownValue('new-pattern-category');
@@ -1028,7 +1360,7 @@ async function saveNewPattern() {
     const content = document.getElementById('new-pattern-content').value;
     const isCurrent = document.getElementById('new-pattern-is-current').checked;
     const hashtagIds = getSelectedHashtagIds('new-pattern-hashtags');
-    const thumbnailFile = document.getElementById('new-pattern-thumbnail').files[0];
+    const thumbnailFile = getThumbnailFile('new-pattern');
 
     if (!name) {
         alert('Please enter a pattern name');
@@ -2469,7 +2801,12 @@ async function openEditModal(patternId) {
     const selectedHashtagIds = (pattern.hashtags || []).map(h => h.id);
     hashtagContainer.innerHTML = createHashtagSelector('edit-hashtags', selectedHashtagIds);
 
-    document.getElementById('edit-thumbnail').value = '';
+    // Set existing thumbnail in selector
+    if (pattern.thumbnail) {
+        setThumbnailSelectorImage('edit', `${API_URL}${pattern.thumbnail}`);
+    } else {
+        clearThumbnailSelector('edit');
+    }
 
     document.getElementById('edit-modal').style.display = 'flex';
 }
@@ -2485,7 +2822,7 @@ async function savePatternEdits() {
     const name = document.getElementById('edit-pattern-name').value;
     const category = getCategoryDropdownValue('edit-category');
     const description = document.getElementById('edit-pattern-description').value;
-    const thumbnailFile = document.getElementById('edit-thumbnail').files[0];
+    const thumbnailFile = getThumbnailFile('edit');
     const hashtagIds = getSelectedHashtagIds('edit-hashtags');
 
     try {
@@ -2861,8 +3198,12 @@ async function openMarkdownEditModal() {
     const patternHashtags = currentPattern.hashtags || [];
     hashtagsContainer.innerHTML = createHashtagSelector('markdown-edit-hashtags', patternHashtags);
 
-    // Clear thumbnail input
-    document.getElementById('markdown-edit-thumbnail').value = '';
+    // Set existing thumbnail in selector
+    if (currentPattern.thumbnail) {
+        setThumbnailSelectorImage('markdown-edit', `${API_URL}${currentPattern.thumbnail}`);
+    } else {
+        clearThumbnailSelector('markdown-edit');
+    }
 
     // Load content from file
     try {
@@ -2888,7 +3229,7 @@ async function saveMarkdownEdit() {
     const name = document.getElementById('markdown-edit-name').value;
     const category = getCategoryDropdownValue('markdown-edit-category');
     const description = document.getElementById('markdown-edit-description').value;
-    const thumbnailFile = document.getElementById('markdown-edit-thumbnail').files[0];
+    const thumbnailFile = getThumbnailFile('markdown-edit');
     const hashtagIds = getSelectedHashtagIds('markdown-edit-hashtags');
 
     if (!name.trim()) {

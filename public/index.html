@@ -167,9 +167,13 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="new-pattern-thumbnail">Thumbnail (optional)</label>
-                            <input type="file" id="new-pattern-thumbnail" accept="image/*">
-                            <small class="form-hint">Upload an image for the pattern card</small>
+                            <label>Thumbnail (optional)</label>
+                            <div class="thumbnail-selector" id="new-pattern-thumbnail-selector" data-target="new-pattern">
+                                <div class="thumbnail-selector-preview" id="new-pattern-thumbnail-preview">
+                                    <span class="thumbnail-selector-placeholder">+ Add Image</span>
+                                </div>
+                            </div>
+                            <small class="form-hint">Click to select or paste an image</small>
                         </div>
                     </div>
                     <div class="form-group new-pattern-content-group">
@@ -431,9 +435,13 @@ Inc in each st around (12)
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="markdown-edit-thumbnail">Thumbnail</label>
-                            <input type="file" id="markdown-edit-thumbnail" accept="image/*">
-                            <small class="form-hint">Upload a new image</small>
+                            <label>Thumbnail</label>
+                            <div class="thumbnail-selector" id="markdown-edit-thumbnail-selector" data-target="markdown-edit">
+                                <div class="thumbnail-selector-preview" id="markdown-edit-thumbnail-preview">
+                                    <span class="thumbnail-selector-placeholder">+ Add Image</span>
+                                </div>
+                            </div>
+                            <small class="form-hint">Click to select or paste an image</small>
                         </div>
                     </div>
                     <div class="markdown-edit-main">
@@ -480,15 +488,55 @@ Inc in each st around (12)
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="edit-thumbnail">Custom Thumbnail (optional)</label>
-                    <input type="file" id="edit-thumbnail" accept="image/*">
-                    <p class="help-text">Upload a custom image or leave blank to keep current thumbnail</p>
+                    <label>Custom Thumbnail (optional)</label>
+                    <div class="thumbnail-selector" id="edit-thumbnail-selector" data-target="edit">
+                        <div class="thumbnail-selector-preview" id="edit-thumbnail-preview">
+                            <span class="thumbnail-selector-placeholder">+ Add Image</span>
+                        </div>
+                    </div>
+                    <p class="help-text">Click to select or paste an image</p>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" id="cancel-edit-btn">Cancel</button>
                     <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Thumbnail Selector Modal -->
+    <div id="thumbnail-modal" class="modal" style="display: none;">
+        <div class="modal-content thumbnail-modal-content">
+            <div class="modal-header">
+                <h2>Select Thumbnail</h2>
+                <button class="modal-close" id="close-thumbnail-modal">&times;</button>
+            </div>
+            <div class="thumbnail-modal-body">
+                <div class="thumbnail-preview-area" id="thumbnail-preview-area">
+                    <div class="thumbnail-placeholder" id="thumbnail-placeholder">
+                        <span class="thumbnail-placeholder-icon">🖼️</span>
+                        <p>No image selected</p>
+                    </div>
+                    <img id="thumbnail-preview-img" class="thumbnail-preview-img" style="display: none;" alt="Thumbnail preview">
+                </div>
+                <div class="thumbnail-actions">
+                    <button type="button" class="btn btn-secondary thumbnail-action-btn" id="thumbnail-browse-btn">
+                        <span class="btn-icon">📁</span>
+                        <span>Browse Files</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary thumbnail-action-btn" id="thumbnail-paste-btn">
+                        <span class="btn-icon">📋</span>
+                        <span>Paste from Clipboard</span>
+                    </button>
+                    <input type="file" id="thumbnail-file-input" accept="image/*" hidden>
+                </div>
+                <p class="thumbnail-hint">You can also paste an image directly (Ctrl+V / Cmd+V)</p>
+            </div>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" id="thumbnail-clear-btn">Clear</button>
+                <button type="button" class="btn btn-secondary" id="cancel-thumbnail-btn">Cancel</button>
+                <button type="button" class="btn btn-primary" id="confirm-thumbnail-btn">Use This Image</button>
+            </div>
         </div>
     </div>
 

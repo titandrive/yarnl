@@ -1235,15 +1235,18 @@ function showThumbnailPreview(dataUrl) {
 
 async function confirmThumbnailSelection() {
     const target = thumbnailData.currentTarget;
+    console.log('confirmThumbnailSelection for target:', target);
     const selectorPreview = document.getElementById(`${target}-thumbnail-preview`);
 
     if (!selectorPreview) {
+        console.log('No selectorPreview found, closing modal');
         closeThumbnailModal();
         return;
     }
 
     // Get the image data
     let imageBlob = thumbnailData.selectedBlob;
+    console.log('thumbnailData:', { selectedFile: thumbnailData.selectedFile, selectedBlob: thumbnailData.selectedBlob });
     if (thumbnailData.selectedFile) {
         imageBlob = thumbnailData.selectedFile;
     } else if (!imageBlob) {
@@ -1251,7 +1254,7 @@ async function confirmThumbnailSelection() {
         const previewImg = document.getElementById('thumbnail-preview-img');
         if (!previewImg.src || previewImg.style.display === 'none') {
             // Clear the selector
-            selectorPreview.innerHTML = '<span class="thumbnail-selector-placeholder">+ Add Image</span>';
+            selectorPreview.innerHTML = '<span class="thumbnail-selector-placeholder">+</span>';
             selectorPreview.classList.remove('has-image');
             // Store null to indicate cleared
             selectorPreview.dataset.thumbnailCleared = 'true';
@@ -1266,8 +1269,11 @@ async function confirmThumbnailSelection() {
 
     // Resize the image and update the selector preview
     try {
+        console.log('Resizing image blob:', imageBlob);
         const resizedBlob = await resizeThumbnail(imageBlob, 400, 400);
+        console.log('Resized blob size:', resizedBlob.size);
         const dataUrl = await blobToDataUrl(resizedBlob);
+        console.log('Data URL created, length:', dataUrl.length);
 
         // Update the selector preview
         selectorPreview.innerHTML = `<img src="${dataUrl}" alt="Thumbnail">`;
@@ -1276,6 +1282,7 @@ async function confirmThumbnailSelection() {
 
         // Store the blob for later upload (convert to base64 for storage)
         selectorPreview.dataset.thumbnailBlob = dataUrl;
+        console.log('Stored thumbnailBlob in dataset for target:', target);
     } catch (err) {
         console.error('Error processing thumbnail:', err);
         alert('Error processing image');
@@ -1341,25 +1348,36 @@ function dataUrlToBlob(dataUrl) {
 
 function getThumbnailFile(target) {
     const selectorPreview = document.getElementById(`${target}-thumbnail-preview`);
-    if (!selectorPreview) return null;
+    console.log('getThumbnailFile for target:', target, 'selectorPreview:', selectorPreview);
+    if (!selectorPreview) {
+        console.log('No selectorPreview element found');
+        return null;
+    }
 
     // Check if cleared
     if (selectorPreview.dataset.thumbnailCleared === 'true') {
+        console.log('Thumbnail was cleared');
         return null;
     }
 
     const dataUrl = selectorPreview.dataset.thumbnailBlob;
-    if (!dataUrl) return null;
+    console.log('thumbnailBlob data URL present:', !!dataUrl, dataUrl ? dataUrl.substring(0, 50) + '...' : null);
+    if (!dataUrl) {
+        console.log('No thumbnailBlob data URL');
+        return null;
+    }
 
     // Convert data URL back to File for FormData
     const blob = dataUrlToBlob(dataUrl);
-    return new File([blob], 'thumbnail.jpg', { type: 'image/jpeg' });
+    const file = new File([blob], 'thumbnail.jpg', { type: 'image/jpeg' });
+    console.log('Created File from blob:', file.name, file.size, 'bytes');
+    return file;
 }
 
 function clearThumbnailSelector(target) {
     const selectorPreview = document.getElementById(`${target}-thumbnail-preview`);
     if (selectorPreview) {
-        selectorPreview.innerHTML = '<span class="thumbnail-selector-placeholder">+ Add Image</span>';
+        selectorPreview.innerHTML = '<span class="thumbnail-selector-placeholder">+</span>';
         selectorPreview.classList.remove('has-image');
         delete selectorPreview.dataset.thumbnailBlob;
         delete selectorPreview.dataset.thumbnailCleared;
@@ -1369,8 +1387,18 @@ function clearThumbnailSelector(target) {
 function setThumbnailSelectorImage(target, imageUrl) {
     const selectorPreview = document.getElementById(`${target}-thumbnail-preview`);
     if (selectorPreview && imageUrl) {
-        selectorPreview.innerHTML = `<img src="${imageUrl}" alt="Thumbnail">`;
-        selectorPreview.classList.add('has-image');
+        const img = document.createElement('img');
+        img.alt = 'Thumbnail';
+        img.onload = () => {
+            selectorPreview.innerHTML = '';
+            selectorPreview.appendChild(img);
+            selectorPreview.classList.add('has-image');
+        };
+        img.onerror = () => {
+            // Image failed to load, show placeholder instead
+            clearThumbnailSelector(target);
+        };
+        img.src = imageUrl;
         delete selectorPreview.dataset.thumbnailBlob;
         delete selectorPreview.dataset.thumbnailCleared;
     }
@@ -1426,13 +1454,21 @@ async function saveNewPattern() {
 
         // Upload thumbnail if provided
         if (thumbnailFile && pattern.id) {
+            console.log('Uploading new pattern thumbnail:', thumbnailFile.name, thumbnailFile.size, 'bytes');
             const formData = new FormData();
             formData.append('thumbnail', thumbnailFile);
 
-            await fetch(`${API_URL}/api/patterns/${pattern.id}/thumbnail`, {
+            const thumbResponse = await fetch(`${API_URL}/api/patterns/${pattern.id}/thumbnail`, {
                 method: 'POST',
                 body: formData
             });
+            if (!thumbResponse.ok) {
+                console.error('Thumbnail upload failed:', await thumbResponse.text());
+            } else {
+                console.log('Thumbnail uploaded successfully');
+            }
+        } else {
+            console.log('No thumbnail file for new pattern, thumbnailFile:', thumbnailFile, 'pattern.id:', pattern?.id);
         }
 
         hideNewPatternPanel();
@@ -2871,13 +2907,21 @@ async function savePatternEdits() {
 
         // If custom thumbnail was uploaded, handle it separately
         if (thumbnailFile) {
+            console.log('Uploading thumbnail:', thumbnailFile.name, thumbnailFile.size, 'bytes');
             const formData = new FormData();
             formData.append('thumbnail', thumbnailFile);
 
-            await fetch(`${API_URL}/api/patterns/${editingPatternId}/thumbnail`, {
+            const thumbResponse = await fetch(`${API_URL}/api/patterns/${editingPatternId}/thumbnail`, {
                 method: 'POST',
                 body: formData
             });
+            if (!thumbResponse.ok) {
+                console.error('Thumbnail upload failed:', await thumbResponse.text());
+            } else {
+                console.log('Thumbnail uploaded successfully');
+            }
+        } else {
+            console.log('No thumbnail file to upload');
         }
 
         closeEditModal();
@@ -3284,13 +3328,21 @@ async function saveMarkdownEdit() {
 
         // Handle thumbnail upload if provided
         if (thumbnailFile) {
+            console.log('Uploading markdown edit thumbnail:', thumbnailFile.name, thumbnailFile.size, 'bytes');
             const formData = new FormData();
             formData.append('thumbnail', thumbnailFile);
 
-            await fetch(`${API_URL}/api/patterns/${currentPattern.id}/thumbnail`, {
+            const thumbResponse = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/thumbnail`, {
                 method: 'POST',
                 body: formData
             });
+            if (!thumbResponse.ok) {
+                console.error('Thumbnail upload failed:', await thumbResponse.text());
+            } else {
+                console.log('Thumbnail uploaded successfully');
+            }
+        } else {
+            console.log('No thumbnail file for markdown edit');
         }
 
         // Save the content
@@ -3310,7 +3362,7 @@ async function saveMarkdownEdit() {
             currentPattern.description = description;
 
             // Update the viewer header
-            document.getElementById('markdown-pattern-title').textContent = name;
+            document.getElementById('markdown-pattern-name').textContent = name;
 
             closeMarkdownEditModal();
 

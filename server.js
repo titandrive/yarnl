@@ -155,6 +155,21 @@ const upload = multer({
   }
 });
 
+// Separate upload handler for images (thumbnails)
+const imageUpload = multer({
+  storage: storage,
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed'));
+    }
+  },
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB limit for images
+  }
+});
+
 // Helper function to generate thumbnail from PDF
 async function generateThumbnail(pdfPath, outputFilename) {
   try {
@@ -1427,7 +1442,7 @@ app.get('/api/stats', async (req, res) => {
 });
 
 // Upload custom thumbnail for a pattern
-app.post('/api/patterns/:id/thumbnail', upload.single('thumbnail'), async (req, res) => {
+app.post('/api/patterns/:id/thumbnail', imageUpload.single('thumbnail'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });

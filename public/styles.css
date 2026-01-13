@@ -62,7 +62,7 @@ body {
 }
 
 .container {
-    max-width: 1600px;
+    max-width: 1900px;
     margin: 0 auto;
     background: var(--card-bg);
     border-radius: 20px;
@@ -147,7 +147,7 @@ header h1 {
 
 .tab-content {
     display: none;
-    padding: 40px;
+    padding: 30px;
 }
 
 .tab-content.active {

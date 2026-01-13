@@ -397,12 +397,51 @@ Inc in each st around (12)
         <div id="markdown-edit-modal" class="modal" style="display: none;">
             <div class="modal-content modal-large">
                 <div class="modal-header">
-                    <h2>Edit Pattern Content</h2>
+                    <h2>Edit Pattern</h2>
+                    <div class="markdown-edit-tabs">
+                        <button type="button" class="markdown-edit-tab active" data-tab="edit">Edit</button>
+                        <button type="button" class="markdown-edit-tab" data-tab="preview">Preview</button>
+                        <label class="markdown-edit-live-preview-label">
+                            <input type="checkbox" id="markdown-edit-live-preview">
+                            <span>Live preview</span>
+                        </label>
+                    </div>
                     <button class="modal-close" id="close-markdown-edit-modal">&times;</button>
                 </div>
-                <div class="markdown-edit-body">
-                    <textarea id="markdown-edit-content" placeholder="Edit pattern content..."></textarea>
-                    <div id="markdown-edit-preview" class="markdown-edit-preview"></div>
+                <div class="markdown-edit-wrapper">
+                    <div class="markdown-edit-sidebar">
+                        <div class="form-group">
+                            <label for="markdown-edit-name">Pattern Name *</label>
+                            <input type="text" id="markdown-edit-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Category</label>
+                            <div id="markdown-edit-category-container">
+                                <!-- Category dropdown will be populated dynamically -->
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="markdown-edit-description">Description</label>
+                            <textarea id="markdown-edit-description" rows="2" placeholder="Brief description..."></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>Hashtags</label>
+                            <div id="markdown-edit-hashtags-container">
+                                <!-- Hashtag selector will be populated dynamically -->
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="markdown-edit-thumbnail">Thumbnail</label>
+                            <input type="file" id="markdown-edit-thumbnail" accept="image/*">
+                            <small class="form-hint">Upload a new image</small>
+                        </div>
+                    </div>
+                    <div class="markdown-edit-main">
+                        <div class="markdown-edit-body edit-mode">
+                            <textarea id="markdown-edit-content" placeholder="Edit pattern content..."></textarea>
+                            <div id="markdown-edit-preview" class="markdown-edit-preview"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-secondary" id="cancel-markdown-edit">Cancel</button>

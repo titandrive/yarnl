@@ -2401,13 +2401,15 @@ function renderMarkdown(text) {
     // Ordered lists (must come before unordered to avoid conflicts)
     html = html.replace(/^(\d+)\. (.+)$/gm, '<oli>$2</oli>');
     html = html.replace(/(<oli>.*<\/oli>\n?)+/g, (match) => {
-        return '<ol>' + match.replace(/<oli>/g, '<li>').replace(/<\/oli>/g, '</li>') + '</ol>';
+        const items = match.replace(/<oli>/g, '<li>').replace(/<\/oli>/g, '</li>').replace(/\n/g, '');
+        return '<ol>' + items + '</ol>';
     });
 
     // Unordered lists
     html = html.replace(/^- (.+)$/gm, '<uli>$1</uli>');
     html = html.replace(/(<uli>.*<\/uli>\n?)+/g, (match) => {
-        return '<ul>' + match.replace(/<uli>/g, '<li>').replace(/<\/uli>/g, '</li>') + '</ul>';
+        const items = match.replace(/<uli>/g, '<li>').replace(/<\/uli>/g, '</li>').replace(/\n/g, '');
+        return '<ul>' + items + '</ul>';
     });
 
     // Line breaks to paragraphs
@@ -2622,13 +2624,63 @@ function initMarkdownViewerEvents() {
         if (e.target === editModal) closeMarkdownEditModal();
     };
 
-    // Live preview in edit modal
+    // Edit modal tabs
+    const editTabs = document.querySelectorAll('.markdown-edit-tab');
+    editTabs.forEach(tab => {
+        tab.onclick = () => switchMarkdownEditTab(tab.dataset.tab);
+    });
+
+    // Live preview checkbox in edit modal
+    const editLivePreviewCheckbox = document.getElementById('markdown-edit-live-preview');
+    editLivePreviewCheckbox.onchange = (e) => {
+        const body = document.querySelector('.markdown-edit-body');
+        const preview = document.getElementById('markdown-edit-preview');
+        const editContent = document.getElementById('markdown-edit-content');
+
+        if (e.target.checked) {
+            body.className = 'markdown-edit-body live-preview-mode';
+            preview.innerHTML = renderMarkdown(editContent.value);
+            // Update tabs to show neither is active
+            editTabs.forEach(t => t.classList.remove('active'));
+        } else {
+            // Return to edit mode
+            body.className = 'markdown-edit-body edit-mode';
+            editTabs.forEach(t => {
+                t.classList.toggle('active', t.dataset.tab === 'edit');
+            });
+        }
+    };
+
+    // Live preview in edit modal (update on input)
     const editContent = document.getElementById('markdown-edit-content');
     editContent.oninput = () => {
         document.getElementById('markdown-edit-preview').innerHTML = renderMarkdown(editContent.value);
     };
     // Enable auto-continue for lists
     setupMarkdownListContinuation(editContent);
+}
+
+function switchMarkdownEditTab(tab) {
+    const tabs = document.querySelectorAll('.markdown-edit-tab');
+    const body = document.querySelector('.markdown-edit-body');
+    const preview = document.getElementById('markdown-edit-preview');
+    const editContent = document.getElementById('markdown-edit-content');
+    const livePreviewCheckbox = document.getElementById('markdown-edit-live-preview');
+
+    // Update active tab
+    tabs.forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === tab);
+    });
+
+    // Uncheck live preview when switching tabs
+    livePreviewCheckbox.checked = false;
+
+    if (tab === 'edit') {
+        body.className = 'markdown-edit-body edit-mode';
+    } else if (tab === 'preview') {
+        body.className = 'markdown-edit-body preview-mode';
+        preview.innerHTML = renderMarkdown(editContent.value);
+    }
 }
 
 async function closeMarkdownViewer() {
@@ -2787,6 +2839,30 @@ async function openMarkdownEditModal() {
     const modal = document.getElementById('markdown-edit-modal');
     const textarea = document.getElementById('markdown-edit-content');
     const preview = document.getElementById('markdown-edit-preview');
+    const body = document.querySelector('.markdown-edit-body');
+    const tabs = document.querySelectorAll('.markdown-edit-tab');
+    const livePreviewCheckbox = document.getElementById('markdown-edit-live-preview');
+
+    // Reset to edit mode
+    body.className = 'markdown-edit-body edit-mode';
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === 'edit'));
+    livePreviewCheckbox.checked = false;
+
+    // Populate metadata sidebar
+    document.getElementById('markdown-edit-name').value = currentPattern.name || '';
+    document.getElementById('markdown-edit-description').value = currentPattern.description || '';
+
+    // Populate category dropdown
+    const categoryContainer = document.getElementById('markdown-edit-category-container');
+    categoryContainer.innerHTML = createCategoryDropdown('markdown-edit-category', currentPattern.category || 'Amigurumi');
+
+    // Populate hashtags selector
+    const hashtagsContainer = document.getElementById('markdown-edit-hashtags-container');
+    const patternHashtags = currentPattern.hashtags || [];
+    hashtagsContainer.innerHTML = createHashtagSelector('markdown-edit-hashtags', patternHashtags);
+
+    // Clear thumbnail input
+    document.getElementById('markdown-edit-thumbnail').value = '';
 
     // Load content from file
     try {
@@ -2809,8 +2885,51 @@ function closeMarkdownEditModal() {
 
 async function saveMarkdownEdit() {
     const content = document.getElementById('markdown-edit-content').value;
+    const name = document.getElementById('markdown-edit-name').value;
+    const category = getCategoryDropdownValue('markdown-edit-category');
+    const description = document.getElementById('markdown-edit-description').value;
+    const thumbnailFile = document.getElementById('markdown-edit-thumbnail').files[0];
+    const hashtagIds = getSelectedHashtagIds('markdown-edit-hashtags');
+
+    if (!name.trim()) {
+        alert('Pattern name is required');
+        return;
+    }
 
     try {
+        // Update pattern metadata
+        const metaResponse = await fetch(`${API_URL}/api/patterns/${currentPattern.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, category, description })
+        });
+
+        if (!metaResponse.ok) {
+            const error = await metaResponse.json();
+            console.error('Error updating pattern metadata:', error.error);
+            alert('Error updating pattern: ' + (error.error || 'Unknown error'));
+            return;
+        }
+
+        // Update hashtags
+        await fetch(`${API_URL}/api/patterns/${currentPattern.id}/hashtags`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hashtagIds })
+        });
+
+        // Handle thumbnail upload if provided
+        if (thumbnailFile) {
+            const formData = new FormData();
+            formData.append('thumbnail', thumbnailFile);
+
+            await fetch(`${API_URL}/api/patterns/${currentPattern.id}/thumbnail`, {
+                method: 'POST',
+                body: formData
+            });
+        }
+
+        // Save the content
         const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/content`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -2820,12 +2939,27 @@ async function saveMarkdownEdit() {
         if (response.ok) {
             // Update the viewer
             document.getElementById('markdown-content').innerHTML = renderMarkdown(content);
+
+            // Update currentPattern with new values
+            currentPattern.name = name;
+            currentPattern.category = category;
+            currentPattern.description = description;
+
+            // Update the viewer header
+            document.getElementById('markdown-pattern-title').textContent = name;
+
             closeMarkdownEditModal();
+
+            // Reload patterns to reflect changes in the library
+            await loadPatterns();
+            await loadCategories();
         } else {
             console.error('Error saving content');
+            alert('Error saving content');
         }
     } catch (error) {
-        console.error('Error saving content:', error);
+        console.error('Error saving pattern:', error);
+        alert('Error saving pattern: ' + error.message);
     }
 }
 

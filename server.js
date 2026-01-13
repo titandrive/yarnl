@@ -432,6 +432,176 @@ app.post('/api/patterns/:id/reset', async (req, res) => {
   }
 });
 
+// Update pattern's current page
+app.patch('/api/patterns/:id/page', async (req, res) => {
+  try {
+    const { currentPage } = req.body;
+    const result = await pool.query(
+      `UPDATE patterns SET current_page = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 RETURNING *`,
+      [currentPage, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Pattern not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating page:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Counter endpoints
+
+// Get all counters for a pattern
+app.get('/api/patterns/:id/counters', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM counters WHERE pattern_id = $1 ORDER BY position ASC',
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching counters:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new counter for a pattern
+app.post('/api/patterns/:id/counters', async (req, res) => {
+  try {
+    const { name, value = 0 } = req.body;
+
+    // Get the max position for this pattern
+    const maxPosResult = await pool.query(
+      'SELECT COALESCE(MAX(position), -1) as max_pos FROM counters WHERE pattern_id = $1',
+      [req.params.id]
+    );
+    const position = maxPosResult.rows[0].max_pos + 1;
+
+    const result = await pool.query(
+      `INSERT INTO counters (pattern_id, name, value, position)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [req.params.id, name, value, position]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating counter:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update a counter's value
+app.patch('/api/counters/:id', async (req, res) => {
+  try {
+    const { value, name } = req.body;
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (value !== undefined) {
+      updates.push(`value = $${paramCount++}`);
+      values.push(value);
+    }
+    if (name !== undefined) {
+      updates.push(`name = $${paramCount++}`);
+      values.push(name);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(req.params.id);
+
+    const query = `
+      UPDATE counters
+      SET ${updates.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+
+    const result = await pool.query(query, values);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Counter not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating counter:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Increment counter
+app.post('/api/counters/:id/increment', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE counters
+       SET value = value + 1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Counter not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error incrementing counter:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Decrement counter
+app.post('/api/counters/:id/decrement', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE counters
+       SET value = GREATEST(value - 1, 0), updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Counter not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error decrementing counter:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a counter
+app.delete('/api/counters/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM counters WHERE id = $1 RETURNING *',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Counter not found' });
+    }
+
+    res.json({ message: 'Counter deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting counter:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Upload custom thumbnail for a pattern
 app.post('/api/patterns/:id/thumbnail', upload.single('thumbnail'), async (req, res) => {
   try {

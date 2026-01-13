@@ -30,6 +30,19 @@ async function initDatabase() {
       )
     `);
 
+    // Create counters table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS counters (
+        id SERIAL PRIMARY KEY,
+        pattern_id INTEGER NOT NULL REFERENCES patterns(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        value INTEGER DEFAULT 0,
+        position INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Add columns to existing patterns table if they don't exist
     await client.query(`
       DO $$
@@ -49,6 +62,10 @@ async function initDatabase() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                       WHERE table_name='patterns' AND column_name='thumbnail') THEN
           ALTER TABLE patterns ADD COLUMN thumbnail VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='current_page') THEN
+          ALTER TABLE patterns ADD COLUMN current_page INTEGER DEFAULT 1;
         END IF;
       END $$;
     `);

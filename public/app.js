@@ -6,21 +6,32 @@ let patterns = [];
 let currentPatterns = [];
 let allTags = [];
 let selectedFile = null;
-let currentViewingPattern = null;
 let editingPatternId = null;
+
+// PDF Viewer State
+let pdfDoc = null;
+let currentPageNum = 1;
+let totalPages = 0;
+let currentPattern = null;
+let counters = [];
+let lastUsedCounterId = null;
+
+// PDF.js configuration
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
 // DOM Elements
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
-const counterView = document.getElementById('counter-view');
+const pdfViewerContainer = document.getElementById('pdf-viewer-container');
+const pdfCanvas = document.getElementById('pdf-canvas');
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', () => {
     initTheme();
     initTabs();
     initUpload();
-    initCounter();
     initEditModal();
+    initPDFViewer();
     loadPatterns();
     loadCurrentPatterns();
     loadTags();
@@ -68,8 +79,8 @@ function initTabs() {
             content.classList.add('active');
             content.style.display = 'block';
 
-            // Hide counter view
-            counterView.style.display = 'none';
+            // Hide PDF viewer
+            pdfViewerContainer.style.display = 'none';
         });
     });
 }
@@ -238,14 +249,11 @@ function displayCurrentPatterns() {
     }
 
     grid.innerHTML = currentPatterns.map(pattern => `
-        <div class="pattern-card" onclick="openCounter(${pattern.id})">
+        <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
             <span class="current-badge">CURRENT</span>
             ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
             <h3>${escapeHtml(pattern.name)}</h3>
             <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
-            <div style="margin: 10px 0;">
-                <strong>Row:</strong> ${pattern.row_count}
-            </div>
             ${pattern.tags && pattern.tags.length > 0 ? `
                 <div class="pattern-tags">
                     ${pattern.tags.map(tag => `<span class="pattern-tag">${escapeHtml(tag)}</span>`).join('')}
@@ -264,7 +272,7 @@ function displayPatterns() {
     }
 
     grid.innerHTML = patterns.map(pattern => `
-        <div class="pattern-card" onclick="openCounter(${pattern.id})" style="cursor: pointer;">
+        <div class="pattern-card" onclick="openPDFViewer(${pattern.id})" style="cursor: pointer;">
             ${pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
             ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
             <h3>${escapeHtml(pattern.name)}</h3>
@@ -276,7 +284,7 @@ function displayPatterns() {
             ` : ''}
             ${pattern.notes ? `<p class="pattern-notes">${escapeHtml(pattern.notes)}</p>` : ''}
             <div class="pattern-actions" onclick="event.stopPropagation()">
-                <button class="btn btn-primary btn-small" onclick="viewPattern('${pattern.id}')">View PDF</button>
+                <button class="btn btn-primary btn-small" onclick="openPDFViewer('${pattern.id}')">View PDF</button>
                 <button class="btn btn-${pattern.is_current ? 'secondary' : 'success'} btn-small"
                         onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})">
                     ${pattern.is_current ? 'Remove from Current' : 'Mark as Current'}
@@ -286,10 +294,6 @@ function displayPatterns() {
             </div>
         </div>
     `).join('');
-}
-
-function viewPattern(id) {
-    window.open(`${API_URL}/api/patterns/${id}/file`, '_blank');
 }
 
 async function toggleCurrent(id, isCurrent) {
@@ -336,54 +340,167 @@ async function deletePattern(id) {
     }
 }
 
-// Counter functionality
-function initCounter() {
-    const backBtn = document.getElementById('back-btn');
-    const viewPdfBtn = document.getElementById('view-pdf-btn');
-    const rowIncrementBtn = document.getElementById('row-increment');
-    const rowDecrementBtn = document.getElementById('row-decrement');
-    const resetBtn = document.getElementById('reset-btn');
+// PDF Viewer functionality
+function initPDFViewer() {
+    const backBtn = document.getElementById('pdf-back-btn');
+    const prevPageBtn = document.getElementById('prev-page-btn');
+    const nextPageBtn = document.getElementById('next-page-btn');
+    const addCounterBtn = document.getElementById('add-counter-btn');
 
-    backBtn.addEventListener('click', closeCounter);
-    viewPdfBtn.addEventListener('click', () => {
-        if (currentViewingPattern) {
-            viewPattern(currentViewingPattern.id);
-        }
-    });
+    backBtn.addEventListener('click', closePDFViewer);
+    prevPageBtn.addEventListener('click', () => changePage(-1));
+    nextPageBtn.addEventListener('click', () => changePage(1));
+    addCounterBtn.addEventListener('click', () => addCounter());
 
-    rowIncrementBtn.addEventListener('click', () => updateCounter('increment-row'));
-    rowDecrementBtn.addEventListener('click', () => updateCounter('decrement-row'));
-    resetBtn.addEventListener('click', resetCounter);
-}
-
-async function openCounter(patternId) {
-    try {
-        const response = await fetch(`${API_URL}/api/patterns`);
-        const allPatterns = await response.json();
-        const pattern = allPatterns.find(p => p.id === patternId);
-
-        if (!pattern) {
-            alert('Pattern not found');
+    // Keyboard shortcuts for page navigation and counter control
+    document.addEventListener('keydown', (e) => {
+        if (pdfViewerContainer.style.display !== 'flex') {
             return;
         }
 
-        currentViewingPattern = pattern;
+        // Don't trigger if user is typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
 
-        document.getElementById('counter-pattern-name').textContent = pattern.name;
-        document.getElementById('row-count').textContent = pattern.row_count;
+        switch(e.key) {
+            case 'ArrowLeft':
+                e.preventDefault();
+                changePage(-1);
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                changePage(1);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                incrementLastUsedCounter();
+                break;
+            case 'ArrowDown':
+                e.preventDefault();
+                decrementLastUsedCounter();
+                break;
+            case ' ':
+                e.preventDefault();
+                incrementLastUsedCounter();
+                break;
+        }
+    });
+}
 
-        // Hide tabs and show counter view
+async function openPDFViewer(patternId) {
+    try {
+        // Convert to number for comparison
+        const id = parseInt(patternId);
+
+        // First try to find in current patterns, then in all patterns
+        let pattern = currentPatterns.find(p => p.id === id);
+        if (!pattern) {
+            pattern = patterns.find(p => p.id === id);
+        }
+
+        // If still not found, fetch from API
+        if (!pattern) {
+            const response = await fetch(`${API_URL}/api/patterns/${id}`);
+            if (!response.ok) {
+                alert('Pattern not found');
+                return;
+            }
+            pattern = await response.json();
+        }
+
+        currentPattern = pattern;
+        currentPageNum = pattern.current_page || 1;
+
+        // Hide tabs and show PDF viewer
         document.querySelector('.tabs').style.display = 'none';
         tabContents.forEach(c => c.style.display = 'none');
-        counterView.style.display = 'block';
+        pdfViewerContainer.style.display = 'flex';
+
+        // Update header
+        document.getElementById('pdf-pattern-name').textContent = pattern.name;
+
+        // Load PDF
+        const pdfUrl = `${API_URL}/api/patterns/${pattern.id}/file`;
+        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+
+        pdfDoc = await loadingTask.promise;
+        totalPages = pdfDoc.numPages;
+
+        // Render the current page
+        await renderPage(currentPageNum);
+
+        // Load counters
+        await loadCounters(pattern.id);
+
     } catch (error) {
-        console.error('Error opening counter:', error);
-        alert('Error loading pattern');
+        console.error('Error opening PDF viewer:', error);
+        alert('Error loading PDF');
     }
 }
 
-function closeCounter() {
-    counterView.style.display = 'none';
+async function renderPage(pageNum) {
+    try {
+        const page = await pdfDoc.getPage(pageNum);
+
+        const canvas = pdfCanvas;
+        const context = canvas.getContext('2d');
+
+        // Calculate scale to fit width
+        const containerWidth = document.querySelector('.pdf-viewer-wrapper').clientWidth - 40;
+        const viewport = page.getViewport({ scale: 1 });
+        const scale = Math.min(containerWidth / viewport.width, 2.0);
+
+        const scaledViewport = page.getViewport({ scale: scale });
+
+        canvas.height = scaledViewport.height;
+        canvas.width = scaledViewport.width;
+
+        const renderContext = {
+            canvasContext: context,
+            viewport: scaledViewport
+        };
+
+        await page.render(renderContext).promise;
+
+        // Update page info
+        document.getElementById('page-info').textContent = `Page ${pageNum} of ${totalPages}`;
+
+        // Update button states
+        document.getElementById('prev-page-btn').disabled = pageNum <= 1;
+        document.getElementById('next-page-btn').disabled = pageNum >= totalPages;
+
+    } catch (error) {
+        console.error('Error rendering page:', error);
+    }
+}
+
+async function changePage(delta) {
+    const newPage = currentPageNum + delta;
+
+    if (newPage < 1 || newPage > totalPages) {
+        return;
+    }
+
+    currentPageNum = newPage;
+    await renderPage(currentPageNum);
+
+    // Save current page to database
+    if (currentPattern) {
+        try {
+            await fetch(`${API_URL}/api/patterns/${currentPattern.id}/page`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPage: currentPageNum })
+            });
+        } catch (error) {
+            console.error('Error saving page:', error);
+        }
+    }
+}
+
+function closePDFViewer() {
+    pdfViewerContainer.style.display = 'none';
     document.querySelector('.tabs').style.display = 'flex';
 
     // Reset all tabs and show current tab
@@ -400,72 +517,194 @@ function closeCounter() {
     currentContent.classList.add('active');
     currentContent.style.display = 'block';
 
-    currentViewingPattern = null;
+    currentPattern = null;
+    pdfDoc = null;
+    lastUsedCounterId = null;
     loadCurrentPatterns();
 }
 
-async function updateCounter(action) {
-    if (!currentViewingPattern) return;
+// Counter functionality
+async function loadCounters(patternId) {
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${patternId}/counters`);
+        counters = await response.json();
+
+        // If no counters exist, create a default one
+        if (counters.length === 0) {
+            await addCounter('Row Counter');
+        } else {
+            displayCounters();
+        }
+    } catch (error) {
+        console.error('Error loading counters:', error);
+    }
+}
+
+function displayCounters() {
+    const countersList = document.getElementById('counters-list');
+
+    if (counters.length === 0) {
+        countersList.innerHTML = '<p style="text-align: center; color: #6b7280;">No counters. Click "Add Counter" to create one.</p>';
+        return;
+    }
+
+    countersList.innerHTML = counters.map(counter => `
+        <div class="counter-item" data-counter-id="${counter.id}">
+            <div class="counter-name">
+                <input type="text" value="${escapeHtml(counter.name)}"
+                       onchange="updateCounterName(${counter.id}, this.value)"
+                       placeholder="Counter name">
+            </div>
+            <div class="counter-value">${counter.value}</div>
+            <div class="counter-controls">
+                <button class="counter-btn counter-btn-minus" onclick="decrementCounter(${counter.id})">−</button>
+                <button class="counter-btn counter-btn-plus" onclick="incrementCounter(${counter.id})">+</button>
+                <button class="counter-btn counter-btn-delete" onclick="deleteCounter(${counter.id})">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function addCounter(defaultName = '') {
+    if (!currentPattern) return;
+
+    let name = defaultName;
+    if (!name) {
+        const promptResult = prompt('Enter counter name:', 'New Counter');
+        if (promptResult === null) return; // User cancelled
+        name = promptResult.trim() || 'New Counter'; // Use default if empty
+    }
 
     try {
-        const response = await fetch(`${API_URL}/api/patterns/${currentViewingPattern.id}/${action}`, {
+        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/counters`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, value: 0 })
+        });
+
+        if (response.ok) {
+            const newCounter = await response.json();
+            counters.push(newCounter);
+            displayCounters();
+        }
+    } catch (error) {
+        console.error('Error adding counter:', error);
+    }
+}
+
+async function incrementCounter(counterId) {
+    try {
+        lastUsedCounterId = counterId;
+        const response = await fetch(`${API_URL}/api/counters/${counterId}/increment`, {
             method: 'POST'
         });
 
         if (response.ok) {
             const updated = await response.json();
-            document.getElementById('row-count').textContent = updated.row_count;
-            currentViewingPattern = updated;
+            const counter = counters.find(c => c.id === counterId);
+            if (counter) {
+                counter.value = updated.value;
+                displayCounters();
+            }
         }
     } catch (error) {
-        console.error('Error updating counter:', error);
+        console.error('Error incrementing counter:', error);
     }
 }
 
-async function resetCounter() {
-    if (!confirm('Are you sure you want to reset all counters?')) {
-        return;
-    }
-
-    if (!currentViewingPattern) return;
-
+async function decrementCounter(counterId) {
     try {
-        const response = await fetch(`${API_URL}/api/patterns/${currentViewingPattern.id}/reset`, {
+        lastUsedCounterId = counterId;
+        const response = await fetch(`${API_URL}/api/counters/${counterId}/decrement`, {
             method: 'POST'
         });
 
         if (response.ok) {
             const updated = await response.json();
-            document.getElementById('row-count').textContent = updated.row_count;
-            currentViewingPattern = updated;
+            const counter = counters.find(c => c.id === counterId);
+            if (counter) {
+                counter.value = updated.value;
+                displayCounters();
+            }
         }
     } catch (error) {
-        console.error('Error resetting counter:', error);
+        console.error('Error decrementing counter:', error);
     }
 }
 
-// Keyboard shortcuts for counter
-document.addEventListener('keydown', (e) => {
-    if (counterView.style.display !== 'block') {
-        return;
+// Keyboard shortcut helpers for counters
+function incrementLastUsedCounter() {
+    const counterId = getActiveCounterId();
+    if (counterId) {
+        incrementCounter(counterId);
+    }
+}
+
+function decrementLastUsedCounter() {
+    const counterId = getActiveCounterId();
+    if (counterId) {
+        decrementCounter(counterId);
+    }
+}
+
+function getActiveCounterId() {
+    // If we have a last used counter and it still exists, use that
+    if (lastUsedCounterId && counters.find(c => c.id === lastUsedCounterId)) {
+        return lastUsedCounterId;
     }
 
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
-        return;
+    // Otherwise, use the first counter
+    if (counters.length > 0) {
+        lastUsedCounterId = counters[0].id;
+        return lastUsedCounterId;
     }
 
-    switch(e.key) {
-        case '+':
-        case '=':
-            e.preventDefault();
-            updateCounter('increment-row');
-            break;
-        case '-':
-            e.preventDefault();
-            updateCounter('decrement-row');
-            break;
+    return null;
+}
+
+async function deleteCounter(counterId) {
+    if (!confirm('Delete this counter?')) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/counters/${counterId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            counters = counters.filter(c => c.id !== counterId);
+
+            // Clear lastUsedCounterId if we deleted that counter
+            if (lastUsedCounterId === counterId) {
+                lastUsedCounterId = null;
+            }
+
+            displayCounters();
+        }
+    } catch (error) {
+        console.error('Error deleting counter:', error);
     }
-});
+}
+
+async function updateCounterName(counterId, newName) {
+    if (!newName.trim()) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/counters/${counterId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName })
+        });
+
+        if (response.ok) {
+            const counter = counters.find(c => c.id === counterId);
+            if (counter) {
+                counter.name = newName;
+            }
+        }
+    } catch (error) {
+        console.error('Error updating counter name:', error);
+    }
+}
 
 // Edit modal functionality
 function initEditModal() {

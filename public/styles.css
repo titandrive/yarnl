@@ -641,6 +641,201 @@ header h1 {
     background: #059669;
 }
 
+/* PDF Viewer Container */
+.pdf-viewer-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--bg-color);
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+}
+
+.pdf-header {
+    background: var(--card-bg);
+    border-bottom: 2px solid var(--border-color);
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    box-shadow: var(--shadow);
+    z-index: 1001;
+}
+
+.pdf-header h2 {
+    flex: 1;
+    margin: 0;
+    color: var(--primary-color);
+    font-size: 1.5rem;
+    text-align: center;
+}
+
+.pdf-nav-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.pdf-nav-controls button {
+    padding: 8px 16px;
+    min-width: 50px;
+}
+
+#page-info {
+    font-weight: 600;
+    color: var(--text-color);
+    min-width: 100px;
+    text-align: center;
+}
+
+.pdf-viewer-wrapper {
+    flex: 1;
+    overflow: auto;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px;
+    background: #f3f4f6;
+}
+
+[data-theme="dark"] .pdf-viewer-wrapper {
+    background: #1a1625;
+}
+
+#pdf-canvas {
+    max-width: 100%;
+    height: auto;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+    background: white;
+}
+
+/* Counter Overlay */
+.counter-overlay {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border-top: 2px solid var(--border-color);
+    padding: 15px 20px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    z-index: 1002;
+    max-height: 40vh;
+    overflow-y: auto;
+}
+
+.counters-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.counter-item {
+    background: var(--upload-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: all 0.3s ease;
+}
+
+.counter-item:hover {
+    border-color: var(--primary-color);
+}
+
+.counter-name {
+    flex: 1;
+    font-weight: 600;
+    color: var(--text-color);
+    font-size: 1rem;
+}
+
+.counter-name input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+    color: var(--text-color);
+    font-size: 1rem;
+    padding: 0;
+}
+
+.counter-name input:focus {
+    outline: none;
+    border-bottom: 1px solid var(--primary-color);
+}
+
+.counter-value {
+    font-size: 2rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    min-width: 80px;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+}
+
+.counter-controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.counter-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    min-width: 45px;
+}
+
+.counter-btn-minus {
+    background: #6b7280;
+    color: white;
+}
+
+.counter-btn-minus:hover {
+    background: #4b5563;
+}
+
+.counter-btn-plus {
+    background: var(--primary-color);
+    color: white;
+}
+
+.counter-btn-plus:hover {
+    background: #7c3aed;
+}
+
+.counter-btn-delete {
+    background: var(--danger-color);
+    color: white;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+}
+
+.counter-btn-delete:hover {
+    background: #dc2626;
+}
+
+.counter-actions {
+    text-align: center;
+}
+
+#add-counter-btn {
+    padding: 10px 25px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .counter-header {
@@ -666,5 +861,35 @@ header h1 {
 
     .modal-actions button {
         width: 100%;
+    }
+
+    .pdf-header {
+        flex-direction: column;
+        gap: 10px;
+        padding: 15px;
+    }
+
+    .pdf-header h2 {
+        font-size: 1.2rem;
+    }
+
+    .counter-item {
+        flex-wrap: wrap;
+    }
+
+    .counter-name {
+        flex-basis: 100%;
+        margin-bottom: 10px;
+    }
+
+    .counter-value {
+        font-size: 1.5rem;
+        min-width: 60px;
+    }
+
+    .counter-btn {
+        padding: 6px 12px;
+        font-size: 1rem;
+        min-width: 40px;
     }
 }

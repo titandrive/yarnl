@@ -696,7 +696,7 @@ async function loadLibraryStats() {
         };
 
         container.innerHTML = `
-            <div class="stats-grid">
+            <div class="library-stats-grid">
                 <div class="stat-item">
                     <span class="stat-value">${stats.totalPatterns}</span>
                     <span class="stat-label">Total Patterns</span>

@@ -119,51 +119,52 @@
                     <button id="settings-back-btn" class="btn btn-secondary">← Back</button>
                     <h2>Settings</h2>
                 </div>
-                <section class="settings-section">
-                    <h3>Appearance</h3>
-                    <div class="setting-item">
-                        <div class="setting-info">
-                            <label>Theme</label>
-                            <p class="setting-description">Choose between light and dark mode</p>
+                <div class="settings-grid">
+                    <section class="settings-section settings-appearance">
+                        <h3>Appearance</h3>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Theme</label>
+                                <p class="setting-description">Choose between light and dark mode</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="theme-toggle-checkbox">
+                                <span class="toggle-slider">
+                                    <span class="toggle-icon sun">☀️</span>
+                                    <span class="toggle-icon moon">🌙</span>
+                                </span>
+                            </label>
                         </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="theme-toggle-checkbox">
-                            <span class="toggle-slider">
-                                <span class="toggle-icon sun">☀️</span>
-                                <span class="toggle-icon moon">🌙</span>
-                            </span>
-                        </label>
-                    </div>
-                    <div class="setting-item">
-                        <div class="setting-info">
-                            <label>Tab Counts</label>
-                            <p class="setting-description">Show pattern counts on tabs</p>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Tab Counts</label>
+                                <p class="setting-description">Show pattern counts on tabs</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="tab-counts-checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
-                        <label class="toggle-switch">
-                            <input type="checkbox" id="tab-counts-checkbox" checked>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                </section>
+                    </section>
+                    <section class="settings-section">
+                        <h3>Categories</h3>
+                        <p class="section-description">Manage pattern categories for organizing your library</p>
+                        <div class="categories-list" id="categories-list">
+                            <!-- Categories will be populated here -->
+                        </div>
+                        <div class="add-category-form">
+                            <input type="text" id="new-category-input" placeholder="New category name...">
+                            <button id="add-category-btn" class="btn btn-primary">Add Category</button>
+                        </div>
+                    </section>
 
-                <section class="settings-section">
-                    <h3>Categories</h3>
-                    <p class="section-description">Manage pattern categories for organizing your library</p>
-                    <div class="categories-list" id="categories-list">
-                        <!-- Categories will be populated here -->
-                    </div>
-                    <div class="add-category-form">
-                        <input type="text" id="new-category-input" placeholder="New category name...">
-                        <button id="add-category-btn" class="btn btn-primary">Add Category</button>
-                    </div>
-                </section>
-
-                <section class="settings-section">
-                    <h3>Library Info</h3>
-                    <div class="library-stats" id="library-stats">
-                        <!-- Stats will be populated here -->
-                    </div>
-                </section>
+                    <section class="settings-section">
+                        <h3>Library Info</h3>
+                        <div class="library-stats" id="library-stats">
+                            <!-- Stats will be populated here -->
+                        </div>
+                    </section>
+                </div>
             </div>
         </div>
 

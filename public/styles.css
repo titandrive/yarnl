@@ -1257,8 +1257,30 @@ header h1 {
 
 /* Settings Page */
 .settings-container {
-    max-width: 1200px;
-    margin: 0 auto;
+    width: 100%;
+}
+
+.settings-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 20px;
+}
+
+@media (min-width: 992px) {
+    .settings-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+.settings-grid .settings-section {
+    margin-bottom: 0;
+}
+
+@media (min-width: 992px) {
+    .settings-appearance {
+        grid-column: span 2;
+        max-width: 600px;
+    }
 }
 
 .settings-header {
@@ -1563,7 +1585,7 @@ header h1 {
     margin-top: 8px;
 }
 
-.stats-grid {
+.library-stats-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
@@ -1571,8 +1593,14 @@ header h1 {
 }
 
 @media (min-width: 768px) {
-    .stats-grid {
+    .library-stats-grid {
         grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (min-width: 992px) {
+    .library-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
     }
 }
 

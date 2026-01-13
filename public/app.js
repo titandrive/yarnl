@@ -4,10 +4,11 @@ const API_URL = '';
 // State
 let patterns = [];
 let currentPatterns = [];
-let allTags = [];
+let allCategories = [];
 let selectedFile = null;
 let editingPatternId = null;
 let stagedFiles = []; // Array to hold staged files with metadata
+let selectedCategoryFilter = 'all';
 
 // PDF Viewer State
 let pdfDoc = null;
@@ -35,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initPDFViewer();
     loadPatterns();
     loadCurrentPatterns();
-    loadTags();
+    loadCategories();
 });
 
 // Theme toggle
@@ -151,7 +152,7 @@ function handleFiles(files) {
             id: fileId,
             file: file,
             name: file.name.replace('.pdf', ''),
-            tags: '',
+            category: 'Amigurumi',
             notes: '',
             isCurrent: false,
             status: 'staged', // staged, uploading, success, error
@@ -236,13 +237,15 @@ function renderStagedFiles() {
                                ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
                     </div>
                     <div class="form-group">
-                        <label>Tags (comma-separated)</label>
-                        <input type="text"
-                               value="${escapeHtml(stagedFile.tags)}"
-                               placeholder="e.g., amigurumi, beginner, sweater"
-                               onchange="updateStagedFile('${stagedFile.id}', 'tags', this.value)"
-                               list="tag-suggestions"
-                               ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
+                        <label>Category</label>
+                        <select onchange="updateStagedFile('${stagedFile.id}', 'category', this.value)"
+                                ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
+                            ${allCategories.length > 0 ? allCategories.map(cat => `
+                                <option value="${escapeHtml(cat)}" ${cat === stagedFile.category ? 'selected' : ''}>
+                                    ${escapeHtml(cat)}
+                                </option>
+                            `).join('') : `<option value="Amigurumi">Amigurumi</option>`}
+                        </select>
                     </div>
                     <div class="form-group">
                         <label>Notes</label>
@@ -329,7 +332,6 @@ async function uploadAllPatterns() {
     // Reload patterns after all uploads
     await loadPatterns();
     await loadCurrentPatterns();
-    await loadTags();
 
     // Remove successful uploads after a delay
     setTimeout(() => {
@@ -351,7 +353,7 @@ async function uploadStagedFile(stagedFile) {
     const formData = new FormData();
     formData.append('pdf', stagedFile.file);
     formData.append('name', stagedFile.name || stagedFile.file.name.replace('.pdf', ''));
-    formData.append('tags', stagedFile.tags);
+    formData.append('category', stagedFile.category);
     formData.append('notes', stagedFile.notes);
     formData.append('isCurrent', stagedFile.isCurrent);
 
@@ -418,19 +420,50 @@ async function loadCurrentPatterns() {
     }
 }
 
-async function loadTags() {
+async function loadCategories() {
     try {
-        const response = await fetch(`${API_URL}/api/tags`);
-        allTags = await response.json();
-        updateTagSuggestions();
+        const response = await fetch(`${API_URL}/api/categories`);
+        allCategories = await response.json();
+        updateCategorySelects();
+
+        // Re-render staged files if any exist to populate category dropdowns
+        if (stagedFiles.length > 0) {
+            renderStagedFiles();
+        }
     } catch (error) {
-        console.error('Error loading tags:', error);
+        console.error('Error loading categories:', error);
+        // Fallback to default categories if API fails
+        allCategories = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace / Filet', 'Colorwork', 'Freeform', 'Micro', 'Other'];
+        updateCategorySelects();
     }
 }
 
-function updateTagSuggestions() {
-    const datalist = document.getElementById('tag-suggestions');
-    datalist.innerHTML = allTags.map(tag => `<option value="${escapeHtml(tag)}">`).join('');
+function updateCategorySelects() {
+    // Update edit modal category select
+    const editCategorySelect = document.getElementById('edit-pattern-category');
+    if (editCategorySelect) {
+        editCategorySelect.innerHTML = allCategories.map(cat =>
+            `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`
+        ).join('');
+    }
+
+    // Update library filter select
+    const filterSelect = document.getElementById('category-filter-select');
+    if (filterSelect) {
+        filterSelect.innerHTML = '<option value="all">All Categories</option>' +
+            allCategories.map(cat =>
+                `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`
+            ).join('');
+
+        // Add event listener for filter
+        filterSelect.removeEventListener('change', handleCategoryFilter);
+        filterSelect.addEventListener('change', handleCategoryFilter);
+    }
+}
+
+function handleCategoryFilter(e) {
+    selectedCategoryFilter = e.target.value;
+    displayPatterns();
 }
 
 function displayCurrentPatterns() {
@@ -447,9 +480,9 @@ function displayCurrentPatterns() {
             ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
             <h3>${escapeHtml(pattern.name)}</h3>
             <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
-            ${pattern.tags && pattern.tags.length > 0 ? `
-                <div class="pattern-tags">
-                    ${pattern.tags.map(tag => `<span class="pattern-tag">${escapeHtml(tag)}</span>`).join('')}
+            ${pattern.category ? `
+                <div class="pattern-category">
+                    <span class="category-badge">${escapeHtml(pattern.category)}</span>
                 </div>
             ` : ''}
         </div>
@@ -464,15 +497,25 @@ function displayPatterns() {
         return;
     }
 
-    grid.innerHTML = patterns.map(pattern => `
+    // Filter patterns by selected category
+    const filteredPatterns = selectedCategoryFilter === 'all'
+        ? patterns
+        : patterns.filter(p => p.category === selectedCategoryFilter);
+
+    if (filteredPatterns.length === 0) {
+        grid.innerHTML = `<p class="empty-state">No patterns in category "${escapeHtml(selectedCategoryFilter)}"</p>`;
+        return;
+    }
+
+    grid.innerHTML = filteredPatterns.map(pattern => `
         <div class="pattern-card" onclick="openPDFViewer(${pattern.id})" style="cursor: pointer;">
             ${pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
             ${pattern.thumbnail ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">` : ''}
             <h3>${escapeHtml(pattern.name)}</h3>
             <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
-            ${pattern.tags && pattern.tags.length > 0 ? `
-                <div class="pattern-tags">
-                    ${pattern.tags.map(tag => `<span class="pattern-tag">${escapeHtml(tag)}</span>`).join('')}
+            ${pattern.category ? `
+                <div class="pattern-category">
+                    <span class="category-badge">${escapeHtml(pattern.category)}</span>
                 </div>
             ` : ''}
             ${pattern.notes ? `<p class="pattern-notes">${escapeHtml(pattern.notes)}</p>` : ''}
@@ -928,7 +971,7 @@ async function openEditModal(patternId) {
     }
 
     document.getElementById('edit-pattern-name').value = pattern.name;
-    document.getElementById('edit-pattern-tags').value = pattern.tags ? pattern.tags.join(', ') : '';
+    document.getElementById('edit-pattern-category').value = pattern.category || 'Amigurumi';
     document.getElementById('edit-pattern-notes').value = pattern.notes || '';
     document.getElementById('edit-thumbnail').value = '';
 
@@ -944,7 +987,7 @@ async function savePatternEdits() {
     if (!editingPatternId) return;
 
     const name = document.getElementById('edit-pattern-name').value;
-    const tags = document.getElementById('edit-pattern-tags').value;
+    const category = document.getElementById('edit-pattern-category').value;
     const notes = document.getElementById('edit-pattern-notes').value;
     const thumbnailFile = document.getElementById('edit-thumbnail').files[0];
 
@@ -953,7 +996,7 @@ async function savePatternEdits() {
         const response = await fetch(`${API_URL}/api/patterns/${editingPatternId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, tags, notes })
+            body: JSON.stringify({ name, category, notes })
         });
 
         if (!response.ok) {

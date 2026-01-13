@@ -20,7 +20,7 @@ async function initDatabase() {
         filename VARCHAR(255) NOT NULL,
         original_name VARCHAR(255) NOT NULL,
         upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        tags TEXT[],
+        category VARCHAR(100) DEFAULT 'Amigurumi',
         notes TEXT,
         is_current BOOLEAN DEFAULT false,
         stitch_count INTEGER DEFAULT 0,
@@ -66,6 +66,10 @@ async function initDatabase() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                       WHERE table_name='patterns' AND column_name='current_page') THEN
           ALTER TABLE patterns ADD COLUMN current_page INTEGER DEFAULT 1;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='category') THEN
+          ALTER TABLE patterns ADD COLUMN category VARCHAR(100) DEFAULT 'Amigurumi';
         END IF;
       END $$;
     `);

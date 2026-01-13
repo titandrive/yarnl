@@ -388,14 +388,14 @@ header h1 {
     margin-bottom: 10px;
 }
 
-.pattern-tags {
+.pattern-category {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
     margin: 10px 0;
 }
 
-.pattern-tag {
+.category-badge {
     background: rgba(139, 92, 246, 0.15);
     color: var(--primary-color);
     padding: 4px 12px;
@@ -403,6 +403,37 @@ header h1 {
     font-size: 0.85rem;
     font-weight: 500;
     border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.library-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.category-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.category-filter label {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
+.category-filter select {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-color);
+    font-size: 0.95rem;
+    cursor: pointer;
+    min-width: 150px;
 }
 
 .pattern-notes {

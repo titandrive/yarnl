@@ -27,14 +27,24 @@ if (!fs.existsSync(thumbnailsDir)) {
   fs.mkdirSync(thumbnailsDir, { recursive: true });
 }
 
+// Available categories
+const CATEGORIES = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace / Filet', 'Colorwork', 'Freeform', 'Micro', 'Other'];
+
 // Configure multer for PDF uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, uploadsDir);
+    const category = req.body.category || 'Amigurumi';
+    const categoryDir = path.join(uploadsDir, category);
+
+    // Ensure category directory exists
+    if (!fs.existsSync(categoryDir)) {
+      fs.mkdirSync(categoryDir, { recursive: true });
+    }
+
+    cb(null, categoryDir);
   },
   filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname);
+    cb(null, file.originalname);
   }
 });
 
@@ -119,20 +129,20 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
     }
 
     const name = req.body.name || req.file.originalname.replace('.pdf', '');
-    const tags = req.body.tags ? req.body.tags.split(',').map(t => t.trim()) : [];
+    const category = req.body.category || 'Amigurumi';
     const notes = req.body.notes || '';
     const isCurrent = req.body.isCurrent === 'true' || req.body.isCurrent === true;
 
     // Generate thumbnail from PDF
-    const pdfPath = path.join(uploadsDir, req.file.filename);
-    const thumbnailFilename = `thumb-${req.file.filename}.jpg`;
+    const pdfPath = req.file.path;
+    const thumbnailFilename = `thumb-${category}-${req.file.filename}.jpg`;
     const thumbnail = await generateThumbnail(pdfPath, thumbnailFilename);
 
     const result = await pool.query(
-      `INSERT INTO patterns (name, filename, original_name, tags, notes, is_current, thumbnail)
+      `INSERT INTO patterns (name, filename, original_name, category, notes, is_current, thumbnail)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [name, req.file.filename, req.file.originalname, tags, notes, isCurrent, thumbnail]
+      [name, req.file.filename, req.file.originalname, category, notes, isCurrent, thumbnail]
     );
 
     res.json(result.rows[0]);
@@ -155,10 +165,14 @@ app.get('/api/patterns/:id/file', async (req, res) => {
     }
 
     const pattern = result.rows[0];
-    const filePath = path.join(uploadsDir, pattern.filename);
+    let filePath = path.join(uploadsDir, pattern.category, pattern.filename);
 
+    // Check if file exists in category folder, otherwise check root uploads folder (for legacy files)
     if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ error: 'File not found' });
+      filePath = path.join(uploadsDir, pattern.filename);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File not found' });
+      }
     }
 
     res.sendFile(filePath);
@@ -201,7 +215,55 @@ app.get('/api/patterns/:id/thumbnail', async (req, res) => {
 // Update pattern details
 app.patch('/api/patterns/:id', async (req, res) => {
   try {
-    const { name, notes, tags } = req.body;
+    console.log('PATCH request body:', req.body);
+    const { name, notes, category } = req.body;
+    console.log('Extracted values:', { name, notes, category });
+
+    // Get the current pattern data to check if we need to move the file
+    const currentPattern = await pool.query(
+      'SELECT * FROM patterns WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (currentPattern.rows.length === 0) {
+      return res.status(404).json({ error: 'Pattern not found' });
+    }
+
+    const pattern = currentPattern.rows[0];
+
+    // If category is being changed, move the file
+    if (category !== undefined && category !== pattern.category) {
+      console.log(`Category changing from "${pattern.category}" to "${category}"`);
+
+      // Find current file location (check category folder first, then root)
+      let oldFilePath = path.join(uploadsDir, pattern.category, pattern.filename);
+      console.log(`Checking for file at: ${oldFilePath}`);
+
+      if (!fs.existsSync(oldFilePath)) {
+        oldFilePath = path.join(uploadsDir, pattern.filename);
+        console.log(`Not found, checking root: ${oldFilePath}`);
+      }
+
+      if (fs.existsSync(oldFilePath)) {
+        console.log(`File found at: ${oldFilePath}`);
+
+        // Create new category directory if it doesn't exist
+        const newCategoryDir = path.join(uploadsDir, category);
+        if (!fs.existsSync(newCategoryDir)) {
+          fs.mkdirSync(newCategoryDir, { recursive: true });
+          console.log(`Created directory: ${newCategoryDir}`);
+        }
+
+        // Move file to new category folder
+        const newFilePath = path.join(newCategoryDir, pattern.filename);
+        console.log(`Moving to: ${newFilePath}`);
+        fs.renameSync(oldFilePath, newFilePath);
+        console.log(`Successfully moved file from ${oldFilePath} to ${newFilePath}`);
+      } else {
+        console.log(`File not found at ${oldFilePath}, skipping move`);
+      }
+    }
+
     const updates = [];
     const values = [];
     let paramCount = 1;
@@ -214,10 +276,9 @@ app.patch('/api/patterns/:id', async (req, res) => {
       updates.push(`notes = $${paramCount++}`);
       values.push(notes);
     }
-    if (tags !== undefined) {
-      const tagsArray = typeof tags === 'string' ? tags.split(',').map(t => t.trim()) : tags;
-      updates.push(`tags = $${paramCount++}`);
-      values.push(tagsArray);
+    if (category !== undefined) {
+      updates.push(`category = $${paramCount++}`);
+      values.push(category);
     }
 
     if (updates.length === 0) {
@@ -260,11 +321,24 @@ app.delete('/api/patterns/:id', async (req, res) => {
     }
 
     const pattern = result.rows[0];
-    const filePath = path.join(uploadsDir, pattern.filename);
+    let filePath = path.join(uploadsDir, pattern.category, pattern.filename);
 
-    // Delete the file
+    // Delete the file (check category folder first, then root for legacy files)
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
+    } else {
+      filePath = path.join(uploadsDir, pattern.filename);
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    // Delete the thumbnail
+    if (pattern.thumbnail) {
+      const thumbnailPath = path.join(thumbnailsDir, pattern.thumbnail);
+      if (fs.existsSync(thumbnailPath)) {
+        fs.unlinkSync(thumbnailPath);
+      }
     }
 
     await pool.query('DELETE FROM patterns WHERE id = $1', [req.params.id]);
@@ -288,15 +362,12 @@ app.get('/api/patterns/current', async (req, res) => {
   }
 });
 
-// Get all unique tags
-app.get('/api/tags', async (req, res) => {
+// Get all available categories
+app.get('/api/categories', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT DISTINCT unnest(tags) as tag FROM patterns WHERE tags IS NOT NULL ORDER BY tag'
-    );
-    res.json(result.rows.map(row => row.tag));
+    res.json(CATEGORIES);
   } catch (error) {
-    console.error('Error fetching tags:', error);
+    console.error('Error fetching categories:', error);
     res.status(500).json({ error: error.message });
   }
 });

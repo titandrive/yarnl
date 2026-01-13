@@ -21,7 +21,7 @@ async function initDatabase() {
         original_name VARCHAR(255) NOT NULL,
         upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         category VARCHAR(100) DEFAULT 'Amigurumi',
-        notes TEXT,
+        description TEXT,
         is_current BOOLEAN DEFAULT false,
         stitch_count INTEGER DEFAULT 0,
         row_count INTEGER DEFAULT 0,
@@ -70,6 +70,20 @@ async function initDatabase() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                       WHERE table_name='patterns' AND column_name='category') THEN
           ALTER TABLE patterns ADD COLUMN category VARCHAR(100) DEFAULT 'Amigurumi';
+        END IF;
+
+        -- Rename notes to description
+        IF EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_name='patterns' AND column_name='notes') AND
+           NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='description') THEN
+          ALTER TABLE patterns RENAME COLUMN notes TO description;
+        END IF;
+
+        -- Add description column if it doesn't exist
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='description') THEN
+          ALTER TABLE patterns ADD COLUMN description TEXT;
         END IF;
       END $$;
     `);

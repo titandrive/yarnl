@@ -450,11 +450,16 @@ header h1 {
     min-width: 150px;
 }
 
-.pattern-notes {
+.pattern-description {
     color: #4b5563;
     font-size: 0.9rem;
-    margin: 10px 0;
-    line-height: 1.4;
+    margin: 15px 0 0 0;
+    padding: 12px;
+    background: rgba(107, 114, 128, 0.1);
+    border-radius: 8px;
+    line-height: 1.5;
+    font-style: italic;
+    border-left: 3px solid var(--primary-color);
 }
 
 .pattern-actions {

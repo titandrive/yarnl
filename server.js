@@ -171,7 +171,7 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
 
     const name = req.body.name || req.file.originalname.replace('.pdf', '');
     const category = req.body.category || 'Amigurumi';
-    const notes = req.body.notes || '';
+    const description = req.body.description || '';
     const isCurrent = req.body.isCurrent === 'true' || req.body.isCurrent === true;
 
     console.log('Upload received:');
@@ -211,10 +211,10 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
     const thumbnail = await generateThumbnail(pdfPath, thumbnailFilename);
 
     const result = await pool.query(
-      `INSERT INTO patterns (name, filename, original_name, category, notes, is_current, thumbnail)
+      `INSERT INTO patterns (name, filename, original_name, category, description, is_current, thumbnail)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [name, finalFilename, req.file.originalname, category, notes, isCurrent, thumbnail]
+      [name, finalFilename, req.file.originalname, category, description, isCurrent, thumbnail]
     );
 
     res.json(result.rows[0]);
@@ -288,8 +288,8 @@ app.get('/api/patterns/:id/thumbnail', async (req, res) => {
 app.patch('/api/patterns/:id', async (req, res) => {
   try {
     console.log('PATCH request body:', req.body);
-    const { name, notes, category } = req.body;
-    console.log('Extracted values:', { name, notes, category });
+    const { name, description, category } = req.body;
+    console.log('Extracted values:', { name, description, category });
 
     // Get the current pattern data to check if we need to move the file
     const currentPattern = await pool.query(
@@ -377,9 +377,9 @@ app.patch('/api/patterns/:id', async (req, res) => {
       updates.push(`name = $${paramCount++}`);
       values.push(name);
     }
-    if (notes !== undefined) {
-      updates.push(`notes = $${paramCount++}`);
-      values.push(notes);
+    if (description !== undefined) {
+      updates.push(`description = $${paramCount++}`);
+      values.push(description);
     }
     if (category !== undefined) {
       updates.push(`category = $${paramCount++}`);

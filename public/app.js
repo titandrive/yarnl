@@ -168,7 +168,7 @@ function handleFiles(files) {
             file: file,
             name: file.name.replace('.pdf', ''),
             category: 'Amigurumi',
-            notes: '',
+            description: '',
             isCurrent: false,
             status: 'staged', // staged, uploading, success, error
             progress: 0,
@@ -263,10 +263,10 @@ function renderStagedFiles() {
                         </select>
                     </div>
                     <div class="form-group">
-                        <label>Notes</label>
+                        <label>Description</label>
                         <textarea rows="2"
-                                  onchange="updateStagedFile('${stagedFile.id}', 'notes', this.value)"
-                                  ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>${escapeHtml(stagedFile.notes)}</textarea>
+                                  onchange="updateStagedFile('${stagedFile.id}', 'description', this.value)"
+                                  ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>${escapeHtml(stagedFile.description)}</textarea>
                     </div>
                     <div class="form-group checkbox-group">
                         <label>
@@ -376,7 +376,7 @@ async function uploadStagedFile(stagedFile) {
     formData.append('pdf', stagedFile.file);
     formData.append('name', stagedFile.name || stagedFile.file.name.replace('.pdf', ''));
     formData.append('category', stagedFile.category);
-    formData.append('notes', stagedFile.notes);
+    formData.append('description', stagedFile.description);
     formData.append('isCurrent', stagedFile.isCurrent);
 
     console.log('FormData name value:', stagedFile.name || stagedFile.file.name.replace('.pdf', ''));
@@ -531,6 +531,7 @@ function displayCurrentPatterns() {
                     <span class="category-badge">${escapeHtml(pattern.category)}</span>
                 </div>
             ` : ''}
+            ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
         </div>
     `).join('');
 }
@@ -564,7 +565,6 @@ function displayPatterns() {
                     <span class="category-badge">${escapeHtml(pattern.category)}</span>
                 </div>
             ` : ''}
-            ${pattern.notes ? `<p class="pattern-notes">${escapeHtml(pattern.notes)}</p>` : ''}
             <div class="pattern-actions" onclick="event.stopPropagation()">
                 <button class="btn btn-primary btn-small" onclick="openPDFViewer('${pattern.id}')">View PDF</button>
                 <button class="btn btn-${pattern.is_current ? 'secondary' : 'success'} btn-small"
@@ -574,6 +574,7 @@ function displayPatterns() {
                 <button class="btn btn-secondary btn-small" onclick="openEditModal('${pattern.id}')">Edit</button>
                 <button class="btn btn-danger btn-small" onclick="deletePattern('${pattern.id}')">Delete</button>
             </div>
+            ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
         </div>
     `).join('');
 }
@@ -1019,7 +1020,7 @@ async function openEditModal(patternId) {
 
     document.getElementById('edit-pattern-name').value = pattern.name;
     document.getElementById('edit-pattern-category').value = pattern.category || 'Amigurumi';
-    document.getElementById('edit-pattern-notes').value = pattern.notes || '';
+    document.getElementById('edit-pattern-description').value = pattern.description || '';
     document.getElementById('edit-thumbnail').value = '';
 
     document.getElementById('edit-modal').style.display = 'flex';
@@ -1035,7 +1036,7 @@ async function savePatternEdits() {
 
     const name = document.getElementById('edit-pattern-name').value;
     const category = document.getElementById('edit-pattern-category').value;
-    const notes = document.getElementById('edit-pattern-notes').value;
+    const description = document.getElementById('edit-pattern-description').value;
     const thumbnailFile = document.getElementById('edit-thumbnail').files[0];
 
     try {
@@ -1043,7 +1044,7 @@ async function savePatternEdits() {
         const response = await fetch(`${API_URL}/api/patterns/${editingPatternId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, category, notes })
+            body: JSON.stringify({ name, category, description })
         });
 
         if (!response.ok) {

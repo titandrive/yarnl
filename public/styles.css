@@ -1377,9 +1377,9 @@ header {
 }
 
 @media (min-width: 992px) {
-    .settings-appearance {
-        grid-column: span 2;
-        max-width: 600px;
+    .settings-appearance,
+    .settings-badges {
+        grid-column: span 1;
     }
 }
 

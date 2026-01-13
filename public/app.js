@@ -19,6 +19,9 @@ let showMarkdown = true;
 let searchQuery = '';
 let previousTab = 'current';
 let showTabCounts = localStorage.getItem('showTabCounts') !== 'false';
+let showTypeBadge = localStorage.getItem('showTypeBadge') !== 'false';
+let showStatusBadge = localStorage.getItem('showStatusBadge') !== 'false';
+let showCategoryBadge = localStorage.getItem('showCategoryBadge') !== 'false';
 
 // PDF Viewer State
 let pdfDoc = null;
@@ -743,6 +746,41 @@ function initSettings() {
             showTabCounts = tabCountsCheckbox.checked;
             localStorage.setItem('showTabCounts', showTabCounts);
             updateTabCounts();
+        });
+    }
+
+    // Badge visibility settings
+    const badgeTypeCheckbox = document.getElementById('badge-type-checkbox');
+    const badgeStatusCheckbox = document.getElementById('badge-status-checkbox');
+    const badgeCategoryCheckbox = document.getElementById('badge-category-checkbox');
+
+    if (badgeTypeCheckbox) {
+        badgeTypeCheckbox.checked = showTypeBadge;
+        badgeTypeCheckbox.addEventListener('change', () => {
+            showTypeBadge = badgeTypeCheckbox.checked;
+            localStorage.setItem('showTypeBadge', showTypeBadge);
+            displayPatterns();
+            displayCurrentPatterns();
+        });
+    }
+
+    if (badgeStatusCheckbox) {
+        badgeStatusCheckbox.checked = showStatusBadge;
+        badgeStatusCheckbox.addEventListener('change', () => {
+            showStatusBadge = badgeStatusCheckbox.checked;
+            localStorage.setItem('showStatusBadge', showStatusBadge);
+            displayPatterns();
+            displayCurrentPatterns();
+        });
+    }
+
+    if (badgeCategoryCheckbox) {
+        badgeCategoryCheckbox.checked = showCategoryBadge;
+        badgeCategoryCheckbox.addEventListener('change', () => {
+            showCategoryBadge = badgeCategoryCheckbox.checked;
+            localStorage.setItem('showCategoryBadge', showCategoryBadge);
+            displayPatterns();
+            displayCurrentPatterns();
         });
     }
 
@@ -1919,9 +1957,9 @@ function displayCurrentPatterns() {
 
         return `
             <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
-                ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : '<span class="current-badge">CURRENT</span>'}
-                ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
-                <span class="type-badge">${typeLabel}</span>
+                ${showStatusBadge ? (pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : '<span class="current-badge">CURRENT</span>') : ''}
+                ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
+                ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
                 ${pattern.thumbnail
                     ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
                     : `<div class="pattern-thumbnail-placeholder">
@@ -2021,10 +2059,10 @@ function displayPatterns() {
 
         return `
             <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
-                ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
-                ${!pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
-                ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
-                <span class="type-badge">${typeLabel}</span>
+                ${showStatusBadge && pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
+                ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
+                ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
+                ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
                 ${pattern.thumbnail
                     ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
                     : `<div class="pattern-thumbnail-placeholder">

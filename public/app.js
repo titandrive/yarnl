@@ -481,11 +481,25 @@ function updateCategorySelects() {
     // Update library filter select - use POPULATED categories (with counts)
     const filterSelect = document.getElementById('category-filter-select');
     if (filterSelect) {
+        // Save current selection before rebuilding dropdown
+        const currentSelection = filterSelect.value || selectedCategoryFilter;
+
         const totalCount = populatedCategories.reduce((sum, cat) => sum + cat.count, 0);
         filterSelect.innerHTML = `<option value="all">All Categories (${totalCount})</option>` +
             populatedCategories.map(cat =>
                 `<option value="${escapeHtml(cat.name)}">${escapeHtml(cat.name)} (${cat.count})</option>`
             ).join('');
+
+        // Restore previous selection if it still exists in the dropdown
+        if (currentSelection && Array.from(filterSelect.options).some(opt => opt.value === currentSelection)) {
+            filterSelect.value = currentSelection;
+            selectedCategoryFilter = currentSelection;
+        } else {
+            // If selected category no longer exists (e.g., it was the last pattern in that category), switch to "all"
+            filterSelect.value = 'all';
+            selectedCategoryFilter = 'all';
+            displayPatterns();
+        }
 
         // Add event listener for filter
         filterSelect.removeEventListener('change', handleCategoryFilter);

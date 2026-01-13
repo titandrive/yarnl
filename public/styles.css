@@ -96,38 +96,39 @@ header {
 
 .header-btn-container {
     position: relative;
-    width: 40px;
+    width: auto;
 }
 
 .header-btn {
-    background: none;
+    background: rgba(255, 255, 255, 0.15);
     border: none;
-    padding: 8px;
+    padding: 8px 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 8px;
     transition: all 0.3s ease;
     color: white;
-    opacity: 0.8;
     border-radius: 8px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
 }
 
 .header-btn:hover {
-    opacity: 1;
-    background: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.25);
 }
 
-.header-right .header-btn:hover {
-    transform: rotate(45deg);
-    background: none;
+.header-btn-labeled span {
+    white-space: nowrap;
 }
 
 /* Add Pattern Menu */
 .add-menu {
     position: absolute;
     top: 100%;
-    left: 0;
+    right: 0;
     margin-top: 8px;
     background: var(--card-bg);
     border: 2px solid var(--border-color);

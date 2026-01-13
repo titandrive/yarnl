@@ -6,7 +6,7 @@ services:
     container_name: yarnl-db
     image: postgres:16-alpine
     volumes:
-      - /opt/yarnl/postgres-data:/var/lib/postgresql/data
+      - yarnl-postgres-data:/var/lib/postgresql/data
     environment:
       - POSTGRES_DB=yarnl
       - POSTGRES_USER=yarnl
@@ -48,3 +48,6 @@ services:
 networks:
   yarn-net:
     external: true
+
+volumes:
+  yarnl-postgres-data:

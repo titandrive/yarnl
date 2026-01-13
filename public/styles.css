@@ -128,7 +128,7 @@ header h1 {
     cursor: pointer;
     font-size: 1.1rem;
     font-weight: 600;
-    color: #6b7280;
+    color: var(--text-color);
     transition: all 0.3s ease;
 }
 
@@ -397,7 +397,7 @@ header h1 {
 }
 
 .pattern-card .pattern-date {
-    color: #6b7280;
+    color: var(--text-color);
     font-size: 0.9rem;
     margin-bottom: 10px;
 }
@@ -451,7 +451,7 @@ header h1 {
 }
 
 .pattern-description {
-    color: #4b5563;
+    color: var(--text-color);
     font-size: 0.9rem;
     margin: 15px 0 0 0;
     line-height: 1.4;

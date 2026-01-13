@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Yarnl - Crochet Project Manager</title>
+    <script>
+        // Set theme immediately to prevent flash
+        const theme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+    </script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
     <link rel="stylesheet" href="styles.css">
 </head>

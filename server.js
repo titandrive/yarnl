@@ -861,6 +861,46 @@ app.put('/api/patterns/:id/hashtags', async (req, res) => {
   }
 });
 
+// Get notes for a pattern
+app.get('/api/patterns/:id/notes', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT notes FROM patterns WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Pattern not found' });
+    }
+
+    res.json({ notes: result.rows[0].notes || '' });
+  } catch (error) {
+    console.error('Error fetching notes:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update notes for a pattern
+app.put('/api/patterns/:id/notes', async (req, res) => {
+  try {
+    const { notes } = req.body;
+
+    const result = await pool.query(
+      'UPDATE patterns SET notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING notes',
+      [notes || '', req.params.id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Pattern not found' });
+    }
+
+    res.json({ notes: result.rows[0].notes });
+  } catch (error) {
+    console.error('Error updating notes:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Toggle pattern current status
 app.patch('/api/patterns/:id/current', async (req, res) => {
   try {

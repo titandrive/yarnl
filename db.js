@@ -138,6 +138,12 @@ async function initDatabase() {
                       WHERE table_name='patterns' AND column_name='completed_date') THEN
           ALTER TABLE patterns ADD COLUMN completed_date TIMESTAMP;
         END IF;
+
+        -- Add notes column if it doesn't exist
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='notes') THEN
+          ALTER TABLE patterns ADD COLUMN notes TEXT;
+        END IF;
       END $$;
     `);
 

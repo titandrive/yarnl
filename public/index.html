@@ -183,7 +183,10 @@
         <!-- PDF Viewer with Counter Overlay (hidden by default, shown when clicking a pattern) -->
         <div id="pdf-viewer-container" class="pdf-viewer-container" style="display: none;">
             <div class="pdf-header">
-                <button id="pdf-back-btn" class="btn btn-secondary">← Back</button>
+                <div class="pdf-header-left">
+                    <button id="pdf-back-btn" class="btn btn-secondary">← Back</button>
+                    <button id="pdf-notes-btn" class="btn btn-secondary">Notes</button>
+                </div>
                 <h2 id="pdf-pattern-name"></h2>
                 <div class="pdf-nav-controls">
                     <button id="prev-page-btn" class="btn btn-secondary">←</button>
@@ -203,6 +206,26 @@
                 </div>
                 <div class="counter-actions">
                     <button id="add-counter-btn" class="btn btn-success">+ Add Counter</button>
+                </div>
+            </div>
+
+            <!-- Notes Popover -->
+            <div id="notes-popover" class="notes-popover" style="display: none;">
+                <div class="notes-popover-header">
+                    <div class="notes-tabs">
+                        <button class="notes-tab active" data-tab="edit">Edit</button>
+                        <button class="notes-tab" data-tab="preview">Preview</button>
+                    </div>
+                    <button id="notes-close-btn" class="notes-close">&times;</button>
+                </div>
+                <div class="notes-popover-body">
+                    <textarea id="notes-editor" placeholder="Write your notes here... Markdown supported!"></textarea>
+                    <div id="notes-preview" class="notes-preview" style="display: none;"></div>
+                </div>
+                <div class="notes-popover-footer">
+                    <span class="notes-hint">Markdown supported</span>
+                    <span id="notes-save-status" class="notes-save-status"></span>
+                    <button id="notes-clear-btn" class="btn btn-secondary btn-small">Clear</button>
                 </div>
             </div>
         </div>

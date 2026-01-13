@@ -384,6 +384,7 @@ header h1 {
     box-shadow: var(--shadow);
     transition: all 0.3s ease;
     position: relative;
+    cursor: pointer;
 }
 
 .pattern-card:hover {
@@ -1845,4 +1846,226 @@ header h1 {
 
 .hashtag-add-inline input::placeholder {
     color: var(--text-muted);
+}
+
+/* PDF Header Left Group */
+.pdf-header-left {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+/* Notes Popover */
+.notes-popover {
+    position: absolute;
+    top: 70px;
+    left: 20px;
+    width: 550px;
+    min-width: 300px;
+    min-height: 300px;
+    max-width: calc(100vw - 40px);
+    max-height: calc(100vh - 80px);
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    resize: both;
+    overflow: hidden;
+}
+
+.notes-popover-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border-color);
+    cursor: grab;
+    user-select: none;
+}
+
+.notes-tabs {
+    display: flex;
+    gap: 4px;
+}
+
+.notes-tab {
+    padding: 6px 12px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.notes-tab:hover {
+    background: var(--border-color);
+    color: var(--text-color);
+}
+
+.notes-tab.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+.notes-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.notes-close:hover {
+    color: var(--text-color);
+}
+
+.notes-popover-body {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+#notes-editor {
+    flex: 1;
+    min-height: 400px;
+    padding: 16px;
+    border: none;
+    background: transparent;
+    color: var(--text-color);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.9rem;
+    resize: none;
+    outline: none;
+}
+
+#notes-editor::placeholder {
+    color: var(--text-muted);
+}
+
+.notes-preview {
+    flex: 1;
+    min-height: 400px;
+    padding: 16px;
+    overflow-y: auto;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.notes-preview h1,
+.notes-preview h2,
+.notes-preview h3 {
+    color: var(--primary-color);
+    margin-top: 1em;
+    margin-bottom: 0.5em;
+}
+
+.notes-preview h1:first-child,
+.notes-preview h2:first-child,
+.notes-preview h3:first-child {
+    margin-top: 0;
+}
+
+.notes-preview p {
+    margin-bottom: 1em;
+}
+
+.notes-preview ul,
+.notes-preview ol {
+    margin-bottom: 1em;
+    padding-left: 1.5em;
+}
+
+.notes-preview li {
+    margin-bottom: 0.25em;
+}
+
+.notes-preview code {
+    background: var(--border-color);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.85em;
+}
+
+.notes-preview pre {
+    background: var(--border-color);
+    padding: 12px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin-bottom: 1em;
+}
+
+.notes-preview pre code {
+    background: none;
+    padding: 0;
+}
+
+.notes-preview blockquote {
+    border-left: 3px solid var(--primary-color);
+    margin: 0 0 1em 0;
+    padding-left: 1em;
+    color: var(--text-muted);
+}
+
+.notes-preview strong {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.notes-preview em {
+    font-style: italic;
+}
+
+.notes-popover-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.notes-hint {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.notes-save-status {
+    font-size: 0.8rem;
+    margin-left: auto;
+    margin-right: 12px;
+}
+
+.notes-save-status.saving {
+    color: var(--text-muted);
+}
+
+.notes-save-status.saved {
+    color: var(--success-color);
+}
+
+.notes-save-status.error {
+    color: var(--danger-color);
+}
+
+#notes-clear-btn.confirm {
+    background: var(--danger-color);
+    color: white;
+}
+
+@media (max-width: 480px) {
+    .notes-popover {
+        left: 10px;
+        right: 10px;
+        width: auto;
+    }
 }

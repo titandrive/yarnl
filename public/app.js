@@ -1158,16 +1158,20 @@ function displayPatterns() {
     // Filter patterns by search query (including hashtags)
     let filteredPatterns = patterns;
     if (searchQuery) {
-        // Remove # prefix if searching for hashtag and lowercase
+        const isHashtagSearch = searchQuery.startsWith('#');
         const searchTerm = searchQuery.replace(/^#/, '').toLowerCase();
+
         filteredPatterns = filteredPatterns.filter(p => {
-            // Check name
-            if (p.name.toLowerCase().includes(searchTerm)) return true;
-            // Check description
-            if (p.description && p.description.toLowerCase().includes(searchTerm)) return true;
-            // Check hashtags
-            if (p.hashtags && p.hashtags.some(h => h.name.toLowerCase().includes(searchTerm))) return true;
-            return false;
+            if (isHashtagSearch) {
+                // Only search hashtags when query starts with #
+                return p.hashtags && p.hashtags.some(h => h.name.toLowerCase().includes(searchTerm));
+            } else {
+                // Search name, description, and hashtags
+                if (p.name.toLowerCase().includes(searchTerm)) return true;
+                if (p.description && p.description.toLowerCase().includes(searchTerm)) return true;
+                if (p.hashtags && p.hashtags.some(h => h.name.toLowerCase().includes(searchTerm))) return true;
+                return false;
+            }
         });
     }
 
@@ -1211,7 +1215,7 @@ function displayPatterns() {
             : '';
 
         return `
-            <div class="pattern-card" onclick="openPDFViewer(${pattern.id})" style="cursor: pointer;">
+            <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
                 ${pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
                 ${!pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
                 ${pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
@@ -1307,11 +1311,31 @@ function initPDFViewer() {
     const prevPageBtn = document.getElementById('prev-page-btn');
     const nextPageBtn = document.getElementById('next-page-btn');
     const addCounterBtn = document.getElementById('add-counter-btn');
+    const notesBtn = document.getElementById('pdf-notes-btn');
+    const notesCloseBtn = document.getElementById('notes-close-btn');
 
     backBtn.addEventListener('click', closePDFViewer);
     prevPageBtn.addEventListener('click', () => changePage(-1));
     nextPageBtn.addEventListener('click', () => changePage(1));
     addCounterBtn.addEventListener('click', () => addCounter());
+    notesBtn.addEventListener('click', toggleNotesPopover);
+    notesCloseBtn.addEventListener('click', closeNotesPopover);
+
+    // Notes auto-save on input
+    const notesEditor = document.getElementById('notes-editor');
+    notesEditor.addEventListener('input', scheduleNotesAutoSave);
+
+    // Notes clear button
+    const notesClearBtn = document.getElementById('notes-clear-btn');
+    notesClearBtn.addEventListener('click', clearNotes);
+
+    // Notes tab switching
+    document.querySelectorAll('.notes-tab').forEach(tab => {
+        tab.addEventListener('click', () => switchNotesTab(tab.dataset.tab));
+    });
+
+    // Initialize notes popover drag functionality
+    initNotesDrag();
 
     // Keyboard shortcuts for page navigation and counter control
     document.addEventListener('keydown', (e) => {
@@ -1665,6 +1689,270 @@ async function updateCounterName(counterId, newName) {
     } catch (error) {
         console.error('Error updating counter name:', error);
     }
+}
+
+// Notes functionality
+let currentNotes = '';
+let notesAutoSaveTimeout = null;
+let clearConfirmPending = false;
+
+function toggleNotesPopover() {
+    const popover = document.getElementById('notes-popover');
+    if (popover.style.display === 'none') {
+        openNotesPopover();
+    } else {
+        closeNotesPopover();
+    }
+}
+
+async function openNotesPopover() {
+    const popover = document.getElementById('notes-popover');
+    const editor = document.getElementById('notes-editor');
+
+    if (!currentPattern) return;
+
+    // Restore saved size from localStorage
+    const savedSize = localStorage.getItem('notesPopoverSize');
+    if (savedSize) {
+        try {
+            const { width, height } = JSON.parse(savedSize);
+            popover.style.width = width + 'px';
+            popover.style.height = height + 'px';
+        } catch (e) {
+            // Ignore invalid saved data
+        }
+    }
+
+    // Load notes from API
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/notes`);
+        if (response.ok) {
+            const data = await response.json();
+            currentNotes = data.notes || '';
+            editor.value = currentNotes;
+        }
+    } catch (error) {
+        console.error('Error loading notes:', error);
+        editor.value = '';
+    }
+
+    // Reset to edit tab
+    switchNotesTab('edit');
+
+    popover.style.display = 'flex';
+}
+
+function closeNotesPopover() {
+    const popover = document.getElementById('notes-popover');
+
+    // Save current size to localStorage
+    const rect = popover.getBoundingClientRect();
+    localStorage.setItem('notesPopoverSize', JSON.stringify({
+        width: rect.width,
+        height: rect.height
+    }));
+
+    popover.style.display = 'none';
+}
+
+function initNotesDrag() {
+    const popover = document.getElementById('notes-popover');
+    const header = document.querySelector('.notes-popover-header');
+
+    let isDragging = false;
+    let startX, startY, initialLeft, initialTop;
+
+    header.addEventListener('mousedown', (e) => {
+        // Don't drag if clicking on buttons or tabs
+        if (e.target.tagName === 'BUTTON') return;
+
+        isDragging = true;
+        startX = e.clientX;
+        startY = e.clientY;
+
+        // Get current position
+        const rect = popover.getBoundingClientRect();
+        initialLeft = rect.left;
+        initialTop = rect.top;
+
+        // Change cursor
+        header.style.cursor = 'grabbing';
+        e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const deltaX = e.clientX - startX;
+        const deltaY = e.clientY - startY;
+
+        // Calculate new position
+        let newLeft = initialLeft + deltaX;
+        let newTop = initialTop + deltaY;
+
+        // Keep within viewport bounds
+        const popoverRect = popover.getBoundingClientRect();
+        const maxLeft = window.innerWidth - popoverRect.width;
+        const maxTop = window.innerHeight - popoverRect.height;
+
+        newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+        newTop = Math.max(0, Math.min(newTop, maxTop));
+
+        popover.style.left = newLeft + 'px';
+        popover.style.top = newTop + 'px';
+        popover.style.right = 'auto';
+        popover.style.bottom = 'auto';
+    });
+
+    document.addEventListener('mouseup', () => {
+        if (isDragging) {
+            isDragging = false;
+            header.style.cursor = 'grab';
+        }
+    });
+}
+
+function switchNotesTab(tab) {
+    const editTab = document.querySelector('.notes-tab[data-tab="edit"]');
+    const previewTab = document.querySelector('.notes-tab[data-tab="preview"]');
+    const editor = document.getElementById('notes-editor');
+    const preview = document.getElementById('notes-preview');
+
+    if (tab === 'edit') {
+        editTab.classList.add('active');
+        previewTab.classList.remove('active');
+        editor.style.display = 'block';
+        preview.style.display = 'none';
+    } else {
+        editTab.classList.remove('active');
+        previewTab.classList.add('active');
+        editor.style.display = 'none';
+        preview.style.display = 'block';
+        preview.innerHTML = renderMarkdown(editor.value);
+    }
+}
+
+async function saveNotes(showStatus = false) {
+    if (!currentPattern) return;
+
+    const editor = document.getElementById('notes-editor');
+    const notes = editor.value;
+    const statusEl = document.getElementById('notes-save-status');
+
+    try {
+        if (showStatus && statusEl) {
+            statusEl.textContent = 'Saving...';
+            statusEl.className = 'notes-save-status saving';
+        }
+
+        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/notes`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notes })
+        });
+
+        if (response.ok) {
+            currentNotes = notes;
+            if (showStatus && statusEl) {
+                statusEl.textContent = 'Saved';
+                statusEl.className = 'notes-save-status saved';
+                setTimeout(() => {
+                    statusEl.textContent = '';
+                    statusEl.className = 'notes-save-status';
+                }, 2000);
+            }
+        }
+    } catch (error) {
+        console.error('Error saving notes:', error);
+        if (showStatus && statusEl) {
+            statusEl.textContent = 'Failed to save';
+            statusEl.className = 'notes-save-status error';
+        }
+    }
+}
+
+function scheduleNotesAutoSave() {
+    if (notesAutoSaveTimeout) {
+        clearTimeout(notesAutoSaveTimeout);
+    }
+    notesAutoSaveTimeout = setTimeout(() => {
+        saveNotes(true);
+    }, 1000); // Save after 1 second of inactivity
+}
+
+function clearNotes() {
+    const clearBtn = document.getElementById('notes-clear-btn');
+
+    if (!clearConfirmPending) {
+        // First click - show confirmation
+        clearConfirmPending = true;
+        clearBtn.textContent = 'Confirm Clear';
+        clearBtn.classList.add('confirm');
+
+        // Reset after 3 seconds if not confirmed
+        setTimeout(() => {
+            if (clearConfirmPending) {
+                clearConfirmPending = false;
+                clearBtn.textContent = 'Clear';
+                clearBtn.classList.remove('confirm');
+            }
+        }, 3000);
+    } else {
+        // Second click - clear the notes
+        const editor = document.getElementById('notes-editor');
+        editor.value = '';
+        clearConfirmPending = false;
+        clearBtn.textContent = 'Clear';
+        clearBtn.classList.remove('confirm');
+
+        // Trigger auto-save
+        scheduleNotesAutoSave();
+    }
+}
+
+// Simple markdown renderer
+function renderMarkdown(text) {
+    if (!text) return '<p class="notes-empty">No notes yet.</p>';
+
+    let html = escapeHtml(text);
+
+    // Code blocks (must come before inline code)
+    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
+
+    // Inline code
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // Headers
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+    // Bold and italic
+    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    // Blockquotes
+    html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+
+    // Unordered lists
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+    // Ordered lists
+    html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+
+    // Line breaks to paragraphs
+    html = html.split(/\n\n+/).map(p => {
+        p = p.trim();
+        if (!p) return '';
+        if (p.startsWith('<h') || p.startsWith('<pre') || p.startsWith('<ul') || p.startsWith('<ol') || p.startsWith('<blockquote')) {
+            return p;
+        }
+        return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+    }).join('\n');
+
+    return html;
 }
 
 // Edit modal functionality

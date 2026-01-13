@@ -27,8 +27,60 @@ if (!fs.existsSync(thumbnailsDir)) {
   fs.mkdirSync(thumbnailsDir, { recursive: true });
 }
 
-// Available categories
-const CATEGORIES = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace', 'Colorwork', 'Freeform', 'Micro', 'Other'];
+// Helper function to get category folder path
+function getCategoryDir(categoryName) {
+  return path.join(uploadsDir, categoryName);
+}
+
+// Helper function to ensure category folder exists
+function ensureCategoryDir(categoryName) {
+  const categoryDir = getCategoryDir(categoryName);
+  if (!fs.existsSync(categoryDir)) {
+    fs.mkdirSync(categoryDir, { recursive: true });
+  }
+  return categoryDir;
+}
+
+// Helper function to remove category folder (only if empty)
+function removeCategoryDir(categoryName) {
+  const categoryDir = getCategoryDir(categoryName);
+  if (fs.existsSync(categoryDir)) {
+    try {
+      fs.rmdirSync(categoryDir);
+    } catch (err) {
+      // Folder not empty or other error - ignore
+      console.log(`Could not remove category folder: ${categoryDir}`);
+    }
+  }
+}
+
+// Helper function to rename category folder
+function renameCategoryDir(oldName, newName) {
+  const oldDir = getCategoryDir(oldName);
+  const newDir = getCategoryDir(newName);
+  if (fs.existsSync(oldDir)) {
+    fs.renameSync(oldDir, newDir);
+  } else {
+    // Old folder doesn't exist, just create the new one
+    ensureCategoryDir(newName);
+  }
+}
+
+// Sync category folders with database on startup
+async function syncCategoryFolders() {
+  try {
+    const result = await pool.query('SELECT name FROM categories');
+    const categories = result.rows.map(r => r.name);
+
+    // Create folders for all categories
+    for (const category of categories) {
+      ensureCategoryDir(category);
+    }
+    console.log('Category folders synced');
+  } catch (error) {
+    console.error('Error syncing category folders:', error);
+  }
+}
 
 // Helper function to sanitize filename
 function sanitizeFilename(name) {
@@ -142,10 +194,12 @@ async function generateThumbnail(pdfPath, outputFilename) {
 }
 
 // Database will be initialized on startup
-initDatabase().catch(err => {
-  console.error('Failed to initialize database:', err);
-  process.exit(1);
-});
+initDatabase()
+  .then(() => syncCategoryFolders())
+  .catch(err => {
+    console.error('Failed to initialize database:', err);
+    process.exit(1);
+  });
 
 // Routes
 
@@ -502,7 +556,9 @@ app.delete('/api/patterns/:id', async (req, res) => {
 // Get all available categories for editing/uploading (all possible categories)
 app.get('/api/categories/all', async (req, res) => {
   try {
-    res.json(CATEGORIES);
+    const result = await pool.query('SELECT name FROM categories ORDER BY position, name');
+    const categories = result.rows.map(row => row.name);
+    res.json(categories);
   } catch (error) {
     console.error('Error fetching all categories:', error);
     res.status(500).json({ error: error.message });
@@ -526,6 +582,106 @@ app.get('/api/categories', async (req, res) => {
     res.json(categoriesWithCounts);
   } catch (error) {
     console.error('Error fetching categories:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add a new category
+app.post('/api/categories', async (req, res) => {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Category name is required' });
+    }
+
+    // Get the next position
+    const posResult = await pool.query('SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM categories');
+    const nextPos = posResult.rows[0].next_pos;
+
+    await pool.query(
+      'INSERT INTO categories (name, position) VALUES ($1, $2)',
+      [name.trim(), nextPos]
+    );
+
+    // Create the category folder
+    ensureCategoryDir(name.trim());
+
+    res.status(201).json({ message: 'Category created', name: name.trim() });
+  } catch (error) {
+    if (error.code === '23505') { // unique violation
+      return res.status(400).json({ error: 'Category already exists' });
+    }
+    console.error('Error creating category:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update a category name
+app.put('/api/categories/:name', async (req, res) => {
+  try {
+    const oldName = req.params.name;
+    const { name: newName } = req.body;
+
+    if (!newName || !newName.trim()) {
+      return res.status(400).json({ error: 'New category name is required' });
+    }
+
+    // Update the category name
+    const result = await pool.query(
+      'UPDATE categories SET name = $1 WHERE name = $2 RETURNING *',
+      [newName.trim(), oldName]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+
+    // Update all patterns with this category
+    await pool.query(
+      'UPDATE patterns SET category = $1 WHERE category = $2',
+      [newName.trim(), oldName]
+    );
+
+    // Rename the category folder
+    renameCategoryDir(oldName, newName.trim());
+
+    res.json({ message: 'Category updated', oldName, newName: newName.trim() });
+  } catch (error) {
+    if (error.code === '23505') { // unique violation
+      return res.status(400).json({ error: 'Category name already exists' });
+    }
+    console.error('Error updating category:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a category
+app.delete('/api/categories/:name', async (req, res) => {
+  try {
+    const { name } = req.params;
+
+    // Check if any patterns use this category
+    const patternCheck = await pool.query(
+      'SELECT COUNT(*) FROM patterns WHERE category = $1',
+      [name]
+    );
+
+    if (parseInt(patternCheck.rows[0].count) > 0) {
+      return res.status(400).json({ error: 'Cannot delete category with existing patterns' });
+    }
+
+    const result = await pool.query('DELETE FROM categories WHERE name = $1 RETURNING *', [name]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+
+    // Remove the category folder
+    removeCategoryDir(name);
+
+    res.json({ message: 'Category deleted', name });
+  } catch (error) {
+    console.error('Error deleting category:', error);
     res.status(500).json({ error: error.message });
   }
 });

@@ -14,6 +14,7 @@ let selectedSort = 'date-desc';
 let showCompleted = true;
 let showCurrent = true;
 let searchQuery = '';
+let previousTab = 'current';
 
 // PDF Viewer State
 let pdfDoc = null;
@@ -40,6 +41,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initEditModal();
     initPDFViewer();
     initLibraryFilters();
+    initSettings();
     loadPatterns();
     loadCurrentPatterns();
     loadCategories();
@@ -47,25 +49,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Theme toggle
 function initTheme() {
-    const themeToggle = document.getElementById('theme-toggle');
-    const themeIcon = document.querySelector('.theme-icon');
+    const themeCheckbox = document.getElementById('theme-toggle-checkbox');
 
     const currentTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', currentTheme);
-    updateThemeIcon(currentTheme, themeIcon);
 
-    themeToggle.addEventListener('click', () => {
-        const theme = document.documentElement.getAttribute('data-theme');
-        const newTheme = theme === 'light' ? 'dark' : 'light';
+    // Set checkbox state (checked = light mode)
+    if (themeCheckbox) {
+        themeCheckbox.checked = currentTheme === 'light';
 
-        document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        updateThemeIcon(newTheme, themeIcon);
-    });
-}
-
-function updateThemeIcon(theme, iconElement) {
-    iconElement.textContent = theme === 'light' ? '🌙' : '☀️';
+        themeCheckbox.addEventListener('change', () => {
+            const newTheme = themeCheckbox.checked ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+        });
+    }
 }
 
 // Tab switching
@@ -85,6 +83,12 @@ function initTabs() {
 }
 
 function switchToTab(tabName) {
+    // Track previous tab (but not if switching to settings)
+    const currentTab = document.querySelector('.tab-btn.active')?.dataset.tab;
+    if (currentTab && tabName === 'settings') {
+        previousTab = currentTab;
+    }
+
     // Remove active from all tabs and contents
     tabBtns.forEach(b => b.classList.remove('active'));
     tabContents.forEach(c => {
@@ -96,11 +100,13 @@ function switchToTab(tabName) {
     const btn = document.querySelector(`[data-tab="${tabName}"]`);
     if (btn) {
         btn.classList.add('active');
-        const content = document.getElementById(tabName);
-        if (content) {
-            content.classList.add('active');
-            content.style.display = 'block';
-        }
+    }
+
+    // Show the content (settings tab doesn't have a nav button)
+    const content = document.getElementById(tabName);
+    if (content) {
+        content.classList.add('active');
+        content.style.display = 'block';
     }
 
     // Hide PDF viewer
@@ -460,6 +466,7 @@ async function loadCategories() {
         populatedCategories = await populatedResponse.json();
 
         updateCategorySelects();
+        renderCategoriesList();
 
         // Re-render staged files if any exist to populate category dropdowns
         if (stagedFiles.length > 0) {
@@ -471,6 +478,7 @@ async function loadCategories() {
         allCategories = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace / Filet', 'Colorwork', 'Freeform', 'Micro', 'Other'];
         populatedCategories = [];
         updateCategorySelects();
+        renderCategoriesList();
     }
 }
 
@@ -515,6 +523,142 @@ function updateCategorySelects() {
 function handleCategoryFilter(e) {
     selectedCategoryFilter = e.target.value;
     displayPatterns();
+}
+
+// Settings page
+function initSettings() {
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsBackBtn = document.getElementById('settings-back-btn');
+    const addCategoryBtn = document.getElementById('add-category-btn');
+    const newCategoryInput = document.getElementById('new-category-input');
+
+    if (settingsBtn) {
+        settingsBtn.addEventListener('click', () => {
+            switchToTab('settings');
+        });
+    }
+
+    if (settingsBackBtn) {
+        settingsBackBtn.addEventListener('click', () => {
+            switchToTab(previousTab);
+        });
+    }
+
+    if (addCategoryBtn) {
+        addCategoryBtn.addEventListener('click', addCategory);
+    }
+
+    if (newCategoryInput) {
+        newCategoryInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                addCategory();
+            }
+        });
+    }
+}
+
+function renderCategoriesList() {
+    const categoriesList = document.getElementById('categories-list');
+    if (!categoriesList) return;
+
+    categoriesList.innerHTML = allCategories.map(category => {
+        const patternCount = populatedCategories.find(c => c.name === category)?.count || 0;
+        return `
+            <div class="category-item" data-category="${escapeHtml(category)}">
+                <span class="category-name">${escapeHtml(category)}</span>
+                <span class="category-count">${patternCount} pattern${patternCount !== 1 ? 's' : ''}</span>
+                <div class="category-actions">
+                    <button class="btn btn-small btn-secondary" onclick="editCategory('${escapeHtml(category)}')">Edit</button>
+                    <button class="btn btn-small btn-danger" onclick="deleteCategory('${escapeHtml(category)}', ${patternCount})">Delete</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+async function addCategory() {
+    const input = document.getElementById('new-category-input');
+    const name = input.value.trim();
+
+    if (!name) return;
+
+    if (allCategories.includes(name)) {
+        alert('Category already exists');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/categories`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to add category');
+        }
+
+        input.value = '';
+        await loadCategories();
+    } catch (error) {
+        console.error('Error adding category:', error);
+        alert(error.message);
+    }
+}
+
+async function editCategory(oldName) {
+    const newName = prompt('Enter new category name:', oldName);
+    if (!newName || newName === oldName) return;
+
+    if (allCategories.includes(newName)) {
+        alert('Category already exists');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/categories/${encodeURIComponent(oldName)}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: newName })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to update category');
+        }
+
+        await loadCategories();
+        await loadPatterns();
+    } catch (error) {
+        console.error('Error updating category:', error);
+        alert(error.message);
+    }
+}
+
+async function deleteCategory(name, patternCount) {
+    if (patternCount > 0) {
+        alert(`Cannot delete "${name}" because it contains ${patternCount} pattern${patternCount !== 1 ? 's' : ''}. Move or delete the patterns first.`);
+        return;
+    }
+
+    if (!confirm(`Are you sure you want to delete the category "${name}"?`)) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/categories/${encodeURIComponent(name)}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete category');
+        }
+
+        await loadCategories();
+    } catch (error) {
+        console.error('Error deleting category:', error);
+        alert(error.message);
+    }
 }
 
 function initLibraryFilters() {

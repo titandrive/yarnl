@@ -88,31 +88,25 @@ header h1 {
     opacity: 0.95;
 }
 
-.theme-toggle {
+.settings-btn {
     position: absolute;
     top: 20px;
     right: 20px;
-    background: rgba(255, 255, 255, 0.2);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-radius: 50%;
-    width: 50px;
-    height: 50px;
+    background: none;
+    border: none;
+    padding: 8px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.5rem;
     transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
+    color: white;
+    opacity: 0.8;
 }
 
-.theme-toggle:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: scale(1.1);
-}
-
-.theme-icon {
-    transition: transform 0.3s ease;
+.settings-btn:hover {
+    opacity: 1;
+    transform: rotate(45deg);
 }
 
 /* Tabs */
@@ -1259,5 +1253,204 @@ header h1 {
 
     .staged-file-remove {
         width: 100%;
+    }
+}
+
+/* Settings Page */
+.settings-container {
+    max-width: 600px;
+    margin: 0 auto;
+}
+
+.settings-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.settings-header h2 {
+    margin: 0;
+    font-size: 1.3rem;
+}
+
+.settings-section {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+    border: 1px solid var(--border-color);
+}
+
+.settings-section h3 {
+    font-size: 1rem;
+    margin-bottom: 16px;
+    color: var(--text-color);
+}
+
+.section-description {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-bottom: 16px;
+}
+
+.setting-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+}
+
+.setting-info label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 4px;
+}
+
+.setting-description {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.toggle-switch {
+    position: relative;
+    width: 70px;
+    height: 34px;
+    cursor: pointer;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 34px;
+    transition: 0.3s;
+}
+
+.toggle-slider::before {
+    content: "";
+    position: absolute;
+    height: 26px;
+    width: 26px;
+    left: 4px;
+    bottom: 3px;
+    background: var(--primary-color);
+    border-radius: 50%;
+    transition: 0.3s;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(34px);
+}
+
+.toggle-icon {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1rem;
+    transition: opacity 0.3s;
+}
+
+.toggle-icon.sun {
+    left: 8px;
+    opacity: 0;
+}
+
+.toggle-icon.moon {
+    right: 8px;
+    opacity: 1;
+}
+
+.toggle-switch input:checked + .toggle-slider .sun {
+    opacity: 1;
+}
+
+.toggle-switch input:checked + .toggle-slider .moon {
+    opacity: 0;
+}
+
+.categories-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.category-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: var(--input-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.category-name {
+    font-weight: 500;
+    flex: 1;
+}
+
+.category-count {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.category-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.add-category-form {
+    display: flex;
+    gap: 8px;
+}
+
+.add-category-form input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.add-category-form input::placeholder {
+    color: var(--text-muted);
+}
+
+@media (max-width: 480px) {
+    .setting-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .category-item {
+        flex-wrap: wrap;
+    }
+
+    .category-actions {
+        width: 100%;
+    }
+
+    .category-actions button {
+        flex: 1;
+    }
+
+    .add-category-form {
+        flex-direction: column;
     }
 }

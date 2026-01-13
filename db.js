@@ -43,6 +43,28 @@ async function initDatabase() {
       )
     `);
 
+    // Create categories table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS categories (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(100) NOT NULL UNIQUE,
+        position INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Insert default categories if table is empty
+    const categoryCount = await client.query('SELECT COUNT(*) FROM categories');
+    if (parseInt(categoryCount.rows[0].count) === 0) {
+      const defaultCategories = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace', 'Colorwork', 'Freeform', 'Micro', 'Other'];
+      for (let i = 0; i < defaultCategories.length; i++) {
+        await client.query(
+          'INSERT INTO categories (name, position) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING',
+          [defaultCategories[i], i]
+        );
+      }
+    }
+
     // Add columns to existing patterns table if they don't exist
     await client.query(`
       DO $$

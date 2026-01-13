@@ -52,6 +52,29 @@ function getUniqueFilename(directory, baseName, extension) {
   return filename;
 }
 
+// Helper function to clean up empty category directories
+async function cleanupEmptyCategories() {
+  try {
+    const entries = fs.readdirSync(uploadsDir, { withFileTypes: true });
+
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name === 'thumbnails') continue; // Skip thumbnails directory
+
+      const categoryPath = path.join(uploadsDir, entry.name);
+      const files = fs.readdirSync(categoryPath);
+
+      // If directory is empty, remove it
+      if (files.length === 0) {
+        fs.rmdirSync(categoryPath);
+        console.log(`Removed empty category directory: ${entry.name}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up empty categories:', error);
+  }
+}
+
 // Configure multer for PDF uploads
 // Note: req.body is NOT available in these callbacks, so we use temp filenames
 const storage = multer.diskStorage({
@@ -159,9 +182,6 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
 
     // Now we have access to req.body! Determine the final filename
     const categoryDir = path.join(uploadsDir, category);
-    if (!fs.existsSync(categoryDir)) {
-      fs.mkdirSync(categoryDir, { recursive: true });
-    }
 
     let finalFilename;
     if (req.body.name) {
@@ -171,6 +191,11 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
     } else {
       // No custom name, use original filename
       finalFilename = req.file.originalname;
+    }
+
+    // Create category directory only when we're about to move a file there
+    if (!fs.existsSync(categoryDir)) {
+      fs.mkdirSync(categoryDir, { recursive: true });
     }
 
     // Move file from temp location to category folder with final name
@@ -311,21 +336,15 @@ app.patch('/api/patterns/:id', async (req, res) => {
       // If category is being changed, move the file
       if (category !== undefined && category !== pattern.category) {
         console.log(`Category changing from "${pattern.category}" to "${category}"`);
-
-        // Create new category directory if it doesn't exist
-        const newCategoryDir = path.join(uploadsDir, category);
-        if (!fs.existsSync(newCategoryDir)) {
-          fs.mkdirSync(newCategoryDir, { recursive: true });
-          console.log(`Created directory: ${newCategoryDir}`);
-        }
       }
 
       // Perform the file move/rename if needed
       const newFilePath = path.join(categoryDir, newFilename);
       if (oldFilePath !== newFilePath) {
-        // Ensure target directory exists
+        // Create category directory only when we're about to move a file there
         if (!fs.existsSync(categoryDir)) {
           fs.mkdirSync(categoryDir, { recursive: true });
+          console.log(`Created directory: ${categoryDir}`);
         }
 
         fs.renameSync(oldFilePath, newFilePath);
@@ -393,6 +412,9 @@ app.patch('/api/patterns/:id', async (req, res) => {
       return res.status(404).json({ error: 'Pattern not found' });
     }
 
+    // Clean up empty category directories after potential category change
+    await cleanupEmptyCategories();
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating pattern:', error);
@@ -434,6 +456,10 @@ app.delete('/api/patterns/:id', async (req, res) => {
     }
 
     await pool.query('DELETE FROM patterns WHERE id = $1', [req.params.id]);
+
+    // Clean up empty category directories after deletion
+    await cleanupEmptyCategories();
+
     res.json({ message: 'Pattern deleted successfully' });
   } catch (error) {
     console.error('Error deleting pattern:', error);

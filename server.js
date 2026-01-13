@@ -454,7 +454,17 @@ app.get('/api/patterns/current', async (req, res) => {
   }
 });
 
-// Get all available categories (only those with patterns) with counts
+// Get all available categories for editing/uploading (all possible categories)
+app.get('/api/categories/all', async (req, res) => {
+  try {
+    res.json(CATEGORIES);
+  } catch (error) {
+    console.error('Error fetching all categories:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get populated categories (only those with patterns) with counts for filtering
 app.get('/api/categories', async (req, res) => {
   try {
     // Query database for categories with pattern counts

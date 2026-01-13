@@ -4,7 +4,8 @@ const API_URL = '';
 // State
 let patterns = [];
 let currentPatterns = [];
-let allCategories = [];
+let allCategories = []; // All possible categories for editing/uploading
+let populatedCategories = []; // Only categories with patterns (for filtering)
 let selectedFile = null;
 let editingPatternId = null;
 let stagedFiles = []; // Array to hold staged files with metadata
@@ -64,27 +65,41 @@ function updateThemeIcon(theme, iconElement) {
 
 // Tab switching
 function initTabs() {
+    // Restore last active tab from localStorage
+    const lastActiveTab = localStorage.getItem('activeTab') || 'current-patterns';
+    switchToTab(lastActiveTab);
+
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const tabName = btn.dataset.tab;
-
-            // Remove active from all tabs and contents
-            tabBtns.forEach(b => b.classList.remove('active'));
-            tabContents.forEach(c => {
-                c.classList.remove('active');
-                c.style.display = 'none';
-            });
-
-            // Activate clicked tab
-            btn.classList.add('active');
-            const content = document.getElementById(tabName);
-            content.classList.add('active');
-            content.style.display = 'block';
-
-            // Hide PDF viewer
-            pdfViewerContainer.style.display = 'none';
+            switchToTab(tabName);
+            // Save active tab to localStorage
+            localStorage.setItem('activeTab', tabName);
         });
     });
+}
+
+function switchToTab(tabName) {
+    // Remove active from all tabs and contents
+    tabBtns.forEach(b => b.classList.remove('active'));
+    tabContents.forEach(c => {
+        c.classList.remove('active');
+        c.style.display = 'none';
+    });
+
+    // Activate specified tab
+    const btn = document.querySelector(`[data-tab="${tabName}"]`);
+    if (btn) {
+        btn.classList.add('active');
+        const content = document.getElementById(tabName);
+        if (content) {
+            content.classList.add('active');
+            content.style.display = 'block';
+        }
+    }
+
+    // Hide PDF viewer
+    pdfViewerContainer.style.display = 'none';
 }
 
 // Upload functionality
@@ -241,8 +256,8 @@ function renderStagedFiles() {
                         <select onchange="updateStagedFile('${stagedFile.id}', 'category', this.value)"
                                 ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
                             ${allCategories.length > 0 ? allCategories.map(cat => `
-                                <option value="${escapeHtml(cat.name)}" ${cat.name === stagedFile.category ? 'selected' : ''}>
-                                    ${escapeHtml(cat.name)}
+                                <option value="${escapeHtml(cat)}" ${cat === stagedFile.category ? 'selected' : ''}>
+                                    ${escapeHtml(cat)}
                                 </option>
                             `).join('') : `<option value="Amigurumi">Amigurumi</option>`}
                         </select>
@@ -331,9 +346,10 @@ async function uploadAllPatterns() {
         await uploadStagedFile(stagedFile);
     }
 
-    // Reload patterns after all uploads
+    // Reload patterns and categories after all uploads
     await loadPatterns();
     await loadCurrentPatterns();
+    await loadCategories();
 
     // Remove successful uploads after a delay
     setTimeout(() => {
@@ -430,8 +446,14 @@ async function loadCurrentPatterns() {
 
 async function loadCategories() {
     try {
-        const response = await fetch(`${API_URL}/api/categories`);
-        allCategories = await response.json();
+        // Load all possible categories for editing/uploading
+        const allResponse = await fetch(`${API_URL}/api/categories/all`);
+        allCategories = await allResponse.json();
+
+        // Load populated categories with counts for filtering
+        const populatedResponse = await fetch(`${API_URL}/api/categories`);
+        populatedCategories = await populatedResponse.json();
+
         updateCategorySelects();
 
         // Re-render staged files if any exist to populate category dropdowns
@@ -440,28 +462,28 @@ async function loadCategories() {
         }
     } catch (error) {
         console.error('Error loading categories:', error);
-        // Fallback to default categories if API fails (with count of 0)
-        allCategories = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace / Filet', 'Colorwork', 'Freeform', 'Micro', 'Other']
-            .map(name => ({ name, count: 0 }));
+        // Fallback to default categories if API fails
+        allCategories = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace / Filet', 'Colorwork', 'Freeform', 'Micro', 'Other'];
+        populatedCategories = [];
         updateCategorySelects();
     }
 }
 
 function updateCategorySelects() {
-    // Update edit modal category select (just names, no counts)
+    // Update edit modal category select - use ALL categories (no counts)
     const editCategorySelect = document.getElementById('edit-pattern-category');
     if (editCategorySelect) {
         editCategorySelect.innerHTML = allCategories.map(cat =>
-            `<option value="${escapeHtml(cat.name)}">${escapeHtml(cat.name)}</option>`
+            `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`
         ).join('');
     }
 
-    // Update library filter select (with counts)
+    // Update library filter select - use POPULATED categories (with counts)
     const filterSelect = document.getElementById('category-filter-select');
     if (filterSelect) {
-        const totalCount = allCategories.reduce((sum, cat) => sum + cat.count, 0);
+        const totalCount = populatedCategories.reduce((sum, cat) => sum + cat.count, 0);
         filterSelect.innerHTML = `<option value="all">All Categories (${totalCount})</option>` +
-            allCategories.map(cat =>
+            populatedCategories.map(cat =>
                 `<option value="${escapeHtml(cat.name)}">${escapeHtml(cat.name)} (${cat.count})</option>`
             ).join('');
 
@@ -575,6 +597,7 @@ async function deletePattern(id) {
         if (response.ok) {
             await loadPatterns();
             await loadCurrentPatterns();
+            await loadCategories();
         } else {
             const error = await response.json();
             console.error('Error deleting pattern:', error.error);
@@ -1029,6 +1052,7 @@ async function savePatternEdits() {
         closeEditModal();
         await loadPatterns();
         await loadCurrentPatterns();
+        await loadCategories();
         await loadTags();
     } catch (error) {
         console.error('Error updating pattern:', error);

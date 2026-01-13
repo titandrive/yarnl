@@ -200,12 +200,37 @@ docker-compose up -d</code></pre>
   </section>
 
   <section>
-    <h2>🧰 Manual Docker Build</h2>
-    <pre><code>docker build -t yarnl .
+    <h2>🐳 Docker Compose Configuration</h2>
+    <p>The included <code>docker-compose.yml</code> includes:</p>
+    <ul>
+      <li><strong>PostgreSQL 16</strong> with persistent volume</li>
+      <li><strong>Yarnl app</strong> with uploads mounted</li>
+      <li><strong>Health checks</strong> for database readiness</li>
+      <li><strong>Automatic restarts</strong> on failure</li>
+    </ul>
+    <pre><code>services:
+  postgres:
+    image: postgres:16-alpine
+    volumes:
+      - yarnl-postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: yarnl
+      POSTGRES_USER: yarnl
+      POSTGRES_PASSWORD: yarnl
 
-docker run -d -p 3000:3000 \
-  -v $(pwd)/uploads:/app/uploads \
-  yarnl</code></pre>
+  yarnl:
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  yarnl-postgres-data:</code></pre>
+    <p><em>Change default password for production!</em></p>
   </section>
 
   <section>

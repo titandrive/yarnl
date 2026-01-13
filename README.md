@@ -64,6 +64,57 @@ A web application to help manage your crochet projects with pattern organization
    docker-compose down
    ```
 
+### Docker Compose Configuration
+
+The included `docker-compose.yml` sets up:
+- **PostgreSQL 16** database with persistent volume
+- **Yarnl application** with uploads directory mounted
+- **Network** for container communication
+- **Health checks** to ensure database is ready
+
+```yaml
+services:
+  postgres:
+    container_name: yarnl-db
+    image: postgres:16-alpine
+    volumes:
+      - yarnl-postgres-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: yarnl
+      POSTGRES_USER: yarnl
+      POSTGRES_PASSWORD: yarnl
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U yarnl"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  yarnl:
+    container_name: yarnl
+    build: .
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+    environment:
+      NODE_ENV: production
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: yarnl
+      POSTGRES_USER: yarnl
+      POSTGRES_PASSWORD: yarnl
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  yarnl-postgres-data:
+```
+
+**Note:** For production use, change the default database password in the environment variables.
+
 ## Manual Docker Build
 
 If you prefer to build and run manually:

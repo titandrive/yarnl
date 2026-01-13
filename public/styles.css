@@ -492,6 +492,12 @@ header h1 {
     margin: 0;
 }
 
+.drop-zone-subtext {
+    font-size: 0.9rem;
+    color: #6b7280;
+    margin: 0;
+}
+
 .checkbox-group {
     display: flex;
     align-items: center;
@@ -891,5 +897,218 @@ header h1 {
         padding: 6px 12px;
         font-size: 1rem;
         min-width: 40px;
+    }
+}
+
+/* Bulk Upload Staging Area */
+.staging-area {
+    margin-top: 30px;
+    background: var(--upload-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 15px;
+    padding: 20px;
+}
+
+.staging-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.staging-header h3 {
+    color: var(--primary-color);
+    margin: 0;
+    font-size: 1.3rem;
+}
+
+.staging-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.staged-files-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.staged-file-item {
+    background: var(--card-bg);
+    border: 2px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+    transition: all 0.3s ease;
+}
+
+.staged-file-item:hover {
+    border-color: var(--primary-color);
+}
+
+.staged-file-item.uploading {
+    opacity: 0.7;
+}
+
+.staged-file-item.success {
+    border-color: var(--success-color);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.staged-file-item.error {
+    border-color: var(--danger-color);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.staged-file-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+    gap: 15px;
+}
+
+.staged-file-info {
+    flex: 1;
+}
+
+.staged-file-name {
+    font-weight: 600;
+    color: var(--text-color);
+    font-size: 1rem;
+    margin-bottom: 5px;
+}
+
+.staged-file-size {
+    font-size: 0.85rem;
+    color: #6b7280;
+}
+
+.staged-file-remove {
+    background: var(--danger-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.staged-file-remove:hover {
+    background: #dc2626;
+}
+
+.staged-file-remove:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.staged-file-form {
+    display: grid;
+    gap: 12px;
+}
+
+.staged-file-form .form-group {
+    margin-bottom: 0;
+}
+
+.staged-file-form label {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.staged-file-form input,
+.staged-file-form textarea {
+    font-size: 0.95rem;
+}
+
+.staged-file-form textarea {
+    resize: vertical;
+    min-height: 60px;
+}
+
+.upload-progress {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid var(--border-color);
+}
+
+.upload-progress-bar-container {
+    background: var(--border-color);
+    border-radius: 10px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 8px;
+}
+
+.upload-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+    transition: width 0.3s ease;
+    border-radius: 10px;
+}
+
+.upload-progress-text {
+    font-size: 0.85rem;
+    color: #6b7280;
+    display: flex;
+    justify-content: space-between;
+}
+
+.upload-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.upload-status.success {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--success-color);
+}
+
+.upload-status.error {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--danger-color);
+}
+
+.upload-status.uploading {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--primary-color);
+}
+
+.upload-status-icon {
+    font-size: 1.2rem;
+}
+
+/* Responsive for staging area */
+@media (max-width: 768px) {
+    .staging-header {
+        flex-direction: column;
+        gap: 15px;
+        align-items: flex-start;
+    }
+
+    .staging-actions {
+        width: 100%;
+    }
+
+    .staging-actions button {
+        flex: 1;
+    }
+
+    .staged-file-header {
+        flex-direction: column;
+    }
+
+    .staged-file-remove {
+        width: 100%;
     }
 }

@@ -45,39 +45,31 @@
         <!-- Upload Tab -->
         <div id="upload" class="tab-content">
             <div class="upload-container">
-                <h2>Upload Pattern</h2>
+                <h2>Upload Patterns</h2>
 
                 <div id="drop-zone" class="drop-zone">
                     <div class="drop-zone-content">
                         <span class="drop-zone-icon">📄</span>
-                        <p class="drop-zone-text">Drag & drop PDF here or click to browse</p>
-                        <input type="file" id="file-input" accept=".pdf" hidden>
+                        <p class="drop-zone-text">Drag & drop PDF files here or click to browse</p>
+                        <p class="drop-zone-subtext">You can select multiple files at once</p>
+                        <input type="file" id="file-input" accept=".pdf" multiple hidden>
                         <button type="button" id="browse-btn" class="btn btn-secondary">Browse Files</button>
                     </div>
                 </div>
 
-                <form id="upload-form">
-                    <div class="form-group">
-                        <label for="pattern-name">Pattern Name *</label>
-                        <input type="text" id="pattern-name" required>
+                <!-- Staging Area -->
+                <div id="staging-area" class="staging-area" style="display: none;">
+                    <div class="staging-header">
+                        <h3>Staged Files (<span id="staged-count">0</span>)</h3>
+                        <div class="staging-actions">
+                            <button type="button" id="upload-all-btn" class="btn btn-primary">Upload All</button>
+                            <button type="button" id="clear-all-btn" class="btn btn-secondary">Clear All</button>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="pattern-tags">Tags (comma-separated)</label>
-                        <input type="text" id="pattern-tags" placeholder="e.g., amigurumi, beginner, sweater" list="tag-suggestions">
-                        <datalist id="tag-suggestions"></datalist>
+                    <div id="staged-files-list" class="staged-files-list">
+                        <!-- Staged files will be added here -->
                     </div>
-                    <div class="form-group">
-                        <label for="pattern-notes">Notes</label>
-                        <textarea id="pattern-notes" rows="3"></textarea>
-                    </div>
-                    <div class="form-group checkbox-group">
-                        <label>
-                            <input type="checkbox" id="is-current">
-                            Mark as current pattern
-                        </label>
-                    </div>
-                    <button type="submit" class="btn btn-primary" id="upload-btn" disabled>Upload Pattern</button>
-                </form>
+                </div>
             </div>
         </div>
 

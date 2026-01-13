@@ -7,6 +7,7 @@ let currentPatterns = [];
 let allTags = [];
 let selectedFile = null;
 let editingPatternId = null;
+let stagedFiles = []; // Array to hold staged files with metadata
 
 // PDF Viewer State
 let pdfDoc = null;
@@ -90,8 +91,8 @@ function initUpload() {
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const browseBtn = document.getElementById('browse-btn');
-    const uploadForm = document.getElementById('upload-form');
-    const uploadBtn = document.getElementById('upload-btn');
+    const uploadAllBtn = document.getElementById('upload-all-btn');
+    const clearAllBtn = document.getElementById('clear-all-btn');
 
     // Click to browse
     dropZone.addEventListener('click', () => fileInput.click());
@@ -100,14 +101,15 @@ function initUpload() {
         fileInput.click();
     });
 
-    // File input change
+    // File input change - handle multiple files
     fileInput.addEventListener('change', (e) => {
         if (e.target.files.length > 0) {
-            handleFile(e.target.files[0]);
+            handleFiles(Array.from(e.target.files));
+            fileInput.value = ''; // Reset input
         }
     });
 
-    // Drag and drop
+    // Drag and drop - handle multiple files
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropZone.classList.add('drag-over');
@@ -121,87 +123,278 @@ function initUpload() {
         e.preventDefault();
         dropZone.classList.remove('drag-over');
 
-        const files = e.dataTransfer.files;
-        if (files.length > 0 && files[0].type === 'application/pdf') {
-            handleFile(files[0]);
-        } else {
-            alert('Please drop a PDF file');
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+        if (files.length > 0) {
+            handleFiles(files);
         }
     });
 
-    // Form submission
-    uploadForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await uploadPattern();
+    // Upload all button
+    uploadAllBtn.addEventListener('click', () => uploadAllPatterns());
+
+    // Clear all button
+    clearAllBtn.addEventListener('click', () => clearAllStaged());
+}
+
+function handleFiles(files) {
+    // Filter only PDF files
+    const pdfFiles = files.filter(f => f.type === 'application/pdf');
+
+    if (pdfFiles.length === 0) {
+        return;
+    }
+
+    // Add files to staging area
+    pdfFiles.forEach(file => {
+        const fileId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const stagedFile = {
+            id: fileId,
+            file: file,
+            name: file.name.replace('.pdf', ''),
+            tags: '',
+            notes: '',
+            isCurrent: false,
+            status: 'staged', // staged, uploading, success, error
+            progress: 0,
+            error: null
+        };
+        stagedFiles.push(stagedFile);
     });
+
+    renderStagedFiles();
+    showStagingArea();
 }
 
-function handleFile(file) {
-    if (file.type !== 'application/pdf') {
-        alert('Please select a PDF file');
+function showStagingArea() {
+    const stagingArea = document.getElementById('staging-area');
+    stagingArea.style.display = 'block';
+    updateStagedCount();
+}
+
+function hideStagingArea() {
+    const stagingArea = document.getElementById('staging-area');
+    stagingArea.style.display = 'none';
+}
+
+function updateStagedCount() {
+    const countElement = document.getElementById('staged-count');
+    countElement.textContent = stagedFiles.length;
+}
+
+function renderStagedFiles() {
+    const container = document.getElementById('staged-files-list');
+
+    container.innerHTML = stagedFiles.map(stagedFile => {
+        const statusClass = stagedFile.status;
+        const isUploading = stagedFile.status === 'uploading';
+        const showProgress = stagedFile.status === 'uploading' || stagedFile.status === 'success';
+        const fileSize = (stagedFile.file.size / 1024 / 1024).toFixed(2);
+
+        let statusHTML = '';
+        if (stagedFile.status === 'success') {
+            statusHTML = `
+                <div class="upload-status success">
+                    <span class="upload-status-icon">✓</span>
+                    <span>Uploaded successfully!</span>
+                </div>
+            `;
+        } else if (stagedFile.status === 'error') {
+            statusHTML = `
+                <div class="upload-status error">
+                    <span class="upload-status-icon">✗</span>
+                    <span>Error: ${escapeHtml(stagedFile.error || 'Upload failed')}</span>
+                </div>
+            `;
+        } else if (stagedFile.status === 'uploading') {
+            statusHTML = `
+                <div class="upload-status uploading">
+                    <span class="upload-status-icon">⏳</span>
+                    <span>Uploading...</span>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="staged-file-item ${statusClass}" data-file-id="${stagedFile.id}">
+                <div class="staged-file-header">
+                    <div class="staged-file-info">
+                        <div class="staged-file-name">${escapeHtml(stagedFile.file.name)}</div>
+                        <div class="staged-file-size">${fileSize} MB</div>
+                    </div>
+                    <button class="staged-file-remove" onclick="removeStagedFile('${stagedFile.id}')"
+                            ${isUploading ? 'disabled' : ''}>
+                        Remove
+                    </button>
+                </div>
+
+                <div class="staged-file-form">
+                    <div class="form-group">
+                        <label>Pattern Name</label>
+                        <input type="text"
+                               value="${escapeHtml(stagedFile.name)}"
+                               onchange="updateStagedFile('${stagedFile.id}', 'name', this.value)"
+                               ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
+                    </div>
+                    <div class="form-group">
+                        <label>Tags (comma-separated)</label>
+                        <input type="text"
+                               value="${escapeHtml(stagedFile.tags)}"
+                               placeholder="e.g., amigurumi, beginner, sweater"
+                               onchange="updateStagedFile('${stagedFile.id}', 'tags', this.value)"
+                               list="tag-suggestions"
+                               ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
+                    </div>
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea rows="2"
+                                  onchange="updateStagedFile('${stagedFile.id}', 'notes', this.value)"
+                                  ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>${escapeHtml(stagedFile.notes)}</textarea>
+                    </div>
+                    <div class="form-group checkbox-group">
+                        <label>
+                            <input type="checkbox"
+                                   ${stagedFile.isCurrent ? 'checked' : ''}
+                                   onchange="updateStagedFile('${stagedFile.id}', 'isCurrent', this.checked)"
+                                   ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
+                            Mark as current pattern
+                        </label>
+                    </div>
+                </div>
+
+                ${showProgress ? `
+                    <div class="upload-progress">
+                        <div class="upload-progress-bar-container">
+                            <div class="upload-progress-bar" style="width: ${stagedFile.progress}%"></div>
+                        </div>
+                        <div class="upload-progress-text">
+                            <span>Progress</span>
+                            <span>${stagedFile.progress}%</span>
+                        </div>
+                    </div>
+                ` : ''}
+
+                ${statusHTML}
+            </div>
+        `;
+    }).join('');
+
+    updateStagedCount();
+}
+
+function updateStagedFile(fileId, field, value) {
+    const stagedFile = stagedFiles.find(f => f.id === fileId);
+    if (stagedFile) {
+        stagedFile[field] = value;
+    }
+}
+
+function removeStagedFile(fileId) {
+    stagedFiles = stagedFiles.filter(f => f.id !== fileId);
+    if (stagedFiles.length === 0) {
+        hideStagingArea();
+    } else {
+        renderStagedFiles();
+    }
+}
+
+function clearAllStaged() {
+    // Only clear staged and error files, not uploading or success
+    const canClear = stagedFiles.filter(f => f.status === 'staged' || f.status === 'error');
+    if (canClear.length === 0) {
         return;
     }
 
-    selectedFile = file;
-    const dropZone = document.getElementById('drop-zone');
-    const uploadBtn = document.getElementById('upload-btn');
-
-    dropZone.querySelector('.drop-zone-text').textContent = `Selected: ${file.name}`;
-    uploadBtn.disabled = false;
-
-    // Auto-fill pattern name if empty
-    const nameInput = document.getElementById('pattern-name');
-    if (!nameInput.value) {
-        nameInput.value = file.name.replace('.pdf', '');
+    if (confirm(`Clear ${canClear.length} file(s)?`)) {
+        stagedFiles = stagedFiles.filter(f => f.status === 'uploading' || f.status === 'success');
+        if (stagedFiles.length === 0) {
+            hideStagingArea();
+        } else {
+            renderStagedFiles();
+        }
     }
 }
 
-async function uploadPattern() {
-    if (!selectedFile) {
-        alert('Please select a file');
+async function uploadAllPatterns() {
+    const filesToUpload = stagedFiles.filter(f => f.status === 'staged' || f.status === 'error');
+
+    if (filesToUpload.length === 0) {
         return;
     }
+
+    // Upload files sequentially with progress tracking
+    for (const stagedFile of filesToUpload) {
+        await uploadStagedFile(stagedFile);
+    }
+
+    // Reload patterns after all uploads
+    await loadPatterns();
+    await loadCurrentPatterns();
+    await loadTags();
+
+    // Remove successful uploads after a delay
+    setTimeout(() => {
+        stagedFiles = stagedFiles.filter(f => f.status !== 'success');
+        if (stagedFiles.length === 0) {
+            hideStagingArea();
+        } else {
+            renderStagedFiles();
+        }
+    }, 2000);
+}
+
+async function uploadStagedFile(stagedFile) {
+    stagedFile.status = 'uploading';
+    stagedFile.progress = 0;
+    stagedFile.error = null;
+    renderStagedFiles();
 
     const formData = new FormData();
-    const name = document.getElementById('pattern-name').value;
-    const tags = document.getElementById('pattern-tags').value;
-    const notes = document.getElementById('pattern-notes').value;
-    const isCurrent = document.getElementById('is-current').checked;
-
-    formData.append('pdf', selectedFile);
-    formData.append('name', name);
-    formData.append('tags', tags);
-    formData.append('notes', notes);
-    formData.append('isCurrent', isCurrent);
+    formData.append('pdf', stagedFile.file);
+    formData.append('name', stagedFile.name || stagedFile.file.name.replace('.pdf', ''));
+    formData.append('tags', stagedFile.tags);
+    formData.append('notes', stagedFile.notes);
+    formData.append('isCurrent', stagedFile.isCurrent);
 
     try {
-        const response = await fetch(`${API_URL}/api/patterns`, {
-            method: 'POST',
-            body: formData
+        const xhr = new XMLHttpRequest();
+
+        // Track upload progress
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                stagedFile.progress = Math.round(percentComplete);
+                renderStagedFiles();
+            }
         });
 
-        if (response.ok) {
-            alert('Pattern uploaded successfully!');
-            resetUploadForm();
-            await loadPatterns();
-            await loadCurrentPatterns();
-            await loadTags();
-        } else {
-            const error = await response.json();
-            alert('Error uploading pattern: ' + error.error);
-        }
+        // Handle completion
+        const uploadPromise = new Promise((resolve, reject) => {
+            xhr.addEventListener('load', () => {
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    resolve(xhr.response);
+                } else {
+                    reject(new Error(xhr.statusText));
+                }
+            });
+            xhr.addEventListener('error', () => reject(new Error('Network error')));
+            xhr.addEventListener('abort', () => reject(new Error('Upload aborted')));
+        });
+
+        xhr.open('POST', `${API_URL}/api/patterns`);
+        xhr.send(formData);
+
+        await uploadPromise;
+
+        stagedFile.status = 'success';
+        stagedFile.progress = 100;
+        renderStagedFiles();
+
     } catch (error) {
         console.error('Error uploading pattern:', error);
-        alert('Error uploading pattern');
+        stagedFile.status = 'error';
+        stagedFile.error = error.message || 'Upload failed';
+        renderStagedFiles();
     }
-}
-
-function resetUploadForm() {
-    document.getElementById('upload-form').reset();
-    document.getElementById('file-input').value = '';
-    document.getElementById('drop-zone').querySelector('.drop-zone-text').textContent = 'Drag & drop PDF here or click to browse';
-    document.getElementById('upload-btn').disabled = true;
-    selectedFile = null;
 }
 
 // Load patterns
@@ -309,11 +502,10 @@ async function toggleCurrent(id, isCurrent) {
             await loadCurrentPatterns();
         } else {
             const error = await response.json();
-            alert('Error updating pattern: ' + error.error);
+            console.error('Error updating pattern:', error.error);
         }
     } catch (error) {
         console.error('Error toggling current status:', error);
-        alert('Error updating pattern');
     }
 }
 
@@ -332,11 +524,10 @@ async function deletePattern(id) {
             await loadCurrentPatterns();
         } else {
             const error = await response.json();
-            alert('Error deleting pattern: ' + error.error);
+            console.error('Error deleting pattern:', error.error);
         }
     } catch (error) {
         console.error('Error deleting pattern:', error);
-        alert('Error deleting pattern');
     }
 }
 
@@ -403,7 +594,7 @@ async function openPDFViewer(patternId) {
         if (!pattern) {
             const response = await fetch(`${API_URL}/api/patterns/${id}`);
             if (!response.ok) {
-                alert('Pattern not found');
+                console.error('Pattern not found');
                 return;
             }
             pattern = await response.json();
@@ -435,7 +626,6 @@ async function openPDFViewer(patternId) {
 
     } catch (error) {
         console.error('Error opening PDF viewer:', error);
-        alert('Error loading PDF');
     }
 }
 
@@ -733,7 +923,7 @@ async function openEditModal(patternId) {
     const pattern = patterns.find(p => p.id == patternId);
 
     if (!pattern) {
-        alert('Pattern not found');
+        console.error('Pattern not found');
         return;
     }
 
@@ -768,7 +958,7 @@ async function savePatternEdits() {
 
         if (!response.ok) {
             const error = await response.json();
-            alert('Error updating pattern: ' + error.error);
+            console.error('Error updating pattern:', error.error);
             return;
         }
 
@@ -783,14 +973,12 @@ async function savePatternEdits() {
             });
         }
 
-        alert('Pattern updated successfully!');
         closeEditModal();
         await loadPatterns();
         await loadCurrentPatterns();
         await loadTags();
     } catch (error) {
         console.error('Error updating pattern:', error);
-        alert('Error updating pattern');
     }
 }
 

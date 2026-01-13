@@ -26,8 +26,11 @@ services:
   yarnl:
     container_name: yarnl
     build: .
+    ports:
+      - "3000:3000"
     volumes:
       - ./uploads:/app/uploads
+      - ./public:/app/public
     environment:
       - NODE_ENV=production
       - POSTGRES_HOST=postgres

@@ -1454,3 +1454,101 @@ header h1 {
         flex-direction: column;
     }
 }
+
+/* Custom Category Dropdown */
+.category-dropdown {
+    position: relative;
+    width: 100%;
+}
+
+.category-dropdown.disabled {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.category-dropdown-selected {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.category-dropdown-selected:hover {
+    border-color: var(--primary-color);
+}
+
+.category-dropdown-arrow {
+    font-size: 0.7rem;
+    opacity: 0.6;
+    transition: transform 0.2s;
+}
+
+.category-dropdown.open .category-dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.category-dropdown-menu {
+    position: absolute;
+    bottom: 100%;
+    left: 0;
+    right: 0;
+    margin-bottom: 4px;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow);
+    z-index: 1000;
+    display: none;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.category-dropdown.open .category-dropdown-menu {
+    display: block;
+}
+
+.category-dropdown-item {
+    padding: 10px 12px;
+    cursor: pointer;
+    color: var(--text-color);
+    font-size: 0.9rem;
+}
+
+.category-dropdown-item:hover {
+    background: var(--input-bg);
+}
+
+.category-dropdown-item.selected {
+    background: var(--primary-color);
+    color: white;
+}
+
+.category-dropdown-add {
+    border-top: 1px solid var(--border-color);
+    padding: 8px;
+}
+
+.category-dropdown-add input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-size: 0.85rem;
+}
+
+.category-dropdown-add input::placeholder {
+    color: var(--text-muted);
+}
+
+.category-dropdown-add input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}

@@ -264,14 +264,7 @@ function renderStagedFiles() {
                     </div>
                     <div class="form-group">
                         <label>Category</label>
-                        <select onchange="updateStagedFile('${stagedFile.id}', 'category', this.value)"
-                                ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
-                            ${allCategories.length > 0 ? allCategories.map(cat => `
-                                <option value="${escapeHtml(cat)}" ${cat === stagedFile.category ? 'selected' : ''}>
-                                    ${escapeHtml(cat)}
-                                </option>
-                            `).join('') : `<option value="Amigurumi">Amigurumi</option>`}
-                        </select>
+                        ${createCategoryDropdown(`staged-${stagedFile.id}`, stagedFile.category, isUploading || stagedFile.status === 'success')}
                     </div>
                     <div class="form-group">
                         <label>Description</label>
@@ -306,6 +299,16 @@ function renderStagedFiles() {
             </div>
         `;
     }).join('');
+
+    // Add event listeners for category dropdowns
+    stagedFiles.forEach(stagedFile => {
+        const dropdown = document.querySelector(`.category-dropdown[data-id="staged-${stagedFile.id}"]`);
+        if (dropdown) {
+            dropdown.addEventListener('categorychange', (e) => {
+                updateStagedFile(stagedFile.id, 'category', e.detail.value);
+            });
+        }
+    });
 
     updateStagedCount();
 }
@@ -482,15 +485,108 @@ async function loadCategories() {
     }
 }
 
-function updateCategorySelects() {
-    // Update edit modal category select - use ALL categories (no counts)
-    const editCategorySelect = document.getElementById('edit-pattern-category');
-    if (editCategorySelect) {
-        editCategorySelect.innerHTML = allCategories.map(cat =>
-            `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`
-        ).join('');
-    }
+function createCategoryDropdown(id, selectedCategory, disabled = false) {
+    const selected = selectedCategory || allCategories[0] || '';
+    return `
+        <div class="category-dropdown ${disabled ? 'disabled' : ''}" data-id="${id}" data-value="${escapeHtml(selected)}">
+            <div class="category-dropdown-selected" onclick="toggleCategoryDropdown('${id}')">
+                <span class="category-dropdown-value">${escapeHtml(selected)}</span>
+                <span class="category-dropdown-arrow">▼</span>
+            </div>
+            <div class="category-dropdown-menu" id="category-menu-${id}">
+                ${allCategories.map(cat => `
+                    <div class="category-dropdown-item ${cat === selected ? 'selected' : ''}"
+                         onclick="selectCategory('${id}', '${escapeHtml(cat)}')">
+                        ${escapeHtml(cat)}
+                    </div>
+                `).join('')}
+                <div class="category-dropdown-add">
+                    <input type="text" placeholder="Add new..."
+                           onkeydown="handleNewCategoryKeydown(event, '${id}')"
+                           onclick="event.stopPropagation()">
+                </div>
+            </div>
+        </div>
+    `;
+}
 
+function toggleCategoryDropdown(id) {
+    const dropdown = document.querySelector(`.category-dropdown[data-id="${id}"]`);
+    if (dropdown.classList.contains('disabled')) return;
+
+    // Close all other dropdowns
+    document.querySelectorAll('.category-dropdown.open').forEach(d => {
+        if (d.dataset.id !== id) d.classList.remove('open');
+    });
+
+    dropdown.classList.toggle('open');
+
+    if (dropdown.classList.contains('open')) {
+        const input = dropdown.querySelector('.category-dropdown-add input');
+        if (input) input.value = '';
+    }
+}
+
+function selectCategory(id, value) {
+    const dropdown = document.querySelector(`.category-dropdown[data-id="${id}"]`);
+    dropdown.dataset.value = value;
+    dropdown.querySelector('.category-dropdown-value').textContent = value;
+    dropdown.classList.remove('open');
+
+    // Update selected state
+    dropdown.querySelectorAll('.category-dropdown-item').forEach(item => {
+        item.classList.toggle('selected', item.textContent.trim() === value);
+    });
+
+    // Trigger the callback
+    const event = new CustomEvent('categorychange', { detail: { id, value } });
+    dropdown.dispatchEvent(event);
+}
+
+async function handleNewCategoryKeydown(event, dropdownId) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        const input = event.target;
+        const name = input.value.trim();
+
+        if (!name) return;
+
+        try {
+            const response = await fetch(`${API_URL}/api/categories`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to add category');
+            }
+
+            await loadCategories();
+            selectCategory(dropdownId, name);
+        } catch (error) {
+            alert(error.message);
+        }
+    } else if (event.key === 'Escape') {
+        const dropdown = document.querySelector(`.category-dropdown[data-id="${dropdownId}"]`);
+        dropdown.classList.remove('open');
+    }
+}
+
+// Close dropdowns when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.category-dropdown')) {
+        document.querySelectorAll('.category-dropdown.open').forEach(d => d.classList.remove('open'));
+    }
+});
+
+function getCategoryDropdownValue(id) {
+    const dropdown = document.querySelector(`.category-dropdown[data-id="${id}"]`);
+    return dropdown ? dropdown.dataset.value : '';
+}
+
+function updateCategorySelects() {
     // Update library filter select - use POPULATED categories (with counts)
     const filterSelect = document.getElementById('category-filter-select');
     if (filterSelect) {
@@ -1254,7 +1350,11 @@ async function openEditModal(patternId) {
     }
 
     document.getElementById('edit-pattern-name').value = pattern.name;
-    document.getElementById('edit-pattern-category').value = pattern.category || 'Amigurumi';
+
+    // Create category dropdown
+    const categoryContainer = document.getElementById('edit-pattern-category-container');
+    categoryContainer.innerHTML = createCategoryDropdown('edit-category', pattern.category || 'Amigurumi');
+
     document.getElementById('edit-pattern-description').value = pattern.description || '';
     document.getElementById('edit-thumbnail').value = '';
 
@@ -1270,7 +1370,7 @@ async function savePatternEdits() {
     if (!editingPatternId) return;
 
     const name = document.getElementById('edit-pattern-name').value;
-    const category = document.getElementById('edit-pattern-category').value;
+    const category = getCategoryDropdownValue('edit-category');
     const description = document.getElementById('edit-pattern-description').value;
     const thumbnailFile = document.getElementById('edit-thumbnail').files[0];
 

@@ -231,13 +231,18 @@ Yarnl works best in modern browsers:
 
 ## Recent Updates
 
-### v2.0 - Smart File Management (January 2026)
+### Commit 4a3c451 — Smart File Management (January 2026)
 - **Intelligent file naming system** that creates clean filenames from pattern names
 - **Automatic file renaming** when you edit pattern names
 - **Duplicate handling** with automatic numbering
 - Files organized by category in separate directories
 
-### v1.5 - Full Persistence & Categories
+### Commit 7924815 — Uploads Cleanup
+- Added uploads directory to .gitignore
+- Removed tracked upload files from version control
+- User-generated content now properly managed via Docker volumes
+
+### Earlier Commits — Full Persistence & Categories
 - **PostgreSQL database** for complete data persistence
 - **Category organization** with 8 predefined categories
 - **Integrated PDF viewer** with persistent page tracking

@@ -781,24 +781,20 @@ async function closePDFViewer() {
     pdfViewerContainer.style.display = 'none';
     document.querySelector('.tabs').style.display = 'flex';
 
-    // Reset all tabs and show current tab
-    tabBtns.forEach(b => b.classList.remove('active'));
-    tabContents.forEach(c => {
-        c.classList.remove('active');
-        c.style.display = 'none';
-    });
-
-    // Activate the current patterns tab
-    const currentTab = document.querySelector('[data-tab="current"]');
-    const currentContent = document.getElementById('current');
-    currentTab.classList.add('active');
-    currentContent.classList.add('active');
-    currentContent.style.display = 'block';
+    // Restore the previously active tab
+    const lastActiveTab = localStorage.getItem('activeTab') || 'current-patterns';
+    switchToTab(lastActiveTab);
 
     currentPattern = null;
     pdfDoc = null;
     lastUsedCounterId = null;
-    loadCurrentPatterns();
+
+    // Reload the appropriate content based on which tab we're returning to
+    if (lastActiveTab === 'current-patterns') {
+        loadCurrentPatterns();
+    } else if (lastActiveTab === 'all-patterns') {
+        loadPatterns();
+    }
 }
 
 // Counter functionality

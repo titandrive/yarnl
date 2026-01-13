@@ -13,6 +13,7 @@ let selectedCategoryFilter = 'all';
 let selectedSort = 'date-desc';
 let showCompleted = true;
 let showCurrent = true;
+let searchQuery = '';
 
 // PDF Viewer State
 let pdfDoc = null;
@@ -517,9 +518,17 @@ function handleCategoryFilter(e) {
 }
 
 function initLibraryFilters() {
+    const searchInput = document.getElementById('search-input');
     const sortSelect = document.getElementById('sort-select');
     const showCompletedCheckbox = document.getElementById('show-completed');
     const showCurrentCheckbox = document.getElementById('show-current');
+
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value.toLowerCase();
+            displayPatterns();
+        });
+    }
 
     if (sortSelect) {
         sortSelect.addEventListener('change', (e) => {
@@ -572,10 +581,19 @@ function displayPatterns() {
         return;
     }
 
+    // Filter patterns by search query
+    let filteredPatterns = patterns;
+    if (searchQuery) {
+        filteredPatterns = filteredPatterns.filter(p =>
+            p.name.toLowerCase().includes(searchQuery) ||
+            (p.description && p.description.toLowerCase().includes(searchQuery))
+        );
+    }
+
     // Filter patterns by selected category
-    let filteredPatterns = selectedCategoryFilter === 'all'
-        ? patterns
-        : patterns.filter(p => p.category === selectedCategoryFilter);
+    filteredPatterns = selectedCategoryFilter === 'all'
+        ? filteredPatterns
+        : filteredPatterns.filter(p => p.category === selectedCategoryFilter);
 
     // Filter by show completed/current checkboxes
     filteredPatterns = filteredPatterns.filter(p => {

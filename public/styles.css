@@ -465,15 +465,23 @@ header h1 {
     letter-spacing: 0.5px;
 }
 
-.sidebar-section select {
+.sidebar-section select,
+.sidebar-section input[type="text"] {
     padding: 8px 10px;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background: var(--card-bg);
     color: var(--text-color);
     font-size: 0.9rem;
-    cursor: pointer;
     width: 100%;
+}
+
+.sidebar-section select {
+    cursor: pointer;
+}
+
+.sidebar-section input[type="text"]::placeholder {
+    color: var(--text-muted);
 }
 
 .checkbox-label {

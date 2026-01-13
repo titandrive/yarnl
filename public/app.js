@@ -15,6 +15,7 @@ let showCompleted = true;
 let showCurrent = true;
 let searchQuery = '';
 let previousTab = 'current';
+let showTabCounts = localStorage.getItem('showTabCounts') !== 'false';
 
 // PDF Viewer State
 let pdfDoc = null;
@@ -443,6 +444,7 @@ async function loadPatterns() {
         const response = await fetch(`${API_URL}/api/patterns`);
         patterns = await response.json();
         displayPatterns();
+        updateTabCounts();
     } catch (error) {
         console.error('Error loading patterns:', error);
     }
@@ -453,6 +455,7 @@ async function loadCurrentPatterns() {
         const response = await fetch(`${API_URL}/api/patterns/current`);
         currentPatterns = await response.json();
         displayCurrentPatterns();
+        updateTabCounts();
     } catch (error) {
         console.error('Error loading current patterns:', error);
     }
@@ -627,16 +630,27 @@ function initSettings() {
     const settingsBackBtn = document.getElementById('settings-back-btn');
     const addCategoryBtn = document.getElementById('add-category-btn');
     const newCategoryInput = document.getElementById('new-category-input');
+    const tabCountsCheckbox = document.getElementById('tab-counts-checkbox');
 
     if (settingsBtn) {
         settingsBtn.addEventListener('click', () => {
             switchToTab('settings');
+            loadLibraryStats();
         });
     }
 
     if (settingsBackBtn) {
         settingsBackBtn.addEventListener('click', () => {
             switchToTab(previousTab);
+        });
+    }
+
+    if (tabCountsCheckbox) {
+        tabCountsCheckbox.checked = showTabCounts;
+        tabCountsCheckbox.addEventListener('change', () => {
+            showTabCounts = tabCountsCheckbox.checked;
+            localStorage.setItem('showTabCounts', showTabCounts);
+            updateTabCounts();
         });
     }
 
@@ -650,6 +664,76 @@ function initSettings() {
                 addCategory();
             }
         });
+    }
+}
+
+function updateTabCounts() {
+    const currentCount = document.getElementById('current-tab-count');
+    const libraryCount = document.getElementById('library-tab-count');
+
+    if (currentCount) {
+        currentCount.textContent = showTabCounts ? ` (${currentPatterns.length})` : '';
+    }
+    if (libraryCount) {
+        libraryCount.textContent = showTabCounts ? ` (${patterns.length})` : '';
+    }
+}
+
+async function loadLibraryStats() {
+    try {
+        const response = await fetch(`${API_URL}/api/stats`);
+        const stats = await response.json();
+
+        const container = document.getElementById('library-stats');
+        if (!container) return;
+
+        // Format file size
+        const formatSize = (bytes) => {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+        };
+
+        container.innerHTML = `
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-value">${stats.totalPatterns}</span>
+                    <span class="stat-label">Total Patterns</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">${stats.currentPatterns}</span>
+                    <span class="stat-label">In Progress</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">${stats.completedPatterns}</span>
+                    <span class="stat-label">Completed</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">${formatSize(stats.totalSize)}</span>
+                    <span class="stat-label">Library Size</span>
+                </div>
+            </div>
+            <div class="stats-path">
+                <span class="stats-path-label">Library Location:</span>
+                <code class="stats-path-value">${escapeHtml(stats.libraryPath)}</code>
+            </div>
+            ${stats.patternsByCategory.length > 0 ? `
+                <div class="stats-categories">
+                    <h4>Patterns by Category</h4>
+                    <div class="category-stats">
+                        ${stats.patternsByCategory.map(cat => `
+                            <div class="category-stat-item">
+                                <span class="category-stat-name">${escapeHtml(cat.name)}</span>
+                                <span class="category-stat-count">${cat.count}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        `;
+    } catch (error) {
+        console.error('Error loading library stats:', error);
     }
 }
 

@@ -1020,6 +1020,58 @@ app.delete('/api/counters/:id', async (req, res) => {
   }
 });
 
+// Get library stats
+app.get('/api/stats', async (req, res) => {
+  try {
+    // Get total patterns count
+    const totalResult = await pool.query('SELECT COUNT(*) as count FROM patterns');
+    const totalPatterns = parseInt(totalResult.rows[0].count);
+
+    // Get current patterns count
+    const currentResult = await pool.query('SELECT COUNT(*) as count FROM patterns WHERE is_current = true');
+    const currentPatterns = parseInt(currentResult.rows[0].count);
+
+    // Get completed patterns count
+    const completedResult = await pool.query('SELECT COUNT(*) as count FROM patterns WHERE completed = true');
+    const completedPatterns = parseInt(completedResult.rows[0].count);
+
+    // Get patterns by category
+    const categoriesResult = await pool.query(
+      `SELECT category, COUNT(*) as count FROM patterns GROUP BY category ORDER BY count DESC`
+    );
+    const patternsByCategory = categoriesResult.rows.map(row => ({
+      name: row.category,
+      count: parseInt(row.count)
+    }));
+
+    // Calculate total library size from files
+    let totalSize = 0;
+    const patterns = await pool.query('SELECT filename, category FROM patterns');
+    for (const pattern of patterns.rows) {
+      let filePath = path.join(uploadsDir, pattern.category, pattern.filename);
+      if (!fs.existsSync(filePath)) {
+        filePath = path.join(uploadsDir, pattern.filename);
+      }
+      if (fs.existsSync(filePath)) {
+        const stats = fs.statSync(filePath);
+        totalSize += stats.size;
+      }
+    }
+
+    res.json({
+      totalPatterns,
+      currentPatterns,
+      completedPatterns,
+      patternsByCategory,
+      totalSize,
+      libraryPath: '/opt/yarnl/uploads'
+    });
+  } catch (error) {
+    console.error('Error fetching stats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Upload custom thumbnail for a pattern
 app.post('/api/patterns/:id/thumbnail', upload.single('thumbnail'), async (req, res) => {
   try {

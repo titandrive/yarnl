@@ -2174,6 +2174,22 @@ header {
     border-color: var(--primary-color);
 }
 
+.settings-input {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.9rem;
+    min-width: 200px;
+}
+
+.settings-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
 .setting-info label {
     font-weight: 600;
     display: block;

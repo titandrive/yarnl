@@ -433,6 +433,28 @@ function initTheme() {
             localStorage.setItem('useGradient', newGradient);
         });
     }
+
+    // Tagline customization
+    const taglineInput = document.getElementById('tagline-input');
+    const headerTagline = document.getElementById('header-tagline');
+    const defaultTagline = 'Your Crochet Project Companion';
+    const savedTagline = localStorage.getItem('tagline') || defaultTagline;
+
+    if (headerTagline) {
+        headerTagline.textContent = savedTagline;
+    }
+
+    if (taglineInput) {
+        taglineInput.value = savedTagline;
+
+        taglineInput.addEventListener('input', () => {
+            const newTagline = taglineInput.value || defaultTagline;
+            if (headerTagline) {
+                headerTagline.textContent = newTagline;
+            }
+            localStorage.setItem('tagline', newTagline);
+        });
+    }
 }
 
 // Tab switching

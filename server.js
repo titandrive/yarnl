@@ -1499,6 +1499,29 @@ app.post('/api/patterns/:id/thumbnail', imageUpload.single('thumbnail'), async (
   }
 });
 
+// Update timer for a pattern
+app.put('/api/patterns/:id/timer', async (req, res) => {
+  try {
+    const { timer_seconds } = req.body;
+    const result = await pool.query(
+      `UPDATE patterns
+       SET timer_seconds = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2
+       RETURNING *`,
+      [timer_seconds, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Pattern not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating timer:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Yarnl server running on http://0.0.0.0:${PORT}`);
 });

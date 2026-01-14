@@ -780,6 +780,13 @@ header {
     margin: 10px 0 0 0;
 }
 
+.time-worked {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin: 10px 0 0 0;
+}
+
 /* Modal */
 .modal {
     position: fixed;
@@ -915,6 +922,12 @@ header {
     text-align: center;
 }
 
+.pdf-header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
 .pdf-nav-controls {
     display: flex;
     align-items: center;
@@ -931,6 +944,46 @@ header {
     color: var(--text-color);
     min-width: 100px;
     text-align: center;
+}
+
+/* Timer Control */
+.timer-control {
+    display: flex;
+    align-items: center;
+}
+
+.timer-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.95rem;
+    min-width: 110px;
+    transition: all 0.2s ease;
+}
+
+.timer-btn .timer-icon {
+    flex-shrink: 0;
+}
+
+.timer-btn.timer-running {
+    background: var(--success-color);
+    color: white;
+    border-color: var(--success-color);
+}
+
+.timer-btn.timer-running:hover {
+    background: #059669;
+}
+
+.timer-btn.timer-running .timer-icon {
+    animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 .pdf-viewer-wrapper {

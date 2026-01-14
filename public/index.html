@@ -37,14 +37,8 @@
                     <span>New Pattern</span>
                 </button>
                 <div id="add-menu" class="add-menu" style="display: none;">
-                    <button class="add-menu-item" id="add-upload-pdf">
-                        <span class="add-menu-icon">📄</span>
-                        <span>Upload PDF</span>
-                    </button>
-                    <button class="add-menu-item" id="add-new-pattern">
-                        <span class="add-menu-icon">✍️</span>
-                        <span>New Pattern</span>
-                    </button>
+                    <button class="add-menu-item" id="add-upload-pdf">PDF</button>
+                    <button class="add-menu-item" id="add-new-pattern">Markdown</button>
                 </div>
             </div>
         </header>
@@ -345,10 +339,21 @@ Inc in each st around (12)
                     <button id="pdf-edit-btn" class="btn btn-secondary">Edit</button>
                 </div>
                 <h2 id="pdf-pattern-name"></h2>
-                <div class="pdf-nav-controls">
-                    <button id="prev-page-btn" class="btn btn-secondary">←</button>
-                    <span id="page-info">Page 1 of 1</span>
-                    <button id="next-page-btn" class="btn btn-secondary">→</button>
+                <div class="pdf-header-right">
+                    <div class="timer-control">
+                        <button id="pdf-timer-btn" class="btn btn-secondary timer-btn">
+                            <svg class="timer-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <polyline points="12 6 12 12 16 14"></polyline>
+                            </svg>
+                            <span id="pdf-timer-display">0:00:00</span>
+                        </button>
+                    </div>
+                    <div class="pdf-nav-controls">
+                        <button id="prev-page-btn" class="btn btn-secondary">←</button>
+                        <span id="page-info">Page 1 of 1</span>
+                        <button id="next-page-btn" class="btn btn-secondary">→</button>
+                    </div>
                 </div>
             </div>
 
@@ -446,7 +451,15 @@ Inc in each st around (12)
             </div>
             <h2 id="markdown-pattern-name"></h2>
             <div class="markdown-header-right">
-                <!-- Placeholder for symmetry -->
+                <div class="timer-control">
+                    <button id="markdown-timer-btn" class="btn btn-secondary timer-btn">
+                        <svg class="timer-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span id="markdown-timer-display">0:00:00</span>
+                    </button>
+                </div>
             </div>
         </div>
 

@@ -31,6 +31,159 @@ let currentPattern = null;
 let counters = [];
 let lastUsedCounterId = null;
 
+// Timer State
+let timerRunning = false;
+let timerSeconds = 0;
+let timerInterval = null;
+let timerSaveTimeout = null;
+
+// Timer Functions
+function initTimer() {
+    // PDF timer button
+    const pdfTimerBtn = document.getElementById('pdf-timer-btn');
+    if (pdfTimerBtn) {
+        pdfTimerBtn.addEventListener('click', toggleTimer);
+    }
+
+    // Markdown timer button
+    const markdownTimerBtn = document.getElementById('markdown-timer-btn');
+    if (markdownTimerBtn) {
+        markdownTimerBtn.addEventListener('click', toggleTimer);
+    }
+
+    // Stop timer when window/tab becomes hidden or closes
+    document.addEventListener('visibilitychange', () => {
+        // Timer continues running when tab is not visible (background)
+        // Only stop on actual close (handled by beforeunload)
+    });
+
+    window.addEventListener('beforeunload', () => {
+        if (timerRunning) {
+            stopTimer(true); // Save synchronously before page unload
+        }
+    });
+}
+
+function formatTime(seconds) {
+    const hours = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    return `${hours}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+}
+
+function updateTimerDisplay() {
+    const pdfDisplay = document.getElementById('pdf-timer-display');
+    const markdownDisplay = document.getElementById('markdown-timer-display');
+    const timeString = formatTime(timerSeconds);
+
+    if (pdfDisplay) pdfDisplay.textContent = timeString;
+    if (markdownDisplay) markdownDisplay.textContent = timeString;
+}
+
+function updateTimerButtonState() {
+    const pdfBtn = document.getElementById('pdf-timer-btn');
+    const markdownBtn = document.getElementById('markdown-timer-btn');
+
+    if (timerRunning) {
+        if (pdfBtn) pdfBtn.classList.add('timer-running');
+        if (markdownBtn) markdownBtn.classList.add('timer-running');
+    } else {
+        if (pdfBtn) pdfBtn.classList.remove('timer-running');
+        if (markdownBtn) markdownBtn.classList.remove('timer-running');
+    }
+}
+
+function toggleTimer() {
+    if (timerRunning) {
+        stopTimer();
+    } else {
+        startTimer();
+    }
+}
+
+function startTimer() {
+    if (timerRunning || !currentPattern) return;
+
+    timerRunning = true;
+    updateTimerButtonState();
+
+    timerInterval = setInterval(() => {
+        timerSeconds++;
+        updateTimerDisplay();
+
+        // Auto-save every 30 seconds
+        if (timerSeconds % 30 === 0) {
+            saveTimer();
+        }
+    }, 1000);
+}
+
+function stopTimer(sync = false) {
+    if (!timerRunning) return;
+
+    timerRunning = false;
+    updateTimerButtonState();
+
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+
+    // Save timer to database
+    if (sync) {
+        // Synchronous save for beforeunload
+        if (currentPattern && navigator.sendBeacon) {
+            const data = JSON.stringify({ timer_seconds: timerSeconds });
+            navigator.sendBeacon(`${API_URL}/api/patterns/${currentPattern.id}/timer`, data);
+        }
+    } else {
+        saveTimer();
+    }
+}
+
+async function saveTimer() {
+    if (!currentPattern) return;
+
+    // Debounce saves
+    if (timerSaveTimeout) {
+        clearTimeout(timerSaveTimeout);
+    }
+
+    timerSaveTimeout = setTimeout(async () => {
+        try {
+            await fetch(`${API_URL}/api/patterns/${currentPattern.id}/timer`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timer_seconds: timerSeconds })
+            });
+        } catch (error) {
+            console.error('Error saving timer:', error);
+        }
+    }, 500);
+}
+
+function resetTimerState() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+    if (timerSaveTimeout) {
+        clearTimeout(timerSaveTimeout);
+        timerSaveTimeout = null;
+    }
+    timerRunning = false;
+    timerSeconds = 0;
+    updateTimerDisplay();
+    updateTimerButtonState();
+}
+
+function loadPatternTimer(pattern) {
+    timerSeconds = pattern.timer_seconds || 0;
+    timerRunning = false;
+    updateTimerDisplay();
+    updateTimerButtonState();
+}
+
 // PDF.js configuration
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -52,6 +205,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initAddMenu();
     initNewPatternPanel();
     initThumbnailSelector();
+    initTimer();
     loadPatterns();
     loadCurrentPatterns();
     loadCategories();
@@ -911,8 +1065,18 @@ async function showNewPatternPanel() {
     document.getElementById('new-pattern-description').value = '';
     document.getElementById('new-pattern-content').value = '';
     document.getElementById('new-pattern-is-current').checked = false;
-    document.getElementById('new-pattern-thumbnail').value = '';
     document.getElementById('new-pattern-preview').innerHTML = '<p style="color: var(--text-muted);">Preview will appear here...</p>';
+
+    // Clear thumbnail selector
+    const thumbnailPreview = document.getElementById('new-pattern-thumbnail-preview');
+    if (thumbnailPreview) {
+        thumbnailPreview.innerHTML = '<span class="thumbnail-selector-placeholder">+</span>';
+        thumbnailPreview.classList.remove('has-image');
+    }
+    // Clear any stored thumbnail data
+    if (typeof window.thumbnailData !== 'undefined') {
+        window.thumbnailData['new-pattern'] = null;
+    }
 
     // Reset editor to edit mode
     const editorWrapper = document.querySelector('.new-pattern-editor-wrapper');
@@ -1974,7 +2138,9 @@ function displayCurrentPatterns() {
                 <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
                 ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
                 ${hashtagsHtml}
-                ${pattern.completed && pattern.completed_date ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}</p>` : ''}
+                ${pattern.completed && pattern.completed_date
+                    ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` (${formatTime(pattern.timer_seconds)})` : ''}</p>`
+                    : (pattern.timer_seconds > 0 ? `<p class="time-worked">Time: ${formatTime(pattern.timer_seconds)}</p>` : '')}
             </div>
         `;
     }).join('');
@@ -2089,7 +2255,7 @@ function displayPatterns() {
                 </div>
                 ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
                 ${hashtagsHtml}
-                ${pattern.completed && pattern.completed_date ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}</p>` : ''}
+                ${pattern.completed && pattern.completed_date ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` (${formatTime(pattern.timer_seconds)})` : ''}</p>` : ''}
             </div>
         `;
     }).join('');
@@ -2243,7 +2409,7 @@ function initPDFViewer() {
                 break;
             case ' ':
                 e.preventDefault();
-                incrementLastUsedCounter();
+                toggleTimer();
                 break;
         }
     });
@@ -2270,6 +2436,9 @@ async function openPDFViewer(patternId) {
 
         currentPattern = pattern;
         currentPageNum = pattern.current_page || 1;
+
+        // Load timer state
+        loadPatternTimer(pattern);
 
         // Hide tabs and show PDF viewer
         document.querySelector('.tabs').style.display = 'none';
@@ -2358,6 +2527,11 @@ async function changePage(delta) {
 }
 
 async function closePDFViewer() {
+    // Stop and save timer before closing
+    if (timerRunning) {
+        stopTimer();
+    }
+
     // Save current page before closing
     if (currentPattern && currentPageNum) {
         try {
@@ -2377,6 +2551,9 @@ async function closePDFViewer() {
     // Restore the previously active tab
     const lastActiveTab = localStorage.getItem('activeTab') || 'current-patterns';
     switchToTab(lastActiveTab);
+
+    // Reset timer state
+    resetTimerState();
 
     currentPattern = null;
     pdfDoc = null;
@@ -3121,6 +3298,9 @@ async function openMarkdownViewer(pattern) {
     try {
         currentPattern = pattern;
 
+        // Load timer state
+        loadPatternTimer(pattern);
+
         // Hide tabs and show markdown viewer
         document.querySelector('.tabs').style.display = 'none';
         tabContents.forEach(c => c.style.display = 'none');
@@ -3268,12 +3448,20 @@ function switchMarkdownEditTab(tab) {
 }
 
 async function closeMarkdownViewer() {
+    // Stop and save timer before closing
+    if (timerRunning) {
+        stopTimer();
+    }
+
     markdownViewerContainer.style.display = 'none';
     document.querySelector('.tabs').style.display = 'flex';
 
     // Restore the previously active tab
     const lastActiveTab = localStorage.getItem('activeTab') || 'current';
     switchToTab(lastActiveTab);
+
+    // Reset timer state
+    resetTimerState();
 
     currentPattern = null;
     lastUsedCounterId = null;

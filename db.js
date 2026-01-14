@@ -156,6 +156,12 @@ async function initDatabase() {
                       WHERE table_name='patterns' AND column_name='content') THEN
           ALTER TABLE patterns ADD COLUMN content TEXT;
         END IF;
+
+        -- Add timer_seconds column for tracking time spent on patterns
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='timer_seconds') THEN
+          ALTER TABLE patterns ADD COLUMN timer_seconds INTEGER DEFAULT 0;
+        END IF;
       END $$;
     `);
 

@@ -2089,6 +2089,36 @@ header {
     margin-bottom: 8px;
 }
 
+.about-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.about-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-color);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.about-link:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.about-link svg {
+    flex-shrink: 0;
+}
+
 /* Settings responsive - mobile sidebar becomes horizontal tabs */
 @media (max-width: 768px) {
     .settings-layout {
@@ -2126,9 +2156,14 @@ header {
 
 .setting-item {
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    gap: 16px;
     padding: 12px 0;
+}
+
+.setting-item .setting-info {
+    flex-shrink: 0;
+    min-width: 180px;
 }
 
 .settings-select {

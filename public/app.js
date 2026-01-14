@@ -291,7 +291,7 @@ const pdfViewerContainer = document.getElementById('pdf-viewer-container');
 const pdfCanvas = document.getElementById('pdf-canvas');
 
 // Initialize app
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     initTheme();
     initTabs();
     initUpload();
@@ -307,6 +307,12 @@ document.addEventListener('DOMContentLoaded', () => {
     loadCurrentPatterns();
     loadCategories();
     loadHashtags();
+
+    // Restore pattern viewer if one was open before refresh
+    const viewingPatternId = sessionStorage.getItem('viewingPatternId');
+    if (viewingPatternId) {
+        await openPDFViewer(parseInt(viewingPatternId));
+    }
 });
 
 // Auto-continue lists in markdown editors (bullets, numbers, checkboxes)
@@ -2562,6 +2568,9 @@ async function openPDFViewer(patternId) {
         // Convert to number for comparison
         const id = parseInt(patternId);
 
+        // Save viewing pattern to sessionStorage for refresh persistence
+        sessionStorage.setItem('viewingPatternId', id);
+
         // Always fetch fresh data from API to ensure we have the latest current_page
         const response = await fetch(`${API_URL}/api/patterns/${id}`);
         if (!response.ok) {
@@ -2696,6 +2705,9 @@ async function closePDFViewer() {
 
     pdfViewerContainer.style.display = 'none';
     document.querySelector('.tabs').style.display = 'flex';
+
+    // Clear viewing pattern from sessionStorage
+    sessionStorage.removeItem('viewingPatternId');
 
     // Restore the previously active tab
     const lastActiveTab = localStorage.getItem('activeTab') || 'current';
@@ -3763,6 +3775,9 @@ async function closeMarkdownViewer() {
 
     markdownViewerContainer.style.display = 'none';
     document.querySelector('.tabs').style.display = 'flex';
+
+    // Clear viewing pattern from sessionStorage
+    sessionStorage.removeItem('viewingPatternId');
 
     // Restore the previously active tab
     const lastActiveTab = localStorage.getItem('activeTab') || 'current';

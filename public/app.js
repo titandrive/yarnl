@@ -2924,16 +2924,17 @@ function displayCounters() {
     }
 
     countersList.innerHTML = counters.map(counter => `
-        <div class="counter-item" data-counter-id="${counter.id}">
+        <div class="counter-item${lastUsedCounterId === counter.id ? ' active' : ''}" data-counter-id="${counter.id}" onclick="selectCounter(${counter.id})">
             <div class="counter-name">
                 <input type="text" value="${escapeHtml(counter.name)}"
                        onchange="updateCounterName(${counter.id}, this.value)"
+                       onclick="event.stopPropagation()"
                        placeholder="Counter name">
             </div>
             <div class="counter-value">${counter.value}</div>
             <div class="counter-controls">
-                <button class="counter-btn counter-btn-minus" onclick="decrementCounter(${counter.id})">−</button>
-                <button class="counter-btn counter-btn-plus" onclick="incrementCounter(${counter.id})">+</button>
+                <button class="counter-btn counter-btn-minus" onclick="event.stopPropagation(); decrementCounter(${counter.id})">−</button>
+                <button class="counter-btn counter-btn-plus" onclick="event.stopPropagation(); incrementCounter(${counter.id})">+</button>
                 <button class="counter-btn counter-btn-reset" onclick="handleCounterReset(event, ${counter.id})" title="Click twice to reset">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
@@ -2949,6 +2950,11 @@ function displayCounters() {
             </div>
         </div>
     `).join('');
+}
+
+function selectCounter(counterId) {
+    lastUsedCounterId = counterId;
+    displayCounters();
 }
 
 async function addCounter(defaultName = '') {
@@ -3892,16 +3898,17 @@ function displayMarkdownCounters() {
     }
 
     countersList.innerHTML = counters.map(counter => `
-        <div class="counter-item" data-counter-id="${counter.id}">
+        <div class="counter-item${lastUsedCounterId === counter.id ? ' active' : ''}" data-counter-id="${counter.id}" onclick="selectCounter(${counter.id})">
             <div class="counter-name">
                 <input type="text" value="${escapeHtml(counter.name)}"
                        onchange="updateCounterName(${counter.id}, this.value)"
+                       onclick="event.stopPropagation()"
                        placeholder="Counter name">
             </div>
             <div class="counter-value">${counter.value}</div>
             <div class="counter-controls">
-                <button class="counter-btn counter-btn-minus" onclick="decrementCounter(${counter.id})">−</button>
-                <button class="counter-btn counter-btn-plus" onclick="incrementCounter(${counter.id})">+</button>
+                <button class="counter-btn counter-btn-minus" onclick="event.stopPropagation(); decrementCounter(${counter.id})">−</button>
+                <button class="counter-btn counter-btn-plus" onclick="event.stopPropagation(); incrementCounter(${counter.id})">+</button>
                 <button class="counter-btn counter-btn-reset" onclick="handleCounterReset(event, ${counter.id})" title="Click twice to reset">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>

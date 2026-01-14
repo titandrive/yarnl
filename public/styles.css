@@ -1134,6 +1134,12 @@ header {
     border-color: var(--primary-color);
 }
 
+.counter-item.active {
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
+    border-color: var(--primary-color);
+}
+
 .counter-name {
     font-weight: 600;
     color: var(--text-color);

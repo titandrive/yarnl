@@ -1404,6 +1404,14 @@ app.get('/api/stats', async (req, res) => {
     const completedResult = await pool.query('SELECT COUNT(*) as count FROM patterns WHERE completed = true');
     const completedPatterns = parseInt(completedResult.rows[0].count);
 
+    // Get total time spent
+    const timeResult = await pool.query('SELECT COALESCE(SUM(timer_seconds), 0) as total FROM patterns');
+    const totalTimeSeconds = parseInt(timeResult.rows[0].total);
+
+    // Get count of patterns with time logged
+    const patternsWithTimeResult = await pool.query('SELECT COUNT(*) as count FROM patterns WHERE timer_seconds > 0');
+    const patternsWithTime = parseInt(patternsWithTimeResult.rows[0].count);
+
     // Get patterns by category
     const categoriesResult = await pool.query(
       `SELECT category, COUNT(*) as count FROM patterns GROUP BY category ORDER BY count DESC`
@@ -1431,6 +1439,8 @@ app.get('/api/stats', async (req, res) => {
       totalPatterns,
       currentPatterns,
       completedPatterns,
+      totalTimeSeconds,
+      patternsWithTime,
       patternsByCategory,
       totalSize,
       libraryPath: '/opt/yarnl/patterns'

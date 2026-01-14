@@ -36,6 +36,8 @@ let timerRunning = false;
 let timerSeconds = 0;
 let timerInterval = null;
 let timerSaveTimeout = null;
+let timerResetConfirming = false;
+let timerResetTimeout = null;
 
 // Timer Functions
 function initTimer() {
@@ -49,6 +51,18 @@ function initTimer() {
     const markdownTimerBtn = document.getElementById('markdown-timer-btn');
     if (markdownTimerBtn) {
         markdownTimerBtn.addEventListener('click', toggleTimer);
+    }
+
+    // PDF timer reset button
+    const pdfResetBtn = document.getElementById('pdf-timer-reset-btn');
+    if (pdfResetBtn) {
+        pdfResetBtn.addEventListener('click', handleTimerReset);
+    }
+
+    // Markdown timer reset button
+    const markdownResetBtn = document.getElementById('markdown-timer-reset-btn');
+    if (markdownResetBtn) {
+        markdownResetBtn.addEventListener('click', handleTimerReset);
     }
 
     // Stop timer when window/tab becomes hidden or closes
@@ -162,6 +176,29 @@ async function saveTimer() {
     }, 500);
 }
 
+async function saveTimerImmediate() {
+    if (!currentPattern) return;
+
+    // Cancel any pending debounced save
+    if (timerSaveTimeout) {
+        clearTimeout(timerSaveTimeout);
+        timerSaveTimeout = null;
+    }
+
+    console.log('saveTimerImmediate called, timerSeconds:', timerSeconds, 'pattern:', currentPattern.id);
+
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/timer`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ timer_seconds: timerSeconds })
+        });
+        console.log('Timer save response:', response.status);
+    } catch (error) {
+        console.error('Error saving timer:', error);
+    }
+}
+
 function resetTimerState() {
     if (timerInterval) {
         clearInterval(timerInterval);
@@ -175,9 +212,68 @@ function resetTimerState() {
     timerSeconds = 0;
     updateTimerDisplay();
     updateTimerButtonState();
+    cancelTimerResetConfirmation();
+}
+
+function handleTimerReset() {
+    if (!currentPattern) return;
+
+    if (timerResetConfirming) {
+        // Second click - perform the reset
+        cancelTimerResetConfirmation();
+
+        // Stop timer if running
+        if (timerRunning) {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            timerRunning = false;
+        }
+
+        // Reset to zero
+        timerSeconds = 0;
+        updateTimerDisplay();
+        updateTimerButtonState();
+
+        // Save to database
+        saveTimer();
+    } else {
+        // First click - enter confirmation mode
+        timerResetConfirming = true;
+        updateResetButtonState();
+
+        // Auto-cancel after 3 seconds
+        timerResetTimeout = setTimeout(() => {
+            cancelTimerResetConfirmation();
+        }, 3000);
+    }
+}
+
+function cancelTimerResetConfirmation() {
+    timerResetConfirming = false;
+    if (timerResetTimeout) {
+        clearTimeout(timerResetTimeout);
+        timerResetTimeout = null;
+    }
+    updateResetButtonState();
+}
+
+function updateResetButtonState() {
+    const pdfResetBtn = document.getElementById('pdf-timer-reset-btn');
+    const markdownResetBtn = document.getElementById('markdown-timer-reset-btn');
+
+    if (timerResetConfirming) {
+        if (pdfResetBtn) pdfResetBtn.classList.add('confirming');
+        if (markdownResetBtn) markdownResetBtn.classList.add('confirming');
+    } else {
+        if (pdfResetBtn) pdfResetBtn.classList.remove('confirming');
+        if (markdownResetBtn) markdownResetBtn.classList.remove('confirming');
+    }
 }
 
 function loadPatternTimer(pattern) {
+    console.log('loadPatternTimer called, pattern.timer_seconds:', pattern.timer_seconds);
     timerSeconds = pattern.timer_seconds || 0;
     timerRunning = false;
     updateTimerDisplay();
@@ -1732,6 +1828,14 @@ async function loadLibraryStats() {
                     <span class="stat-value">${formatSize(stats.totalSize)}</span>
                     <span class="stat-label">Library Size</span>
                 </div>
+                <div class="stat-item">
+                    <span class="stat-value">${formatTime(stats.totalTimeSeconds || 0)}</span>
+                    <span class="stat-label">Time Crocheting</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">${stats.patternsWithTime > 0 ? formatTime(Math.round((stats.totalTimeSeconds || 0) / stats.patternsWithTime)) : '–'}</span>
+                    <span class="stat-label">Avg Time per Project</span>
+                </div>
             </div>
             <div class="stats-path">
                 <span class="stats-path-label">Library Location:</span>
@@ -2135,12 +2239,11 @@ function displayCurrentPatterns() {
                         </svg>
                       </div>`}
                 <h3>${escapeHtml(pattern.name)}</h3>
-                <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
-                ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
-                ${hashtagsHtml}
                 ${pattern.completed && pattern.completed_date
                     ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` (${formatTime(pattern.timer_seconds)})` : ''}</p>`
-                    : (pattern.timer_seconds > 0 ? `<p class="time-worked">Time: ${formatTime(pattern.timer_seconds)}</p>` : '')}
+                    : `<p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` · ${formatTime(pattern.timer_seconds)}` : ''}</p>`}
+                ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
+                ${hashtagsHtml}
             </div>
         `;
     }).join('');
@@ -2240,7 +2343,9 @@ function displayPatterns() {
                         </svg>
                       </div>`}
                 <h3>${escapeHtml(pattern.name)}</h3>
-                <p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}</p>
+                ${pattern.completed && pattern.completed_date
+                    ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` (${formatTime(pattern.timer_seconds)})` : ''}</p>`
+                    : `<p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` · ${formatTime(pattern.timer_seconds)}` : ''}</p>`}
                 <div class="pattern-actions" onclick="event.stopPropagation()">
                     <button class="btn btn-success btn-small"
                             onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})">
@@ -2255,7 +2360,6 @@ function displayPatterns() {
                 </div>
                 ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
                 ${hashtagsHtml}
-                ${pattern.completed && pattern.completed_date ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` (${formatTime(pattern.timer_seconds)})` : ''}</p>` : ''}
             </div>
         `;
     }).join('');
@@ -2527,9 +2631,16 @@ async function changePage(delta) {
 }
 
 async function closePDFViewer() {
-    // Stop and save timer before closing
-    if (timerRunning) {
-        stopTimer();
+    // Save timer before closing (immediate, not debounced)
+    if (currentPattern && timerSeconds > 0) {
+        if (timerRunning) {
+            timerRunning = false;
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+        await saveTimerImmediate();
     }
 
     // Save current page before closing
@@ -2549,7 +2660,7 @@ async function closePDFViewer() {
     document.querySelector('.tabs').style.display = 'flex';
 
     // Restore the previously active tab
-    const lastActiveTab = localStorage.getItem('activeTab') || 'current-patterns';
+    const lastActiveTab = localStorage.getItem('activeTab') || 'current';
     switchToTab(lastActiveTab);
 
     // Reset timer state
@@ -2560,10 +2671,10 @@ async function closePDFViewer() {
     lastUsedCounterId = null;
 
     // Reload the appropriate content based on which tab we're returning to
-    if (lastActiveTab === 'current-patterns') {
-        loadCurrentPatterns();
-    } else if (lastActiveTab === 'all-patterns') {
-        loadPatterns();
+    if (lastActiveTab === 'current') {
+        await loadCurrentPatterns();
+    } else if (lastActiveTab === 'library') {
+        await loadPatterns();
     }
 }
 
@@ -3448,9 +3559,16 @@ function switchMarkdownEditTab(tab) {
 }
 
 async function closeMarkdownViewer() {
-    // Stop and save timer before closing
-    if (timerRunning) {
-        stopTimer();
+    // Save timer before closing (immediate, not debounced)
+    if (currentPattern && timerSeconds > 0) {
+        if (timerRunning) {
+            timerRunning = false;
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+        }
+        await saveTimerImmediate();
     }
 
     markdownViewerContainer.style.display = 'none';
@@ -3468,9 +3586,9 @@ async function closeMarkdownViewer() {
 
     // Reload the appropriate content
     if (lastActiveTab === 'current') {
-        loadCurrentPatterns();
+        await loadCurrentPatterns();
     } else if (lastActiveTab === 'library') {
-        loadPatterns();
+        await loadPatterns();
     }
 }
 

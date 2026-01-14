@@ -67,7 +67,7 @@ const defaultShortcuts = {
     nextPage: ['ArrowRight', ''],
     toggleTimer: [' ', ''], // Space
     nextCounter: ['Tab', ''],
-    zoomIn: ['+', '='], // = is unshifted + on most keyboards
+    zoomIn: ['=', '+'], // = is unshifted + on most keyboards
     zoomOut: ['-', '']
 };
 let keyboardShortcuts = JSON.parse(localStorage.getItem('keyboardShortcuts')) || JSON.parse(JSON.stringify(defaultShortcuts));
@@ -1269,6 +1269,20 @@ function initKeyboardShortcuts() {
             btn.classList.add('listening');
             btn.textContent = '...';
         });
+
+        // Right-click to clear shortcut
+        btn.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const shortcutName = btn.dataset.shortcut;
+            const index = parseInt(btn.dataset.index);
+
+            // Only clear if there's a shortcut set
+            if (keyboardShortcuts[shortcutName]?.[index]) {
+                keyboardShortcuts[shortcutName][index] = '';
+                localStorage.setItem('keyboardShortcuts', JSON.stringify(keyboardShortcuts));
+                updateShortcutDisplays();
+            }
+        });
     });
 
     // Global keydown handler for capturing shortcuts
@@ -1281,12 +1295,15 @@ function initKeyboardShortcuts() {
         const shortcutName = listeningBtn.dataset.shortcut;
         const index = parseInt(listeningBtn.dataset.index);
 
-        // Handle clearing with Escape or Backspace for alternate keys
-        if ((e.key === 'Escape' || e.key === 'Backspace') && index === 1) {
-            keyboardShortcuts[shortcutName][index] = '';
-        } else if (e.key !== 'Escape') {
-            keyboardShortcuts[shortcutName][index] = e.key;
+        // Escape cancels listening without changes
+        if (e.key === 'Escape') {
+            listeningBtn.classList.remove('listening');
+            listeningBtn = null;
+            return;
         }
+
+        // Set the new shortcut
+        keyboardShortcuts[shortcutName][index] = e.key;
 
         // Save to localStorage
         localStorage.setItem('keyboardShortcuts', JSON.stringify(keyboardShortcuts));

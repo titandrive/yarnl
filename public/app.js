@@ -335,6 +335,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initNewPatternPanel();
     initThumbnailSelector();
     initTimer();
+    initBackups();
     loadPatterns();
     loadCurrentPatterns();
     loadCategories();
@@ -2194,6 +2195,454 @@ async function loadLibraryStats() {
         `;
     } catch (error) {
         console.error('Error loading library stats:', error);
+    }
+}
+
+// Backup Functions
+async function loadBackups() {
+    const container = document.getElementById('backups-list');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/backups`);
+        const backups = await response.json();
+
+        if (backups.length === 0) {
+            container.innerHTML = '<p class="no-backups">No backups yet. Create your first backup above.</p>';
+            return;
+        }
+
+        container.innerHTML = backups.map(backup => `
+            <div class="backup-item" data-filename="${escapeHtml(backup.filename)}">
+                <div class="backup-info">
+                    <span class="backup-name">${escapeHtml(backup.filename)}</span>
+                    <span class="backup-meta">${formatBackupSize(backup.size)} • ${formatBackupDate(backup.created)}</span>
+                </div>
+                <div class="backup-actions">
+                    <button class="btn btn-small btn-secondary" onclick="downloadBackup('${escapeHtml(backup.filename)}')" title="Download">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                    </button>
+                    <button class="btn btn-small btn-primary" onclick="restoreBackup('${escapeHtml(backup.filename)}')" title="Restore">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="1 4 1 10 7 10"></polyline>
+                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                        </svg>
+                    </button>
+                    <button class="btn btn-small btn-danger" onclick="deleteBackup('${escapeHtml(backup.filename)}')" title="Delete">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading backups:', error);
+        container.innerHTML = '<p class="no-backups">Error loading backups.</p>';
+    }
+}
+
+function formatBackupSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+}
+
+function formatBackupDate(dateStr) {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function getClientSettings() {
+    // Collect all localStorage settings for backup
+    return {
+        theme: localStorage.getItem('theme'),
+        useGradient: localStorage.getItem('useGradient'),
+        tagline: localStorage.getItem('tagline'),
+        showTabCounts: localStorage.getItem('showTabCounts'),
+        defaultPage: localStorage.getItem('defaultPage'),
+        defaultZoom: localStorage.getItem('defaultZoom'),
+        showTypeBadge: localStorage.getItem('showTypeBadge'),
+        showStatusBadge: localStorage.getItem('showStatusBadge'),
+        showCategoryBadge: localStorage.getItem('showCategoryBadge'),
+        defaultCategory: localStorage.getItem('defaultCategory'),
+        keyboardShortcuts: localStorage.getItem('keyboardShortcuts'),
+        backupScheduleEnabled: localStorage.getItem('backupScheduleEnabled'),
+        backupSchedule: localStorage.getItem('backupSchedule'),
+        backupPruneEnabled: localStorage.getItem('backupPruneEnabled'),
+        backupPruneMode: localStorage.getItem('backupPruneMode'),
+        backupPruneValue: localStorage.getItem('backupPruneValue'),
+        backupTime: localStorage.getItem('backupTime')
+    };
+}
+
+function applyClientSettings(settings) {
+    if (!settings) return;
+
+    // Apply each setting if it exists in the backup
+    Object.entries(settings).forEach(([key, value]) => {
+        if (value !== null && value !== undefined) {
+            localStorage.setItem(key, value);
+        }
+    });
+
+    // Reload the page to apply all settings
+    window.location.reload();
+}
+
+async function createBackup() {
+    const btn = document.getElementById('create-backup-btn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Creating backup...';
+
+    const includePatterns = document.getElementById('backup-include-patterns')?.checked ?? true;
+
+    try {
+        const response = await fetch(`${API_URL}/api/backups`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clientSettings: getClientSettings(),
+                includePatterns
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to create backup');
+        }
+
+        const result = await response.json();
+        await loadBackups();
+        alert(`Backup created: ${result.filename}`);
+    } catch (error) {
+        console.error('Error creating backup:', error);
+        alert('Error creating backup: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
+function downloadBackup(filename) {
+    window.location.href = `${API_URL}/api/backups/${encodeURIComponent(filename)}/download`;
+}
+
+async function restoreBackup(filename) {
+    if (!confirm(`Are you sure you want to restore from "${filename}"?\n\nThis will replace all current patterns, settings, and data. This action cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/backups/${encodeURIComponent(filename)}/restore`, {
+            method: 'POST'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to restore backup');
+        }
+
+        const result = await response.json();
+
+        // Apply client settings if present
+        if (result.clientSettings) {
+            applyClientSettings(result.clientSettings);
+        } else {
+            alert('Backup restored successfully!');
+            window.location.reload();
+        }
+    } catch (error) {
+        console.error('Error restoring backup:', error);
+        alert('Error restoring backup: ' + error.message);
+    }
+}
+
+async function deleteBackup(filename) {
+    if (!confirm(`Are you sure you want to delete "${filename}"?`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/backups/${encodeURIComponent(filename)}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete backup');
+        }
+
+        await loadBackups();
+    } catch (error) {
+        console.error('Error deleting backup:', error);
+        alert('Error deleting backup: ' + error.message);
+    }
+}
+
+function initBackups() {
+    const createBtn = document.getElementById('create-backup-btn');
+    if (createBtn) {
+        createBtn.addEventListener('click', createBackup);
+    }
+
+    // Include patterns checkbox - update estimate when changed
+    const includePatterns = document.getElementById('backup-include-patterns');
+    if (includePatterns) {
+        includePatterns.addEventListener('change', updateBackupEstimate);
+    }
+
+    // Load library size for the backup option
+    loadLibrarySizeForBackup();
+
+    // Schedule toggle and options
+    const scheduleEnabled = document.getElementById('backup-schedule-enabled');
+    const scheduleOptions = document.getElementById('backup-schedule-options');
+    const scheduleSelect = document.getElementById('backup-schedule-select');
+    const timeInput = document.getElementById('backup-time-input');
+
+    const updateScheduleVisibility = () => {
+        if (scheduleOptions) {
+            scheduleOptions.style.display = scheduleEnabled && scheduleEnabled.checked ? 'block' : 'none';
+        }
+    };
+
+    if (scheduleEnabled) {
+        scheduleEnabled.checked = localStorage.getItem('backupScheduleEnabled') === 'true';
+        updateScheduleVisibility();
+        scheduleEnabled.addEventListener('change', () => {
+            localStorage.setItem('backupScheduleEnabled', scheduleEnabled.checked);
+            updateScheduleVisibility();
+            checkScheduledBackup();
+        });
+    }
+
+    if (scheduleSelect) {
+        scheduleSelect.value = localStorage.getItem('backupSchedule') || 'daily';
+        scheduleSelect.addEventListener('change', () => {
+            localStorage.setItem('backupSchedule', scheduleSelect.value);
+            checkScheduledBackup();
+        });
+    }
+
+    if (timeInput) {
+        timeInput.value = localStorage.getItem('backupTime') || '03:00';
+        timeInput.addEventListener('change', () => {
+            localStorage.setItem('backupTime', timeInput.value);
+        });
+    }
+
+    // Prune toggle and options
+    const pruneEnabled = document.getElementById('backup-prune-enabled');
+    const pruneOptions = document.getElementById('backup-prune-options');
+    const pruneMode = document.getElementById('backup-prune-mode');
+    const pruneValue = document.getElementById('backup-prune-value');
+    const pruneValueLabel = document.getElementById('prune-value-label');
+    const pruneValueDescription = document.getElementById('prune-value-description');
+    const pruneValueSuffix = document.getElementById('prune-value-suffix');
+
+    const updatePruneVisibility = () => {
+        if (pruneOptions) {
+            pruneOptions.style.display = pruneEnabled && pruneEnabled.checked ? 'block' : 'none';
+        }
+    };
+
+    const updatePruneLabels = () => {
+        if (pruneMode && pruneValueLabel && pruneValueDescription && pruneValueSuffix) {
+            if (pruneMode.value === 'keep') {
+                pruneValueLabel.textContent = 'Keep last';
+                pruneValueDescription.textContent = 'Delete backups beyond this count';
+                pruneValueSuffix.textContent = 'backups';
+            } else {
+                pruneValueLabel.textContent = 'Delete older than';
+                pruneValueDescription.textContent = 'Delete backups older than this';
+                pruneValueSuffix.textContent = 'days';
+            }
+        }
+    };
+
+    const getPruneSetting = () => {
+        const mode = pruneMode ? pruneMode.value : 'keep';
+        const value = pruneValue ? pruneValue.value : '5';
+        return `${mode}-${value}`;
+    };
+
+    const runPruneIfEnabled = async () => {
+        if (pruneEnabled && pruneEnabled.checked) {
+            await runPrune(getPruneSetting());
+        }
+    };
+
+    if (pruneEnabled) {
+        pruneEnabled.checked = localStorage.getItem('backupPruneEnabled') === 'true';
+        updatePruneVisibility();
+        pruneEnabled.addEventListener('change', async () => {
+            localStorage.setItem('backupPruneEnabled', pruneEnabled.checked);
+            updatePruneVisibility();
+            if (pruneEnabled.checked) {
+                await runPruneIfEnabled();
+            }
+        });
+    }
+
+    if (pruneMode) {
+        pruneMode.value = localStorage.getItem('backupPruneMode') || 'keep';
+        updatePruneLabels();
+        pruneMode.addEventListener('change', () => {
+            localStorage.setItem('backupPruneMode', pruneMode.value);
+            updatePruneLabels();
+            runPruneIfEnabled();
+        });
+    }
+
+    if (pruneValue) {
+        pruneValue.value = localStorage.getItem('backupPruneValue') || '5';
+        pruneValue.addEventListener('change', () => {
+            localStorage.setItem('backupPruneValue', pruneValue.value);
+            runPruneIfEnabled();
+        });
+    }
+
+    loadBackups();
+    checkScheduledBackup();
+}
+
+let cachedLibrarySize = 0;
+
+async function loadLibrarySizeForBackup() {
+    try {
+        const response = await fetch(`${API_URL}/api/stats`);
+        const stats = await response.json();
+        cachedLibrarySize = stats.totalSize || 0;
+
+        const sizeInfo = document.getElementById('library-size-info');
+        if (sizeInfo) {
+            const formattedSize = formatBackupSize(cachedLibrarySize);
+            sizeInfo.textContent = `Pattern library is ${formattedSize}`;
+        }
+        // Update backup path display
+        const pathDisplay = document.getElementById('backup-path-display');
+        if (pathDisplay && stats.backupHostPath) {
+            pathDisplay.textContent = stats.backupHostPath;
+        }
+        // Update backup estimate
+        updateBackupEstimate();
+    } catch (error) {
+        const sizeInfo = document.getElementById('library-size-info');
+        if (sizeInfo) {
+            sizeInfo.textContent = 'Could not load library size';
+        }
+    }
+}
+
+function updateBackupEstimate() {
+    const estimate = document.getElementById('backup-estimate');
+    if (!estimate) return;
+
+    const includePatterns = document.getElementById('backup-include-patterns');
+    const dbEstimate = 50000; // ~50KB for database JSON
+
+    let totalSize = dbEstimate;
+    if (includePatterns && includePatterns.checked) {
+        totalSize += cachedLibrarySize;
+    }
+
+    estimate.textContent = `Estimated backup size: ${formatBackupSize(totalSize)}`;
+}
+
+async function runPrune(setting) {
+    if (!setting || setting === 'disabled') return;
+
+    const [mode, value] = setting.split('-');
+    try {
+        const response = await fetch(`${API_URL}/api/backups/prune`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ mode, value })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            if (result.deleted > 0) {
+                loadBackups();
+            }
+        }
+    } catch (error) {
+        console.error('Error pruning backups:', error);
+    }
+}
+
+async function checkScheduledBackup() {
+    const enabled = localStorage.getItem('backupScheduleEnabled') === 'true';
+    if (!enabled) return;
+
+    const schedule = localStorage.getItem('backupSchedule') || 'daily';
+
+    const backupTime = localStorage.getItem('backupTime') || '03:00';
+    const [targetHour, targetMinute] = backupTime.split(':').map(Number);
+
+    const lastBackup = localStorage.getItem('lastScheduledBackup');
+    const now = new Date();
+    const currentHour = now.getHours();
+    const currentMinute = now.getMinutes();
+
+    // Check if we're within the backup time window (within 30 minutes after target time)
+    const isInTimeWindow = (currentHour === targetHour && currentMinute >= targetMinute) ||
+        (currentHour === targetHour + 1 && currentMinute < targetMinute);
+
+    // For immediate check on page load, also allow if time has passed today
+    const timePassed = (currentHour > targetHour) || (currentHour === targetHour && currentMinute >= targetMinute);
+
+    let shouldBackup = false;
+
+    if (!lastBackup) {
+        // First backup - run if time has passed today
+        shouldBackup = timePassed;
+    } else {
+        const lastDate = new Date(lastBackup);
+        const diffMs = now - lastDate;
+        const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+        // Check if enough time has passed AND we're at/past the scheduled time
+        if (schedule === 'daily' && diffDays >= 0.9 && timePassed) shouldBackup = true;
+        if (schedule === 'weekly' && diffDays >= 6.9 && timePassed) shouldBackup = true;
+        if (schedule === 'monthly' && diffDays >= 29 && timePassed) shouldBackup = true;
+    }
+
+    if (shouldBackup) {
+        console.log('Running scheduled backup...');
+        const includePatterns = document.getElementById('backup-include-patterns')?.checked ?? true;
+
+        try {
+            const response = await fetch(`${API_URL}/api/backups`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    clientSettings: getClientSettings(),
+                    includePatterns
+                })
+            });
+
+            if (response.ok) {
+                localStorage.setItem('lastScheduledBackup', now.toISOString());
+                loadBackups();
+
+                // Run prune after scheduled backup
+                const pruneSetting = localStorage.getItem('backupPrune');
+                if (pruneSetting && pruneSetting !== 'disabled') {
+                    await runPrune(pruneSetting);
+                }
+            }
+        } catch (error) {
+            console.error('Error creating scheduled backup:', error);
+        }
     }
 }
 

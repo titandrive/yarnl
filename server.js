@@ -8,6 +8,8 @@ const { exec } = require('child_process');
 const execPromise = promisify(exec);
 const sharp = require('sharp');
 const pdfParse = require('pdf-parse');
+const archiver = require('archiver');
+const unzipper = require('unzipper');
 const { pool, initDatabase } = require('./db');
 
 const app = express();
@@ -1533,7 +1535,8 @@ app.get('/api/stats', async (req, res) => {
       patternsWithTime,
       patternsByCategory,
       totalSize,
-      libraryPath: '/opt/yarnl/patterns'
+      libraryPath: '/opt/yarnl/patterns',
+      backupHostPath: process.env.BACKUP_HOST_PATH || './backups'
     });
   } catch (error) {
     console.error('Error fetching stats:', error);
@@ -1618,6 +1621,350 @@ app.put('/api/patterns/:id/timer', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating timer:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+// BACKUP & RESTORE ENDPOINTS
+// ============================================
+
+const backupsDir = path.join(__dirname, 'backups');
+if (!fs.existsSync(backupsDir)) {
+  fs.mkdirSync(backupsDir, { recursive: true });
+}
+
+// List all backups
+app.get('/api/backups', (req, res) => {
+  try {
+    const files = fs.readdirSync(backupsDir)
+      .filter(f => f.endsWith('.zip'))
+      .map(f => {
+        const stats = fs.statSync(path.join(backupsDir, f));
+        return {
+          filename: f,
+          size: stats.size,
+          created: stats.mtime
+        };
+      })
+      .sort((a, b) => new Date(b.created) - new Date(a.created));
+    res.json(files);
+  } catch (error) {
+    console.error('Error listing backups:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new backup
+app.post('/api/backups', async (req, res) => {
+  try {
+    const { clientSettings, includePatterns = true } = req.body;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const backupFilename = `yarnl-backup-${timestamp}.zip`;
+    const backupPath = path.join(backupsDir, backupFilename);
+
+    // Export database tables to JSON
+    const dbExport = {
+      exportDate: new Date().toISOString(),
+      version: '1.0',
+      account: null, // For future user accounts
+      includePatterns,
+      tables: {}
+    };
+
+    // Export all tables in proper order for restore
+    const tables = ['categories', 'hashtags', 'patterns', 'counters', 'pattern_hashtags'];
+    for (const table of tables) {
+      const result = await pool.query(`SELECT * FROM ${table}`);
+      dbExport.tables[table] = result.rows;
+    }
+
+    // Create zip archive
+    const output = fs.createWriteStream(backupPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    output.on('close', () => {
+      const stats = fs.statSync(backupPath);
+      res.json({
+        success: true,
+        filename: backupFilename,
+        size: stats.size,
+        created: new Date().toISOString()
+      });
+    });
+
+    archive.on('error', (err) => {
+      throw err;
+    });
+
+    archive.pipe(output);
+
+    // Add database export
+    archive.append(JSON.stringify(dbExport, null, 2), { name: 'database.json' });
+
+    // Add client settings
+    if (clientSettings) {
+      archive.append(JSON.stringify(clientSettings, null, 2), { name: 'settings.json' });
+    }
+
+    // Add patterns directory (including thumbnails) only if requested
+    if (includePatterns) {
+      archive.directory(patternsDir, 'patterns');
+    }
+
+    await archive.finalize();
+  } catch (error) {
+    console.error('Error creating backup:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Prune old backups
+app.post('/api/backups/prune', (req, res) => {
+  try {
+    const { mode, value } = req.body;
+    const files = fs.readdirSync(backupsDir)
+      .filter(f => f.endsWith('.zip'))
+      .map(f => ({
+        filename: f,
+        created: fs.statSync(path.join(backupsDir, f)).mtime
+      }))
+      .sort((a, b) => new Date(b.created) - new Date(a.created));
+
+    let deleted = 0;
+
+    if (mode === 'keep') {
+      // Keep last X backups
+      const keepCount = parseInt(value);
+      const toDelete = files.slice(keepCount);
+      toDelete.forEach(f => {
+        fs.unlinkSync(path.join(backupsDir, f.filename));
+        deleted++;
+      });
+    } else if (mode === 'days') {
+      // Delete backups older than X days
+      const days = parseInt(value);
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - days);
+      files.forEach(f => {
+        if (new Date(f.created) < cutoff) {
+          fs.unlinkSync(path.join(backupsDir, f.filename));
+          deleted++;
+        }
+      });
+    }
+
+    res.json({ success: true, deleted });
+  } catch (error) {
+    console.error('Error pruning backups:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a backup
+app.delete('/api/backups/:filename', (req, res) => {
+  try {
+    const filename = req.params.filename;
+    // Security: ensure filename is safe
+    if (filename.includes('..') || !filename.endsWith('.zip')) {
+      return res.status(400).json({ error: 'Invalid filename' });
+    }
+    const backupPath = path.join(backupsDir, filename);
+    if (!fs.existsSync(backupPath)) {
+      return res.status(404).json({ error: 'Backup not found' });
+    }
+    fs.unlinkSync(backupPath);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting backup:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Restore from backup
+app.post('/api/backups/:filename/restore', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const filename = req.params.filename;
+    // Security: ensure filename is safe
+    if (filename.includes('..') || !filename.endsWith('.zip')) {
+      return res.status(400).json({ error: 'Invalid filename' });
+    }
+    const backupPath = path.join(backupsDir, filename);
+    if (!fs.existsSync(backupPath)) {
+      return res.status(404).json({ error: 'Backup not found' });
+    }
+
+    // Create temp directory for extraction
+    const tempDir = path.join(__dirname, 'temp-restore-' + Date.now());
+    fs.mkdirSync(tempDir, { recursive: true });
+
+    // Extract zip
+    await fs.createReadStream(backupPath)
+      .pipe(unzipper.Extract({ path: tempDir }))
+      .promise();
+
+    // Read database export
+    const dbExportPath = path.join(tempDir, 'database.json');
+    if (!fs.existsSync(dbExportPath)) {
+      throw new Error('Invalid backup: database.json not found');
+    }
+    const dbExport = JSON.parse(fs.readFileSync(dbExportPath, 'utf8'));
+
+    // Read settings (if present)
+    let clientSettings = null;
+    const settingsPath = path.join(tempDir, 'settings.json');
+    if (fs.existsSync(settingsPath)) {
+      clientSettings = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
+    }
+
+    // Begin transaction
+    await client.query('BEGIN');
+
+    // Clear existing data (in reverse order of dependencies)
+    await client.query('DELETE FROM pattern_hashtags');
+    await client.query('DELETE FROM counters');
+    await client.query('DELETE FROM patterns');
+    await client.query('DELETE FROM hashtags');
+    await client.query('DELETE FROM categories');
+
+    // Reset sequences
+    await client.query('ALTER SEQUENCE categories_id_seq RESTART WITH 1');
+    await client.query('ALTER SEQUENCE hashtags_id_seq RESTART WITH 1');
+    await client.query('ALTER SEQUENCE patterns_id_seq RESTART WITH 1');
+    await client.query('ALTER SEQUENCE counters_id_seq RESTART WITH 1');
+
+    // Restore categories
+    for (const row of dbExport.tables.categories || []) {
+      await client.query(
+        'INSERT INTO categories (id, name, position, created_at) VALUES ($1, $2, $3, $4)',
+        [row.id, row.name, row.position, row.created_at]
+      );
+    }
+    // Update sequence
+    const maxCatId = Math.max(0, ...(dbExport.tables.categories || []).map(r => r.id));
+    if (maxCatId > 0) {
+      await client.query(`ALTER SEQUENCE categories_id_seq RESTART WITH ${maxCatId + 1}`);
+    }
+
+    // Restore hashtags
+    for (const row of dbExport.tables.hashtags || []) {
+      await client.query(
+        'INSERT INTO hashtags (id, name, position, created_at) VALUES ($1, $2, $3, $4)',
+        [row.id, row.name, row.position, row.created_at]
+      );
+    }
+    const maxHashId = Math.max(0, ...(dbExport.tables.hashtags || []).map(r => r.id));
+    if (maxHashId > 0) {
+      await client.query(`ALTER SEQUENCE hashtags_id_seq RESTART WITH ${maxHashId + 1}`);
+    }
+
+    // Restore patterns
+    for (const row of dbExport.tables.patterns || []) {
+      await client.query(
+        `INSERT INTO patterns (id, name, filename, original_name, upload_date, category, description,
+         is_current, stitch_count, row_count, created_at, updated_at, thumbnail, current_page,
+         completed, completed_date, notes, pattern_type, content, timer_seconds)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
+        [row.id, row.name, row.filename, row.original_name, row.upload_date, row.category, row.description,
+         row.is_current, row.stitch_count, row.row_count, row.created_at, row.updated_at, row.thumbnail,
+         row.current_page, row.completed, row.completed_date, row.notes, row.pattern_type, row.content, row.timer_seconds]
+      );
+    }
+    const maxPatId = Math.max(0, ...(dbExport.tables.patterns || []).map(r => r.id));
+    if (maxPatId > 0) {
+      await client.query(`ALTER SEQUENCE patterns_id_seq RESTART WITH ${maxPatId + 1}`);
+    }
+
+    // Restore counters
+    for (const row of dbExport.tables.counters || []) {
+      await client.query(
+        'INSERT INTO counters (id, pattern_id, name, value, position, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
+        [row.id, row.pattern_id, row.name, row.value, row.position, row.created_at, row.updated_at]
+      );
+    }
+    const maxCntId = Math.max(0, ...(dbExport.tables.counters || []).map(r => r.id));
+    if (maxCntId > 0) {
+      await client.query(`ALTER SEQUENCE counters_id_seq RESTART WITH ${maxCntId + 1}`);
+    }
+
+    // Restore pattern_hashtags
+    for (const row of dbExport.tables.pattern_hashtags || []) {
+      await client.query(
+        'INSERT INTO pattern_hashtags (pattern_id, hashtag_id) VALUES ($1, $2)',
+        [row.pattern_id, row.hashtag_id]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    // Restore pattern files
+    const backupPatternsDir = path.join(tempDir, 'patterns');
+    if (fs.existsSync(backupPatternsDir)) {
+      // Clear existing patterns directory (except .gitkeep if present)
+      const existingFiles = fs.readdirSync(patternsDir);
+      for (const file of existingFiles) {
+        const filePath = path.join(patternsDir, file);
+        if (file !== '.gitkeep') {
+          if (fs.statSync(filePath).isDirectory()) {
+            fs.rmSync(filePath, { recursive: true });
+          } else {
+            fs.unlinkSync(filePath);
+          }
+        }
+      }
+
+      // Copy backup patterns to patterns directory
+      const copyRecursive = (src, dest) => {
+        if (fs.statSync(src).isDirectory()) {
+          fs.mkdirSync(dest, { recursive: true });
+          for (const child of fs.readdirSync(src)) {
+            copyRecursive(path.join(src, child), path.join(dest, child));
+          }
+        } else {
+          fs.copyFileSync(src, dest);
+        }
+      };
+
+      for (const item of fs.readdirSync(backupPatternsDir)) {
+        copyRecursive(
+          path.join(backupPatternsDir, item),
+          path.join(patternsDir, item)
+        );
+      }
+    }
+
+    // Clean up temp directory
+    fs.rmSync(tempDir, { recursive: true });
+
+    res.json({
+      success: true,
+      clientSettings,
+      message: 'Backup restored successfully'
+    });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error restoring backup:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
+  }
+});
+
+// Download a backup file
+app.get('/api/backups/:filename/download', (req, res) => {
+  try {
+    const filename = req.params.filename;
+    if (filename.includes('..') || !filename.endsWith('.zip')) {
+      return res.status(400).json({ error: 'Invalid filename' });
+    }
+    const backupPath = path.join(backupsDir, filename);
+    if (!fs.existsSync(backupPath)) {
+      return res.status(404).json({ error: 'Backup not found' });
+    }
+    res.download(backupPath, filename);
+  } catch (error) {
+    console.error('Error downloading backup:', error);
     res.status(500).json({ error: error.message });
   }
 });

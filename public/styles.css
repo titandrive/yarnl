@@ -774,17 +774,30 @@ header {
 }
 
 .completion-date {
-    color: var(--warning-color);
+    color: var(--success-color);
     font-size: 0.85rem;
     font-weight: 600;
     margin: 10px 0 0 0;
 }
 
-.time-worked {
-    color: var(--text-muted);
+.pattern-status {
     font-size: 0.85rem;
     font-weight: 500;
     margin: 10px 0 0 0;
+}
+
+.pattern-status.new {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.pattern-status.elapsed {
+    color: var(--primary-color);
+}
+
+.pattern-card.highlight-new {
+    outline: 2px solid var(--primary-color);
+    outline-offset: -2px;
 }
 
 /* Modal */

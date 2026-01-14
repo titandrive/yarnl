@@ -16,6 +16,7 @@ let showCompleted = true;
 let showCurrent = true;
 let showPdf = true;
 let showMarkdown = true;
+let highlightNew = false;
 let searchQuery = '';
 let previousTab = 'current';
 let showTabCounts = localStorage.getItem('showTabCounts') !== 'false';
@@ -2205,6 +2206,14 @@ function initLibraryFilters() {
             displayPatterns();
         });
     }
+
+    const highlightNewCheckbox = document.getElementById('highlight-new');
+    if (highlightNewCheckbox) {
+        highlightNewCheckbox.addEventListener('change', (e) => {
+            highlightNew = e.target.checked;
+            displayPatterns();
+        });
+    }
 }
 
 function displayCurrentPatterns() {
@@ -2241,7 +2250,9 @@ function displayCurrentPatterns() {
                 <h3>${escapeHtml(pattern.name)}</h3>
                 ${pattern.completed && pattern.completed_date
                     ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` (${formatTime(pattern.timer_seconds)})` : ''}</p>`
-                    : `<p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` · ${formatTime(pattern.timer_seconds)}` : ''}</p>`}
+                    : (pattern.timer_seconds > 0
+                        ? `<p class="pattern-status elapsed">Elapsed: ${formatTime(pattern.timer_seconds)}</p>`
+                        : `<p class="pattern-status new">New Pattern</p>`)}
                 ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
                 ${hashtagsHtml}
             </div>
@@ -2325,9 +2336,11 @@ function displayPatterns() {
             : '';
 
         const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';
+        const isNewPattern = !pattern.completed && !pattern.timer_seconds;
+        const highlightClass = highlightNew && isNewPattern ? ' highlight-new' : '';
 
         return `
-            <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
+            <div class="pattern-card${highlightClass}" onclick="openPDFViewer(${pattern.id})">
                 ${showStatusBadge && pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
                 ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
                 ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
@@ -2345,7 +2358,9 @@ function displayPatterns() {
                 <h3>${escapeHtml(pattern.name)}</h3>
                 ${pattern.completed && pattern.completed_date
                     ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` (${formatTime(pattern.timer_seconds)})` : ''}</p>`
-                    : `<p class="pattern-date">${new Date(pattern.upload_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` · ${formatTime(pattern.timer_seconds)}` : ''}</p>`}
+                    : (pattern.timer_seconds > 0
+                        ? `<p class="pattern-status elapsed">Elapsed: ${formatTime(pattern.timer_seconds)}</p>`
+                        : `<p class="pattern-status new">New Pattern</p>`)}
                 <div class="pattern-actions" onclick="event.stopPropagation()">
                     <button class="btn btn-success btn-small"
                             onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})">

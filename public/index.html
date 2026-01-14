@@ -10,7 +10,7 @@
         document.documentElement.setAttribute('data-theme', theme);
     </script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
-    <link rel="stylesheet" href="styles.css?v=6">
+    <link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
     <div class="container">
@@ -268,6 +268,16 @@ Inc in each st around (12)
                                 <input type="checkbox" id="tab-counts-checkbox" checked>
                                 <span class="toggle-slider"></span>
                             </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Default Page</label>
+                                <p class="setting-description">Page to show on startup</p>
+                            </div>
+                            <select id="default-page-select" class="settings-select">
+                                <option value="current">Current</option>
+                                <option value="library">Library</option>
+                            </select>
                         </div>
                     </section>
                     <section class="settings-section settings-badges">
@@ -685,6 +695,6 @@ Inc in each st around (12)
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="app.js?v=7"></script>
+    <script src="app.js?v=9"></script>
 </body>
 </html>

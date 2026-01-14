@@ -381,16 +381,14 @@ function initTheme() {
 
 // Tab switching
 function initTabs() {
-    // Restore last active tab from localStorage
-    const lastActiveTab = localStorage.getItem('activeTab') || 'current-patterns';
-    switchToTab(lastActiveTab);
+    // Get default page from settings, fallback to 'current'
+    const defaultPage = localStorage.getItem('defaultPage') || 'current';
+    switchToTab(defaultPage);
 
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const tabName = btn.dataset.tab;
             switchToTab(tabName);
-            // Save active tab to localStorage
-            localStorage.setItem('activeTab', tabName);
         });
     });
 }
@@ -997,6 +995,16 @@ function initSettings() {
             showTabCounts = tabCountsCheckbox.checked;
             localStorage.setItem('showTabCounts', showTabCounts);
             updateTabCounts();
+        });
+    }
+
+    // Default page setting
+    const defaultPageSelect = document.getElementById('default-page-select');
+    if (defaultPageSelect) {
+        const savedDefaultPage = localStorage.getItem('defaultPage') || 'current';
+        defaultPageSelect.value = savedDefaultPage;
+        defaultPageSelect.addEventListener('change', () => {
+            localStorage.setItem('defaultPage', defaultPageSelect.value);
         });
     }
 

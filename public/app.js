@@ -23,6 +23,21 @@ let showTabCounts = localStorage.getItem('showTabCounts') !== 'false';
 let showTypeBadge = localStorage.getItem('showTypeBadge') !== 'false';
 let showStatusBadge = localStorage.getItem('showStatusBadge') !== 'false';
 let showCategoryBadge = localStorage.getItem('showCategoryBadge') !== 'false';
+let defaultCategory = localStorage.getItem('defaultCategory') || 'Amigurumi';
+
+function getDefaultCategory() {
+    // Return the stored default, but fallback to first category if default doesn't exist
+    if (allCategories.includes(defaultCategory)) {
+        return defaultCategory;
+    }
+    return allCategories[0] || 'Amigurumi';
+}
+
+function setDefaultCategory(category) {
+    defaultCategory = category;
+    localStorage.setItem('defaultCategory', category);
+    renderCategoriesList();
+}
 
 // PDF Viewer State
 let pdfDoc = null;
@@ -566,7 +581,7 @@ function handleFiles(files) {
             id: fileId,
             file: file,
             name: file.name.replace('.pdf', ''),
-            category: 'Amigurumi',
+            category: getDefaultCategory(),
             description: '',
             hashtagIds: [],
             isCurrent: false,
@@ -910,7 +925,7 @@ async function loadHashtags() {
 }
 
 function createCategoryDropdown(id, selectedCategory, disabled = false) {
-    const selected = selectedCategory || allCategories[0] || '';
+    const selected = selectedCategory || getDefaultCategory();
     return `
         <div class="category-dropdown ${disabled ? 'disabled' : ''}" data-id="${id}" data-value="${escapeHtml(selected)}">
             <div class="category-dropdown-selected" onclick="toggleCategoryDropdown('${id}')">
@@ -1377,7 +1392,7 @@ async function showNewPatternPanel() {
     // Populate category dropdown
     const categoryContainer = document.getElementById('new-pattern-category-container');
     if (categoryContainer) {
-        categoryContainer.innerHTML = createCategoryDropdown('new-pattern-category', 'Amigurumi');
+        categoryContainer.innerHTML = createCategoryDropdown('new-pattern-category', getDefaultCategory());
     }
 
     // Populate hashtag selector
@@ -2094,13 +2109,19 @@ function renderCategoriesList() {
     const categoriesList = document.getElementById('categories-list');
     if (!categoriesList) return;
 
+    const currentDefault = getDefaultCategory();
     categoriesList.innerHTML = allCategories.map(category => {
         const patternCount = populatedCategories.find(c => c.name === category)?.count || 0;
+        const isDefault = category === currentDefault;
         return `
-            <div class="category-item" data-category="${escapeHtml(category)}">
-                <span class="category-name">${escapeHtml(category)}</span>
+            <div class="category-item ${isDefault ? 'is-default' : ''}" data-category="${escapeHtml(category)}">
+                <div class="category-info">
+                    <span class="category-name">${escapeHtml(category)}</span>
+                    ${isDefault ? '<span class="default-badge">Default</span>' : ''}
+                </div>
                 <span class="category-count">${patternCount} pattern${patternCount !== 1 ? 's' : ''}</span>
                 <div class="category-actions">
+                    ${!isDefault ? `<button class="btn btn-small btn-secondary" onclick="setDefaultCategory('${escapeHtml(category)}')" title="Set as default">★</button>` : ''}
                     <button class="btn btn-small btn-secondary" onclick="editCategory('${escapeHtml(category)}')">Edit</button>
                     <button class="btn btn-small btn-danger" onclick="deleteCategory('${escapeHtml(category)}', ${patternCount})">Delete</button>
                 </div>
@@ -3164,7 +3185,7 @@ async function openPdfEditModal() {
 
     // Populate category dropdown
     const categoryContainer = document.getElementById('pdf-edit-category-container');
-    categoryContainer.innerHTML = createCategoryDropdown('pdf-edit-category', currentPattern.category || 'Amigurumi');
+    categoryContainer.innerHTML = createCategoryDropdown('pdf-edit-category', currentPattern.category || getDefaultCategory());
 
     // Populate hashtags selector
     const hashtagsContainer = document.getElementById('pdf-edit-hashtags-container');
@@ -3951,7 +3972,7 @@ async function openEditModal(patternId) {
 
     // Create category dropdown
     const categoryContainer = document.getElementById('edit-pattern-category-container');
-    categoryContainer.innerHTML = createCategoryDropdown('edit-category', pattern.category || 'Amigurumi');
+    categoryContainer.innerHTML = createCategoryDropdown('edit-category', pattern.category || getDefaultCategory());
 
     document.getElementById('edit-pattern-description').value = pattern.description || '';
 
@@ -4397,7 +4418,7 @@ async function openMarkdownEditModal() {
 
     // Populate category dropdown
     const categoryContainer = document.getElementById('markdown-edit-category-container');
-    categoryContainer.innerHTML = createCategoryDropdown('markdown-edit-category', currentPattern.category || 'Amigurumi');
+    categoryContainer.innerHTML = createCategoryDropdown('markdown-edit-category', currentPattern.category || getDefaultCategory());
 
     // Populate hashtags selector
     const hashtagsContainer = document.getElementById('markdown-edit-hashtags-container');

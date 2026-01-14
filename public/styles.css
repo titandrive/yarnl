@@ -2156,14 +2156,9 @@ header {
 
 .setting-item {
     display: flex;
+    justify-content: space-between;
     align-items: center;
-    gap: 16px;
     padding: 12px 0;
-}
-
-.setting-item .setting-info {
-    flex-shrink: 0;
-    min-width: 180px;
 }
 
 .settings-select {
@@ -2343,9 +2338,30 @@ header {
     border: 1px solid var(--border-color);
 }
 
+.category-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
 .category-name {
     font-weight: 500;
-    flex: 1;
+}
+
+.category-item.is-default {
+    border-color: var(--primary-color);
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--input-bg));
+}
+
+.default-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
 }
 
 .category-count {

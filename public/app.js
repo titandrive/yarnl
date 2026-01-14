@@ -70,9 +70,21 @@ const defaultShortcuts = {
     toggleTimer: [' ', ''], // Space
     nextCounter: ['Tab', ''],
     zoomIn: ['=', '+'], // = is unshifted + on most keyboards
-    zoomOut: ['-', '']
+    zoomOut: ['-', ''],
+    exitViewer: ['Escape', '']
 };
-let keyboardShortcuts = JSON.parse(localStorage.getItem('keyboardShortcuts')) || JSON.parse(JSON.stringify(defaultShortcuts));
+// Merge saved shortcuts with defaults (so new shortcuts get added)
+let keyboardShortcuts = (() => {
+    const saved = JSON.parse(localStorage.getItem('keyboardShortcuts')) || {};
+    const merged = JSON.parse(JSON.stringify(defaultShortcuts));
+    // Override defaults with any saved values
+    for (const key in saved) {
+        if (key in merged) {
+            merged[key] = saved[key];
+        }
+    }
+    return merged;
+})();
 
 // Timer Functions
 function initTimer() {
@@ -3566,6 +3578,17 @@ function initPDFViewer() {
         if (matchesShortcut(e.key, 'zoomOut') && isPdfViewerOpen) {
             e.preventDefault();
             zoomOut();
+            return;
+        }
+
+        // Exit viewer (back button)
+        if (matchesShortcut(e.key, 'exitViewer')) {
+            e.preventDefault();
+            if (isPdfViewerOpen) {
+                closePDFViewer();
+            } else if (isMarkdownViewerOpen) {
+                closeMarkdownViewer();
+            }
             return;
         }
     });

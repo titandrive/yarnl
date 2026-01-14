@@ -455,6 +455,59 @@ function initTheme() {
             localStorage.setItem('tagline', newTagline);
         });
     }
+
+    // Reset appearance to defaults
+    const resetAppearanceBtn = document.getElementById('reset-appearance-btn');
+    if (resetAppearanceBtn) {
+        resetAppearanceBtn.addEventListener('click', () => {
+            // Reset theme
+            localStorage.setItem('theme', 'lavender-dark');
+            document.documentElement.setAttribute('data-theme', 'lavender-dark');
+            if (themeSelect) themeSelect.value = 'lavender-dark';
+
+            // Reset gradient
+            localStorage.setItem('useGradient', 'false');
+            document.documentElement.setAttribute('data-gradient', 'false');
+            if (gradientCheckbox) gradientCheckbox.checked = false;
+
+            // Reset tagline
+            localStorage.setItem('tagline', defaultTagline);
+            if (headerTagline) headerTagline.textContent = defaultTagline;
+            if (taglineInput) taglineInput.value = defaultTagline;
+
+            // Reset tab counts
+            localStorage.setItem('showTabCounts', 'true');
+            showTabCounts = true;
+            const tabCountsCheckbox = document.getElementById('tab-counts-checkbox');
+            if (tabCountsCheckbox) tabCountsCheckbox.checked = true;
+            updateTabCounts();
+
+            // Reset default page
+            localStorage.setItem('defaultPage', 'current');
+            const defaultPageSelect = document.getElementById('default-page-select');
+            if (defaultPageSelect) defaultPageSelect.value = 'current';
+
+            // Reset default zoom
+            localStorage.setItem('defaultZoom', 'fit');
+            const defaultZoomSelect = document.getElementById('default-zoom-select');
+            if (defaultZoomSelect) defaultZoomSelect.value = 'fit';
+
+            // Reset badges
+            localStorage.setItem('showTypeBadge', 'true');
+            localStorage.setItem('showStatusBadge', 'true');
+            localStorage.setItem('showCategoryBadge', 'true');
+            showTypeBadge = true;
+            showStatusBadge = true;
+            showCategoryBadge = true;
+            const typeBadgeCheckbox = document.getElementById('badge-type-checkbox');
+            const statusBadgeCheckbox = document.getElementById('badge-status-checkbox');
+            const categoryBadgeCheckbox = document.getElementById('badge-category-checkbox');
+            if (typeBadgeCheckbox) typeBadgeCheckbox.checked = true;
+            if (statusBadgeCheckbox) statusBadgeCheckbox.checked = true;
+            if (categoryBadgeCheckbox) categoryBadgeCheckbox.checked = true;
+            displayPatterns();
+        });
+    }
 }
 
 // Tab switching

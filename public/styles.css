@@ -2190,6 +2190,12 @@ header {
     border-color: var(--primary-color);
 }
 
+.settings-reset {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
 .setting-info label {
     font-weight: 600;
     display: block;

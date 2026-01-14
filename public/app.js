@@ -381,14 +381,19 @@ function initTheme() {
 
 // Tab switching
 function initTabs() {
-    // Get default page from settings, fallback to 'current'
+    // Use sessionStorage for current tab (survives refresh, clears on new tab)
+    // Use localStorage defaultPage only for fresh visits
+    const currentTab = sessionStorage.getItem('activeTab');
     const defaultPage = localStorage.getItem('defaultPage') || 'current';
-    switchToTab(defaultPage);
+    const startTab = currentTab || defaultPage;
+    switchToTab(startTab);
 
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const tabName = btn.dataset.tab;
             switchToTab(tabName);
+            // Save to sessionStorage so refresh stays on same page
+            sessionStorage.setItem('activeTab', tabName);
         });
     });
 }
@@ -2770,7 +2775,8 @@ async function openPatternInfoModal() {
             { label: 'Type', value: info.pattern_type === 'markdown' ? 'Markdown' : 'PDF' },
             { label: 'Date Added', value: new Date(info.upload_date).toLocaleDateString() },
             { label: 'Time Elapsed', value: formatTime(info.timer_seconds || 0) },
-            { label: 'Status', value: info.completed ? `Completed ${info.completed_date ? new Date(info.completed_date).toLocaleDateString() : ''}` : (info.is_current ? 'In Progress' : 'Not Started') },
+            { label: 'Completed', value: info.completed ? `Yes ${info.completed_date ? '(' + new Date(info.completed_date).toLocaleDateString() + ')' : ''}` : 'No' },
+            { label: 'Marked Current', value: info.is_current ? 'Yes' : 'No' },
             { label: 'File Size', value: formatFileSize(info.file_size) },
             { label: 'Filename', value: `<code>${escapeHtml(info.filename)}</code>` },
             { label: 'File Path', value: `<code>${escapeHtml(info.file_path)}</code>` }

@@ -10,13 +10,13 @@ let allHashtags = []; // All available hashtags
 let selectedFile = null;
 let editingPatternId = null;
 let stagedFiles = []; // Array to hold staged files with metadata
-let selectedCategoryFilter = 'all';
-let selectedSort = 'date-desc';
-let showCompleted = true;
-let showCurrent = true;
-let showPdf = true;
-let showMarkdown = true;
-let highlightNew = false;
+let selectedCategoryFilter = localStorage.getItem('libraryCategoryFilter') || 'all';
+let selectedSort = localStorage.getItem('librarySort') || 'date-desc';
+let showCompleted = localStorage.getItem('libraryShowCompleted') !== 'false';
+let showCurrent = localStorage.getItem('libraryShowCurrent') !== 'false';
+let showPdf = localStorage.getItem('libraryShowPdf') !== 'false';
+let showMarkdown = localStorage.getItem('libraryShowMarkdown') !== 'false';
+let highlightNew = localStorage.getItem('libraryHighlightNew') === 'true';
 let searchQuery = '';
 let previousTab = 'current';
 let navigationHistory = []; // Stack for UI back button
@@ -572,6 +572,27 @@ function initTheme() {
         });
     }
 
+    // Logo toggle
+    const showLogoCheckbox = document.getElementById('show-logo-checkbox');
+    const headerLogo = document.getElementById('header-logo');
+    const showLogo = localStorage.getItem('showLogo') !== 'false';
+
+    if (headerLogo) {
+        headerLogo.style.display = showLogo ? 'inline' : 'none';
+    }
+
+    if (showLogoCheckbox) {
+        showLogoCheckbox.checked = showLogo;
+
+        showLogoCheckbox.addEventListener('change', () => {
+            const show = showLogoCheckbox.checked;
+            localStorage.setItem('showLogo', show);
+            if (headerLogo) {
+                headerLogo.style.display = show ? 'inline' : 'none';
+            }
+        });
+    }
+
     // Reset appearance to defaults
     const resetAppearanceBtn = document.getElementById('reset-appearance-btn');
     if (resetAppearanceBtn) {
@@ -590,6 +611,11 @@ function initTheme() {
             localStorage.setItem('tagline', defaultTagline);
             if (headerTagline) headerTagline.textContent = defaultTagline;
             if (taglineInput) taglineInput.value = defaultTagline;
+
+            // Reset logo
+            localStorage.setItem('showLogo', 'true');
+            if (headerLogo) headerLogo.style.display = 'inline';
+            if (showLogoCheckbox) showLogoCheckbox.checked = true;
 
             // Reset tab counts
             localStorage.setItem('showTabCounts', 'true');
@@ -1309,6 +1335,7 @@ function updateCategorySelects() {
 
 function handleCategoryFilter(e) {
     selectedCategoryFilter = e.target.value;
+    localStorage.setItem('libraryCategoryFilter', selectedCategoryFilter);
     displayPatterns();
 }
 
@@ -3260,22 +3287,31 @@ function initLibraryFilters() {
     }
 
     if (sortSelect) {
+        // Restore saved sort value
+        sortSelect.value = selectedSort;
         sortSelect.addEventListener('change', (e) => {
             selectedSort = e.target.value;
+            localStorage.setItem('librarySort', selectedSort);
             displayPatterns();
         });
     }
 
     if (showCompletedCheckbox) {
+        // Restore saved checkbox state
+        showCompletedCheckbox.checked = showCompleted;
         showCompletedCheckbox.addEventListener('change', (e) => {
             showCompleted = e.target.checked;
+            localStorage.setItem('libraryShowCompleted', showCompleted);
             displayPatterns();
         });
     }
 
     if (showCurrentCheckbox) {
+        // Restore saved checkbox state
+        showCurrentCheckbox.checked = showCurrent;
         showCurrentCheckbox.addEventListener('change', (e) => {
             showCurrent = e.target.checked;
+            localStorage.setItem('libraryShowCurrent', showCurrent);
             displayPatterns();
         });
     }
@@ -3284,23 +3320,32 @@ function initLibraryFilters() {
     const showMarkdownCheckbox = document.getElementById('show-markdown');
 
     if (showPdfCheckbox) {
+        // Restore saved checkbox state
+        showPdfCheckbox.checked = showPdf;
         showPdfCheckbox.addEventListener('change', (e) => {
             showPdf = e.target.checked;
+            localStorage.setItem('libraryShowPdf', showPdf);
             displayPatterns();
         });
     }
 
     if (showMarkdownCheckbox) {
+        // Restore saved checkbox state
+        showMarkdownCheckbox.checked = showMarkdown;
         showMarkdownCheckbox.addEventListener('change', (e) => {
             showMarkdown = e.target.checked;
+            localStorage.setItem('libraryShowMarkdown', showMarkdown);
             displayPatterns();
         });
     }
 
     const highlightNewCheckbox = document.getElementById('highlight-new');
     if (highlightNewCheckbox) {
+        // Restore saved checkbox state
+        highlightNewCheckbox.checked = highlightNew;
         highlightNewCheckbox.addEventListener('change', (e) => {
             highlightNew = e.target.checked;
+            localStorage.setItem('libraryHighlightNew', highlightNew);
             displayPatterns();
         });
     }

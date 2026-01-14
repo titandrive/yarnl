@@ -21,6 +21,9 @@ uploads/
 # Backups
 backups/
 
+# Claude development log
+claude-log.md
+
 # OS / editor
 .DS_Store
 .idea/

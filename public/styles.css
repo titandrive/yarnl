@@ -3343,7 +3343,7 @@ input[type="number"].settings-input {
     outline: none;
 }
 
-/* Edit mode - hide preview by default */
+/* Edit mode - hide preview */
 .new-pattern-editor-wrapper.edit-mode .new-pattern-preview {
     display: none;
 }
@@ -3427,12 +3427,95 @@ input[type="number"].settings-input {
     padding: 0;
 }
 
+/* Markdown images */
+.new-pattern-preview img,
+.markdown-edit-preview img,
+.markdown-content img,
+.markdown-notes-preview img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin: 1em 0;
+}
+
+/* Markdown tables */
+.new-pattern-preview table,
+.markdown-edit-preview table,
+.markdown-content table,
+.markdown-notes-preview table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+}
+
+.new-pattern-preview th,
+.new-pattern-preview td,
+.markdown-edit-preview th,
+.markdown-edit-preview td,
+.markdown-content th,
+.markdown-content td,
+.markdown-notes-preview th,
+.markdown-notes-preview td {
+    border: 1px solid var(--border-color);
+    padding: 8px 12px;
+    text-align: left;
+}
+
+.new-pattern-preview th,
+.markdown-edit-preview th,
+.markdown-content th,
+.markdown-notes-preview th {
+    background: var(--bg-color);
+    font-weight: 600;
+}
+
+/* Markdown links */
+.new-pattern-preview a,
+.markdown-edit-preview a,
+.markdown-content a,
+.markdown-notes-preview a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.new-pattern-preview a:hover,
+.markdown-edit-preview a:hover,
+.markdown-content a:hover,
+.markdown-notes-preview a:hover {
+    text-decoration: underline;
+}
+
+/* Markdown horizontal rules */
+.new-pattern-preview hr,
+.markdown-edit-preview hr,
+.markdown-content hr,
+.markdown-notes-preview hr {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 1.5em 0;
+}
+
 .new-pattern-actions {
     display: flex;
+    align-items: center;
     justify-content: flex-end;
     gap: 12px;
     padding-top: 20px;
     border-top: 1px solid var(--border-color);
+}
+
+.new-pattern-actions .mark-current-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: auto;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    cursor: pointer;
+}
+
+.new-pattern-actions .mark-current-label:hover {
+    color: var(--text-color);
 }
 
 /* Markdown Pattern Viewer */

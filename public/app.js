@@ -593,6 +593,26 @@ function initTheme() {
         });
     }
 
+    // Tagline visibility toggle
+    const showTaglineCheckbox = document.getElementById('show-tagline-checkbox');
+    const showTagline = localStorage.getItem('showTagline') !== 'false';
+
+    if (headerTagline) {
+        headerTagline.style.display = showTagline ? 'block' : 'none';
+    }
+
+    if (showTaglineCheckbox) {
+        showTaglineCheckbox.checked = showTagline;
+
+        showTaglineCheckbox.addEventListener('change', () => {
+            const show = showTaglineCheckbox.checked;
+            localStorage.setItem('showTagline', show);
+            if (headerTagline) {
+                headerTagline.style.display = show ? 'block' : 'none';
+            }
+        });
+    }
+
     // Reset appearance to defaults
     const resetAppearanceBtn = document.getElementById('reset-appearance-btn');
     if (resetAppearanceBtn) {
@@ -611,6 +631,11 @@ function initTheme() {
             localStorage.setItem('tagline', defaultTagline);
             if (headerTagline) headerTagline.textContent = defaultTagline;
             if (taglineInput) taglineInput.value = defaultTagline;
+
+            // Reset tagline visibility
+            localStorage.setItem('showTagline', 'true');
+            if (headerTagline) headerTagline.style.display = 'block';
+            if (showTaglineCheckbox) showTaglineCheckbox.checked = true;
 
             // Reset logo
             localStorage.setItem('showLogo', 'true');

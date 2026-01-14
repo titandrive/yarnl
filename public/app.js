@@ -595,10 +595,15 @@ function initTheme() {
 
     // Tagline visibility toggle
     const showTaglineCheckbox = document.getElementById('show-tagline-checkbox');
+    const taglineInputContainer = document.getElementById('tagline-input-container');
     const showTagline = localStorage.getItem('showTagline') !== 'false';
 
     if (headerTagline) {
         headerTagline.style.display = showTagline ? 'block' : 'none';
+    }
+
+    if (taglineInputContainer) {
+        taglineInputContainer.style.display = showTagline ? 'flex' : 'none';
     }
 
     if (showTaglineCheckbox) {
@@ -609,6 +614,9 @@ function initTheme() {
             localStorage.setItem('showTagline', show);
             if (headerTagline) {
                 headerTagline.style.display = show ? 'block' : 'none';
+            }
+            if (taglineInputContainer) {
+                taglineInputContainer.style.display = show ? 'flex' : 'none';
             }
         });
     }
@@ -636,6 +644,7 @@ function initTheme() {
             localStorage.setItem('showTagline', 'true');
             if (headerTagline) headerTagline.style.display = 'block';
             if (showTaglineCheckbox) showTaglineCheckbox.checked = true;
+            if (taglineInputContainer) taglineInputContainer.style.display = 'flex';
 
             // Reset logo
             localStorage.setItem('showLogo', 'true');

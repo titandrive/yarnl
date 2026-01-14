@@ -408,6 +408,61 @@ async function handleInitialNavigation() {
     history.replaceState({ view: defaultPage }, '', `#${defaultPage}`);
 }
 
+// Setup image paste handler for markdown textareas
+// getPatternName is a function that returns the current pattern name for the context
+function setupImagePaste(textarea, getPatternName) {
+    textarea.addEventListener('paste', async (e) => {
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (const item of items) {
+            if (item.type.startsWith('image/')) {
+                e.preventDefault();
+
+                const file = item.getAsFile();
+                if (!file) return;
+
+                // Show uploading indicator
+                const cursorPos = textarea.selectionStart;
+                const placeholder = '![Uploading image...]()';
+                const before = textarea.value.substring(0, cursorPos);
+                const after = textarea.value.substring(textarea.selectionEnd);
+                textarea.value = before + placeholder + after;
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+                try {
+                    // Upload the image with pattern name for organization
+                    const formData = new FormData();
+                    formData.append('image', file);
+                    formData.append('patternName', getPatternName ? getPatternName() : 'image');
+
+                    const response = await fetch(`${API_URL}/api/images`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        // Replace placeholder with actual image markdown
+                        const imageMarkdown = `![image](${data.url})`;
+                        textarea.value = textarea.value.replace(placeholder, imageMarkdown);
+                        textarea.selectionStart = textarea.selectionEnd = cursorPos + imageMarkdown.length;
+                    } else {
+                        // Remove placeholder on error
+                        textarea.value = textarea.value.replace(placeholder, '');
+                    }
+                } catch (error) {
+                    console.error('Error uploading image:', error);
+                    textarea.value = textarea.value.replace(placeholder, '');
+                }
+
+                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                return;
+            }
+        }
+    });
+}
+
 // Auto-continue lists in markdown editors (bullets, numbers, checkboxes)
 function setupMarkdownListContinuation(textarea) {
     textarea.addEventListener('keydown', (e) => {
@@ -1398,8 +1453,26 @@ function initSettings() {
                     s.classList.remove('active');
                 }
             });
+
+            // Initialize section-specific content
+            if (section === 'storage') {
+                loadStorageStats();
+            }
         });
     });
+}
+
+// Storage section initialization
+async function loadStorageStats() {
+    await loadImagesSizeForBackup();
+    loadOrphanedImagesCount();
+
+    // Setup cleanup button if not already set up
+    const cleanupBtn = document.getElementById('cleanup-images-btn');
+    if (cleanupBtn && !cleanupBtn.hasAttribute('data-initialized')) {
+        cleanupBtn.setAttribute('data-initialized', 'true');
+        cleanupBtn.addEventListener('click', cleanupOrphanedImages);
+    }
 }
 
 // Keyboard Shortcuts Functions
@@ -1707,8 +1780,9 @@ function initNewPatternPanel() {
         contentEditor.addEventListener('input', () => {
             updateNewPatternPreview();
         });
-        // Enable auto-continue for lists
+        // Enable auto-continue for lists and image paste
         setupMarkdownListContinuation(contentEditor);
+        setupImagePaste(contentEditor, () => document.getElementById('new-pattern-name').value || 'new-pattern');
     }
 
     if (saveBtn) {
@@ -2424,6 +2498,7 @@ async function createBackup() {
     btn.innerHTML = '<span class="spinner"></span> Creating backup...';
 
     const includePatterns = document.getElementById('backup-include-patterns')?.checked ?? true;
+    const includeImages = document.getElementById('backup-include-images')?.checked ?? true;
 
     try {
         const response = await fetch(`${API_URL}/api/backups`, {
@@ -2431,7 +2506,8 @@ async function createBackup() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 clientSettings: getClientSettings(),
-                includePatterns
+                includePatterns,
+                includeImages
             })
         });
 
@@ -2518,6 +2594,12 @@ function initBackups() {
     const includePatterns = document.getElementById('backup-include-patterns');
     if (includePatterns) {
         includePatterns.addEventListener('change', updateBackupEstimate);
+    }
+
+    // Include images checkbox - update estimate when changed
+    const includeImages = document.getElementById('backup-include-images');
+    if (includeImages) {
+        includeImages.addEventListener('change', updateBackupEstimate);
     }
 
     // Load library size for the backup option
@@ -2635,7 +2717,63 @@ function initBackups() {
     checkScheduledBackup();
 }
 
+async function loadOrphanedImagesCount() {
+    const countEl = document.getElementById('orphaned-images-count');
+    const descEl = document.getElementById('orphaned-images-desc');
+    const btn = document.getElementById('cleanup-images-btn');
+
+    if (!countEl) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/images/orphaned`);
+        const data = await response.json();
+
+        if (data.count === 0) {
+            countEl.textContent = 'No orphaned images';
+            descEl.textContent = 'All uploaded images are in use';
+            btn.style.display = 'none';
+        } else {
+            countEl.textContent = `${data.count} orphaned image${data.count === 1 ? '' : 's'}`;
+            descEl.textContent = 'These images can be safely deleted';
+            btn.style.display = 'block';
+        }
+    } catch (error) {
+        countEl.textContent = 'Could not check images';
+        descEl.textContent = '';
+        btn.style.display = 'none';
+    }
+}
+
+async function cleanupOrphanedImages() {
+    const btn = document.getElementById('cleanup-images-btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Cleaning...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`${API_URL}/api/images/cleanup`, {
+            method: 'POST'
+        });
+        const data = await response.json();
+
+        // Refresh the count
+        await loadOrphanedImagesCount();
+
+        // Show brief success message
+        const countEl = document.getElementById('orphaned-images-count');
+        countEl.textContent = `Deleted ${data.count} image${data.count === 1 ? '' : 's'}`;
+        setTimeout(loadOrphanedImagesCount, 2000);
+    } catch (error) {
+        console.error('Error cleaning up images:', error);
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
 let cachedLibrarySize = 0;
+let cachedImagesSize = 0;
+let cachedImagesCount = 0;
 
 async function loadLibrarySizeForBackup() {
     try {
@@ -2653,6 +2791,10 @@ async function loadLibrarySizeForBackup() {
         if (pathDisplay && stats.backupHostPath) {
             pathDisplay.textContent = stats.backupHostPath;
         }
+
+        // Load images size
+        await loadImagesSizeForBackup();
+
         // Update backup estimate
         updateBackupEstimate();
     } catch (error) {
@@ -2663,16 +2805,50 @@ async function loadLibrarySizeForBackup() {
     }
 }
 
+async function loadImagesSizeForBackup() {
+    try {
+        const response = await fetch(`${API_URL}/api/images/stats`);
+        const stats = await response.json();
+        cachedImagesSize = stats.totalSize || 0;
+        cachedImagesCount = stats.count || 0;
+
+        const sizeInfo = document.getElementById('images-size-info');
+        if (sizeInfo) {
+            const formattedSize = formatBackupSize(cachedImagesSize);
+            sizeInfo.textContent = `${cachedImagesCount} image${cachedImagesCount === 1 ? '' : 's'} (${formattedSize})`;
+        }
+
+        // Update storage section
+        const storageCount = document.getElementById('storage-images-count');
+        const storageSize = document.getElementById('storage-images-size');
+        if (storageCount) {
+            storageCount.textContent = `${cachedImagesCount} image${cachedImagesCount === 1 ? '' : 's'}`;
+        }
+        if (storageSize) {
+            storageSize.textContent = `Total size: ${formatBackupSize(cachedImagesSize)}`;
+        }
+    } catch (error) {
+        const sizeInfo = document.getElementById('images-size-info');
+        if (sizeInfo) {
+            sizeInfo.textContent = 'Could not load images size';
+        }
+    }
+}
+
 function updateBackupEstimate() {
     const estimate = document.getElementById('backup-estimate');
     if (!estimate) return;
 
     const includePatterns = document.getElementById('backup-include-patterns');
+    const includeImages = document.getElementById('backup-include-images');
     const dbEstimate = 50000; // ~50KB for database JSON
 
     let totalSize = dbEstimate;
     if (includePatterns && includePatterns.checked) {
         totalSize += cachedLibrarySize;
+    }
+    if (includeImages && includeImages.checked) {
+        totalSize += cachedImagesSize;
     }
 
     estimate.textContent = `Estimated backup size: ${formatBackupSize(totalSize)}`;
@@ -2740,6 +2916,7 @@ async function checkScheduledBackup() {
     if (shouldBackup) {
         console.log('Running scheduled backup...');
         const includePatterns = document.getElementById('backup-include-patterns')?.checked ?? true;
+        const includeImages = document.getElementById('backup-include-images')?.checked ?? true;
 
         try {
             const response = await fetch(`${API_URL}/api/backups`, {
@@ -2747,7 +2924,8 @@ async function checkScheduledBackup() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     clientSettings: getClientSettings(),
-                    includePatterns
+                    includePatterns,
+                    includeImages
                 })
             });
 
@@ -4573,56 +4751,21 @@ function clearNotes() {
     }
 }
 
-// Simple markdown renderer
+// Markdown renderer using marked library
 function renderMarkdown(text) {
     if (!text) return '<p class="notes-empty">No notes yet.</p>';
 
-    let html = escapeHtml(text);
+    // Configure marked for safe rendering
+    if (typeof marked !== 'undefined') {
+        marked.setOptions({
+            breaks: true, // Convert \n to <br>
+            gfm: true,    // GitHub Flavored Markdown
+        });
+        return marked.parse(text);
+    }
 
-    // Code blocks (must come before inline code)
-    html = html.replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>');
-
-    // Inline code
-    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
-
-    // Headers
-    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
-    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
-    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
-
-    // Bold and italic
-    html = html.replace(/\*\*\*(.+?)\*\*\*/g, '<strong><em>$1</em></strong>');
-    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-
-    // Blockquotes
-    html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
-
-    // Ordered lists (must come before unordered to avoid conflicts)
-    html = html.replace(/^(\d+)\. (.+)$/gm, '<oli>$2</oli>');
-    html = html.replace(/(<oli>.*<\/oli>\n?)+/g, (match) => {
-        const items = match.replace(/<oli>/g, '<li>').replace(/<\/oli>/g, '</li>').replace(/\n/g, '');
-        return '<ol>' + items + '</ol>';
-    });
-
-    // Unordered lists
-    html = html.replace(/^- (.+)$/gm, '<uli>$1</uli>');
-    html = html.replace(/(<uli>.*<\/uli>\n?)+/g, (match) => {
-        const items = match.replace(/<uli>/g, '<li>').replace(/<\/uli>/g, '</li>').replace(/\n/g, '');
-        return '<ul>' + items + '</ul>';
-    });
-
-    // Line breaks to paragraphs
-    html = html.split(/\n\n+/).map(p => {
-        p = p.trim();
-        if (!p) return '';
-        if (p.startsWith('<h') || p.startsWith('<pre') || p.startsWith('<ul') || p.startsWith('<ol>') || p.startsWith('<blockquote')) {
-            return p;
-        }
-        return `<p>${p.replace(/\n/g, '<br>')}</p>`;
-    }).join('\n');
-
-    return html;
+    // Fallback if marked not loaded
+    return '<p>' + escapeHtml(text).replace(/\n/g, '<br>') + '</p>';
 }
 
 // Edit modal functionality
@@ -4836,8 +4979,9 @@ function initMarkdownViewerEvents() {
     // Notes editor auto-save
     const notesEditor = document.getElementById('markdown-notes-editor');
     notesEditor.oninput = handleMarkdownNotesInput;
-    // Enable auto-continue for lists
+    // Enable auto-continue for lists and image paste
     setupMarkdownListContinuation(notesEditor);
+    setupImagePaste(notesEditor, () => currentPattern?.name || 'pattern');
 
     // Add counter button
     const addCounterBtn = document.getElementById('markdown-add-counter-btn');
@@ -4890,8 +5034,9 @@ function initMarkdownViewerEvents() {
     editContent.oninput = () => {
         document.getElementById('markdown-edit-preview').innerHTML = renderMarkdown(editContent.value);
     };
-    // Enable auto-continue for lists
+    // Enable auto-continue for lists and image paste
     setupMarkdownListContinuation(editContent);
+    setupImagePaste(editContent, () => currentPattern?.name || 'pattern');
 }
 
 function switchMarkdownEditTab(tab) {

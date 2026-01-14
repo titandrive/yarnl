@@ -1602,6 +1602,175 @@ app.post('/api/patterns/:id/thumbnail', imageUpload.single('thumbnail'), async (
   }
 });
 
+// Upload image for markdown content (returns URL to insert)
+app.post('/api/images', imageUpload.single('image'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Create images directory if it doesn't exist
+    const imagesDir = path.join(__dirname, 'patterns', 'images');
+    if (!fs.existsSync(imagesDir)) {
+      fs.mkdirSync(imagesDir, { recursive: true });
+    }
+
+    // Get pattern name from request body (sent along with the image)
+    const patternName = req.body.patternName || 'image';
+    // Sanitize pattern name for filename (remove special chars, limit length)
+    const safeName = patternName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+      .substring(0, 50) || 'image';
+
+    // Generate unique filename with pattern name prefix
+    const filename = `${safeName}-${Date.now()}.jpg`;
+    const outputPath = path.join(imagesDir, filename);
+
+    // Process and save image (resize if too large, optimize)
+    await sharp(req.file.path)
+      .resize(1200, 1200, {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .jpeg({ quality: 85 })
+      .toFile(outputPath);
+
+    // Delete temp file
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    // Return URL for markdown
+    const imageUrl = `/api/images/${filename}`;
+    res.json({ url: imageUrl, filename });
+  } catch (error) {
+    console.error('Error uploading image:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Helper function to get all text content that might reference images
+async function getAllImageReferences() {
+  let allContent = '';
+
+  // Get all notes from patterns (PDF notes)
+  const result = await pool.query('SELECT notes FROM patterns WHERE notes IS NOT NULL');
+  allContent += result.rows.map(r => r.notes || '').join('\n');
+
+  // Get content from all markdown files in patterns directory
+  const categories = fs.readdirSync(patternsDir).filter(f => {
+    const fullPath = path.join(patternsDir, f);
+    return fs.statSync(fullPath).isDirectory() && f !== 'images' && f !== 'thumbnails';
+  });
+
+  for (const category of categories) {
+    const categoryPath = path.join(patternsDir, category);
+    const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.md'));
+    for (const file of files) {
+      const filePath = path.join(categoryPath, file);
+      allContent += '\n' + fs.readFileSync(filePath, 'utf8');
+    }
+  }
+
+  return allContent;
+}
+
+// Get orphaned images count (for UI display) - must be before :filename route
+app.get('/api/images/orphaned', async (req, res) => {
+  try {
+    const imagesDir = path.join(__dirname, 'patterns', 'images');
+
+    if (!fs.existsSync(imagesDir)) {
+      return res.json({ count: 0, files: [] });
+    }
+
+    // Get all image files
+    const files = fs.readdirSync(imagesDir).filter(f => f.endsWith('.jpg'));
+
+    // Get all content that might reference images (notes + markdown files)
+    const allContent = await getAllImageReferences();
+
+    // Find orphaned images
+    const orphaned = files.filter(file => !allContent.includes(file));
+
+    res.json({ count: orphaned.length, files: orphaned });
+  } catch (error) {
+    console.error('Error checking orphaned images:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get images directory size for backup estimates - must be before :filename route
+app.get('/api/images/stats', async (req, res) => {
+  try {
+    const imagesDir = path.join(__dirname, 'patterns', 'images');
+    let totalSize = 0;
+    let count = 0;
+
+    if (fs.existsSync(imagesDir)) {
+      const files = fs.readdirSync(imagesDir);
+      for (const file of files) {
+        const filePath = path.join(imagesDir, file);
+        const stat = fs.statSync(filePath);
+        if (stat.isFile()) {
+          totalSize += stat.size;
+          count++;
+        }
+      }
+    }
+
+    res.json({ totalSize, count });
+  } catch (error) {
+    console.error('Error getting images stats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Clean up orphaned images (images not referenced anywhere)
+app.post('/api/images/cleanup', async (req, res) => {
+  try {
+    const imagesDir = path.join(__dirname, 'patterns', 'images');
+
+    if (!fs.existsSync(imagesDir)) {
+      return res.json({ deleted: [], count: 0 });
+    }
+
+    // Get all image files
+    const files = fs.readdirSync(imagesDir).filter(f => f.endsWith('.jpg'));
+
+    // Get all content that might reference images (notes + markdown files)
+    const allContent = await getAllImageReferences();
+
+    // Find orphaned images (not referenced anywhere)
+    const orphaned = files.filter(file => !allContent.includes(file));
+
+    // Delete orphaned files
+    for (const file of orphaned) {
+      const filePath = path.join(imagesDir, file);
+      fs.unlinkSync(filePath);
+    }
+
+    res.json({ deleted: orphaned, count: orphaned.length });
+  } catch (error) {
+    console.error('Error cleaning up images:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Serve uploaded images - must be LAST of /api/images routes (catches :filename)
+app.get('/api/images/:filename', (req, res) => {
+  const imagesDir = path.join(__dirname, 'patterns', 'images');
+  const filePath = path.join(imagesDir, req.params.filename);
+
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ error: 'Image not found' });
+  }
+});
+
 // Update timer for a pattern
 app.put('/api/patterns/:id/timer', async (req, res) => {
   try {
@@ -1658,7 +1827,7 @@ app.get('/api/backups', (req, res) => {
 // Create a new backup
 app.post('/api/backups', async (req, res) => {
   try {
-    const { clientSettings, includePatterns = true } = req.body;
+    const { clientSettings, includePatterns = true, includeImages = true } = req.body;
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
     const backupFilename = `yarnl-backup-${timestamp}.zip`;
     const backupPath = path.join(backupsDir, backupFilename);
@@ -1669,6 +1838,7 @@ app.post('/api/backups', async (req, res) => {
       version: '1.0',
       account: null, // For future user accounts
       includePatterns,
+      includeImages,
       tables: {}
     };
 
@@ -1710,6 +1880,12 @@ app.post('/api/backups', async (req, res) => {
     // Add patterns directory (including thumbnails) only if requested
     if (includePatterns) {
       archive.directory(patternsDir, 'patterns');
+    }
+
+    // Add images directory only if requested
+    const imagesDir = path.join(__dirname, 'patterns', 'images');
+    if (includeImages && fs.existsSync(imagesDir)) {
+      archive.directory(imagesDir, 'images');
     }
 
     await archive.finalize();

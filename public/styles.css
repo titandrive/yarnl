@@ -1078,6 +1078,7 @@ header {
     align-items: flex-start;
     padding: 20px;
     background: #f3f4f6;
+    position: relative;
 }
 
 [data-theme="dark"] .pdf-viewer-wrapper {
@@ -1085,10 +1086,80 @@ header {
 }
 
 #pdf-canvas {
-    max-width: 100%;
+    max-width: none;
     height: auto;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     background: white;
+}
+
+/* Floating Zoom Controls */
+.pdf-zoom-overlay {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 8px 16px;
+    border-radius: 24px;
+    z-index: 100;
+    opacity: 0.6;
+    transition: opacity 0.2s ease;
+}
+
+.pdf-zoom-overlay:hover {
+    opacity: 1;
+}
+
+.zoom-btn {
+    width: 36px;
+    height: 36px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    font-size: 1.2rem;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+}
+
+.zoom-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.zoom-btn.zoom-fit {
+    width: auto;
+    padding: 0 12px;
+    border-radius: 18px;
+    font-size: 0.85rem;
+}
+
+#zoom-level {
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    width: 55px;
+    text-align: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 4px;
+    outline: none;
+}
+
+#zoom-level:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+#zoom-level:focus {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.5);
 }
 
 /* Counter Overlay */

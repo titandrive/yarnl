@@ -31,6 +31,10 @@ let totalPages = 0;
 let currentPattern = null;
 let counters = [];
 let lastUsedCounterId = null;
+let pdfZoomScale = 1.0; // Current zoom scale for manual zoom
+let pdfZoomMode = 'fit'; // 'fit' = fit page, 'fit-width' = fit width, 'manual' = use pdfZoomScale
+let pdfFitScale = 1.0; // The calculated scale that fits the page in view
+let pdfFitWidthScale = 1.0; // The calculated scale that fits the width
 
 // Timer State
 let timerRunning = false;
@@ -2488,6 +2492,106 @@ function initPDFViewer() {
     notesCloseBtn.addEventListener('click', closeNotesPopover);
     editBtn.addEventListener('click', openPdfEditModal);
 
+    // Zoom controls
+    document.getElementById('zoom-in-btn').addEventListener('click', zoomIn);
+    document.getElementById('zoom-out-btn').addEventListener('click', zoomOut);
+    document.getElementById('zoom-fit-btn').addEventListener('click', zoomFitPage);
+    document.getElementById('zoom-100-btn').addEventListener('click', zoom100);
+
+    // Editable zoom level input
+    const zoomInput = document.getElementById('zoom-level');
+    zoomInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            const inputVal = zoomInput.value.toLowerCase().trim();
+            if (inputVal === 'fit') {
+                zoomFitPage();
+            } else {
+                const value = parseInt(inputVal.replace('%', ''));
+                if (!isNaN(value) && value >= 10 && value <= 400) {
+                    setZoomLevel(value / 100);
+                } else {
+                    // Reset to current zoom if invalid
+                    zoomInput.value = getZoomDisplayString();
+                }
+            }
+            zoomInput.blur();
+        } else if (e.key === 'Escape') {
+            zoomInput.value = getZoomDisplayString();
+            zoomInput.blur();
+        }
+    });
+    zoomInput.addEventListener('focus', () => {
+        zoomInput.select();
+    });
+    zoomInput.addEventListener('blur', () => {
+        // Ensure it shows correct value when losing focus
+        zoomInput.value = getZoomDisplayString();
+    });
+
+    // Pinch to zoom on PDF viewer
+    const pdfWrapper = document.querySelector('.pdf-viewer-wrapper');
+    let initialPinchDistance = null;
+    let initialZoom = 1.0;
+
+    pdfWrapper.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 2) {
+            initialPinchDistance = Math.hypot(
+                e.touches[0].pageX - e.touches[1].pageX,
+                e.touches[0].pageY - e.touches[1].pageY
+            );
+            // Convert fit mode to actual scale for pinch calculations
+            if (pdfZoomMode === 'fit') {
+                initialZoom = pdfFitScale;
+            } else if (pdfZoomMode === 'fit-width') {
+                initialZoom = pdfFitWidthScale;
+            } else {
+                initialZoom = pdfZoomScale;
+            }
+        }
+    }, { passive: true });
+
+    pdfWrapper.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 2 && initialPinchDistance) {
+            const currentDistance = Math.hypot(
+                e.touches[0].pageX - e.touches[1].pageX,
+                e.touches[0].pageY - e.touches[1].pageY
+            );
+            // Reduce sensitivity: scale factor is dampened
+            const rawScale = currentDistance / initialPinchDistance;
+            const dampenedScale = 1 + (rawScale - 1) * 0.3; // 30% of the raw change
+            pdfZoomMode = 'manual';
+            pdfZoomScale = Math.min(Math.max(initialZoom * dampenedScale, 0.1), 4.0);
+            document.getElementById('zoom-level').value = `${Math.round(pdfZoomScale * 100)}%`;
+        }
+    }, { passive: true });
+
+    pdfWrapper.addEventListener('touchend', (e) => {
+        if (initialPinchDistance && e.touches.length < 2) {
+            initialPinchDistance = null;
+            renderPage(currentPageNum);
+        }
+    }, { passive: true });
+
+    // Mouse wheel zoom (with ctrl key for intentional zoom)
+    pdfWrapper.addEventListener('wheel', (e) => {
+        // Only trigger on ctrl+wheel (intentional zoom), not on trackpad scroll
+        if (e.ctrlKey) {
+            e.preventDefault();
+            // Convert fit mode to actual scale
+            if (pdfZoomMode === 'fit') {
+                pdfZoomScale = pdfFitScale;
+            } else if (pdfZoomMode === 'fit-width') {
+                pdfZoomScale = pdfFitWidthScale;
+            }
+            pdfZoomMode = 'manual';
+            // Smaller increments for smoother zoom
+            const delta = e.deltaY > 0 ? -0.03 : 0.03;
+            pdfZoomScale = Math.min(Math.max(pdfZoomScale + delta, 0.1), 4.0);
+            renderPage(currentPageNum);
+        }
+    }, { passive: false });
+
     // Info button
     const infoBtn = document.getElementById('pdf-info-btn');
     if (infoBtn) {
@@ -2595,6 +2699,7 @@ async function openPDFViewer(patternId) {
 
         currentPattern = pattern;
         currentPageNum = pattern.current_page || 1;
+        pdfZoomMode = 'fit'; // Default to fit page in view
 
         // Load timer state
         loadPatternTimer(pattern);
@@ -2632,10 +2737,26 @@ async function renderPage(pageNum) {
         const canvas = pdfCanvas;
         const context = canvas.getContext('2d');
 
-        // Calculate scale to fit width
-        const containerWidth = document.querySelector('.pdf-viewer-wrapper').clientWidth - 40;
+        const wrapper = document.querySelector('.pdf-viewer-wrapper');
+        const containerWidth = wrapper.clientWidth - 40;
+        const containerHeight = wrapper.clientHeight - 40;
         const viewport = page.getViewport({ scale: 1 });
-        const scale = Math.min(containerWidth / viewport.width, 2.0);
+
+        // Calculate fit scales
+        const scaleX = containerWidth / viewport.width;
+        const scaleY = containerHeight / viewport.height;
+        pdfFitScale = Math.min(scaleX, scaleY); // Fit entire page
+        pdfFitWidthScale = scaleX; // Fit width only
+
+        // Determine actual scale to use based on zoom mode
+        let scale;
+        if (pdfZoomMode === 'fit') {
+            scale = pdfFitScale;
+        } else if (pdfZoomMode === 'fit-width') {
+            scale = pdfFitWidthScale;
+        } else {
+            scale = pdfZoomScale;
+        }
 
         const scaledViewport = page.getViewport({ scale: scale });
 
@@ -2652,12 +2773,74 @@ async function renderPage(pageNum) {
         // Update page info
         document.getElementById('page-info').textContent = `Page ${pageNum} of ${totalPages}`;
 
+        // Update zoom level display
+        let zoomDisplay;
+        if (pdfZoomMode === 'fit') {
+            zoomDisplay = 'Fit';
+        } else if (pdfZoomMode === 'fit-width') {
+            zoomDisplay = '100%';
+        } else {
+            zoomDisplay = `${Math.round(pdfZoomScale * 100)}%`;
+        }
+        document.getElementById('zoom-level').value = zoomDisplay;
+
         // Update button states
         document.getElementById('prev-page-btn').disabled = pageNum <= 1;
         document.getElementById('next-page-btn').disabled = pageNum >= totalPages;
 
     } catch (error) {
         console.error('Error rendering page:', error);
+    }
+}
+
+function zoomIn() {
+    // If in fit mode, convert to actual scale first
+    if (pdfZoomMode === 'fit') {
+        pdfZoomScale = pdfFitScale;
+    } else if (pdfZoomMode === 'fit-width') {
+        pdfZoomScale = pdfFitWidthScale;
+    }
+    pdfZoomMode = 'manual';
+    pdfZoomScale = Math.min(pdfZoomScale + 0.1, 4.0);
+    renderPage(currentPageNum);
+}
+
+function zoomOut() {
+    // If in fit mode, convert to actual scale first
+    if (pdfZoomMode === 'fit') {
+        pdfZoomScale = pdfFitScale;
+    } else if (pdfZoomMode === 'fit-width') {
+        pdfZoomScale = pdfFitWidthScale;
+    }
+    pdfZoomMode = 'manual';
+    pdfZoomScale = Math.max(pdfZoomScale - 0.1, 0.1);
+    renderPage(currentPageNum);
+}
+
+function zoomFitPage() {
+    pdfZoomMode = 'fit';
+    renderPage(currentPageNum);
+}
+
+function zoom100() {
+    // 100% = fit width to screen
+    pdfZoomMode = 'fit-width';
+    renderPage(currentPageNum);
+}
+
+function setZoomLevel(level) {
+    pdfZoomMode = 'manual';
+    pdfZoomScale = Math.min(Math.max(level, 0.1), 4.0);
+    renderPage(currentPageNum);
+}
+
+function getZoomDisplayString() {
+    if (pdfZoomMode === 'fit') {
+        return 'Fit';
+    } else if (pdfZoomMode === 'fit-width') {
+        return '100%';
+    } else {
+        return `${Math.round(pdfZoomScale * 100)}%`;
     }
 }
 

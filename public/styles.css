@@ -2357,6 +2357,21 @@ input[type="number"].settings-input {
     font-size: 0.9rem;
 }
 
+.input-with-select {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.input-with-select .settings-input {
+    width: 80px;
+}
+
+.input-with-select .settings-select {
+    width: auto;
+    min-width: 100px;
+}
+
 .settings-reset {
     margin-top: 24px;
     padding-top: 16px;

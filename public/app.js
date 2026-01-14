@@ -2707,10 +2707,11 @@ function initBackups() {
     const pruneEnabled = document.getElementById('backup-prune-enabled');
     const pruneOptions = document.getElementById('backup-prune-options');
     const pruneMode = document.getElementById('backup-prune-mode');
+    const pruneKeepContainer = document.getElementById('prune-keep-container');
+    const pruneAgeContainer = document.getElementById('prune-age-container');
     const pruneValue = document.getElementById('backup-prune-value');
-    const pruneValueLabel = document.getElementById('prune-value-label');
-    const pruneValueDescription = document.getElementById('prune-value-description');
-    const pruneValueSuffix = document.getElementById('prune-value-suffix');
+    const pruneAgeValue = document.getElementById('backup-prune-age-value');
+    const pruneAgeUnit = document.getElementById('backup-prune-age-unit');
 
     const updatePruneVisibility = () => {
         if (pruneOptions) {
@@ -2718,24 +2719,33 @@ function initBackups() {
         }
     };
 
-    const updatePruneLabels = () => {
-        if (pruneMode && pruneValueLabel && pruneValueDescription && pruneValueSuffix) {
+    const updatePruneModeContainers = () => {
+        if (pruneKeepContainer && pruneAgeContainer && pruneMode) {
             if (pruneMode.value === 'keep') {
-                pruneValueLabel.textContent = 'Keep last';
-                pruneValueDescription.textContent = 'Delete backups beyond this count';
-                pruneValueSuffix.textContent = 'backups';
+                pruneKeepContainer.style.display = 'flex';
+                pruneAgeContainer.style.display = 'none';
             } else {
-                pruneValueLabel.textContent = 'Delete older than';
-                pruneValueDescription.textContent = 'Delete backups older than this';
-                pruneValueSuffix.textContent = 'days';
+                pruneKeepContainer.style.display = 'none';
+                pruneAgeContainer.style.display = 'flex';
             }
         }
     };
 
     const getPruneSetting = () => {
         const mode = pruneMode ? pruneMode.value : 'keep';
-        const value = pruneValue ? pruneValue.value : '5';
-        return `${mode}-${value}`;
+        if (mode === 'keep') {
+            const value = pruneValue ? pruneValue.value : '5';
+            return `keep-${value}`;
+        } else {
+            const value = pruneAgeValue ? pruneAgeValue.value : '30';
+            const unit = pruneAgeUnit ? pruneAgeUnit.value : 'days';
+            // Convert to days for the API
+            let days = parseInt(value);
+            if (unit === 'weeks') days *= 7;
+            else if (unit === 'months') days *= 30;
+            else if (unit === 'years') days *= 365;
+            return `days-${days}`;
+        }
     };
 
     const runPruneIfEnabled = async () => {
@@ -2758,10 +2768,10 @@ function initBackups() {
 
     if (pruneMode) {
         pruneMode.value = localStorage.getItem('backupPruneMode') || 'keep';
-        updatePruneLabels();
+        updatePruneModeContainers();
         pruneMode.addEventListener('change', () => {
             localStorage.setItem('backupPruneMode', pruneMode.value);
-            updatePruneLabels();
+            updatePruneModeContainers();
             runPruneIfEnabled();
         });
     }
@@ -2770,6 +2780,22 @@ function initBackups() {
         pruneValue.value = localStorage.getItem('backupPruneValue') || '5';
         pruneValue.addEventListener('change', () => {
             localStorage.setItem('backupPruneValue', pruneValue.value);
+            runPruneIfEnabled();
+        });
+    }
+
+    if (pruneAgeValue) {
+        pruneAgeValue.value = localStorage.getItem('backupPruneAgeValue') || '30';
+        pruneAgeValue.addEventListener('change', () => {
+            localStorage.setItem('backupPruneAgeValue', pruneAgeValue.value);
+            runPruneIfEnabled();
+        });
+    }
+
+    if (pruneAgeUnit) {
+        pruneAgeUnit.value = localStorage.getItem('backupPruneAgeUnit') || 'days';
+        pruneAgeUnit.addEventListener('change', () => {
+            localStorage.setItem('backupPruneAgeUnit', pruneAgeUnit.value);
             runPruneIfEnabled();
         });
     }

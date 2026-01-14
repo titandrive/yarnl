@@ -639,14 +639,29 @@ Inc in each st around (12)
                                     <option value="days">Age of backup</option>
                                 </select>
                             </div>
-                            <div class="setting-item">
+                            <div class="setting-item" id="prune-keep-container">
                                 <div class="setting-info">
-                                    <label id="prune-value-label">Keep last</label>
-                                    <p class="setting-description" id="prune-value-description">Delete backups beyond this count</p>
+                                    <label>Keep last</label>
+                                    <p class="setting-description">Delete backups beyond this count</p>
                                 </div>
                                 <div class="input-with-suffix">
                                     <input type="number" id="backup-prune-value" class="settings-input" value="5" min="1" max="999">
-                                    <span class="input-suffix" id="prune-value-suffix">backups</span>
+                                    <span class="input-suffix">backups</span>
+                                </div>
+                            </div>
+                            <div class="setting-item" id="prune-age-container" style="display: none;">
+                                <div class="setting-info">
+                                    <label>Older than</label>
+                                    <p class="setting-description">Delete backups older than this</p>
+                                </div>
+                                <div class="input-with-select">
+                                    <input type="number" id="backup-prune-age-value" class="settings-input" value="30" min="1" max="999">
+                                    <select id="backup-prune-age-unit" class="settings-select">
+                                        <option value="days">days</option>
+                                        <option value="weeks">weeks</option>
+                                        <option value="months">months</option>
+                                        <option value="years">years</option>
+                                    </select>
                                 </div>
                             </div>
                         </div>
@@ -1086,6 +1101,6 @@ Inc in each st around (12)
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script src="app.js?v=71"></script>
+    <script src="app.js?v=72"></script>
 </body>
 </html>

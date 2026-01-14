@@ -385,19 +385,37 @@ function setupMarkdownListContinuation(textarea) {
 
 // Theme toggle
 function initTheme() {
-    const themeCheckbox = document.getElementById('theme-toggle-checkbox');
+    const themeSelect = document.getElementById('theme-select');
+    const gradientCheckbox = document.getElementById('gradient-checkbox');
 
-    const currentTheme = localStorage.getItem('theme') || 'dark';
+    // Migrate old theme settings to new format
+    let currentTheme = localStorage.getItem('theme') || 'lavender-dark';
+    if (currentTheme === 'dark') currentTheme = 'lavender-dark';
+    if (currentTheme === 'light') currentTheme = 'lavender-light';
+
     document.documentElement.setAttribute('data-theme', currentTheme);
 
-    // Set checkbox state (checked = light mode)
-    if (themeCheckbox) {
-        themeCheckbox.checked = currentTheme === 'light';
+    // Gradient setting (default off)
+    const useGradient = localStorage.getItem('useGradient') === 'true';
+    document.documentElement.setAttribute('data-gradient', useGradient);
 
-        themeCheckbox.addEventListener('change', () => {
-            const newTheme = themeCheckbox.checked ? 'light' : 'dark';
+    if (themeSelect) {
+        themeSelect.value = currentTheme;
+
+        themeSelect.addEventListener('change', () => {
+            const newTheme = themeSelect.value;
             document.documentElement.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
+        });
+    }
+
+    if (gradientCheckbox) {
+        gradientCheckbox.checked = useGradient;
+
+        gradientCheckbox.addEventListener('change', () => {
+            const newGradient = gradientCheckbox.checked;
+            document.documentElement.setAttribute('data-gradient', newGradient);
+            localStorage.setItem('useGradient', newGradient);
         });
     }
 }

@@ -2461,10 +2461,20 @@ function initPDFViewer() {
     notesCloseBtn.addEventListener('click', closeNotesPopover);
     editBtn.addEventListener('click', openPdfEditModal);
 
+    // Info button
+    const infoBtn = document.getElementById('pdf-info-btn');
+    if (infoBtn) {
+        infoBtn.addEventListener('click', openPatternInfoModal);
+    }
+
     // PDF Edit modal buttons
     document.getElementById('close-pdf-edit-modal').addEventListener('click', closePdfEditModal);
     document.getElementById('cancel-pdf-edit').addEventListener('click', closePdfEditModal);
     document.getElementById('save-pdf-edit').addEventListener('click', savePdfEdit);
+
+    // Pattern Info modal buttons
+    document.getElementById('close-pattern-info-modal').addEventListener('click', closePatternInfoModal);
+    document.getElementById('close-pattern-info-btn').addEventListener('click', closePatternInfoModal);
 
     // Notes auto-save on input
     const notesEditor = document.getElementById('notes-editor');
@@ -2724,6 +2734,78 @@ function closePdfEditModal() {
     document.getElementById('pdf-edit-modal').style.display = 'none';
 }
 
+// Pattern Info Modal
+async function openPatternInfoModal() {
+    if (!currentPattern) return;
+
+    const modal = document.getElementById('pattern-info-modal');
+    const grid = document.getElementById('pattern-info-grid');
+
+    // Show loading state
+    grid.innerHTML = '<p>Loading...</p>';
+    modal.style.display = 'flex';
+
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/info`);
+        const info = await response.json();
+
+        const formatFileSize = (bytes) => {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+        };
+
+        const rows = [
+            { label: 'Name', value: info.name },
+            { label: 'Category', value: info.category || 'Uncategorized' },
+            { label: 'Type', value: info.pattern_type === 'markdown' ? 'Markdown' : 'PDF' },
+            { label: 'Date Added', value: new Date(info.upload_date).toLocaleDateString() },
+            { label: 'Time Elapsed', value: formatTime(info.timer_seconds || 0) },
+            { label: 'Status', value: info.completed ? `Completed ${info.completed_date ? new Date(info.completed_date).toLocaleDateString() : ''}` : (info.is_current ? 'In Progress' : 'Not Started') },
+            { label: 'File Size', value: formatFileSize(info.file_size) },
+            { label: 'Filename', value: `<code>${escapeHtml(info.filename)}</code>` },
+            { label: 'File Path', value: `<code>${escapeHtml(info.file_path)}</code>` }
+        ];
+
+        if (info.description) {
+            rows.splice(2, 0, { label: 'Description', value: escapeHtml(info.description) });
+        }
+
+        // Add PDF metadata if available
+        if (info.pdf_metadata) {
+            const meta = info.pdf_metadata;
+            if (meta.pageCount) rows.push({ label: 'Pages', value: meta.pageCount });
+            if (meta.author) rows.push({ label: 'Author', value: escapeHtml(meta.author) });
+            if (meta.title) rows.push({ label: 'PDF Title', value: escapeHtml(meta.title) });
+            if (meta.subject) rows.push({ label: 'Subject', value: escapeHtml(meta.subject) });
+            if (meta.creator) rows.push({ label: 'Creator', value: escapeHtml(meta.creator) });
+            if (meta.producer) rows.push({ label: 'Producer', value: escapeHtml(meta.producer) });
+        }
+
+        grid.innerHTML = rows.map(row => `
+            <span class="info-label">${row.label}</span>
+            <span class="info-value">${row.value}</span>
+        `).join('');
+
+    } catch (error) {
+        console.error('Error fetching pattern info:', error);
+        grid.innerHTML = '<p>Error loading pattern info</p>';
+    }
+}
+
+function closePatternInfoModal() {
+    document.getElementById('pattern-info-modal').style.display = 'none';
+}
+
+// Close info modal when clicking outside
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('pattern-info-modal');
+    if (e.target === modal) {
+        closePatternInfoModal();
+    }
+});
+
 async function savePdfEdit() {
     const name = document.getElementById('pdf-edit-name').value;
     const category = getCategoryDropdownValue('pdf-edit-category');
@@ -2838,7 +2920,18 @@ function displayCounters() {
             <div class="counter-controls">
                 <button class="counter-btn counter-btn-minus" onclick="decrementCounter(${counter.id})">−</button>
                 <button class="counter-btn counter-btn-plus" onclick="incrementCounter(${counter.id})">+</button>
-                <button class="counter-btn counter-btn-delete" onclick="deleteCounter(${counter.id})">Delete</button>
+                <button class="counter-btn counter-btn-reset" onclick="handleCounterReset(event, ${counter.id})" title="Click twice to reset">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
+                </button>
+                <button class="counter-btn counter-btn-delete" onclick="handleCounterDelete(event, ${counter.id})" title="Click twice to delete">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
         </div>
     `).join('');
@@ -2941,9 +3034,65 @@ function getActiveCounterId() {
     return null;
 }
 
-async function deleteCounter(counterId) {
-    if (!confirm('Delete this counter?')) return;
+// Counter confirmation handlers
+function handleCounterReset(event, counterId) {
+    event.stopPropagation();
+    event.preventDefault();
+    const btn = event.currentTarget;
 
+    if (btn.classList.contains('confirming')) {
+        btn.classList.remove('confirming');
+        resetCounter(counterId);
+    } else {
+        document.querySelectorAll('.counter-btn-reset.confirming, .counter-btn-delete.confirming').forEach(b => {
+            b.classList.remove('confirming');
+        });
+        btn.classList.add('confirming');
+        setTimeout(() => {
+            btn.classList.remove('confirming');
+        }, 3000);
+    }
+}
+
+function handleCounterDelete(event, counterId) {
+    event.stopPropagation();
+    event.preventDefault();
+    const btn = event.currentTarget;
+
+    if (btn.classList.contains('confirming')) {
+        btn.classList.remove('confirming');
+        deleteCounter(counterId);
+    } else {
+        document.querySelectorAll('.counter-btn-reset.confirming, .counter-btn-delete.confirming').forEach(b => {
+            b.classList.remove('confirming');
+        });
+        btn.classList.add('confirming');
+        setTimeout(() => {
+            btn.classList.remove('confirming');
+        }, 3000);
+    }
+}
+
+async function resetCounter(counterId) {
+    try {
+        const response = await fetch(`${API_URL}/api/counters/${counterId}/reset`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            const updated = await response.json();
+            const counter = counters.find(c => c.id === counterId);
+            if (counter) {
+                counter.value = updated.value;
+                displayCounters();
+            }
+        }
+    } catch (error) {
+        console.error('Error resetting counter:', error);
+    }
+}
+
+async function deleteCounter(counterId) {
     try {
         const response = await fetch(`${API_URL}/api/counters/${counterId}`, {
             method: 'DELETE'
@@ -3467,6 +3616,12 @@ function initMarkdownViewerEvents() {
     const editBtn = document.getElementById('markdown-edit-btn');
     editBtn.onclick = openMarkdownEditModal;
 
+    // Info button
+    const infoBtn = document.getElementById('markdown-info-btn');
+    if (infoBtn) {
+        infoBtn.onclick = openPatternInfoModal;
+    }
+
     // Notes close button
     const notesCloseBtn = document.getElementById('markdown-notes-close-btn');
     notesCloseBtn.onclick = closeMarkdownNotes;
@@ -3733,7 +3888,18 @@ function displayMarkdownCounters() {
             <div class="counter-controls">
                 <button class="counter-btn counter-btn-minus" onclick="decrementCounter(${counter.id})">−</button>
                 <button class="counter-btn counter-btn-plus" onclick="incrementCounter(${counter.id})">+</button>
-                <button class="counter-btn counter-btn-delete" onclick="deleteCounter(${counter.id})">Delete</button>
+                <button class="counter-btn counter-btn-reset" onclick="handleCounterReset(event, ${counter.id})" title="Click twice to reset">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
+                </button>
+                <button class="counter-btn counter-btn-delete" onclick="handleCounterDelete(event, ${counter.id})" title="Click twice to delete">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
         </div>
     `).join('');

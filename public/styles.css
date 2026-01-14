@@ -865,6 +865,36 @@ header {
     margin-top: 20px;
 }
 
+/* Pattern Info Modal */
+.pattern-info-modal-content {
+    max-width: 500px;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px 20px;
+    align-items: baseline;
+}
+
+.info-label {
+    font-weight: 600;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.info-value {
+    color: var(--text-color);
+    word-break: break-word;
+}
+
+.info-value code {
+    background: var(--upload-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+}
+
 .help-text {
     font-size: 0.85rem;
     color: #6b7280;
@@ -1092,11 +1122,12 @@ header {
     background: var(--upload-bg);
     border: 2px solid var(--border-color);
     border-radius: 12px;
-    padding: 15px 20px;
+    padding: 8px 12px;
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 8px;
     transition: all 0.3s ease;
+    flex: 0 0 auto;
 }
 
 .counter-item:hover {
@@ -1104,20 +1135,19 @@ header {
 }
 
 .counter-name {
-    flex: 1;
     font-weight: 600;
     color: var(--text-color);
-    font-size: 1rem;
+    font-size: 0.9rem;
 }
 
 .counter-name input {
-    width: 100%;
+    width: 100px;
     background: transparent;
     border: none;
     font-family: 'JetBrains Mono', monospace;
     font-weight: 600;
     color: var(--text-color);
-    font-size: 1rem;
+    font-size: 0.9rem;
     padding: 0;
 }
 
@@ -1127,10 +1157,10 @@ header {
 }
 
 .counter-value {
-    font-size: 2rem;
+    font-size: 1.5rem;
     font-weight: bold;
     color: var(--primary-color);
-    min-width: 80px;
+    min-width: 50px;
     text-align: center;
     font-variant-numeric: tabular-nums;
 }
@@ -1150,6 +1180,7 @@ header {
     cursor: pointer;
     transition: all 0.2s ease;
     min-width: 45px;
+    height: 38px;
 }
 
 .counter-btn-minus {
@@ -1170,15 +1201,49 @@ header {
     background: #7c3aed;
 }
 
+.counter-btn-reset {
+    background: var(--warning-color);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 45px;
+    height: 38px;
+    padding: 8px;
+}
+
+.counter-btn-reset:hover {
+    background: #d97706;
+}
+
+.counter-btn-reset.confirming {
+    background: #b45309;
+    animation: pulse-warning 0.6s ease-in-out infinite;
+}
+
+@keyframes pulse-warning {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
 .counter-btn-delete {
     background: var(--danger-color);
     color: white;
-    padding: 8px 12px;
-    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 45px;
+    height: 38px;
+    padding: 8px;
 }
 
 .counter-btn-delete:hover {
     background: #dc2626;
+}
+
+.counter-btn-delete.confirming {
+    background: #b91c1c;
+    animation: pulse-danger 0.6s ease-in-out infinite;
 }
 
 .counter-actions {

@@ -7,6 +7,7 @@ const { promisify } = require('util');
 const { exec } = require('child_process');
 const execPromise = promisify(exec);
 const sharp = require('sharp');
+const pdfParse = require('pdf-parse');
 const { pool, initDatabase } = require('./db');
 
 const app = express();
@@ -555,6 +556,73 @@ app.get('/api/patterns/:id', async (req, res) => {
     res.json({ ...result.rows[0], hashtags: hashtagsResult.rows });
   } catch (error) {
     console.error('Error fetching pattern:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get pattern info (metadata including file size)
+app.get('/api/patterns/:id/info', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM patterns WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Pattern not found' });
+    }
+
+    const pattern = result.rows[0];
+    let filePath = path.join(patternsDir, pattern.category, pattern.filename);
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(patternsDir, pattern.filename);
+    }
+
+    let fileSize = 0;
+    if (fs.existsSync(filePath)) {
+      const stats = fs.statSync(filePath);
+      fileSize = stats.size;
+    }
+
+    // Extract PDF metadata if it's a PDF
+    let pdfMetadata = null;
+    if (pattern.pattern_type === 'pdf' && fs.existsSync(filePath)) {
+      try {
+        const dataBuffer = fs.readFileSync(filePath);
+        const pdfData = await pdfParse(dataBuffer);
+        pdfMetadata = {
+          title: pdfData.info?.Title || null,
+          author: pdfData.info?.Author || null,
+          subject: pdfData.info?.Subject || null,
+          creator: pdfData.info?.Creator || null,
+          producer: pdfData.info?.Producer || null,
+          creationDate: pdfData.info?.CreationDate || null,
+          modDate: pdfData.info?.ModDate || null,
+          pageCount: pdfData.numpages || null
+        };
+      } catch (pdfError) {
+        console.error('Error parsing PDF metadata:', pdfError.message);
+      }
+    }
+
+    res.json({
+      id: pattern.id,
+      name: pattern.name,
+      filename: pattern.filename,
+      category: pattern.category,
+      pattern_type: pattern.pattern_type,
+      description: pattern.description,
+      upload_date: pattern.upload_date,
+      completed: pattern.completed,
+      completed_date: pattern.completed_date,
+      timer_seconds: pattern.timer_seconds,
+      is_current: pattern.is_current,
+      file_size: fileSize,
+      file_path: filePath,
+      pdf_metadata: pdfMetadata
+    });
+  } catch (error) {
+    console.error('Error fetching pattern info:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -1366,6 +1434,28 @@ app.post('/api/counters/:id/decrement', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error decrementing counter:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reset counter to zero
+app.post('/api/counters/:id/reset', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE counters
+       SET value = 0, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1
+       RETURNING *`,
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Counter not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error resetting counter:', error);
     res.status(500).json({ error: error.message });
   }
 });

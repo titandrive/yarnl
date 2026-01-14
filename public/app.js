@@ -387,12 +387,20 @@ function initTheme() {
 
 // Tab switching
 function initTabs() {
-    // Use sessionStorage for current tab (survives refresh, clears on new tab)
-    // Use localStorage defaultPage only for fresh visits
-    const currentTab = sessionStorage.getItem('activeTab');
-    const defaultPage = localStorage.getItem('defaultPage') || 'current';
-    const startTab = currentTab || defaultPage;
-    switchToTab(startTab);
+    // Check if we're restoring a pattern viewer - don't show tabs in that case
+    const viewingPatternId = sessionStorage.getItem('viewingPatternId');
+    if (viewingPatternId) {
+        // Hide tabs, content will be shown when pattern viewer opens
+        document.querySelector('.tabs').style.display = 'none';
+        tabContents.forEach(c => c.style.display = 'none');
+    } else {
+        // Use sessionStorage for current tab (survives refresh, clears on new tab)
+        // Use localStorage defaultPage only for fresh visits
+        const currentTab = sessionStorage.getItem('activeTab');
+        const defaultPage = localStorage.getItem('defaultPage') || 'current';
+        const startTab = currentTab || defaultPage;
+        switchToTab(startTab);
+    }
 
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {

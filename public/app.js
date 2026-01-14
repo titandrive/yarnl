@@ -44,6 +44,19 @@ let timerSaveTimeout = null;
 let timerResetConfirming = false;
 let timerResetTimeout = null;
 
+// Keyboard Shortcuts
+const defaultShortcuts = {
+    counterIncrease: ['ArrowUp', ''],
+    counterDecrease: ['ArrowDown', ''],
+    prevPage: ['ArrowLeft', ''],
+    nextPage: ['ArrowRight', ''],
+    toggleTimer: [' ', ''], // Space
+    nextCounter: ['Tab', ''],
+    zoomIn: ['+', '='], // = is unshifted + on most keyboards
+    zoomOut: ['-', '']
+};
+let keyboardShortcuts = JSON.parse(localStorage.getItem('keyboardShortcuts')) || JSON.parse(JSON.stringify(defaultShortcuts));
+
 // Timer Functions
 function initTimer() {
     // PDF timer button
@@ -1129,6 +1142,111 @@ function initSettings() {
             if (e.key === 'Enter') {
                 addHashtag();
             }
+        });
+    }
+
+    // Keyboard Shortcuts
+    initKeyboardShortcuts();
+}
+
+// Keyboard Shortcuts Functions
+function matchesShortcut(key, shortcutName) {
+    const shortcuts = keyboardShortcuts[shortcutName] || [];
+    return shortcuts.includes(key);
+}
+
+function getKeyDisplayName(key) {
+    if (!key) return '';
+    const keyNames = {
+        ' ': 'Space',
+        'ArrowUp': '↑',
+        'ArrowDown': '↓',
+        'ArrowLeft': '←',
+        'ArrowRight': '→',
+        'Tab': 'Tab',
+        'Enter': 'Enter',
+        'Escape': 'Esc',
+        'Backspace': '⌫',
+        'Delete': 'Del',
+        '+': '+',
+        '-': '-',
+        '=': '='
+    };
+    return keyNames[key] || key.toUpperCase();
+}
+
+function initKeyboardShortcuts() {
+    const shortcutBtns = document.querySelectorAll('.shortcut-key-btn');
+    const resetBtn = document.getElementById('reset-shortcuts-btn');
+    let listeningBtn = null;
+
+    // Update all shortcut button displays
+    function updateShortcutDisplays() {
+        shortcutBtns.forEach(btn => {
+            const shortcutName = btn.dataset.shortcut;
+            const index = parseInt(btn.dataset.index);
+            const key = keyboardShortcuts[shortcutName]?.[index] || '';
+            btn.textContent = getKeyDisplayName(key);
+        });
+    }
+
+    // Initialize displays
+    updateShortcutDisplays();
+
+    // Click handler for shortcut buttons
+    shortcutBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            // If already listening on this button, cancel
+            if (listeningBtn === btn) {
+                btn.classList.remove('listening');
+                listeningBtn = null;
+                return;
+            }
+
+            // Cancel any other listening button
+            if (listeningBtn) {
+                listeningBtn.classList.remove('listening');
+            }
+
+            // Start listening on this button
+            listeningBtn = btn;
+            btn.classList.add('listening');
+            btn.textContent = '...';
+        });
+    });
+
+    // Global keydown handler for capturing shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (!listeningBtn) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const shortcutName = listeningBtn.dataset.shortcut;
+        const index = parseInt(listeningBtn.dataset.index);
+
+        // Handle clearing with Escape or Backspace for alternate keys
+        if ((e.key === 'Escape' || e.key === 'Backspace') && index === 1) {
+            keyboardShortcuts[shortcutName][index] = '';
+        } else if (e.key !== 'Escape') {
+            keyboardShortcuts[shortcutName][index] = e.key;
+        }
+
+        // Save to localStorage
+        localStorage.setItem('keyboardShortcuts', JSON.stringify(keyboardShortcuts));
+
+        // Update display and stop listening
+        listeningBtn.classList.remove('listening');
+        updateShortcutDisplays();
+        listeningBtn = null;
+    }, true);
+
+    // Reset to defaults button
+    if (resetBtn) {
+        resetBtn.addEventListener('click', () => {
+            keyboardShortcuts = JSON.parse(JSON.stringify(defaultShortcuts));
+            localStorage.setItem('keyboardShortcuts', JSON.stringify(keyboardShortcuts));
+            updateShortcutDisplays();
         });
     }
 }
@@ -2683,33 +2801,60 @@ function initPDFViewer() {
             return;
         }
 
-        switch(e.key) {
-            case 'ArrowLeft':
-                // Only for PDF viewer (page navigation)
-                if (isPdfViewerOpen) {
-                    e.preventDefault();
-                    changePage(-1);
-                }
-                break;
-            case 'ArrowRight':
-                // Only for PDF viewer (page navigation)
-                if (isPdfViewerOpen) {
-                    e.preventDefault();
-                    changePage(1);
-                }
-                break;
-            case 'ArrowUp':
-                e.preventDefault();
-                incrementLastUsedCounter();
-                break;
-            case 'ArrowDown':
-                e.preventDefault();
-                decrementLastUsedCounter();
-                break;
-            case ' ':
-                e.preventDefault();
-                toggleTimer();
-                break;
+        // Previous page (PDF only)
+        if (matchesShortcut(e.key, 'prevPage') && isPdfViewerOpen) {
+            e.preventDefault();
+            changePage(-1);
+            return;
+        }
+
+        // Next page (PDF only)
+        if (matchesShortcut(e.key, 'nextPage') && isPdfViewerOpen) {
+            e.preventDefault();
+            changePage(1);
+            return;
+        }
+
+        // Increase counter
+        if (matchesShortcut(e.key, 'counterIncrease')) {
+            e.preventDefault();
+            incrementLastUsedCounter();
+            return;
+        }
+
+        // Decrease counter
+        if (matchesShortcut(e.key, 'counterDecrease')) {
+            e.preventDefault();
+            decrementLastUsedCounter();
+            return;
+        }
+
+        // Toggle timer
+        if (matchesShortcut(e.key, 'toggleTimer')) {
+            e.preventDefault();
+            toggleTimer();
+            return;
+        }
+
+        // Next counter
+        if (matchesShortcut(e.key, 'nextCounter')) {
+            e.preventDefault();
+            selectNextCounter();
+            return;
+        }
+
+        // Zoom in (PDF only)
+        if (matchesShortcut(e.key, 'zoomIn') && isPdfViewerOpen) {
+            e.preventDefault();
+            zoomIn();
+            return;
+        }
+
+        // Zoom out (PDF only)
+        if (matchesShortcut(e.key, 'zoomOut') && isPdfViewerOpen) {
+            e.preventDefault();
+            zoomOut();
+            return;
         }
     });
 }
@@ -3304,6 +3449,16 @@ function getActiveCounterId() {
     }
 
     return null;
+}
+
+function selectNextCounter() {
+    if (counters.length === 0) return;
+
+    const currentIndex = counters.findIndex(c => c.id === lastUsedCounterId);
+    const nextIndex = (currentIndex + 1) % counters.length;
+    lastUsedCounterId = counters[nextIndex].id;
+    displayCounters();
+    displayMarkdownCounters();
 }
 
 // Counter confirmation handlers

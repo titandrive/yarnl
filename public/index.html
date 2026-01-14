@@ -361,6 +361,83 @@ Inc in each st around (12)
                             <!-- Stats will be populated here -->
                         </div>
                     </section>
+                    <section class="settings-section settings-shortcuts">
+                        <h3>Keyboard Shortcuts</h3>
+                        <p class="section-description">Customize keyboard shortcuts for the PDF viewer. Click a key to change it.</p>
+                        <div class="setting-item shortcut-item">
+                            <div class="setting-info">
+                                <label>Increase Counter</label>
+                            </div>
+                            <div class="shortcut-keys">
+                                <button class="shortcut-key-btn" data-shortcut="counterIncrease" data-index="0" title="Click to change">↑</button>
+                                <button class="shortcut-key-btn shortcut-alt" data-shortcut="counterIncrease" data-index="1" title="Click to add alternate key"></button>
+                            </div>
+                        </div>
+                        <div class="setting-item shortcut-item">
+                            <div class="setting-info">
+                                <label>Decrease Counter</label>
+                            </div>
+                            <div class="shortcut-keys">
+                                <button class="shortcut-key-btn" data-shortcut="counterDecrease" data-index="0" title="Click to change">↓</button>
+                                <button class="shortcut-key-btn shortcut-alt" data-shortcut="counterDecrease" data-index="1" title="Click to add alternate key"></button>
+                            </div>
+                        </div>
+                        <div class="setting-item shortcut-item">
+                            <div class="setting-info">
+                                <label>Previous Page</label>
+                            </div>
+                            <div class="shortcut-keys">
+                                <button class="shortcut-key-btn" data-shortcut="prevPage" data-index="0" title="Click to change">←</button>
+                                <button class="shortcut-key-btn shortcut-alt" data-shortcut="prevPage" data-index="1" title="Click to add alternate key"></button>
+                            </div>
+                        </div>
+                        <div class="setting-item shortcut-item">
+                            <div class="setting-info">
+                                <label>Next Page</label>
+                            </div>
+                            <div class="shortcut-keys">
+                                <button class="shortcut-key-btn" data-shortcut="nextPage" data-index="0" title="Click to change">→</button>
+                                <button class="shortcut-key-btn shortcut-alt" data-shortcut="nextPage" data-index="1" title="Click to add alternate key"></button>
+                            </div>
+                        </div>
+                        <div class="setting-item shortcut-item">
+                            <div class="setting-info">
+                                <label>Start/Stop Timer</label>
+                            </div>
+                            <div class="shortcut-keys">
+                                <button class="shortcut-key-btn" data-shortcut="toggleTimer" data-index="0" title="Click to change">Space</button>
+                                <button class="shortcut-key-btn shortcut-alt" data-shortcut="toggleTimer" data-index="1" title="Click to add alternate key"></button>
+                            </div>
+                        </div>
+                        <div class="setting-item shortcut-item">
+                            <div class="setting-info">
+                                <label>Next Counter</label>
+                            </div>
+                            <div class="shortcut-keys">
+                                <button class="shortcut-key-btn" data-shortcut="nextCounter" data-index="0" title="Click to change">Tab</button>
+                                <button class="shortcut-key-btn shortcut-alt" data-shortcut="nextCounter" data-index="1" title="Click to add alternate key"></button>
+                            </div>
+                        </div>
+                        <div class="setting-item shortcut-item">
+                            <div class="setting-info">
+                                <label>Zoom In</label>
+                            </div>
+                            <div class="shortcut-keys">
+                                <button class="shortcut-key-btn" data-shortcut="zoomIn" data-index="0" title="Click to change">+</button>
+                                <button class="shortcut-key-btn shortcut-alt" data-shortcut="zoomIn" data-index="1" title="Click to add alternate key"></button>
+                            </div>
+                        </div>
+                        <div class="setting-item shortcut-item">
+                            <div class="setting-info">
+                                <label>Zoom Out</label>
+                            </div>
+                            <div class="shortcut-keys">
+                                <button class="shortcut-key-btn" data-shortcut="zoomOut" data-index="0" title="Click to change">−</button>
+                                <button class="shortcut-key-btn shortcut-alt" data-shortcut="zoomOut" data-index="1" title="Click to add alternate key"></button>
+                            </div>
+                        </div>
+                        <button id="reset-shortcuts-btn" class="btn btn-secondary" style="margin-top: 12px;">Reset to Defaults</button>
+                    </section>
                 </div>
             </div>
         </div>
@@ -722,6 +799,6 @@ Inc in each st around (12)
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="app.js?v=25"></script>
+    <script src="app.js?v=26"></script>
 </body>
 </html>

@@ -3706,6 +3706,7 @@ function initPDFViewer() {
     document.getElementById('close-pdf-edit-modal').addEventListener('click', closePdfEditModal);
     document.getElementById('cancel-pdf-edit').addEventListener('click', closePdfEditModal);
     document.getElementById('save-pdf-edit').addEventListener('click', savePdfEdit);
+    document.getElementById('delete-pdf-pattern').addEventListener('click', deletePdfPattern);
 
     // Pattern Info modal buttons
     document.getElementById('close-pattern-info-modal').addEventListener('click', closePatternInfoModal);
@@ -4110,11 +4111,62 @@ async function openPdfEditModal() {
         clearThumbnailSelector('pdf-edit');
     }
 
+    // Reset delete button state
+    const deleteBtn = document.getElementById('delete-pdf-pattern');
+    resetDeleteButton(deleteBtn, 'Delete Pattern');
+
     modal.style.display = 'flex';
 }
 
 function closePdfEditModal() {
     document.getElementById('pdf-edit-modal').style.display = 'none';
+    // Reset delete button state
+    const deleteBtn = document.getElementById('delete-pdf-pattern');
+    resetDeleteButton(deleteBtn, 'Delete Pattern');
+}
+
+async function deletePdfPattern() {
+    if (!currentPattern) return;
+
+    const btn = document.getElementById('delete-pdf-pattern');
+
+    // First click - show confirmation state
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.textContent = 'Confirm Delete';
+        return;
+    }
+
+    // Second click - actually delete
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            closePdfEditModal();
+            closePDFViewer();
+            await loadPatterns();
+            await loadCurrentPatterns();
+            await loadCategories();
+        } else {
+            const error = await response.json();
+            console.error('Error deleting pattern:', error.error);
+            resetDeleteButton(btn, 'Delete Pattern');
+        }
+    } catch (error) {
+        console.error('Error deleting pattern:', error);
+        resetDeleteButton(btn, 'Delete Pattern');
+    }
+}
+
+function resetDeleteButton(btn, text) {
+    btn.disabled = false;
+    btn.classList.remove('confirm-delete');
+    btn.textContent = text;
 }
 
 // Pattern Info Modal
@@ -5042,6 +5094,9 @@ function initMarkdownViewerEvents() {
     const saveEditBtn = document.getElementById('save-markdown-edit');
     saveEditBtn.onclick = saveMarkdownEdit;
 
+    const deleteMarkdownBtn = document.getElementById('delete-markdown-pattern');
+    deleteMarkdownBtn.onclick = deleteMarkdownPattern;
+
     const editModal = document.getElementById('markdown-edit-modal');
     editModal.onclick = (e) => {
         if (e.target === editModal) closeMarkdownEditModal();
@@ -5326,11 +5381,56 @@ async function openMarkdownEditModal() {
         console.error('Error loading content:', error);
     }
 
+    // Reset delete button state
+    const deleteBtn = document.getElementById('delete-markdown-pattern');
+    resetDeleteButton(deleteBtn, 'Delete Pattern');
+
     modal.style.display = 'flex';
 }
 
 function closeMarkdownEditModal() {
     document.getElementById('markdown-edit-modal').style.display = 'none';
+    // Reset delete button state
+    const deleteBtn = document.getElementById('delete-markdown-pattern');
+    resetDeleteButton(deleteBtn, 'Delete Pattern');
+}
+
+async function deleteMarkdownPattern() {
+    if (!currentPattern) return;
+
+    const btn = document.getElementById('delete-markdown-pattern');
+
+    // First click - show confirmation state
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.textContent = 'Confirm Delete';
+        return;
+    }
+
+    // Second click - actually delete
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            closeMarkdownEditModal();
+            closeMarkdownViewer();
+            await loadPatterns();
+            await loadCurrentPatterns();
+            await loadCategories();
+        } else {
+            const error = await response.json();
+            console.error('Error deleting pattern:', error.error);
+            resetDeleteButton(btn, 'Delete Pattern');
+        }
+    } catch (error) {
+        console.error('Error deleting pattern:', error);
+        resetDeleteButton(btn, 'Delete Pattern');
+    }
 }
 
 async function saveMarkdownEdit() {

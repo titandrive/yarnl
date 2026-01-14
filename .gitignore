@@ -18,6 +18,9 @@ postgres-data/
 # Uploads (user-generated content)
 uploads/
 
+# Backups
+backups/
+
 # OS / editor
 .DS_Store
 .idea/

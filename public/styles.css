@@ -2003,57 +2003,119 @@ header {
 }
 
 /* Settings Page */
-.settings-container {
-    width: 100%;
+.settings-layout {
+    display: flex;
+    gap: 24px;
+    min-height: 500px;
 }
 
-.settings-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 20px;
+.settings-sidebar {
+    flex-shrink: 0;
+    width: 220px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
 }
 
-@media (min-width: 992px) {
-    .settings-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-}
-
-.settings-grid .settings-section {
-    margin-bottom: 0;
-}
-
-@media (min-width: 992px) {
-    .settings-appearance,
-    .settings-badges {
-        grid-column: span 1;
-    }
-}
-
-.settings-header {
+.settings-nav-btn {
     display: flex;
     align-items: center;
-    gap: 16px;
-    margin-bottom: 24px;
+    gap: 12px;
+    padding: 12px 16px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font-family: inherit;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: left;
 }
 
-.settings-header h2 {
-    margin: 0;
-    font-size: 1.3rem;
+.settings-nav-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.settings-nav-btn.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+.settings-nav-btn svg {
+    flex-shrink: 0;
+}
+
+.settings-content {
+    flex: 1;
+    min-width: 0;
 }
 
 .settings-section {
+    display: none;
     background: var(--card-bg);
     border-radius: 12px;
     padding: 24px;
-    margin-bottom: 20px;
     border: 1px solid var(--border-color);
 }
 
+.settings-section.active {
+    display: block;
+}
+
 .settings-section h3 {
-    font-size: 1rem;
-    margin-bottom: 16px;
+    font-size: 1.2rem;
+    margin-bottom: 20px;
     color: var(--text-color);
+}
+
+.settings-subheading {
+    font-size: 1rem;
+    margin-top: 28px;
+    margin-bottom: 16px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.about-info {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.about-info p {
+    margin-bottom: 8px;
+}
+
+/* Settings responsive - mobile sidebar becomes horizontal tabs */
+@media (max-width: 768px) {
+    .settings-layout {
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .settings-sidebar {
+        width: 100%;
+        flex-direction: row;
+        overflow-x: auto;
+        padding-bottom: 8px;
+    }
+
+    .settings-nav-btn {
+        flex-shrink: 0;
+        padding: 10px 14px;
+    }
+
+    .settings-nav-btn span {
+        display: none;
+    }
+
+    .settings-nav-btn svg {
+        width: 20px;
+        height: 20px;
+    }
 }
 
 .section-description {

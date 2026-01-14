@@ -1165,6 +1165,29 @@ function initSettings() {
 
     // Keyboard Shortcuts
     initKeyboardShortcuts();
+
+    // Settings sidebar navigation
+    const settingsNavBtns = document.querySelectorAll('.settings-nav-btn');
+    const settingsSections = document.querySelectorAll('.settings-content .settings-section');
+
+    settingsNavBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            const section = btn.dataset.section;
+
+            // Update active nav button
+            settingsNavBtns.forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            // Show corresponding section
+            settingsSections.forEach(s => {
+                if (s.dataset.section === section) {
+                    s.classList.add('active');
+                } else {
+                    s.classList.remove('active');
+                }
+            });
+        });
+    });
 }
 
 // Keyboard Shortcuts Functions

@@ -10,7 +10,7 @@
         document.documentElement.setAttribute('data-theme', theme);
     </script>
     <link rel="icon" type="image/svg+xml" href="favicon.svg?v=2">
-    <link rel="stylesheet" href="styles.css?v=13">
+    <link rel="stylesheet" href="styles.css?v=14">
 </head>
 <body>
     <div class="container">
@@ -238,13 +238,43 @@ Inc in each st around (12)
 
         <!-- Settings Tab -->
         <div id="settings" class="tab-content">
-            <div class="settings-container">
-                <div class="settings-header">
-                    <button id="settings-back-btn" class="btn btn-secondary">← Back</button>
-                    <h2>Settings</h2>
-                </div>
-                <div class="settings-grid">
-                    <section class="settings-section settings-appearance">
+            <div class="settings-layout">
+                <!-- Settings Sidebar -->
+                <nav class="settings-sidebar">
+                    <button class="settings-nav-btn active" data-section="appearance">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+                        </svg>
+                        <span>Appearance</span>
+                    </button>
+                    <button class="settings-nav-btn" data-section="categories">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"></path>
+                        </svg>
+                        <span>Categories & Tags</span>
+                    </button>
+                    <button class="settings-nav-btn" data-section="shortcuts">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="2" y="4" width="20" height="16" rx="2"></rect>
+                            <path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M6 12h.01M10 12h.01M14 12h.01M18 12h.01M8 16h8"></path>
+                        </svg>
+                        <span>Keyboard Shortcuts</span>
+                    </button>
+                    <button class="settings-nav-btn" data-section="about">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="16" x2="12" y2="12"></line>
+                            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                        </svg>
+                        <span>About</span>
+                    </button>
+                </nav>
+
+                <!-- Settings Content -->
+                <div class="settings-content">
+                    <!-- Appearance Section -->
+                    <section class="settings-section active" data-section="appearance">
                         <h3>Appearance</h3>
                         <div class="setting-item">
                             <div class="setting-info">
@@ -327,9 +357,8 @@ Inc in each st around (12)
                                 <option value="200">200%</option>
                             </select>
                         </div>
-                    </section>
-                    <section class="settings-section settings-badges">
-                        <h3>Badges</h3>
+
+                        <h4 class="settings-subheading">Badges</h4>
                         <div class="setting-item">
                             <div class="setting-info">
                                 <label>Type Badge</label>
@@ -361,7 +390,9 @@ Inc in each st around (12)
                             </label>
                         </div>
                     </section>
-                    <section class="settings-section">
+
+                    <!-- Categories & Tags Section -->
+                    <section class="settings-section" data-section="categories">
                         <h3>Categories</h3>
                         <p class="section-description">Manage pattern categories for organizing your library</p>
                         <div class="categories-list" id="categories-list">
@@ -369,29 +400,22 @@ Inc in each st around (12)
                         </div>
                         <div class="add-category-form">
                             <input type="text" id="new-category-input" placeholder="New category name...">
-                            <button id="add-category-btn" class="btn btn-primary">Add Category</button>
+                            <button id="add-category-btn" class="btn btn-primary">Add</button>
                         </div>
-                    </section>
 
-                    <section class="settings-section">
-                        <h3>Hashtags</h3>
+                        <h4 class="settings-subheading">Hashtags</h4>
                         <p class="section-description">Manage hashtags for tagging patterns</p>
                         <div class="hashtags-list" id="hashtags-list">
                             <!-- Hashtags will be populated here -->
                         </div>
                         <div class="add-hashtag-form">
                             <input type="text" id="new-hashtag-input" placeholder="New hashtag...">
-                            <button id="add-hashtag-btn" class="btn btn-primary">Add Hashtag</button>
+                            <button id="add-hashtag-btn" class="btn btn-primary">Add</button>
                         </div>
                     </section>
 
-                    <section class="settings-section">
-                        <h3>Library Info</h3>
-                        <div class="library-stats" id="library-stats">
-                            <!-- Stats will be populated here -->
-                        </div>
-                    </section>
-                    <section class="settings-section settings-shortcuts">
+                    <!-- Keyboard Shortcuts Section -->
+                    <section class="settings-section" data-section="shortcuts">
                         <h3>Keyboard Shortcuts</h3>
                         <p class="section-description">Customize keyboard shortcuts for the PDF viewer. Click a key to change it.</p>
                         <div class="setting-item shortcut-item">
@@ -467,6 +491,23 @@ Inc in each st around (12)
                             </div>
                         </div>
                         <button id="reset-shortcuts-btn" class="btn btn-secondary" style="margin-top: 12px;">Reset to Defaults</button>
+                    </section>
+
+                    <!-- About Section -->
+                    <section class="settings-section" data-section="about">
+                        <h3>About Yarnl</h3>
+                        <p class="section-description">Crochet pattern management app</p>
+
+                        <h4 class="settings-subheading">Library Stats</h4>
+                        <div class="library-stats" id="library-stats">
+                            <!-- Stats will be populated here -->
+                        </div>
+
+                        <h4 class="settings-subheading">App Info</h4>
+                        <div class="about-info">
+                            <p><strong>Version:</strong> 1.0.0</p>
+                            <p><strong>Made with:</strong> Node.js, Express, PostgreSQL</p>
+                        </div>
                     </section>
                 </div>
             </div>
@@ -829,6 +870,6 @@ Inc in each st around (12)
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="app.js?v=28"></script>
+    <script src="app.js?v=29"></script>
 </body>
 </html>

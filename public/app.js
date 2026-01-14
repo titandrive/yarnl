@@ -445,6 +445,29 @@ function switchToTab(tabName) {
 
     // Hide PDF viewer
     pdfViewerContainer.style.display = 'none';
+
+    // Update settings button to show back when in settings
+    updateSettingsButton(tabName === 'settings');
+}
+
+function updateSettingsButton(inSettings) {
+    const settingsBtn = document.getElementById('settings-btn');
+    if (!settingsBtn) return;
+
+    const svg = settingsBtn.querySelector('svg');
+    const label = settingsBtn.querySelector('span');
+
+    if (inSettings) {
+        // Change to back button
+        svg.innerHTML = '<path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>';
+        label.textContent = 'Back';
+        settingsBtn.setAttribute('aria-label', 'Back');
+    } else {
+        // Change to settings button
+        svg.innerHTML = '<circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>';
+        label.textContent = 'Settings';
+        settingsBtn.setAttribute('aria-label', 'Settings');
+    }
 }
 
 // Upload functionality
@@ -1001,8 +1024,14 @@ function initSettings() {
 
     if (settingsBtn) {
         settingsBtn.addEventListener('click', () => {
-            switchToTab('settings');
-            loadLibraryStats();
+            // If already in settings, go back; otherwise go to settings
+            const settingsTab = document.getElementById('settings');
+            if (settingsTab && settingsTab.classList.contains('active')) {
+                switchToTab(previousTab);
+            } else {
+                switchToTab('settings');
+                loadLibraryStats();
+            }
         });
     }
 
@@ -1028,6 +1057,16 @@ function initSettings() {
         defaultPageSelect.value = savedDefaultPage;
         defaultPageSelect.addEventListener('change', () => {
             localStorage.setItem('defaultPage', defaultPageSelect.value);
+        });
+    }
+
+    // Default zoom setting
+    const defaultZoomSelect = document.getElementById('default-zoom-select');
+    if (defaultZoomSelect) {
+        const savedDefaultZoom = localStorage.getItem('defaultPdfZoom') || 'fit';
+        defaultZoomSelect.value = savedDefaultZoom;
+        defaultZoomSelect.addEventListener('change', () => {
+            localStorage.setItem('defaultPdfZoom', defaultZoomSelect.value);
         });
     }
 
@@ -2699,7 +2738,17 @@ async function openPDFViewer(patternId) {
 
         currentPattern = pattern;
         currentPageNum = pattern.current_page || 1;
-        pdfZoomMode = 'fit'; // Default to fit page in view
+
+        // Apply default zoom setting
+        const defaultZoom = localStorage.getItem('defaultPdfZoom') || 'fit';
+        if (defaultZoom === 'fit') {
+            pdfZoomMode = 'fit';
+        } else if (defaultZoom === 'fit-width') {
+            pdfZoomMode = 'fit-width';
+        } else {
+            pdfZoomMode = 'manual';
+            pdfZoomScale = parseInt(defaultZoom) / 100;
+        }
 
         // Load timer state
         loadPatternTimer(pattern);

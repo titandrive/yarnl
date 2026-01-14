@@ -1470,12 +1470,8 @@ header {
     justify-content: center;
     align-items: flex-start;
     padding: 20px;
-    background: #f3f4f6;
+    background: var(--bg-color);
     position: relative;
-}
-
-[data-theme="dark"] .pdf-viewer-wrapper {
-    background: #1a1625;
 }
 
 #pdf-canvas {

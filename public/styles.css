@@ -257,8 +257,8 @@
     --warning-color: #eab308;
     --bg-color: #09090b;
     --card-bg: #18181b;
-    --text-color: #fafafa;
-    --text-muted: #a1a1aa;
+    --text-color: #e4e4e7;
+    --text-muted: #71717a;
     --border-color: #27272a;
     --shadow: 0 4px 6px -1px rgba(239, 68, 68, 0.15), 0 2px 4px -1px rgba(0, 0, 0, 0.3);
     --tab-bg: #27272a;
@@ -581,7 +581,7 @@ header {
 }
 
 .tab-btn:hover {
-    background: #f3f4f6;
+    background: var(--hover-bg);
     color: var(--primary-color);
 }
 

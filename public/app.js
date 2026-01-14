@@ -19,6 +19,8 @@ let showMarkdown = true;
 let highlightNew = false;
 let searchQuery = '';
 let previousTab = 'current';
+let navigationHistory = []; // Stack for UI back button
+let isNavigatingBack = false; // Flag to prevent double history push
 let showTabCounts = localStorage.getItem('showTabCounts') !== 'false';
 let showTypeBadge = localStorage.getItem('showTypeBadge') !== 'false';
 let showStatusBadge = localStorage.getItem('showStatusBadge') !== 'false';
@@ -336,17 +338,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     initThumbnailSelector();
     initTimer();
     initBackups();
+    initNavigation();
     loadPatterns();
     loadCurrentPatterns();
     loadCategories();
     loadHashtags();
 
-    // Restore pattern viewer if one was open before refresh
+    // Handle initial URL hash or restore pattern viewer
+    await handleInitialNavigation();
+});
+
+// Navigation initialization
+function initNavigation() {
+    // Handle browser back/forward buttons
+    window.addEventListener('popstate', async (e) => {
+        isNavigatingBack = true;
+        if (e.state && e.state.view) {
+            await navigateToView(e.state.view, false);
+        } else {
+            // No state, check hash
+            const hash = window.location.hash.slice(1);
+            if (hash) {
+                await navigateToView(hash, false);
+            } else {
+                switchToTab('current', false);
+            }
+        }
+        isNavigatingBack = false;
+    });
+}
+
+async function handleInitialNavigation() {
+    const hash = window.location.hash.slice(1);
+
+    // URL hash takes priority (for cmd+click opening new tab)
+    if (hash) {
+        if (hash.startsWith('pattern/')) {
+            const patternId = hash.split('/')[1];
+            await openPDFViewer(parseInt(patternId), false);
+        } else if (['current', 'library', 'settings'].includes(hash)) {
+            switchToTab(hash, false);
+        }
+        history.replaceState({ view: hash }, '', `#${hash}`);
+        return;
+    }
+
+    // No hash - check sessionStorage for refresh persistence
     const viewingPatternId = sessionStorage.getItem('viewingPatternId');
     if (viewingPatternId) {
-        await openPDFViewer(parseInt(viewingPatternId));
+        await openPDFViewer(parseInt(viewingPatternId), false);
+        history.replaceState({ view: `pattern/${viewingPatternId}` }, '', `#pattern/${viewingPatternId}`);
+        return;
     }
-});
+
+    // Default: go to default page
+    const defaultPage = localStorage.getItem('defaultPage') || 'current';
+    history.replaceState({ view: defaultPage }, '', `#${defaultPage}`);
+}
 
 // Auto-continue lists in markdown editors (bullets, numbers, checkboxes)
 function setupMarkdownListContinuation(textarea) {
@@ -514,8 +562,12 @@ function initTheme() {
 // Tab switching
 function initTabs() {
     // Check if we're restoring a pattern viewer - don't show tabs in that case
+    // Check both sessionStorage (for refresh) and URL hash (for cmd+click new tab)
     const viewingPatternId = sessionStorage.getItem('viewingPatternId');
-    if (viewingPatternId) {
+    const hash = window.location.hash.slice(1);
+    const isOpeningPattern = viewingPatternId || hash.startsWith('pattern/');
+
+    if (isOpeningPattern) {
         // Hide tabs, content will be shown when pattern viewer opens
         document.querySelector('.tabs').style.display = 'none';
         tabContents.forEach(c => c.style.display = 'none');
@@ -525,7 +577,7 @@ function initTabs() {
         const currentTab = sessionStorage.getItem('activeTab');
         const defaultPage = localStorage.getItem('defaultPage') || 'current';
         const startTab = currentTab || defaultPage;
-        switchToTab(startTab);
+        switchToTab(startTab, false); // Don't push to history during init
     }
 
     tabBtns.forEach(btn => {
@@ -538,11 +590,21 @@ function initTabs() {
     });
 }
 
-function switchToTab(tabName) {
+function switchToTab(tabName, pushHistory = true) {
     // Track previous tab (but not if switching to settings)
     const currentTab = document.querySelector('.tab-btn.active')?.dataset.tab;
     if (currentTab && tabName === 'settings') {
         previousTab = currentTab;
+    }
+
+    // Push to navigation history for UI back button (unless navigating back)
+    if (pushHistory && !isNavigatingBack) {
+        const currentView = getCurrentView();
+        if (currentView && currentView !== tabName) {
+            navigationHistory.push(currentView);
+        }
+        // Update browser history
+        history.pushState({ view: tabName }, '', `#${tabName}`);
     }
 
     // Remove active from all tabs and contents
@@ -565,11 +627,58 @@ function switchToTab(tabName) {
         content.style.display = 'block';
     }
 
-    // Hide PDF viewer
+    // Hide PDF viewer and markdown viewer
     pdfViewerContainer.style.display = 'none';
+    const markdownViewer = document.getElementById('markdown-viewer-container');
+    if (markdownViewer) markdownViewer.style.display = 'none';
+    document.querySelector('.tabs').style.display = 'flex';
 
     // Update settings button to show back when in settings
     updateSettingsButton(tabName === 'settings');
+}
+
+function getCurrentView() {
+    // Check if viewing a pattern
+    if (pdfViewerContainer && pdfViewerContainer.style.display !== 'none' && currentPattern) {
+        return `pattern/${currentPattern.id}`;
+    }
+    const markdownViewer = document.getElementById('markdown-viewer-container');
+    if (markdownViewer && markdownViewer.style.display !== 'none') {
+        const patternId = markdownViewer.dataset.patternId;
+        if (patternId) return `pattern/${patternId}`;
+    }
+    // Check if in settings
+    const settingsTab = document.getElementById('settings');
+    if (settingsTab && settingsTab.classList.contains('active')) {
+        return 'settings';
+    }
+    // Otherwise return current tab
+    return document.querySelector('.tab-btn.active')?.dataset.tab || 'current';
+}
+
+function navigateBack() {
+    if (navigationHistory.length > 0) {
+        isNavigatingBack = true;
+        const previousView = navigationHistory.pop();
+        // Just update the view, don't call history.back() as it causes double navigation
+        navigateToView(previousView, false);
+        // Update URL without triggering popstate
+        history.replaceState({ view: previousView }, '', `#${previousView}`);
+        isNavigatingBack = false;
+    } else {
+        // Default: go to library
+        switchToTab('library', false);
+        history.replaceState({ view: 'library' }, '', '#library');
+    }
+}
+
+async function navigateToView(view, pushHistory = true) {
+    if (view.startsWith('pattern/')) {
+        const patternId = view.split('/')[1];
+        await openPDFViewer(patternId, pushHistory);
+    } else {
+        switchToTab(view, pushHistory);
+    }
 }
 
 function updateSettingsButton(inSettings) {
@@ -1149,7 +1258,7 @@ function initSettings() {
             // If already in settings, go back; otherwise go to settings
             const settingsTab = document.getElementById('settings');
             if (settingsTab && settingsTab.classList.contains('active')) {
-                switchToTab(previousTab);
+                navigateBack();
             } else {
                 switchToTab('settings');
                 loadLibraryStats();
@@ -1159,7 +1268,7 @@ function initSettings() {
 
     if (settingsBackBtn) {
         settingsBackBtn.addEventListener('click', () => {
-            switchToTab(previousTab);
+            navigateBack();
         });
     }
 
@@ -3024,7 +3133,7 @@ function displayCurrentPatterns() {
         const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';
 
         return `
-            <div class="pattern-card" onclick="openPDFViewer(${pattern.id})">
+            <div class="pattern-card" onclick="handlePatternClick(event, ${pattern.id})">
                 ${showStatusBadge ? (pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : '<span class="current-badge">CURRENT</span>') : ''}
                 ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
                 ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
@@ -3131,7 +3240,7 @@ function displayPatterns() {
         const highlightClass = highlightNew && isNewPattern ? ' highlight-new' : '';
 
         return `
-            <div class="pattern-card${highlightClass}" onclick="openPDFViewer(${pattern.id})">
+            <div class="pattern-card${highlightClass}" onclick="handlePatternClick(event, ${pattern.id})">
                 ${showStatusBadge && pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
                 ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
                 ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
@@ -3462,10 +3571,33 @@ function initPDFViewer() {
     });
 }
 
-async function openPDFViewer(patternId) {
+// Handle pattern card click - supports cmd/ctrl+click to open in new window
+function handlePatternClick(event, patternId) {
+    // Check for cmd (Mac) or ctrl (Windows/Linux) key
+    if (event.metaKey || event.ctrlKey) {
+        event.preventDefault();
+        event.stopPropagation();
+        // Open in new window/tab with full URL
+        const url = window.location.origin + window.location.pathname + '#pattern/' + patternId;
+        window.open(url, '_blank');
+    } else {
+        openPDFViewer(patternId);
+    }
+}
+
+async function openPDFViewer(patternId, pushHistory = true) {
     try {
         // Convert to number for comparison
         const id = parseInt(patternId);
+
+        // Push to navigation history
+        if (pushHistory && !isNavigatingBack) {
+            const currentView = getCurrentView();
+            if (currentView && !currentView.startsWith('pattern/')) {
+                navigationHistory.push(currentView);
+            }
+            history.pushState({ view: `pattern/${id}` }, '', `#pattern/${id}`);
+        }
 
         // Save viewing pattern to sessionStorage for refresh persistence
         sessionStorage.setItem('viewingPatternId', id);
@@ -3480,7 +3612,7 @@ async function openPDFViewer(patternId) {
 
         // Route to appropriate viewer based on pattern type
         if (pattern.pattern_type === 'markdown') {
-            await openMarkdownViewer(pattern);
+            await openMarkdownViewer(pattern, pushHistory);
             return;
         }
 
@@ -3691,29 +3823,21 @@ async function closePDFViewer() {
         }
     }
 
-    pdfViewerContainer.style.display = 'none';
-    document.querySelector('.tabs').style.display = 'flex';
-
     // Clear viewing pattern from sessionStorage
     sessionStorage.removeItem('viewingPatternId');
 
-    // Restore the previously active tab
-    const lastActiveTab = localStorage.getItem('activeTab') || 'current';
-    switchToTab(lastActiveTab);
-
-    // Reset timer state
+    // Reset state
     resetTimerState();
-
     currentPattern = null;
     pdfDoc = null;
     lastUsedCounterId = null;
 
-    // Reload the appropriate content based on which tab we're returning to
-    if (lastActiveTab === 'current') {
-        await loadCurrentPatterns();
-    } else if (lastActiveTab === 'library') {
-        await loadPatterns();
-    }
+    // Reload patterns for when we return to list view
+    await loadCurrentPatterns();
+    await loadPatterns();
+
+    // Navigate back using history (this will hide the viewer and show tabs)
+    navigateBack();
 }
 
 // PDF Edit Modal functionality
@@ -4599,9 +4723,21 @@ async function savePatternEdits() {
 const markdownViewerContainer = document.getElementById('markdown-viewer-container');
 let markdownNotesAutoSaveTimeout = null;
 
-async function openMarkdownViewer(pattern) {
+async function openMarkdownViewer(pattern, pushHistory = true) {
     try {
         currentPattern = pattern;
+
+        // Push to navigation history
+        if (pushHistory && !isNavigatingBack) {
+            const currentView = getCurrentView();
+            if (currentView && !currentView.startsWith('pattern/')) {
+                navigationHistory.push(currentView);
+            }
+            history.pushState({ view: `pattern/${pattern.id}` }, '', `#pattern/${pattern.id}`);
+        }
+
+        // Store pattern ID on container for getCurrentView
+        markdownViewerContainer.dataset.patternId = pattern.id;
 
         // Load timer state
         loadPatternTimer(pattern);
@@ -4771,28 +4907,20 @@ async function closeMarkdownViewer() {
         await saveTimerImmediate();
     }
 
-    markdownViewerContainer.style.display = 'none';
-    document.querySelector('.tabs').style.display = 'flex';
-
     // Clear viewing pattern from sessionStorage
     sessionStorage.removeItem('viewingPatternId');
 
-    // Restore the previously active tab
-    const lastActiveTab = localStorage.getItem('activeTab') || 'current';
-    switchToTab(lastActiveTab);
-
-    // Reset timer state
+    // Reset state
     resetTimerState();
-
     currentPattern = null;
     lastUsedCounterId = null;
 
-    // Reload the appropriate content
-    if (lastActiveTab === 'current') {
-        await loadCurrentPatterns();
-    } else if (lastActiveTab === 'library') {
-        await loadPatterns();
-    }
+    // Reload patterns for when we return to list view
+    await loadCurrentPatterns();
+    await loadPatterns();
+
+    // Navigate back using history (this will hide the viewer and show tabs)
+    navigateBack();
 }
 
 // Markdown notes functionality

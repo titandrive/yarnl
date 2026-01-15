@@ -4,6 +4,28 @@ A running log of features and changes made to Yarnl.
 
 ---
 
+## 2026-01-15: Upload Form Labels & Toggle Styling
+
+Improved form label clarity and consistency in upload/create pattern forms.
+
+### Features
+- **Required/Optional Labels**: Fields now show "required" or "optional" in muted text instead of asterisks
+- **Consistent Label Styling**: Name, Category (required), Hashtags, Thumbnail (optional), Pattern Content (markdown)
+- **Back Button Position**: Moved to left side of headers, shortened to "← Back"
+- **Toggle Switch**: "Mark as current pattern" now uses toggle switch matching settings page
+
+### Technical Details
+- `.required` class for muted label hints (font-weight 400, text-muted color, 0.85em)
+- `.mark-current-toggle` flexbox layout for label + toggle alignment
+- Applied to both markdown create form and PDF upload staged files
+
+### Files Modified
+- `public/index.html` - Updated labels, rearranged header buttons, toggle markup
+- `public/app.js` - Updated staged file form with new labels and toggle
+- `public/styles.css` - Added `.required` and `.mark-current-toggle` styles
+
+---
+
 ## 2026-01-15: Library Edit Modal Delete Button & Compact Styling
 
 Added missing delete button to library edit modal and made modals more compact.

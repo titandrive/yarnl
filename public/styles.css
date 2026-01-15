@@ -479,12 +479,13 @@ header {
 
 .header-title h1 {
     font-size: 3rem;
-    margin-bottom: 10px;
+    margin-bottom: 0;
 }
 
 .subtitle {
     font-size: 1.2rem;
     opacity: 0.95;
+    margin-top: 0;
 }
 
 .header-btn-container {

@@ -852,13 +852,13 @@ header {
 }
 
 .patterns-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
 }
 
 .empty-state {
-    grid-column: 1 / -1;
+    width: 100%;
     text-align: center;
     color: #6b7280;
     padding: 40px;
@@ -868,23 +868,28 @@ header {
 .pattern-card {
     background: var(--card-bg);
     border: 2px solid var(--border-color);
-    border-radius: 12px;
-    padding: 20px;
+    border-radius: 10px;
+    padding: 12px;
     box-shadow: var(--shadow);
     transition: all 0.3s ease;
     position: relative;
     cursor: pointer;
+    width: 220px;
+    height: 320px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .pattern-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
 }
 
 .pattern-card h3 {
     color: var(--primary-color);
-    margin-bottom: 10px;
-    font-size: 1.2rem;
+    margin-bottom: 4px;
+    font-size: 1.1rem;
     word-wrap: break-word;
     overflow-wrap: break-word;
     hyphens: auto;
@@ -892,8 +897,8 @@ header {
 
 .pattern-card .pattern-date {
     color: var(--text-color);
-    font-size: 0.9rem;
-    margin-bottom: 10px;
+    font-size: 0.85rem;
+    margin-bottom: 6px;
 }
 
 .pattern-category {
@@ -991,16 +996,75 @@ header {
 
 .pattern-description {
     color: var(--text-color);
-    font-size: 0.9rem;
-    margin: 15px 0 0 0;
+    font-size: 0.85rem;
+    margin: 8px 0 0 0;
     line-height: 1.4;
 }
 
 .pattern-actions {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    margin-top: 15px;
+    display: flex;
+    gap: 6px;
+    margin-top: auto;
+    justify-content: center;
+}
+
+.action-btn {
+    width: 32px;
+    height: 32px;
+    border: none;
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--text-muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+    background: var(--border-color);
+    color: var(--text-color);
+}
+
+.action-btn.active {
+    color: var(--warning-color);
+}
+
+.action-btn.active:hover {
+    background: var(--warning-color);
+    color: white;
+}
+
+.action-btn.completed {
+    color: var(--success-color);
+}
+
+.action-btn.completed:hover {
+    background: var(--success-color);
+    color: white;
+}
+
+.action-btn.delete:hover {
+    background: var(--danger-color);
+    color: white;
+}
+
+.action-btn.delete .confirm-icon {
+    display: none;
+}
+
+.action-btn.delete.confirm-delete {
+    background: var(--danger-color);
+    color: white;
+}
+
+.action-btn.delete.confirm-delete .trash-icon {
+    display: none;
+}
+
+.action-btn.delete.confirm-delete .confirm-icon {
+    display: block;
 }
 
 .btn-small {
@@ -1036,7 +1100,7 @@ header {
     }
 
     .patterns-grid {
-        grid-template-columns: 1fr;
+        justify-content: center;
     }
 }
 
@@ -1142,13 +1206,13 @@ header {
 
 .pattern-card .current-badge {
     position: absolute;
-    top: 30px;
-    right: 30px;
+    top: 18px;
+    right: 18px;
     background: var(--success-color);
     color: white;
-    padding: 6px 12px;
-    border-radius: 12px;
-    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 0.65rem;
     font-weight: 600;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     z-index: 10;
@@ -1156,13 +1220,13 @@ header {
 
 .pattern-card .category-badge-overlay {
     position: absolute;
-    top: 30px;
-    left: 30px;
+    top: 18px;
+    left: 18px;
     background: var(--primary-color);
     color: white;
-    padding: 6px 12px;
-    border-radius: 12px;
-    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 0.65rem;
     font-weight: 600;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     z-index: 10;
@@ -1170,13 +1234,13 @@ header {
 
 .pattern-card .completed-badge {
     position: absolute;
-    top: 30px;
-    right: 30px;
+    top: 18px;
+    right: 18px;
     background: var(--warning-color);
     color: white;
-    padding: 6px 12px;
-    border-radius: 12px;
-    font-size: 0.75rem;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 0.65rem;
     font-weight: 600;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     z-index: 10;
@@ -1184,28 +1248,28 @@ header {
 
 .pattern-card .type-badge {
     position: absolute;
-    top: 192px;
-    left: 30px;
+    top: 140px;
+    left: 18px;
     background: rgba(0, 0, 0, 0.6);
     color: white;
-    padding: 4px 8px;
-    border-radius: 8px;
-    font-size: 0.7rem;
+    padding: 3px 6px;
+    border-radius: 6px;
+    font-size: 0.65rem;
     font-weight: 600;
     z-index: 10;
 }
 
 .completion-date {
     color: var(--success-color);
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 600;
-    margin: 10px 0 0 0;
+    margin: 0;
 }
 
 .pattern-status {
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     font-weight: 500;
-    margin: 10px 0 0 0;
+    margin: 0;
 }
 
 .pattern-status.new {
@@ -1340,23 +1404,23 @@ header {
 
 .pattern-thumbnail {
     width: 100%;
-    height: 200px;
+    height: 150px;
     object-fit: cover;
-    border-radius: 8px;
-    margin-bottom: 10px;
+    border-radius: 6px;
+    margin-bottom: 8px;
     position: relative;
 }
 
 .pattern-thumbnail-placeholder {
     width: 100%;
-    height: 200px;
-    border-radius: 8px;
-    margin-bottom: 10px;
+    height: 150px;
+    border-radius: 6px;
+    margin-bottom: 8px;
     background: var(--border-color);
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 4rem;
+    font-size: 3rem;
     opacity: 0.5;
 }
 
@@ -2975,18 +3039,18 @@ input[type="number"].settings-input {
 .pattern-hashtags {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
-    margin-top: 8px;
+    gap: 4px;
+    margin-top: 6px;
 }
 
 .pattern-hashtag {
     display: inline-block;
-    padding: 3px 10px;
+    padding: 2px 8px;
     background: var(--input-bg);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    font-size: 0.75rem;
-    color: var(--primary-color);
+    border-radius: 10px;
+    font-size: 0.7rem;
+    color: var(--text-color);
 }
 
 .empty-state-small {

@@ -727,7 +727,8 @@ header {
 }
 
 .btn-primary:hover {
-    background: var(--primary-hover);
+    background: var(--primary-color);
+    filter: brightness(0.85);
 }
 
 .btn-secondary {

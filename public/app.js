@@ -459,7 +459,13 @@ async function handleInitialNavigation() {
         if (hash.startsWith('pattern/')) {
             const patternId = hash.split('/')[1];
             await openPDFViewer(parseInt(patternId), false);
-        } else if (['current', 'library', 'settings'].includes(hash)) {
+        } else if (hash.startsWith('settings/')) {
+            const section = hash.split('/')[1];
+            switchToTab('settings', false);
+            switchToSettingsSection(section, false);
+        } else if (hash === 'settings') {
+            switchToTab('settings', false);
+        } else if (['current', 'library'].includes(hash)) {
             switchToTab(hash, false);
         }
         history.replaceState({ view: hash }, '', `#${hash}`);
@@ -803,11 +809,17 @@ function switchToTab(tabName, pushHistory = true) {
     // Push to navigation history for UI back button (unless navigating back)
     if (pushHistory && !isNavigatingBack) {
         const currentView = getCurrentView();
-        if (currentView && currentView !== tabName) {
+        if (currentView && currentView !== tabName && !currentView.startsWith(tabName + '/')) {
             navigationHistory.push(currentView);
         }
+        // For settings, include the section in the URL
+        let urlView = tabName;
+        if (tabName === 'settings') {
+            const activeSection = document.querySelector('.settings-section.active');
+            urlView = activeSection ? `settings/${activeSection.dataset.section}` : 'settings/appearance';
+        }
         // Update browser history
-        history.pushState({ view: tabName }, '', `#${tabName}`);
+        history.pushState({ view: urlView }, '', `#${urlView}`);
     }
 
     // Remove active from all tabs and contents
@@ -858,6 +870,10 @@ function getCurrentView() {
     // Check if in settings
     const settingsTab = document.getElementById('settings');
     if (settingsTab && settingsTab.classList.contains('active')) {
+        const activeSection = document.querySelector('.settings-section.active');
+        if (activeSection) {
+            return `settings/${activeSection.dataset.section}`;
+        }
         return 'settings';
     }
     // Otherwise return current tab
@@ -884,6 +900,10 @@ async function navigateToView(view, pushHistory = true) {
     if (view.startsWith('pattern/')) {
         const patternId = view.split('/')[1];
         await openPDFViewer(patternId, pushHistory);
+    } else if (view.startsWith('settings/')) {
+        const section = view.split('/')[1];
+        switchToTab('settings', false);
+        switchToSettingsSection(section, pushHistory);
     } else {
         switchToTab(view, pushHistory);
     }
@@ -1591,32 +1611,51 @@ function initSettings() {
     settingsNavBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const section = btn.dataset.section;
-
-            // Update active nav button
-            settingsNavBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            // Show corresponding section
-            settingsSections.forEach(s => {
-                if (s.dataset.section === section) {
-                    s.classList.add('active');
-                } else {
-                    s.classList.remove('active');
-                }
-            });
-
-            // Reset scroll position when switching sections
-            const settingsContent = document.querySelector('.settings-content');
-            if (settingsContent) {
-                settingsContent.scrollTop = 0;
-            }
-
-            // Initialize section-specific content
-            if (section === 'storage') {
-                loadStorageStats();
-            }
+            switchToSettingsSection(section, true);
         });
     });
+}
+
+// Switch to a specific settings section
+function switchToSettingsSection(section, updateHistory = true) {
+    const settingsNavBtns = document.querySelectorAll('.settings-nav-btn');
+    const settingsSections = document.querySelectorAll('.settings-content .settings-section');
+
+    // Update active nav button
+    settingsNavBtns.forEach(b => {
+        if (b.dataset.section === section) {
+            b.classList.add('active');
+        } else {
+            b.classList.remove('active');
+        }
+    });
+
+    // Show corresponding section
+    settingsSections.forEach(s => {
+        if (s.dataset.section === section) {
+            s.classList.add('active');
+        } else {
+            s.classList.remove('active');
+        }
+    });
+
+    // Reset scroll position when switching sections
+    const settingsContent = document.querySelector('.settings-content');
+    if (settingsContent) {
+        settingsContent.scrollTop = 0;
+    }
+
+    // Update URL hash
+    if (updateHistory) {
+        history.pushState({ view: `settings/${section}` }, '', `#settings/${section}`);
+    }
+
+    // Initialize section-specific content
+    if (section === 'storage') {
+        loadStorageStats();
+    } else if (section === 'about') {
+        loadLibraryStats();
+    }
 }
 
 // Storage section initialization

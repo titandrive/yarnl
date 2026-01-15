@@ -3759,6 +3759,37 @@ function displayCurrentPatterns() {
                         : `<p class="pattern-status new">New Pattern</p>`)}
                 <p class="pattern-description" onclick="event.stopPropagation(); startInlineDescEdit(this, '${pattern.id}')" title="Click to edit">${pattern.description ? escapeHtml(pattern.description) : '<span class="add-description">+ Add description</span>'}</p>
                 ${hashtagsHtml}
+                <div class="pattern-actions" onclick="event.stopPropagation()">
+                    <button class="action-btn ${pattern.is_current ? 'active' : ''}"
+                            onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})"
+                            title="${pattern.is_current ? 'Remove from Current' : 'Make Current'}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_current ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                        </svg>
+                    </button>
+                    <button class="action-btn ${pattern.completed ? 'active completed' : ''}"
+                            onclick="toggleComplete('${pattern.id}', ${!pattern.completed})"
+                            title="${pattern.completed ? 'Mark Incomplete' : 'Mark Complete'}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${pattern.completed ? '3' : '2'}" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                    <button class="action-btn" onclick="openEditModal('${pattern.id}')" title="Edit">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                    <button class="action-btn delete" onclick="handleCardDelete(this, '${pattern.id}')" title="Delete">
+                        <svg class="trash-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        <svg class="confirm-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
             </div>
         `;
     }).join('');

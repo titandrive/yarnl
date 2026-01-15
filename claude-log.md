@@ -15,6 +15,8 @@ Added push notifications via Pushover and deep-linking for settings sections.
 - **Settings URL Routing**: Each settings section has its own URL (`#settings/backups`, `#settings/notifications`, etc.)
 - **Refresh Persistence**: Refreshing maintains current settings section
 - **Database Settings Storage**: Backup schedule settings moved from file to PostgreSQL
+- **Mascot Position**: Moved Yarnboi to right side of header title
+- **Simplified Category/Hashtag Styling**: Removed red highlight from default category (star is sufficient), hashtags now use regular text color
 
 ### Technical Details
 - `loadNotificationSettings()` and `saveNotificationSettings()` use PostgreSQL JSONB
@@ -26,9 +28,9 @@ Added push notifications via Pushover and deep-linking for settings sections.
 
 ### Files Modified
 - `server.js` - Notification endpoints, Pushover API integration, database settings
-- `public/index.html` - Notifications section, password inputs for credentials
+- `public/index.html` - Notifications section, password inputs for credentials, mascot position
 - `public/app.js` - Settings URL routing, notification settings handlers
-- `public/styles.css` - Fixed button hover state
+- `public/styles.css` - Fixed button hover, category/hashtag styling
 
 ---
 

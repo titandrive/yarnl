@@ -3753,7 +3753,7 @@ function displayCurrentPatterns() {
                       </div>`}
                 <h3>${escapeHtml(pattern.name)}</h3>
                 ${pattern.completed && pattern.completed_date
-                    ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` (${formatTime(pattern.timer_seconds)})` : ''}</p>`
+                    ? `<p class="completion-date">${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` · ${formatTime(pattern.timer_seconds)}` : ''}</p>`
                     : (pattern.timer_seconds > 0
                         ? `<p class="pattern-status elapsed">Elapsed: ${formatTime(pattern.timer_seconds)}</p>`
                         : `<p class="pattern-status new">New Pattern</p>`)}
@@ -3861,7 +3861,7 @@ function displayPatterns() {
                       </div>`}
                 <h3>${escapeHtml(pattern.name)}</h3>
                 ${pattern.completed && pattern.completed_date
-                    ? `<p class="completion-date">Completed: ${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` (${formatTime(pattern.timer_seconds)})` : ''}</p>`
+                    ? `<p class="completion-date">${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` · ${formatTime(pattern.timer_seconds)}` : ''}</p>`
                     : (pattern.timer_seconds > 0
                         ? `<p class="pattern-status elapsed">Elapsed: ${formatTime(pattern.timer_seconds)}</p>`
                         : `<p class="pattern-status new">New Pattern</p>`)}
@@ -5360,7 +5360,9 @@ async function openEditModal(patternId) {
     const categoryContainer = document.getElementById('edit-pattern-category-container');
     categoryContainer.innerHTML = createCategoryDropdown('edit-category', pattern.category || getDefaultCategory());
 
-    document.getElementById('edit-pattern-description').value = pattern.description || '';
+    const descValue = pattern.description || '';
+    document.getElementById('edit-pattern-description').value = descValue;
+    document.getElementById('edit-desc-count').textContent = descValue.length;
 
     // Create hashtag selector with current pattern's hashtags
     const hashtagContainer = document.getElementById('edit-pattern-hashtags-container');

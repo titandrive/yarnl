@@ -170,8 +170,8 @@
                         </div>
                     </div>
                     <div class="form-group">
-                        <label for="new-pattern-description">Description</label>
-                        <input type="text" id="new-pattern-description" placeholder="Brief description (optional)">
+                        <label for="new-pattern-description">Description <span class="char-counter"><span id="new-desc-count">0</span>/40</span></label>
+                        <input type="text" id="new-pattern-description" placeholder="Brief description (optional)" maxlength="40" oninput="document.getElementById('new-desc-count').textContent = this.value.length">
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -1140,8 +1140,8 @@ Inc in each st around (12)
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="edit-pattern-description">Description</label>
-                    <textarea id="edit-pattern-description" rows="3"></textarea>
+                    <label for="edit-pattern-description">Description <span class="char-counter"><span id="edit-desc-count">0</span>/40</span></label>
+                    <textarea id="edit-pattern-description" rows="2" maxlength="40" oninput="document.getElementById('edit-desc-count').textContent = this.value.length"></textarea>
                 </div>
                 <div class="form-group">
                     <label>Hashtags</label>

@@ -386,6 +386,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initTimer();
     initBackups();
     initNavigation();
+    initServerEvents();
     loadPatterns();
     loadCurrentPatterns();
     loadCategories();
@@ -394,6 +395,41 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Handle initial URL hash or restore pattern viewer
     await handleInitialNavigation();
 });
+
+// Server-sent events for real-time notifications
+function initServerEvents() {
+    const eventSource = new EventSource(`${API_URL}/api/events`);
+
+    eventSource.onmessage = (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            handleServerEvent(data);
+        } catch (error) {
+            console.error('Error parsing server event:', error);
+        }
+    };
+
+    eventSource.onerror = (error) => {
+        console.log('SSE connection error, will reconnect automatically');
+    };
+}
+
+function handleServerEvent(event) {
+    switch (event.type) {
+        case 'backup_complete':
+            showToast('Scheduled backup complete', 'success', 4000);
+            // Refresh backups list if on settings page
+            if (document.getElementById('settings')?.classList.contains('active')) {
+                loadBackups();
+            }
+            break;
+        case 'backup_error':
+            showToast(`Backup failed: ${event.data.error}`, 'error', 5000);
+            break;
+        default:
+            console.log('Unknown server event:', event);
+    }
+}
 
 // Navigation initialization
 function initNavigation() {
@@ -1545,6 +1581,9 @@ function initSettings() {
     // Keyboard Shortcuts
     initKeyboardShortcuts();
 
+    // Notifications Section
+    initNotificationsSection();
+
     // Settings sidebar navigation
     const settingsNavBtns = document.querySelectorAll('.settings-nav-btn');
     const settingsSections = document.querySelectorAll('.settings-content .settings-section');
@@ -1565,6 +1604,12 @@ function initSettings() {
                     s.classList.remove('active');
                 }
             });
+
+            // Reset scroll position when switching sections
+            const settingsContent = document.querySelector('.settings-content');
+            if (settingsContent) {
+                settingsContent.scrollTop = 0;
+            }
 
             // Initialize section-specific content
             if (section === 'storage') {
@@ -2726,41 +2771,7 @@ function initBackups() {
     const scheduleSelect = document.getElementById('backup-schedule-select');
     const timeInput = document.getElementById('backup-time-input');
 
-    const updateScheduleVisibility = () => {
-        if (scheduleOptions) {
-            scheduleOptions.style.display = scheduleEnabled && scheduleEnabled.checked ? 'block' : 'none';
-        }
-    };
-
-    if (scheduleEnabled) {
-        scheduleEnabled.checked = localStorage.getItem('backupScheduleEnabled') === 'true';
-        updateScheduleVisibility();
-        scheduleEnabled.addEventListener('change', () => {
-            localStorage.setItem('backupScheduleEnabled', scheduleEnabled.checked);
-            updateScheduleVisibility();
-            checkScheduledBackup();
-            showToast(scheduleEnabled.checked ? 'Backup schedule enabled' : 'Backup schedule disabled');
-        });
-    }
-
-    if (scheduleSelect) {
-        scheduleSelect.value = localStorage.getItem('backupSchedule') || 'daily';
-        scheduleSelect.addEventListener('change', () => {
-            localStorage.setItem('backupSchedule', scheduleSelect.value);
-            checkScheduledBackup();
-            showToast('Backup frequency updated');
-        });
-    }
-
-    if (timeInput) {
-        timeInput.value = localStorage.getItem('backupTime') || '03:00';
-        timeInput.addEventListener('change', () => {
-            localStorage.setItem('backupTime', timeInput.value);
-            showToast('Backup time updated');
-        });
-    }
-
-    // Prune toggle and options
+    // Prune toggle and options (declared here so they're available in save/load functions)
     const pruneEnabled = document.getElementById('backup-prune-enabled');
     const pruneOptions = document.getElementById('backup-prune-options');
     const pruneMode = document.getElementById('backup-prune-mode');
@@ -2769,6 +2780,97 @@ function initBackups() {
     const pruneValue = document.getElementById('backup-prune-value');
     const pruneAgeValue = document.getElementById('backup-prune-age-value');
     const pruneAgeUnit = document.getElementById('backup-prune-age-unit');
+
+    const updateScheduleVisibility = () => {
+        if (scheduleOptions) {
+            scheduleOptions.style.display = scheduleEnabled && scheduleEnabled.checked ? 'block' : 'none';
+        }
+    };
+
+    // Save backup schedule settings to server
+    const saveScheduleSettings = async (showMessage = true, message = 'Backup settings updated') => {
+        try {
+            await fetch(`${API_URL}/api/backups/schedule`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    enabled: scheduleEnabled?.checked ?? false,
+                    schedule: scheduleSelect?.value ?? 'daily',
+                    time: timeInput?.value ?? '03:00',
+                    includePatterns: includePatterns?.checked ?? true,
+                    includeImages: includeImages?.checked ?? true,
+                    pruneEnabled: pruneEnabled?.checked ?? false,
+                    pruneMode: pruneMode?.value ?? 'keep',
+                    pruneValue: parseInt(pruneValue?.value ?? '5'),
+                    pruneAgeValue: parseInt(pruneAgeValue?.value ?? '30'),
+                    pruneAgeUnit: pruneAgeUnit?.value ?? 'days'
+                })
+            });
+            if (showMessage) showToast(message);
+        } catch (error) {
+            console.error('Error saving backup settings:', error);
+        }
+    };
+
+    // Load backup schedule settings from server
+    const loadScheduleSettings = async () => {
+        try {
+            const response = await fetch(`${API_URL}/api/backups/schedule`);
+            const settings = await response.json();
+
+            if (scheduleEnabled) scheduleEnabled.checked = settings.enabled;
+            if (scheduleSelect) scheduleSelect.value = settings.schedule || 'daily';
+            if (timeInput) timeInput.value = settings.time || '03:00';
+            if (includePatterns) includePatterns.checked = settings.includePatterns ?? true;
+            if (includeImages) includeImages.checked = settings.includeImages ?? true;
+            if (pruneEnabled) pruneEnabled.checked = settings.pruneEnabled ?? false;
+            if (pruneMode) pruneMode.value = settings.pruneMode || 'keep';
+            if (pruneValue) pruneValue.value = settings.pruneValue || '5';
+            if (pruneAgeValue) pruneAgeValue.value = settings.pruneAgeValue || '30';
+            if (pruneAgeUnit) pruneAgeUnit.value = settings.pruneAgeUnit || 'days';
+
+            updateScheduleVisibility();
+            updatePruneVisibility();
+            updatePruneModeContainers();
+        } catch (error) {
+            console.error('Error loading backup settings:', error);
+        }
+    };
+
+    if (scheduleEnabled) {
+        scheduleEnabled.addEventListener('change', () => {
+            updateScheduleVisibility();
+            saveScheduleSettings(true, scheduleEnabled.checked ? 'Backup schedule enabled' : 'Backup schedule disabled');
+        });
+    }
+
+    if (scheduleSelect) {
+        scheduleSelect.addEventListener('change', () => {
+            saveScheduleSettings(true, 'Backup frequency updated');
+        });
+    }
+
+    if (timeInput) {
+        let lastTimeValue = timeInput.value;
+        timeInput.addEventListener('blur', () => {
+            if (timeInput.value !== lastTimeValue) {
+                lastTimeValue = timeInput.value;
+                saveScheduleSettings(true, 'Backup time updated');
+            }
+        });
+    }
+
+    if (includePatterns) {
+        includePatterns.addEventListener('change', () => {
+            saveScheduleSettings(true, includePatterns.checked ? 'Patterns will be included' : 'Patterns excluded from backup');
+        });
+    }
+
+    if (includeImages) {
+        includeImages.addEventListener('change', () => {
+            saveScheduleSettings(true, includeImages.checked ? 'Images will be included' : 'Images excluded from backup');
+        });
+    }
 
     const updatePruneVisibility = () => {
         if (pruneOptions) {
@@ -2812,58 +2914,168 @@ function initBackups() {
     };
 
     if (pruneEnabled) {
-        pruneEnabled.checked = localStorage.getItem('backupPruneEnabled') === 'true';
-        updatePruneVisibility();
         pruneEnabled.addEventListener('change', async () => {
-            localStorage.setItem('backupPruneEnabled', pruneEnabled.checked);
             updatePruneVisibility();
             if (pruneEnabled.checked) {
                 await runPruneIfEnabled();
             }
-            showToast(pruneEnabled.checked ? 'Auto-prune enabled' : 'Auto-prune disabled');
+            saveScheduleSettings(true, pruneEnabled.checked ? 'Auto-prune enabled' : 'Auto-prune disabled');
         });
     }
 
     if (pruneMode) {
-        pruneMode.value = localStorage.getItem('backupPruneMode') || 'keep';
-        updatePruneModeContainers();
         pruneMode.addEventListener('change', () => {
-            localStorage.setItem('backupPruneMode', pruneMode.value);
             updatePruneModeContainers();
             runPruneIfEnabled();
-            showToast('Prune mode updated');
+            saveScheduleSettings(true, 'Prune mode updated');
         });
     }
 
     if (pruneValue) {
-        pruneValue.value = localStorage.getItem('backupPruneValue') || '5';
         pruneValue.addEventListener('change', () => {
-            localStorage.setItem('backupPruneValue', pruneValue.value);
             runPruneIfEnabled();
-            showToast('Prune setting updated');
+            saveScheduleSettings(true, 'Prune setting updated');
         });
     }
 
     if (pruneAgeValue) {
-        pruneAgeValue.value = localStorage.getItem('backupPruneAgeValue') || '30';
         pruneAgeValue.addEventListener('change', () => {
-            localStorage.setItem('backupPruneAgeValue', pruneAgeValue.value);
             runPruneIfEnabled();
-            showToast('Prune setting updated');
+            saveScheduleSettings(true, 'Prune setting updated');
         });
     }
 
     if (pruneAgeUnit) {
-        pruneAgeUnit.value = localStorage.getItem('backupPruneAgeUnit') || 'days';
         pruneAgeUnit.addEventListener('change', () => {
-            localStorage.setItem('backupPruneAgeUnit', pruneAgeUnit.value);
             runPruneIfEnabled();
-            showToast('Prune setting updated');
+            saveScheduleSettings(true, 'Prune setting updated');
         });
     }
 
     loadBackups();
-    checkScheduledBackup();
+    loadScheduleSettings();
+}
+
+// Initialize Notifications Section
+function initNotificationsSection() {
+    const pushoverEnabled = document.getElementById('pushover-enabled');
+    const pushoverSettings = document.getElementById('pushover-settings');
+    const pushoverUserKey = document.getElementById('pushover-user-key');
+    const pushoverAppToken = document.getElementById('pushover-app-token');
+    const pushoverTestBtn = document.getElementById('pushover-test-btn');
+    const notifyBackupComplete = document.getElementById('notify-backup-complete');
+    const notifyBackupError = document.getElementById('notify-backup-error');
+
+    if (!pushoverEnabled) return;
+
+    // Load settings from server
+    const loadNotificationSettings = async () => {
+        try {
+            const response = await fetch(`${API_URL}/api/notifications/settings`);
+            const settings = await response.json();
+
+            pushoverEnabled.checked = settings.pushoverEnabled;
+            pushoverSettings.style.display = settings.pushoverEnabled ? 'block' : 'none';
+            pushoverUserKey.value = settings.pushoverUserKey || '';
+            pushoverAppToken.value = settings.pushoverAppToken || '';
+            notifyBackupComplete.checked = settings.notifyBackupComplete;
+            notifyBackupError.checked = settings.notifyBackupError;
+        } catch (error) {
+            console.error('Error loading notification settings:', error);
+        }
+    };
+
+    // Save settings to server
+    const saveNotificationSettings = async (data, message) => {
+        try {
+            await fetch(`${API_URL}/api/notifications/settings`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            if (message) showToast(message, 'success');
+        } catch (error) {
+            console.error('Error saving notification settings:', error);
+            showToast('Failed to save settings', 'error');
+        }
+    };
+
+    // Toggle Pushover settings visibility
+    pushoverEnabled.addEventListener('change', () => {
+        pushoverSettings.style.display = pushoverEnabled.checked ? 'block' : 'none';
+        saveNotificationSettings({ pushoverEnabled: pushoverEnabled.checked }, 'Pushover ' + (pushoverEnabled.checked ? 'enabled' : 'disabled'));
+    });
+
+    // Clear masked value on focus so user can enter new key
+    pushoverUserKey.addEventListener('focus', () => {
+        if (pushoverUserKey.value === '••••••••') {
+            pushoverUserKey.value = '';
+        }
+    });
+
+    pushoverAppToken.addEventListener('focus', () => {
+        if (pushoverAppToken.value === '••••••••') {
+            pushoverAppToken.value = '';
+        }
+    });
+
+    // Save credentials on blur
+    pushoverUserKey.addEventListener('blur', () => {
+        if (pushoverUserKey.value && pushoverUserKey.value !== '••••••••') {
+            saveNotificationSettings({ pushoverUserKey: pushoverUserKey.value }, 'User key saved');
+            pushoverUserKey.value = '••••••••';
+        } else if (!pushoverUserKey.value) {
+            // Restore mask if field left empty (user key still saved on server)
+            loadNotificationSettings();
+        }
+    });
+
+    pushoverAppToken.addEventListener('blur', () => {
+        if (pushoverAppToken.value && pushoverAppToken.value !== '••••••••') {
+            saveNotificationSettings({ pushoverAppToken: pushoverAppToken.value }, 'API token saved');
+            pushoverAppToken.value = '••••••••';
+        } else if (!pushoverAppToken.value) {
+            // Restore mask if field left empty (token still saved on server)
+            loadNotificationSettings();
+        }
+    });
+
+    // Toggle event notifications
+    notifyBackupComplete.addEventListener('change', () => {
+        saveNotificationSettings({ notifyBackupComplete: notifyBackupComplete.checked },
+            'Backup complete notification ' + (notifyBackupComplete.checked ? 'enabled' : 'disabled'));
+    });
+
+    notifyBackupError.addEventListener('change', () => {
+        saveNotificationSettings({ notifyBackupError: notifyBackupError.checked },
+            'Backup error notification ' + (notifyBackupError.checked ? 'enabled' : 'disabled'));
+    });
+
+    // Test notification
+    pushoverTestBtn.addEventListener('click', async () => {
+        pushoverTestBtn.disabled = true;
+        pushoverTestBtn.textContent = 'Sending...';
+
+        try {
+            const response = await fetch(`${API_URL}/api/notifications/test`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+
+            if (response.ok) {
+                showToast('Test notification sent!', 'success');
+            } else {
+                showToast(data.error || 'Failed to send notification', 'error');
+            }
+        } catch (error) {
+            showToast('Failed to send notification', 'error');
+        } finally {
+            pushoverTestBtn.disabled = false;
+            pushoverTestBtn.textContent = 'Send Test';
+        }
+    });
+
+    loadNotificationSettings();
 }
 
 async function loadOrphanedImagesCount() {
@@ -3033,75 +3245,6 @@ async function runPrune(setting) {
         }
     } catch (error) {
         console.error('Error pruning backups:', error);
-    }
-}
-
-async function checkScheduledBackup() {
-    const enabled = localStorage.getItem('backupScheduleEnabled') === 'true';
-    if (!enabled) return;
-
-    const schedule = localStorage.getItem('backupSchedule') || 'daily';
-
-    const backupTime = localStorage.getItem('backupTime') || '03:00';
-    const [targetHour, targetMinute] = backupTime.split(':').map(Number);
-
-    const lastBackup = localStorage.getItem('lastScheduledBackup');
-    const now = new Date();
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-
-    // Check if we're within the backup time window (within 30 minutes after target time)
-    const isInTimeWindow = (currentHour === targetHour && currentMinute >= targetMinute) ||
-        (currentHour === targetHour + 1 && currentMinute < targetMinute);
-
-    // For immediate check on page load, also allow if time has passed today
-    const timePassed = (currentHour > targetHour) || (currentHour === targetHour && currentMinute >= targetMinute);
-
-    let shouldBackup = false;
-
-    if (!lastBackup) {
-        // First backup - run if time has passed today
-        shouldBackup = timePassed;
-    } else {
-        const lastDate = new Date(lastBackup);
-        const diffMs = now - lastDate;
-        const diffDays = diffMs / (1000 * 60 * 60 * 24);
-
-        // Check if enough time has passed AND we're at/past the scheduled time
-        if (schedule === 'daily' && diffDays >= 0.9 && timePassed) shouldBackup = true;
-        if (schedule === 'weekly' && diffDays >= 6.9 && timePassed) shouldBackup = true;
-        if (schedule === 'monthly' && diffDays >= 29 && timePassed) shouldBackup = true;
-    }
-
-    if (shouldBackup) {
-        console.log('Running scheduled backup...');
-        const includePatterns = document.getElementById('backup-include-patterns')?.checked ?? true;
-        const includeImages = document.getElementById('backup-include-images')?.checked ?? true;
-
-        try {
-            const response = await fetch(`${API_URL}/api/backups`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    clientSettings: getClientSettings(),
-                    includePatterns,
-                    includeImages
-                })
-            });
-
-            if (response.ok) {
-                localStorage.setItem('lastScheduledBackup', now.toISOString());
-                loadBackups();
-
-                // Run prune after scheduled backup
-                const pruneSetting = localStorage.getItem('backupPrune');
-                if (pruneSetting && pruneSetting !== 'disabled') {
-                    await runPrune(pruneSetting);
-                }
-            }
-        } catch (error) {
-            console.error('Error creating scheduled backup:', error);
-        }
     }
 }
 

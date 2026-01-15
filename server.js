@@ -1975,6 +1975,12 @@ async function createScheduledBackup() {
     // Broadcast backup completion to all connected clients
     broadcastEvent('backup_complete', { filename: backupFilename });
 
+    // Send Pushover notification if enabled
+    const notifySettings = await loadNotificationSettings();
+    if (notifySettings.notifyBackupComplete) {
+      await sendPushoverNotification('Yarnl Backup Complete', `Backup created: ${backupFilename}`);
+    }
+
     // Run prune if enabled
     if (settings.pruneEnabled) {
       runScheduledPrune(settings);
@@ -1982,6 +1988,12 @@ async function createScheduledBackup() {
   } catch (error) {
     console.error('Error creating scheduled backup:', error);
     broadcastEvent('backup_error', { error: error.message });
+
+    // Send Pushover notification for error if enabled
+    const notifySettings = await loadNotificationSettings();
+    if (notifySettings.notifyBackupError) {
+      await sendPushoverNotification('Yarnl Backup Failed', `Error: ${error.message}`);
+    }
   }
 }
 
@@ -2045,6 +2057,131 @@ app.post('/api/backups/schedule', async (req, res) => {
     res.json({ success: true, settings: newSettings });
   } catch (error) {
     console.error('Error saving backup settings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
+//  NOTIFICATIONS (Pushover)
+// ============================================
+
+const defaultNotificationSettings = {
+  pushoverEnabled: false,
+  pushoverUserKey: '',
+  pushoverAppToken: '',
+  notifyBackupComplete: true,
+  notifyBackupError: true
+};
+
+async function loadNotificationSettings() {
+  try {
+    const result = await pool.query(
+      "SELECT value FROM settings WHERE key = 'notifications'"
+    );
+    if (result.rows.length > 0) {
+      return { ...defaultNotificationSettings, ...result.rows[0].value };
+    }
+  } catch (error) {
+    console.error('Error loading notification settings:', error);
+  }
+  return defaultNotificationSettings;
+}
+
+async function saveNotificationSettings(settings) {
+  try {
+    await pool.query(`
+      INSERT INTO settings (key, value, updated_at)
+      VALUES ('notifications', $1, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()
+    `, [JSON.stringify(settings)]);
+  } catch (error) {
+    console.error('Error saving notification settings:', error);
+  }
+}
+
+async function sendPushoverNotification(title, message) {
+  const settings = await loadNotificationSettings();
+  if (!settings.pushoverEnabled || !settings.pushoverUserKey || !settings.pushoverAppToken) {
+    return false;
+  }
+
+  try {
+    const response = await fetch('https://api.pushover.net/1/messages.json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        token: settings.pushoverAppToken,
+        user: settings.pushoverUserKey,
+        title: title,
+        message: message
+      })
+    });
+    const data = await response.json();
+    if (data.status === 1) {
+      console.log('Pushover notification sent successfully');
+      return true;
+    } else {
+      console.error('Pushover error:', data.errors);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error sending Pushover notification:', error);
+    return false;
+  }
+}
+
+// Get notification settings
+app.get('/api/notifications/settings', async (req, res) => {
+  try {
+    const settings = await loadNotificationSettings();
+    // Don't expose tokens in response, just show if they're set
+    res.json({
+      ...settings,
+      pushoverUserKey: settings.pushoverUserKey ? '••••••••' : '',
+      pushoverAppToken: settings.pushoverAppToken ? '••••••••' : ''
+    });
+  } catch (error) {
+    console.error('Error getting notification settings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Save notification settings
+app.post('/api/notifications/settings', async (req, res) => {
+  try {
+    const currentSettings = await loadNotificationSettings();
+    const newSettings = { ...currentSettings };
+
+    // Only update fields that are provided
+    if (req.body.pushoverEnabled !== undefined) newSettings.pushoverEnabled = req.body.pushoverEnabled;
+    if (req.body.pushoverUserKey && req.body.pushoverUserKey !== '••••••••') {
+      newSettings.pushoverUserKey = req.body.pushoverUserKey;
+    }
+    if (req.body.pushoverAppToken && req.body.pushoverAppToken !== '••••••••') {
+      newSettings.pushoverAppToken = req.body.pushoverAppToken;
+    }
+    if (req.body.notifyBackupComplete !== undefined) newSettings.notifyBackupComplete = req.body.notifyBackupComplete;
+    if (req.body.notifyBackupError !== undefined) newSettings.notifyBackupError = req.body.notifyBackupError;
+
+    await saveNotificationSettings(newSettings);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving notification settings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Test Pushover notification
+app.post('/api/notifications/test', async (req, res) => {
+  try {
+    const success = await sendPushoverNotification('Yarnl Test', 'Pushover notifications are working!');
+    if (success) {
+      res.json({ success: true });
+    } else {
+      res.status(400).json({ error: 'Failed to send notification. Check your credentials.' });
+    }
+  } catch (error) {
+    console.error('Error testing notification:', error);
     res.status(500).json({ error: error.message });
   }
 });

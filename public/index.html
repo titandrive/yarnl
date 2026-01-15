@@ -10,7 +10,7 @@
         document.documentElement.setAttribute('data-theme', theme);
     </script>
     <link rel="icon" type="image/png" sizes="128x128" href="yarboi.png">
-    <link rel="stylesheet" href="styles.css?v=39">
+    <link rel="stylesheet" href="styles.css?v=41">
 </head>
 <body>
     <div class="container">
@@ -274,6 +274,13 @@ Inc in each st around (12)
                             <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
                         </svg>
                         <span>Storage</span>
+                    </button>
+                    <button class="settings-nav-btn" data-section="notifications">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                        <span>Notifications</span>
                     </button>
                     <button class="settings-nav-btn" data-section="about">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -713,6 +720,69 @@ Inc in each st around (12)
                             </button>
                         </div>
                         <ul class="orphaned-images-list" id="orphaned-images-list"></ul>
+                    </section>
+
+                    <!-- Notifications Section -->
+                    <section class="settings-section" data-section="notifications">
+                        <h3>Notifications</h3>
+                        <p class="section-description">Configure push notifications for app events</p>
+
+                        <h4 class="settings-subheading">Pushover</h4>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Enable Pushover</label>
+                                <p class="setting-description">Send notifications to your device</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="pushover-enabled">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div id="pushover-settings" style="display: none;">
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>User Key</label>
+                                    <p class="setting-description">Your Pushover user key</p>
+                                </div>
+                                <input type="password" id="pushover-user-key" class="settings-input" placeholder="Enter user key">
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>API Token</label>
+                                    <p class="setting-description">Your Pushover API token</p>
+                                </div>
+                                <input type="password" id="pushover-app-token" class="settings-input" placeholder="Enter app token">
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>Test Connection</label>
+                                    <p class="setting-description">Send a test notification</p>
+                                </div>
+                                <button id="pushover-test-btn" class="btn btn-secondary">Send Test</button>
+                            </div>
+                        </div>
+
+                        <h4 class="settings-subheading">Events</h4>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Backup Complete</label>
+                                <p class="setting-description">Notify when backups finish</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="notify-backup-complete" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Backup Errors</label>
+                                <p class="setting-description">Notify when backups fail</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="notify-backup-error" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </section>
 
                     <!-- About Section -->

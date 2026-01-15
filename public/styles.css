@@ -727,7 +727,7 @@ header {
 }
 
 .btn-primary:hover {
-    background: #7c3aed;
+    background: var(--primary-hover);
 }
 
 .btn-secondary {

@@ -4,6 +4,34 @@ A running log of features and changes made to Yarnl.
 
 ---
 
+## 2026-01-15: Inline Description Editing & Library Card Redesign
+
+Major overhaul of library card UI with inline editing and icon-only action buttons.
+
+### Features
+- **Inline Description Editing**: Click description text to edit in place (no modal needed)
+- **Character Counter**: Shows 0/45 limit while editing, enforces max length
+- **Edit UX**: Cursor placed at end on click, Enter or click away to save, Escape to cancel
+- **Empty Placeholder**: Shows "+ Add description" in italics when no description
+- **Icon-Only Action Buttons**: Replaced large text buttons with compact icon buttons (star, check, edit, trash)
+- **Inline Delete Confirm**: Two-click delete (click trash, then checkmark to confirm)
+- **Fixed Card Size**: All cards now uniform 220x320px, no flexing/stretching
+- **Compact Completion Date**: Changed from "Completed: 1/15/2026 (0:00:13)" to "1/15/2026 · 0:00:13"
+
+### Technical Details
+- `startInlineDescEdit()` uses contenteditable for seamless editing experience
+- Character counter element inserted as sibling, removed on save/cancel
+- `window.getSelection().removeAllRanges()` prevents highlight flash on save
+- Cards use `display: block` with fixed height for full-area clickability
+- Subtle opacity hover effect (0.7) instead of jarring color change
+
+### Files Modified
+- `public/app.js` - Inline edit function, card rendering with icon buttons, delete confirm logic
+- `public/styles.css` - Card sizing, action buttons, inline counter, description editing states
+- `public/index.html` - Description field maxlength (45) and character counters in modals
+
+---
+
 ## 2026-01-15: Upload Form Labels & Toggle Styling
 
 Improved form label clarity and consistency in upload/create pattern forms.

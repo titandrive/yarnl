@@ -1,6 +1,30 @@
 // API base URL
 const API_URL = '';
 
+// Toast notification system
+function showToast(message, type = 'success', duration = 2000) {
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `toast${type === 'error' ? ' toast-error' : ''}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+
+    requestAnimationFrame(() => {
+        toast.classList.add('show');
+    });
+
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, duration);
+}
+
 // State
 let patterns = [];
 let currentPatterns = [];
@@ -39,6 +63,7 @@ function setDefaultCategory(category) {
     defaultCategory = category;
     localStorage.setItem('defaultCategory', category);
     renderCategoriesList();
+    showToast('Default category updated');
 }
 
 // PDF Viewer State
@@ -537,6 +562,7 @@ function initTheme() {
             const newTheme = themeSelect.value;
             document.documentElement.setAttribute('data-theme', newTheme);
             localStorage.setItem('theme', newTheme);
+            showToast('Theme updated');
         });
     }
 
@@ -547,6 +573,7 @@ function initTheme() {
             const newGradient = gradientCheckbox.checked;
             document.documentElement.setAttribute('data-gradient', newGradient);
             localStorage.setItem('useGradient', newGradient);
+            showToast(newGradient ? 'Gradient enabled' : 'Gradient disabled');
         });
     }
 
@@ -590,6 +617,7 @@ function initTheme() {
             if (headerLogo) {
                 headerLogo.style.display = show ? 'inline' : 'none';
             }
+            showToast(show ? 'Logo shown' : 'Logo hidden');
         });
     }
 
@@ -618,6 +646,7 @@ function initTheme() {
             if (taglineInputContainer) {
                 taglineInputContainer.style.display = show ? 'flex' : 'none';
             }
+            showToast(show ? 'Tagline shown' : 'Tagline hidden');
         });
     }
 
@@ -682,6 +711,7 @@ function initTheme() {
             if (statusBadgeCheckbox) statusBadgeCheckbox.checked = true;
             if (categoryBadgeCheckbox) categoryBadgeCheckbox.checked = true;
             displayPatterns();
+            showToast('Settings reset to defaults');
         });
     }
 }
@@ -1406,6 +1436,7 @@ function initSettings() {
             showTabCounts = tabCountsCheckbox.checked;
             localStorage.setItem('showTabCounts', showTabCounts);
             updateTabCounts();
+            showToast(showTabCounts ? 'Tab counts shown' : 'Tab counts hidden');
         });
     }
 
@@ -1416,6 +1447,7 @@ function initSettings() {
         defaultPageSelect.value = savedDefaultPage;
         defaultPageSelect.addEventListener('change', () => {
             localStorage.setItem('defaultPage', defaultPageSelect.value);
+            showToast('Default page updated');
         });
     }
 
@@ -1426,6 +1458,7 @@ function initSettings() {
         defaultZoomSelect.value = savedDefaultZoom;
         defaultZoomSelect.addEventListener('change', () => {
             localStorage.setItem('defaultPdfZoom', defaultZoomSelect.value);
+            showToast('Default zoom updated');
         });
     }
 
@@ -1441,6 +1474,7 @@ function initSettings() {
             localStorage.setItem('showTypeBadge', showTypeBadge);
             displayPatterns();
             displayCurrentPatterns();
+            showToast(showTypeBadge ? 'Type badge shown' : 'Type badge hidden');
         });
     }
 
@@ -1451,6 +1485,7 @@ function initSettings() {
             localStorage.setItem('showStatusBadge', showStatusBadge);
             displayPatterns();
             displayCurrentPatterns();
+            showToast(showStatusBadge ? 'Status badge shown' : 'Status badge hidden');
         });
     }
 
@@ -1461,6 +1496,7 @@ function initSettings() {
             localStorage.setItem('showCategoryBadge', showCategoryBadge);
             displayPatterns();
             displayCurrentPatterns();
+            showToast(showCategoryBadge ? 'Category badge shown' : 'Category badge hidden');
         });
     }
 
@@ -1612,6 +1648,7 @@ function initKeyboardShortcuts() {
                 keyboardShortcuts[shortcutName][index] = '';
                 localStorage.setItem('keyboardShortcuts', JSON.stringify(keyboardShortcuts));
                 updateShortcutDisplays();
+                showToast('Shortcut cleared');
             }
         });
     });
@@ -1643,6 +1680,7 @@ function initKeyboardShortcuts() {
         listeningBtn.classList.remove('listening');
         updateShortcutDisplays();
         listeningBtn = null;
+        showToast('Shortcut updated');
     }, true);
 
     // Reset to defaults button
@@ -1651,6 +1689,7 @@ function initKeyboardShortcuts() {
             keyboardShortcuts = JSON.parse(JSON.stringify(defaultShortcuts));
             localStorage.setItem('keyboardShortcuts', JSON.stringify(keyboardShortcuts));
             updateShortcutDisplays();
+            showToast('Shortcuts reset to defaults');
         });
     }
 }
@@ -2685,6 +2724,7 @@ function initBackups() {
             localStorage.setItem('backupScheduleEnabled', scheduleEnabled.checked);
             updateScheduleVisibility();
             checkScheduledBackup();
+            showToast(scheduleEnabled.checked ? 'Backup schedule enabled' : 'Backup schedule disabled');
         });
     }
 
@@ -2693,6 +2733,7 @@ function initBackups() {
         scheduleSelect.addEventListener('change', () => {
             localStorage.setItem('backupSchedule', scheduleSelect.value);
             checkScheduledBackup();
+            showToast('Backup frequency updated');
         });
     }
 
@@ -2700,6 +2741,7 @@ function initBackups() {
         timeInput.value = localStorage.getItem('backupTime') || '03:00';
         timeInput.addEventListener('change', () => {
             localStorage.setItem('backupTime', timeInput.value);
+            showToast('Backup time updated');
         });
     }
 
@@ -2763,6 +2805,7 @@ function initBackups() {
             if (pruneEnabled.checked) {
                 await runPruneIfEnabled();
             }
+            showToast(pruneEnabled.checked ? 'Auto-prune enabled' : 'Auto-prune disabled');
         });
     }
 
@@ -2773,6 +2816,7 @@ function initBackups() {
             localStorage.setItem('backupPruneMode', pruneMode.value);
             updatePruneModeContainers();
             runPruneIfEnabled();
+            showToast('Prune mode updated');
         });
     }
 
@@ -2781,6 +2825,7 @@ function initBackups() {
         pruneValue.addEventListener('change', () => {
             localStorage.setItem('backupPruneValue', pruneValue.value);
             runPruneIfEnabled();
+            showToast('Prune setting updated');
         });
     }
 
@@ -2789,6 +2834,7 @@ function initBackups() {
         pruneAgeValue.addEventListener('change', () => {
             localStorage.setItem('backupPruneAgeValue', pruneAgeValue.value);
             runPruneIfEnabled();
+            showToast('Prune setting updated');
         });
     }
 
@@ -2797,6 +2843,7 @@ function initBackups() {
         pruneAgeUnit.addEventListener('change', () => {
             localStorage.setItem('backupPruneAgeUnit', pruneAgeUnit.value);
             runPruneIfEnabled();
+            showToast('Prune setting updated');
         });
     }
 
@@ -3082,6 +3129,7 @@ async function addCategory() {
 
         input.value = '';
         await loadCategories();
+        showToast('Category added');
     } catch (error) {
         console.error('Error adding category:', error);
         alert(error.message);
@@ -3111,6 +3159,7 @@ async function editCategory(oldName) {
 
         await loadCategories();
         await loadPatterns();
+        showToast('Category renamed');
     } catch (error) {
         console.error('Error updating category:', error);
         alert(error.message);
@@ -3136,6 +3185,7 @@ async function deleteCategory(name, patternCount) {
         }
 
         await loadCategories();
+        showToast('Category deleted');
     } catch (error) {
         console.error('Error deleting category:', error);
         alert(error.message);
@@ -3188,6 +3238,7 @@ async function addHashtag() {
 
         input.value = '';
         await loadHashtags();
+        showToast('Hashtag added');
     } catch (error) {
         console.error('Error adding hashtag:', error);
         alert(error.message);
@@ -3211,6 +3262,7 @@ async function editHashtag(id, oldName) {
         }
 
         await loadHashtags();
+        showToast('Hashtag renamed');
     } catch (error) {
         console.error('Error updating hashtag:', error);
         alert(error.message);
@@ -3231,6 +3283,7 @@ async function deleteHashtag(id) {
         }
 
         await loadHashtags();
+        showToast('Hashtag deleted');
     } catch (error) {
         console.error('Error deleting hashtag:', error);
         alert(error.message);

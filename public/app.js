@@ -3757,7 +3757,7 @@ function displayCurrentPatterns() {
                     : (pattern.timer_seconds > 0
                         ? `<p class="pattern-status elapsed">Elapsed: ${formatTime(pattern.timer_seconds)}</p>`
                         : `<p class="pattern-status new">New Pattern</p>`)}
-                ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
+                <p class="pattern-description" onclick="event.stopPropagation(); startInlineDescEdit(this, '${pattern.id}')" title="Click to edit">${pattern.description ? escapeHtml(pattern.description) : '<span class="add-description">+ Add description</span>'}</p>
                 ${hashtagsHtml}
             </div>
         `;
@@ -3865,7 +3865,7 @@ function displayPatterns() {
                     : (pattern.timer_seconds > 0
                         ? `<p class="pattern-status elapsed">Elapsed: ${formatTime(pattern.timer_seconds)}</p>`
                         : `<p class="pattern-status new">New Pattern</p>`)}
-                ${pattern.description ? `<p class="pattern-description">${escapeHtml(pattern.description)}</p>` : ''}
+                <p class="pattern-description" onclick="event.stopPropagation(); startInlineDescEdit(this, '${pattern.id}')" title="Click to edit">${pattern.description ? escapeHtml(pattern.description) : '<span class="add-description">+ Add description</span>'}</p>
                 ${hashtagsHtml}
                 <div class="pattern-actions" onclick="event.stopPropagation()">
                     <button class="action-btn ${pattern.is_current ? 'active' : ''}"
@@ -3953,6 +3953,107 @@ function handleCardDelete(btn, id) {
 
     // Second click - actually delete
     deletePattern(id);
+}
+
+function startInlineDescEdit(element, patternId) {
+    // Don't start editing if already editing
+    if (element.isContentEditable) return;
+
+    const maxLen = 45;
+    const currentText = element.querySelector('.add-description') ? '' : element.textContent;
+
+    element.textContent = currentText;
+    element.contentEditable = true;
+    element.classList.add('editing');
+
+    // Add character counter
+    const counter = document.createElement('span');
+    counter.className = 'inline-char-counter';
+    counter.textContent = `${currentText.length}/${maxLen}`;
+    element.parentNode.insertBefore(counter, element.nextSibling);
+
+    element.focus();
+
+    // Put cursor at end
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const updateCounter = () => {
+        const len = element.textContent.length;
+        counter.textContent = `${len}/${maxLen}`;
+        counter.classList.toggle('over', len > maxLen);
+    };
+
+    const saveDesc = async () => {
+        window.getSelection().removeAllRanges();
+        element.contentEditable = false;
+        element.classList.remove('editing');
+        counter.remove();
+        const newDesc = element.textContent.trim().substring(0, maxLen);
+
+        // Show placeholder immediately if empty
+        if (!newDesc) {
+            element.innerHTML = '<span class="add-description">+ Add description</span>';
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/api/patterns/${patternId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ description: newDesc })
+            });
+            if (response.ok) {
+                await loadPatterns();
+            }
+        } catch (error) {
+            console.error('Error updating description:', error);
+            loadPatterns();
+        }
+    };
+
+    const handleInput = () => {
+        // Enforce max length
+        if (element.textContent.length > maxLen) {
+            const selection = window.getSelection();
+            const cursorPos = selection.focusOffset;
+            element.textContent = element.textContent.substring(0, maxLen);
+            // Restore cursor
+            const range = document.createRange();
+            range.setStart(element.firstChild || element, Math.min(cursorPos, maxLen));
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+        updateCounter();
+    };
+
+    const handleKeydown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            element.blur();
+        } else if (e.key === 'Escape') {
+            element.removeEventListener('blur', handleBlur);
+            element.removeEventListener('input', handleInput);
+            element.contentEditable = false;
+            element.classList.remove('editing');
+            counter.remove();
+            loadPatterns();
+        }
+    };
+
+    const handleBlur = () => {
+        element.removeEventListener('keydown', handleKeydown);
+        element.removeEventListener('input', handleInput);
+        saveDesc();
+    };
+
+    element.addEventListener('input', handleInput);
+    element.addEventListener('keydown', handleKeydown);
+    element.addEventListener('blur', handleBlur, { once: true });
 }
 
 function resetCardDeleteButtons() {

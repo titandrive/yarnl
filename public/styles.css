@@ -1006,10 +1006,39 @@ header {
     font-size: 0.85rem;
     margin: 8px 0 0 0;
     line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    cursor: pointer;
+    height: 2.8em;
+    width: 100%;
     overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+}
+
+.pattern-description:hover:not(.editing) {
+    opacity: 0.7;
+}
+
+.pattern-description .add-description {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.pattern-description.editing {
+    outline: none;
+    -webkit-line-clamp: unset;
+    overflow: visible;
+}
+
+.inline-char-counter {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: right;
+    margin-top: 2px;
+}
+
+.inline-char-counter.over {
+    color: var(--danger-color);
 }
 
 .pattern-actions {

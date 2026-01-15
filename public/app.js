@@ -35,6 +35,31 @@ function parsePatternFromFilename(filename) {
         .join(' ');
 }
 
+// Convert pattern name to URL-friendly slug
+function slugify(name) {
+    return name
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+}
+
+// Find pattern by slug (returns first match)
+function findPatternBySlug(slug) {
+    return patterns.find(p => slugify(p.name) === slug) ||
+           currentPatterns.find(p => slugify(p.name) === slug);
+}
+
+// Get pattern URL slug (with ID fallback for uniqueness)
+function getPatternSlug(pattern) {
+    const baseSlug = slugify(pattern.name);
+    // Check if there are multiple patterns with the same slug
+    const duplicates = patterns.filter(p => slugify(p.name) === baseSlug);
+    if (duplicates.length > 1) {
+        return `${baseSlug}-${pattern.id}`;
+    }
+    return baseSlug;
+}
+
 // State
 let patterns = [];
 let currentPatterns = [];
@@ -387,7 +412,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initBackups();
     initNavigation();
     initServerEvents();
-    loadPatterns();
+    await loadPatterns();
     loadCurrentPatterns();
     loadCategories();
     loadHashtags();
@@ -457,8 +482,15 @@ async function handleInitialNavigation() {
     // URL hash takes priority (for cmd+click opening new tab)
     if (hash) {
         if (hash.startsWith('pattern/')) {
-            const patternId = hash.split('/')[1];
-            await openPDFViewer(parseInt(patternId), false);
+            const slug = hash.split('/')[1];
+            // Try to find pattern by slug first, then by ID for backwards compatibility
+            let pattern = findPatternBySlug(slug);
+            if (!pattern && !isNaN(parseInt(slug))) {
+                pattern = patterns.find(p => p.id === parseInt(slug));
+            }
+            if (pattern) {
+                await openPDFViewer(pattern.id, false);
+            }
         } else if (hash.startsWith('settings/')) {
             const section = hash.split('/')[1];
             switchToTab('settings', false);
@@ -475,8 +507,12 @@ async function handleInitialNavigation() {
     // No hash - check sessionStorage for refresh persistence
     const viewingPatternId = sessionStorage.getItem('viewingPatternId');
     if (viewingPatternId) {
-        await openPDFViewer(parseInt(viewingPatternId), false);
-        history.replaceState({ view: `pattern/${viewingPatternId}` }, '', `#pattern/${viewingPatternId}`);
+        const pattern = patterns.find(p => p.id === parseInt(viewingPatternId));
+        if (pattern) {
+            await openPDFViewer(parseInt(viewingPatternId), false);
+            const slug = getPatternSlug(pattern);
+            history.replaceState({ view: `pattern/${slug}` }, '', `#pattern/${slug}`);
+        }
         return;
     }
 
@@ -632,7 +668,7 @@ function initTheme() {
     // Tagline customization
     const taglineInput = document.getElementById('tagline-input');
     const headerTagline = document.getElementById('header-tagline');
-    const defaultTagline = 'Your Crochet Project Companion';
+    const defaultTagline = 'Your self-hosted crochet companion';
     const savedTagline = localStorage.getItem('tagline') || defaultTagline;
 
     if (headerTagline) {
@@ -860,12 +896,16 @@ function switchToTab(tabName, pushHistory = true) {
 function getCurrentView() {
     // Check if viewing a pattern
     if (pdfViewerContainer && pdfViewerContainer.style.display !== 'none' && currentPattern) {
-        return `pattern/${currentPattern.id}`;
+        return `pattern/${getPatternSlug(currentPattern)}`;
     }
     const markdownViewer = document.getElementById('markdown-viewer-container');
     if (markdownViewer && markdownViewer.style.display !== 'none') {
         const patternId = markdownViewer.dataset.patternId;
-        if (patternId) return `pattern/${patternId}`;
+        if (patternId) {
+            const pattern = patterns.find(p => p.id === parseInt(patternId));
+            if (pattern) return `pattern/${getPatternSlug(pattern)}`;
+            return `pattern/${patternId}`;
+        }
     }
     // Check if in settings
     const settingsTab = document.getElementById('settings');
@@ -898,8 +938,15 @@ function navigateBack() {
 
 async function navigateToView(view, pushHistory = true) {
     if (view.startsWith('pattern/')) {
-        const patternId = view.split('/')[1];
-        await openPDFViewer(patternId, pushHistory);
+        const slug = view.split('/')[1];
+        // Try to find pattern by slug first, then by ID for backwards compatibility
+        let pattern = findPatternBySlug(slug);
+        if (!pattern && !isNaN(parseInt(slug))) {
+            pattern = patterns.find(p => p.id === parseInt(slug));
+        }
+        if (pattern) {
+            await openPDFViewer(pattern.id, pushHistory);
+        }
     } else if (view.startsWith('settings/')) {
         const section = view.split('/')[1];
         switchToTab('settings', false);
@@ -3676,7 +3723,7 @@ function displayCurrentPatterns() {
     const grid = document.getElementById('current-patterns-grid');
 
     if (currentPatterns.length === 0) {
-        grid.innerHTML = '<p class="empty-state">No current patterns. Mark a pattern as current to start tracking!</p>';
+        grid.innerHTML = '<p class="empty-state">You don\'t have any active patterns. Time to start crocheting!</p>';
         return;
     }
 
@@ -4145,8 +4192,11 @@ function handlePatternClick(event, patternId) {
     if (event.metaKey || event.ctrlKey) {
         event.preventDefault();
         event.stopPropagation();
+        // Find pattern to get slug
+        const pattern = patterns.find(p => p.id === patternId) || currentPatterns.find(p => p.id === patternId);
+        const slug = pattern ? getPatternSlug(pattern) : patternId;
         // Open in new window/tab with full URL
-        const url = window.location.origin + window.location.pathname + '#pattern/' + patternId;
+        const url = window.location.origin + window.location.pathname + '#pattern/' + slug;
         window.open(url, '_blank');
     } else {
         openPDFViewer(patternId);
@@ -4158,18 +4208,6 @@ async function openPDFViewer(patternId, pushHistory = true) {
         // Convert to number for comparison
         const id = parseInt(patternId);
 
-        // Push to navigation history
-        if (pushHistory && !isNavigatingBack) {
-            const currentView = getCurrentView();
-            if (currentView && !currentView.startsWith('pattern/')) {
-                navigationHistory.push(currentView);
-            }
-            history.pushState({ view: `pattern/${id}` }, '', `#pattern/${id}`);
-        }
-
-        // Save viewing pattern to sessionStorage for refresh persistence
-        sessionStorage.setItem('viewingPatternId', id);
-
         // Always fetch fresh data from API to ensure we have the latest current_page
         const response = await fetch(`${API_URL}/api/patterns/${id}`);
         if (!response.ok) {
@@ -4178,9 +4216,24 @@ async function openPDFViewer(patternId, pushHistory = true) {
         }
         const pattern = await response.json();
 
+        // Get slug for URL
+        const slug = getPatternSlug(pattern);
+
+        // Push to navigation history
+        if (pushHistory && !isNavigatingBack) {
+            const currentView = getCurrentView();
+            if (currentView && !currentView.startsWith('pattern/')) {
+                navigationHistory.push(currentView);
+            }
+            history.pushState({ view: `pattern/${slug}` }, '', `#pattern/${slug}`);
+        }
+
+        // Save viewing pattern to sessionStorage for refresh persistence
+        sessionStorage.setItem('viewingPatternId', id);
+
         // Route to appropriate viewer based on pattern type
         if (pattern.pattern_type === 'markdown') {
-            await openMarkdownViewer(pattern, pushHistory);
+            await openMarkdownViewer(pattern, false); // Don't push history again, already done above
             return;
         }
 
@@ -5317,7 +5370,8 @@ async function openMarkdownViewer(pattern, pushHistory = true) {
             if (currentView && !currentView.startsWith('pattern/')) {
                 navigationHistory.push(currentView);
             }
-            history.pushState({ view: `pattern/${pattern.id}` }, '', `#pattern/${pattern.id}`);
+            const slug = getPatternSlug(pattern);
+            history.pushState({ view: `pattern/${slug}` }, '', `#pattern/${slug}`);
         }
 
         // Store pattern ID on container for getCurrentView

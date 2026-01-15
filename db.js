@@ -84,6 +84,15 @@ async function initDatabase() {
       )
     `);
 
+    // Create settings table for app configuration
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key VARCHAR(100) PRIMARY KEY,
+        value JSONB NOT NULL,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Add columns to existing patterns table if they don't exist
     await client.query(`
       DO $$

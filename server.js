@@ -10,15 +10,44 @@ const sharp = require('sharp');
 const pdfParse = require('pdf-parse');
 const archiver = require('archiver');
 const unzipper = require('unzipper');
+const cron = require('node-cron');
+const EventEmitter = require('events');
 const { pool, initDatabase } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Server-sent events for real-time notifications
+const sseClients = new Set();
+const serverEvents = new EventEmitter();
+
+function broadcastEvent(type, data) {
+  const message = JSON.stringify({ type, data, timestamp: new Date().toISOString() });
+  sseClients.forEach(client => {
+    client.write(`data: ${message}\n\n`);
+  });
+}
+
 // Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+
+// SSE endpoint for real-time notifications
+app.get('/api/events', (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  sseClients.add(res);
+  console.log(`SSE client connected (${sseClients.size} total)`);
+
+  req.on('close', () => {
+    sseClients.delete(res);
+    console.log(`SSE client disconnected (${sseClients.size} remaining)`);
+  });
+});
 
 // Ensure patterns and thumbnails directories exist
 const patternsDir = path.join(__dirname, 'patterns');
@@ -28,6 +57,17 @@ if (!fs.existsSync(patternsDir)) {
 }
 if (!fs.existsSync(thumbnailsDir)) {
   fs.mkdirSync(thumbnailsDir, { recursive: true });
+}
+
+// Helper function to format local timestamp for filenames
+function getLocalTimestamp(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  const seconds = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day}T${hours}-${minutes}-${seconds}`;
 }
 
 // Helper function to get category folder path
@@ -1814,6 +1854,201 @@ if (!fs.existsSync(backupsDir)) {
   fs.mkdirSync(backupsDir, { recursive: true });
 }
 
+// Default backup settings
+const defaultBackupSettings = {
+  enabled: false,
+  schedule: 'daily',
+  time: '03:00',
+  includePatterns: true,
+  includeImages: true,
+  pruneEnabled: false,
+  pruneMode: 'keep',
+  pruneValue: 5,
+  lastBackup: null
+};
+
+async function loadBackupSettings() {
+  try {
+    const result = await pool.query(
+      "SELECT value FROM settings WHERE key = 'backup_schedule'"
+    );
+    if (result.rows.length > 0) {
+      return { ...defaultBackupSettings, ...result.rows[0].value };
+    }
+  } catch (error) {
+    console.error('Error loading backup settings:', error);
+  }
+  return defaultBackupSettings;
+}
+
+async function saveBackupSettings(settings) {
+  try {
+    await pool.query(`
+      INSERT INTO settings (key, value, updated_at)
+      VALUES ('backup_schedule', $1, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()
+    `, [JSON.stringify(settings)]);
+  } catch (error) {
+    console.error('Error saving backup settings:', error);
+  }
+}
+
+// Create scheduled backup (reusable function)
+async function createScheduledBackup() {
+  const settings = await loadBackupSettings();
+  if (!settings.enabled) return;
+
+  const now = new Date();
+  const [targetHour, targetMinute] = settings.time.split(':').map(Number);
+  const currentHour = now.getHours();
+  const currentMinute = now.getMinutes();
+
+  // Check if we're past the scheduled time today
+  const isPastScheduledTime = (currentHour > targetHour) ||
+    (currentHour === targetHour && currentMinute >= targetMinute);
+
+  if (!isPastScheduledTime) return;
+
+  // Check if enough time has passed since last backup
+  if (settings.lastBackup) {
+    const lastDate = new Date(settings.lastBackup);
+    const diffMs = now - lastDate;
+    const diffDays = diffMs / (1000 * 60 * 60 * 24);
+
+    if (settings.schedule === 'daily' && diffDays < 0.9) return;
+    if (settings.schedule === 'weekly' && diffDays < 6.9) return;
+    if (settings.schedule === 'monthly' && diffDays < 29) return;
+  }
+
+  console.log('Running scheduled backup...');
+
+  try {
+    const timestamp = getLocalTimestamp(now);
+    const backupFilename = `yarnl-backup-${timestamp}.zip`;
+    const backupPath = path.join(backupsDir, backupFilename);
+
+    // Export database tables to JSON
+    const dbExport = {
+      exportDate: now.toISOString(),
+      version: '1.0',
+      account: null,
+      includePatterns: settings.includePatterns,
+      includeImages: settings.includeImages,
+      tables: {}
+    };
+
+    const tables = ['categories', 'hashtags', 'patterns', 'counters', 'pattern_hashtags'];
+    for (const table of tables) {
+      const result = await pool.query(`SELECT * FROM ${table}`);
+      dbExport.tables[table] = result.rows;
+    }
+
+    // Create zip archive
+    const output = fs.createWriteStream(backupPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
+
+    await new Promise((resolve, reject) => {
+      output.on('close', resolve);
+      archive.on('error', reject);
+
+      archive.pipe(output);
+      archive.append(JSON.stringify(dbExport, null, 2), { name: 'database.json' });
+
+      if (settings.includePatterns) {
+        archive.directory(patternsDir, 'patterns');
+      }
+
+      const imagesDir = path.join(__dirname, 'patterns', 'images');
+      if (settings.includeImages && fs.existsSync(imagesDir)) {
+        archive.directory(imagesDir, 'images');
+      }
+
+      archive.finalize();
+    });
+
+    // Update last backup time
+    settings.lastBackup = now.toISOString();
+    await saveBackupSettings(settings);
+
+    console.log(`Scheduled backup created: ${backupFilename}`);
+
+    // Broadcast backup completion to all connected clients
+    broadcastEvent('backup_complete', { filename: backupFilename });
+
+    // Run prune if enabled
+    if (settings.pruneEnabled) {
+      runScheduledPrune(settings);
+    }
+  } catch (error) {
+    console.error('Error creating scheduled backup:', error);
+    broadcastEvent('backup_error', { error: error.message });
+  }
+}
+
+function runScheduledPrune(settings) {
+  try {
+    const files = fs.readdirSync(backupsDir)
+      .filter(f => f.endsWith('.zip'))
+      .map(f => ({
+        filename: f,
+        created: fs.statSync(path.join(backupsDir, f)).mtime
+      }))
+      .sort((a, b) => new Date(b.created) - new Date(a.created));
+
+    let toDelete = [];
+
+    if (settings.pruneMode === 'keep') {
+      toDelete = files.slice(settings.pruneValue);
+    } else if (settings.pruneMode === 'days') {
+      // Calculate days from pruneAgeValue and pruneAgeUnit
+      let days = settings.pruneAgeValue || 30;
+      const unit = settings.pruneAgeUnit || 'days';
+      if (unit === 'weeks') days *= 7;
+      else if (unit === 'months') days *= 30;
+      else if (unit === 'years') days *= 365;
+
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      toDelete = files.filter(f => new Date(f.created) < cutoff);
+    }
+
+    for (const f of toDelete) {
+      fs.unlinkSync(path.join(backupsDir, f.filename));
+      console.log(`Pruned old backup: ${f.filename}`);
+    }
+  } catch (error) {
+    console.error('Error pruning backups:', error);
+  }
+}
+
+// Run backup check every minute
+cron.schedule('* * * * *', () => {
+  createScheduledBackup();
+});
+
+// Get backup schedule settings
+app.get('/api/backups/schedule', async (req, res) => {
+  try {
+    const settings = await loadBackupSettings();
+    res.json(settings);
+  } catch (error) {
+    console.error('Error getting backup settings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Save backup schedule settings
+app.post('/api/backups/schedule', async (req, res) => {
+  try {
+    const currentSettings = await loadBackupSettings();
+    const newSettings = { ...currentSettings, ...req.body };
+    await saveBackupSettings(newSettings);
+    res.json({ success: true, settings: newSettings });
+  } catch (error) {
+    console.error('Error saving backup settings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // List all backups
 app.get('/api/backups', (req, res) => {
   try {
@@ -1839,7 +2074,7 @@ app.get('/api/backups', (req, res) => {
 app.post('/api/backups', async (req, res) => {
   try {
     const { clientSettings, includePatterns = true, includeImages = true } = req.body;
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const timestamp = getLocalTimestamp();
     const backupFilename = `yarnl-backup-${timestamp}.zip`;
     const backupPath = path.join(backupsDir, backupFilename);
 

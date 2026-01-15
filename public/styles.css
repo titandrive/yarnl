@@ -809,6 +809,23 @@ header {
     font-weight: 600;
 }
 
+.form-group label .required {
+    font-weight: 400;
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+
+.mark-current-toggle {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mark-current-toggle .mark-current-label {
+    font-weight: 500;
+    color: var(--text-color);
+}
+
 .form-group input,
 .form-group textarea,
 .form-group select {

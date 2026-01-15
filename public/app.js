@@ -1120,14 +1120,14 @@ function renderStagedFiles() {
 
                 <div class="staged-file-form">
                     <div class="form-group">
-                        <label>Pattern Name</label>
+                        <label>Name <span class="required">required</span></label>
                         <input type="text"
                                value="${escapeHtml(stagedFile.name)}"
                                oninput="updateStagedFile('${stagedFile.id}', 'name', this.value)"
                                ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
                     </div>
                     <div class="form-group">
-                        <label>Category</label>
+                        <label>Category <span class="required">required</span></label>
                         ${createCategoryDropdown(`staged-${stagedFile.id}`, stagedFile.category, isUploading || stagedFile.status === 'success')}
                     </div>
                     <div class="form-group">
@@ -1140,13 +1140,14 @@ function renderStagedFiles() {
                         <label>Hashtags</label>
                         ${createHashtagSelector(`staged-${stagedFile.id}`, stagedFile.hashtagIds || [], isUploading || stagedFile.status === 'success')}
                     </div>
-                    <div class="form-group checkbox-group">
-                        <label>
+                    <div class="form-group mark-current-toggle">
+                        <span class="mark-current-label">Mark as current pattern</span>
+                        <label class="toggle-switch">
                             <input type="checkbox"
                                    ${stagedFile.isCurrent ? 'checked' : ''}
                                    onchange="updateStagedFile('${stagedFile.id}', 'isCurrent', this.checked)"
                                    ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
-                            Mark as current pattern
+                            <span class="toggle-slider"></span>
                         </label>
                     </div>
                 </div>

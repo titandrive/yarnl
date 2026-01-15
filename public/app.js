@@ -25,6 +25,16 @@ function showToast(message, type = 'success', duration = 2000) {
     }, duration);
 }
 
+// Parse pattern name from image filename (e.g., "hello-world-123456.jpg" -> "Hello World")
+function parsePatternFromFilename(filename) {
+    const match = filename.match(/^(.+)-\d+\.jpg$/);
+    if (!match) return 'Unknown';
+    return match[1]
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
 // State
 let patterns = [];
 let currentPatterns = [];
@@ -792,6 +802,11 @@ function switchToTab(tabName, pushHistory = true) {
 
     // Update settings button to show back when in settings
     updateSettingsButton(tabName === 'settings');
+
+    // Load library stats when switching to settings
+    if (tabName === 'settings') {
+        loadLibraryStats();
+    }
 }
 
 function getCurrentView() {
@@ -2854,6 +2869,7 @@ function initBackups() {
 async function loadOrphanedImagesCount() {
     const countEl = document.getElementById('orphaned-images-count');
     const descEl = document.getElementById('orphaned-images-desc');
+    const listEl = document.getElementById('orphaned-images-list');
     const btn = document.getElementById('cleanup-images-btn');
 
     if (!countEl) return;
@@ -2864,17 +2880,27 @@ async function loadOrphanedImagesCount() {
 
         if (data.count === 0) {
             countEl.textContent = 'No orphaned images';
-            descEl.textContent = 'All uploaded images are in use';
+            descEl.textContent = '— all images are in use';
             btn.style.display = 'none';
+            if (listEl) listEl.innerHTML = '';
         } else {
             countEl.textContent = `${data.count} orphaned image${data.count === 1 ? '' : 's'}`;
-            descEl.textContent = 'These images can be safely deleted';
+            descEl.textContent = '— can be safely deleted';
             btn.style.display = 'block';
+            if (listEl) {
+                listEl.innerHTML = data.files.map(f => {
+                    // Handle both object format {filename, patternName} and string format
+                    const filename = typeof f === 'string' ? f : f.filename;
+                    const patternName = typeof f === 'string' ? parsePatternFromFilename(f) : f.patternName;
+                    return `<li><code>${escapeHtml(filename)}</code> <span class="setting-hint">from "${escapeHtml(patternName)}"</span></li>`;
+                }).join('');
+            }
         }
     } catch (error) {
         countEl.textContent = 'Could not check images';
         descEl.textContent = '';
         btn.style.display = 'none';
+        if (listEl) listEl.innerHTML = '';
     }
 }
 
@@ -2959,7 +2985,7 @@ async function loadImagesSizeForBackup() {
             storageCount.textContent = `${cachedImagesCount} image${cachedImagesCount === 1 ? '' : 's'}`;
         }
         if (storageSize) {
-            storageSize.textContent = `Total size: ${formatBackupSize(cachedImagesSize)}`;
+            storageSize.textContent = `— ${formatBackupSize(cachedImagesSize)} total`;
         }
     } catch (error) {
         const sizeInfo = document.getElementById('images-size-info');

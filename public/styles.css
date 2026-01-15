@@ -2100,6 +2100,12 @@ header {
     color: var(--text-muted);
 }
 
+.settings-subheading:first-of-type {
+    margin-top: 8px;
+    padding-top: 0;
+    border-top: none;
+}
+
 .backup-estimate {
     margin: 4px 0 0 0;
     font-size: 0.85rem;
@@ -2301,7 +2307,7 @@ header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 0;
+    padding: 6px 0;
 }
 
 .settings-select {
@@ -2382,13 +2388,19 @@ input[type="number"].settings-input {
 .setting-info label {
     font-weight: 600;
     display: block;
-    margin-bottom: 4px;
+    margin-bottom: 0;
 }
 
 .setting-description {
     font-size: 0.85rem;
     color: var(--text-muted);
     margin: 0;
+}
+
+.setting-hint {
+    font-weight: normal;
+    color: var(--text-muted);
+    font-size: 0.9em;
 }
 
 /* Keyboard Shortcuts */
@@ -4167,4 +4179,28 @@ input[type="number"].settings-input {
 
 .toast.toast-error {
     border-left-color: var(--danger-color);
+}
+
+/* Orphaned images list */
+.orphaned-images-list {
+    margin: 12px 0 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 0.85rem;
+}
+
+.orphaned-images-list li {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.orphaned-images-list li:last-child {
+    border-bottom: none;
+}
+
+.orphaned-images-list code {
+    background: var(--hover-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
 }

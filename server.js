@@ -1692,8 +1692,19 @@ app.get('/api/images/orphaned', async (req, res) => {
     // Get all content that might reference images (notes + markdown files)
     const allContent = await getAllImageReferences();
 
-    // Find orphaned images
-    const orphaned = files.filter(file => !allContent.includes(file));
+    // Find orphaned images and parse pattern name from filename
+    const orphaned = files.filter(file => !allContent.includes(file)).map(file => {
+      // Filename format: {pattern-slug}-{timestamp}.jpg
+      // Extract pattern name by removing timestamp and extension
+      const match = file.match(/^(.+)-\d+\.jpg$/);
+      const patternSlug = match ? match[1] : 'unknown';
+      // Convert slug back to readable name (replace dashes with spaces, title case)
+      const patternName = patternSlug
+        .split('-')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+      return { filename: file, patternName };
+    });
 
     res.json({ count: orphaned.length, files: orphaned });
   } catch (error) {

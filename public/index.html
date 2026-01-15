@@ -10,7 +10,7 @@
         document.documentElement.setAttribute('data-theme', theme);
     </script>
     <link rel="icon" type="image/png" sizes="128x128" href="yarboi.png">
-    <link rel="stylesheet" href="styles.css?v=37">
+    <link rel="stylesheet" href="styles.css?v=39">
 </head>
 <body>
     <div class="container">
@@ -290,10 +290,13 @@ Inc in each st around (12)
                     <!-- Appearance Section -->
                     <section class="settings-section active" data-section="appearance">
                         <h3>Appearance</h3>
+                        <p class="section-description">Customize the look and feel of your app</p>
+
+                        <h4 class="settings-subheading">Theme</h4>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Theme</label>
-                                <p class="setting-description">Choose a color theme</p>
+                                <label>Color Theme</label>
+                                <p class="setting-description">Choose a color scheme</p>
                             </div>
                             <select id="theme-select" class="settings-select">
                                 <optgroup label="Light Themes">
@@ -326,17 +329,29 @@ Inc in each st around (12)
                         <div class="setting-item">
                             <div class="setting-info">
                                 <label>Gradient Header</label>
-                                <p class="setting-description">Use gradient colors in header</p>
+                                <p class="setting-description">Use gradient colors</p>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="gradient-checkbox">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
+
+                        <h4 class="settings-subheading">Header</h4>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Show Logo</label>
+                                <p class="setting-description">Display mascot in header</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="show-logo-checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                         <div class="setting-item">
                             <div class="setting-info">
                                 <label>Show Tagline</label>
-                                <p class="setting-description">Show subtitle in header</p>
+                                <p class="setting-description">Display subtitle text</p>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="show-tagline-checkbox" checked>
@@ -346,19 +361,21 @@ Inc in each st around (12)
                         <div class="setting-item" id="tagline-input-container">
                             <div class="setting-info">
                                 <label>Tagline Text</label>
-                                <p class="setting-description">Customize the header subtitle</p>
+                                <p class="setting-description">Customize subtitle</p>
                             </div>
                             <input type="text" id="tagline-input" class="settings-input" placeholder="Your Crochet Project Companion">
                         </div>
+
+                        <h4 class="settings-subheading">Library</h4>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Show Logo</label>
-                                <p class="setting-description">Show yarn ball in header</p>
+                                <label>Default Page</label>
+                                <p class="setting-description">Page shown on startup</p>
                             </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="show-logo-checkbox" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
+                            <select id="default-page-select" class="settings-select">
+                                <option value="current">Current</option>
+                                <option value="library">Library</option>
+                            </select>
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
@@ -372,18 +389,40 @@ Inc in each st around (12)
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Default Page</label>
-                                <p class="setting-description">Page to show on startup</p>
+                                <label>Type Badge</label>
+                                <p class="setting-description">Show PDF/MD on cards</p>
                             </div>
-                            <select id="default-page-select" class="settings-select">
-                                <option value="current">Current</option>
-                                <option value="library">Library</option>
-                            </select>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="badge-type-checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Default PDF Zoom</label>
-                                <p class="setting-description">Initial zoom level for PDFs</p>
+                                <label>Status Badge</label>
+                                <p class="setting-description">Show CURRENT/COMPLETE</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="badge-status-checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Category Badge</label>
+                                <p class="setting-description">Show category on cards</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="badge-category-checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <h4 class="settings-subheading">PDF Viewer</h4>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Default Zoom</label>
+                                <p class="setting-description">Initial zoom level</p>
                             </div>
                             <select id="default-zoom-select" class="settings-select">
                                 <option value="fit">Fit Page</option>
@@ -399,38 +438,6 @@ Inc in each st around (12)
                             </select>
                         </div>
 
-                        <h4 class="settings-subheading">Badges</h4>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label>Type Badge</label>
-                                <p class="setting-description">Show PDF/MD badge on cards</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="badge-type-checkbox" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label>Status Badge</label>
-                                <p class="setting-description">Show CURRENT/COMPLETE badge</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="badge-status-checkbox" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label>Category Badge</label>
-                                <p class="setting-description">Show category badge on cards</p>
-                            </div>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="badge-category-checkbox" checked>
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-
                         <div class="settings-reset">
                             <button id="reset-appearance-btn" class="btn btn-secondary">Reset to Defaults</button>
                         </div>
@@ -438,8 +445,10 @@ Inc in each st around (12)
 
                     <!-- Categories & Tags Section -->
                     <section class="settings-section" data-section="categories">
-                        <h3>Categories</h3>
-                        <p class="section-description">Manage pattern categories for organizing your library</p>
+                        <h3>Categories & Tags</h3>
+                        <p class="section-description">Organize your pattern library</p>
+
+                        <h4 class="settings-subheading">Categories</h4>
                         <div class="categories-list" id="categories-list">
                             <!-- Categories will be populated here -->
                         </div>
@@ -449,7 +458,6 @@ Inc in each st around (12)
                         </div>
 
                         <h4 class="settings-subheading">Hashtags</h4>
-                        <p class="section-description">Manage hashtags for tagging patterns</p>
                         <div class="hashtags-list" id="hashtags-list">
                             <!-- Hashtags will be populated here -->
                         </div>
@@ -466,6 +474,7 @@ Inc in each st around (12)
                         <div class="setting-item shortcut-item">
                             <div class="setting-info">
                                 <label>Increase Counter</label>
+                                <p class="setting-description">Add one to selected counter</p>
                             </div>
                             <div class="shortcut-keys">
                                 <button class="shortcut-key-btn" data-shortcut="counterIncrease" data-index="0" title="Click to change">↑</button>
@@ -475,6 +484,7 @@ Inc in each st around (12)
                         <div class="setting-item shortcut-item">
                             <div class="setting-info">
                                 <label>Decrease Counter</label>
+                                <p class="setting-description">Subtract one from selected counter</p>
                             </div>
                             <div class="shortcut-keys">
                                 <button class="shortcut-key-btn" data-shortcut="counterDecrease" data-index="0" title="Click to change">↓</button>
@@ -484,6 +494,7 @@ Inc in each st around (12)
                         <div class="setting-item shortcut-item">
                             <div class="setting-info">
                                 <label>Previous Page</label>
+                                <p class="setting-description">Go back one page</p>
                             </div>
                             <div class="shortcut-keys">
                                 <button class="shortcut-key-btn" data-shortcut="prevPage" data-index="0" title="Click to change">←</button>
@@ -493,6 +504,7 @@ Inc in each st around (12)
                         <div class="setting-item shortcut-item">
                             <div class="setting-info">
                                 <label>Next Page</label>
+                                <p class="setting-description">Go forward one page</p>
                             </div>
                             <div class="shortcut-keys">
                                 <button class="shortcut-key-btn" data-shortcut="nextPage" data-index="0" title="Click to change">→</button>
@@ -502,6 +514,7 @@ Inc in each st around (12)
                         <div class="setting-item shortcut-item">
                             <div class="setting-info">
                                 <label>Start/Stop Timer</label>
+                                <p class="setting-description">Toggle project timer</p>
                             </div>
                             <div class="shortcut-keys">
                                 <button class="shortcut-key-btn" data-shortcut="toggleTimer" data-index="0" title="Click to change">Space</button>
@@ -511,6 +524,7 @@ Inc in each st around (12)
                         <div class="setting-item shortcut-item">
                             <div class="setting-info">
                                 <label>Next Counter</label>
+                                <p class="setting-description">Cycle to next counter</p>
                             </div>
                             <div class="shortcut-keys">
                                 <button class="shortcut-key-btn" data-shortcut="nextCounter" data-index="0" title="Click to change">Tab</button>
@@ -520,6 +534,7 @@ Inc in each st around (12)
                         <div class="setting-item shortcut-item">
                             <div class="setting-info">
                                 <label>Zoom In</label>
+                                <p class="setting-description">Increase PDF zoom</p>
                             </div>
                             <div class="shortcut-keys">
                                 <button class="shortcut-key-btn" data-shortcut="zoomIn" data-index="0" title="Click to change">+</button>
@@ -529,6 +544,7 @@ Inc in each st around (12)
                         <div class="setting-item shortcut-item">
                             <div class="setting-info">
                                 <label>Zoom Out</label>
+                                <p class="setting-description">Decrease PDF zoom</p>
                             </div>
                             <div class="shortcut-keys">
                                 <button class="shortcut-key-btn" data-shortcut="zoomOut" data-index="0" title="Click to change">−</button>
@@ -538,6 +554,7 @@ Inc in each st around (12)
                         <div class="setting-item shortcut-item">
                             <div class="setting-info">
                                 <label>Exit Viewer</label>
+                                <p class="setting-description">Close and return to library</p>
                             </div>
                             <div class="shortcut-keys">
                                 <button class="shortcut-key-btn" data-shortcut="exitViewer" data-index="0" title="Click to change">Esc</button>
@@ -563,6 +580,7 @@ Inc in each st around (12)
                             </button>
                         </div>
 
+                        <h4 class="settings-subheading">Backup Options</h4>
                         <div class="setting-item">
                             <div class="setting-info">
                                 <label>Include Pattern Library</label>
@@ -681,22 +699,20 @@ Inc in each st around (12)
                         <h4 class="settings-subheading">Images</h4>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label id="storage-images-count">Loading...</label>
-                                <p class="setting-description" id="storage-images-size"></p>
+                                <label><span id="storage-images-count">Loading...</span> <span class="setting-hint" id="storage-images-size"></span></label>
                             </div>
                         </div>
 
                         <h4 class="settings-subheading">Orphaned Images</h4>
-                        <p class="setting-description" style="margin-bottom: 12px;">Images uploaded to pattern notes that are no longer referenced</p>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label id="orphaned-images-count">Checking...</label>
-                                <p class="setting-description" id="orphaned-images-desc"></p>
+                                <label><span id="orphaned-images-count">Checking...</span> <span class="setting-hint" id="orphaned-images-desc"></span></label>
                             </div>
                             <button id="cleanup-images-btn" class="btn btn-secondary" style="display: none;">
                                 Clean Up
                             </button>
                         </div>
+                        <ul class="orphaned-images-list" id="orphaned-images-list"></ul>
                     </section>
 
                     <!-- About Section -->

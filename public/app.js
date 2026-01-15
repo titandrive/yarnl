@@ -5244,10 +5244,12 @@ function initEditModal() {
     const modal = document.getElementById('edit-modal');
     const closeBtn = document.getElementById('close-edit-modal');
     const cancelBtn = document.getElementById('cancel-edit-btn');
+    const deleteBtn = document.getElementById('delete-edit-pattern');
     const editForm = document.getElementById('edit-form');
 
     closeBtn.addEventListener('click', closeEditModal);
     cancelBtn.addEventListener('click', closeEditModal);
+    deleteBtn.addEventListener('click', deleteEditPattern);
 
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
@@ -5259,6 +5261,32 @@ function initEditModal() {
         e.preventDefault();
         await savePatternEdits();
     });
+}
+
+async function deleteEditPattern() {
+    if (!editingPatternId) return;
+
+    if (!confirm('Are you sure you want to delete this pattern?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${editingPatternId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            closeEditModal();
+            await loadPatterns();
+            await loadCurrentPatterns();
+            await loadCategories();
+        } else {
+            const error = await response.json();
+            console.error('Error deleting pattern:', error.error);
+        }
+    } catch (error) {
+        console.error('Error deleting pattern:', error);
+    }
 }
 
 async function openEditModal(patternId) {

@@ -1265,14 +1265,19 @@ header {
 
 .modal-actions {
     display: flex;
-    gap: 15px;
+    gap: 10px;
     justify-content: flex-end;
     margin-top: 20px;
 }
 
+.modal-actions .btn {
+    padding: 8px 18px;
+    font-size: 0.9rem;
+}
+
 .modal-actions-right {
     display: flex;
-    gap: 15px;
+    gap: 10px;
     margin-left: auto;
 }
 
@@ -4146,6 +4151,48 @@ input[type="number"].settings-input {
 .pdf-edit-form textarea {
     resize: vertical;
     min-height: 80px;
+}
+
+/* Library Edit Modal - Compact styling */
+#edit-modal .modal-content {
+    max-width: 500px;
+    padding: 20px;
+}
+
+#edit-modal .modal-header {
+    margin-bottom: 15px;
+}
+
+#edit-modal .form-group {
+    margin-bottom: 12px;
+}
+
+#edit-modal .form-group label {
+    margin-bottom: 4px;
+    font-size: 0.9rem;
+}
+
+#edit-modal textarea {
+    min-height: 60px;
+}
+
+#edit-modal .thumbnail-selector-preview {
+    width: 100px;
+    height: 100px;
+}
+
+#edit-modal .thumbnail-selector {
+    width: 100px;
+}
+
+#edit-modal .help-text {
+    margin-top: 4px;
+    margin-bottom: 0;
+    font-size: 0.8rem;
+}
+
+#edit-modal .modal-actions {
+    margin-top: 15px;
 }
 
 /* Toast notifications */

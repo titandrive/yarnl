@@ -2564,8 +2564,7 @@ input[type="number"].settings-input {
 }
 
 .category-item.is-default {
-    border-color: var(--primary-color);
-    background: color-mix(in srgb, var(--primary-color) 10%, var(--input-bg));
+    /* Star icon indicates default, no special styling needed */
 }
 
 .default-badge {
@@ -2870,7 +2869,7 @@ input[type="number"].settings-input {
 }
 
 .hashtag-name {
-    color: var(--primary-color);
+    color: var(--text-color);
     font-weight: 500;
 }
 

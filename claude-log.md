@@ -4,6 +4,28 @@ A running log of features and changes made to Yarnl.
 
 ---
 
+## 2026-01-15: Library Edit Modal Delete Button & Compact Styling
+
+Added missing delete button to library edit modal and made modals more compact.
+
+### Features
+- **Delete from Library Edit**: Edit modal (accessed from library page) now has Delete Pattern button
+- **Compact Edit Modal**: Reduced padding, spacing, and thumbnail size for better fit at 100% zoom
+- **Smaller Modal Buttons**: All modal buttons now more compact (8px 18px padding, 0.9rem font)
+- **Tighter Button Spacing**: Gap between modal buttons reduced from 15px to 10px
+
+### Technical Details
+- `deleteEditPattern()` function uses existing `editingPatternId` to delete pattern
+- Button layout matches PDF/Markdown edit modals (delete on left, cancel/save on right)
+- Modal-specific styles in `#edit-modal` selector for targeted compactness
+
+### Files Modified
+- `public/index.html` - Added delete button with `modal-actions-right` wrapper
+- `public/app.js` - Added `deleteEditPattern()` function and event listener
+- `public/styles.css` - Compact modal styling, smaller buttons
+
+---
+
 ## 2026-01-15: Pushover Notifications & Settings URL Routing
 
 Added push notifications via Pushover and deep-linking for settings sections.

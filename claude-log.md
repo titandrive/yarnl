@@ -4,6 +4,34 @@ A running log of features and changes made to Yarnl.
 
 ---
 
+## 2026-01-15: Pushover Notifications & Settings URL Routing
+
+Added push notifications via Pushover and deep-linking for settings sections.
+
+### Features
+- **Pushover Integration**: New Notifications tab in settings for configuring Pushover
+- **Backup Notifications**: Get notified when scheduled backups complete or fail
+- **Secure Credentials**: User key and API token masked in UI, stored in database
+- **Settings URL Routing**: Each settings section has its own URL (`#settings/backups`, `#settings/notifications`, etc.)
+- **Refresh Persistence**: Refreshing maintains current settings section
+- **Database Settings Storage**: Backup schedule settings moved from file to PostgreSQL
+
+### Technical Details
+- `loadNotificationSettings()` and `saveNotificationSettings()` use PostgreSQL JSONB
+- Password fields with focus/blur handlers to clear/restore masked values
+- `switchToSettingsSection()` function handles section switching and URL updates
+- `handleInitialNavigation()` parses `settings/section` URL format
+- `getCurrentView()` returns full settings path for history management
+- Fixed `btn-primary:hover` using `filter: brightness(0.85)` instead of undefined `--primary-hover`
+
+### Files Modified
+- `server.js` - Notification endpoints, Pushover API integration, database settings
+- `public/index.html` - Notifications section, password inputs for credentials
+- `public/app.js` - Settings URL routing, notification settings handlers
+- `public/styles.css` - Fixed button hover state
+
+---
+
 ## 2026-01-15: Settings Panel Consistency & Fixes
 
 Improved settings panel structure, fixed About section loading bug.

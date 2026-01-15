@@ -4486,6 +4486,9 @@ async function openPdfEditModal() {
         clearThumbnailSelector('pdf-edit');
     }
 
+    // Set current toggle state
+    document.getElementById('pdf-edit-is-current').checked = currentPattern.is_current || false;
+
     // Reset delete button state
     const deleteBtn = document.getElementById('delete-pdf-pattern');
     resetDeleteButton(deleteBtn, 'Delete Pattern');
@@ -4623,6 +4626,7 @@ async function savePdfEdit() {
     const description = document.getElementById('pdf-edit-description').value;
     const thumbnailFile = getThumbnailFile('pdf-edit');
     const hashtagIds = getSelectedHashtagIds('pdf-edit-hashtags');
+    const isCurrent = document.getElementById('pdf-edit-is-current').checked;
 
     if (!name.trim()) {
         alert('Pattern name is required');
@@ -4636,6 +4640,15 @@ async function savePdfEdit() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, category, description })
         });
+
+        // Update current status if changed
+        if (isCurrent !== currentPattern.is_current) {
+            await fetch(`${API_URL}/api/patterns/${currentPattern.id}/current`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isCurrent })
+            });
+        }
 
         if (!metaResponse.ok) {
             const error = await metaResponse.json();
@@ -4672,6 +4685,7 @@ async function savePdfEdit() {
         currentPattern.name = name;
         currentPattern.category = category;
         currentPattern.description = description;
+        currentPattern.is_current = isCurrent;
 
         // Update the viewer header
         document.getElementById('pdf-pattern-name').textContent = name;
@@ -5319,6 +5333,9 @@ async function openEditModal(patternId) {
         clearThumbnailSelector('edit');
     }
 
+    // Set current toggle state
+    document.getElementById('edit-is-current').checked = pattern.is_current || false;
+
     document.getElementById('edit-modal').style.display = 'flex';
 }
 
@@ -5335,6 +5352,10 @@ async function savePatternEdits() {
     const description = document.getElementById('edit-pattern-description').value;
     const thumbnailFile = getThumbnailFile('edit');
     const hashtagIds = getSelectedHashtagIds('edit-hashtags');
+    const isCurrent = document.getElementById('edit-is-current').checked;
+
+    // Get current pattern to check if is_current changed
+    const pattern = patterns.find(p => p.id == editingPatternId);
 
     try {
         // Update pattern details
@@ -5348,6 +5369,15 @@ async function savePatternEdits() {
             const error = await response.json();
             console.error('Error updating pattern:', error.error);
             return;
+        }
+
+        // Update current status if changed
+        if (pattern && isCurrent !== pattern.is_current) {
+            await fetch(`${API_URL}/api/patterns/${editingPatternId}/current`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isCurrent })
+            });
         }
 
         // Update hashtags
@@ -5773,6 +5803,9 @@ async function openMarkdownEditModal() {
         clearThumbnailSelector('markdown-edit');
     }
 
+    // Set current toggle state
+    document.getElementById('markdown-edit-is-current').checked = currentPattern.is_current || false;
+
     // Load content from file
     try {
         const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/content`);
@@ -5844,6 +5877,7 @@ async function saveMarkdownEdit() {
     const description = document.getElementById('markdown-edit-description').value;
     const thumbnailFile = getThumbnailFile('markdown-edit');
     const hashtagIds = getSelectedHashtagIds('markdown-edit-hashtags');
+    const isCurrent = document.getElementById('markdown-edit-is-current').checked;
 
     if (!name.trim()) {
         alert('Pattern name is required');
@@ -5857,6 +5891,15 @@ async function saveMarkdownEdit() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name, category, description })
         });
+
+        // Update current status if changed
+        if (isCurrent !== currentPattern.is_current) {
+            await fetch(`${API_URL}/api/patterns/${currentPattern.id}/current`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isCurrent })
+            });
+        }
 
         if (!metaResponse.ok) {
             const error = await metaResponse.json();
@@ -5906,6 +5949,7 @@ async function saveMarkdownEdit() {
             currentPattern.name = name;
             currentPattern.category = category;
             currentPattern.description = description;
+            currentPattern.is_current = isCurrent;
 
             // Update the viewer header
             document.getElementById('markdown-pattern-name').textContent = name;
@@ -5914,6 +5958,7 @@ async function saveMarkdownEdit() {
 
             // Reload patterns to reflect changes in the library
             await loadPatterns();
+            await loadCurrentPatterns();
             await loadCategories();
         } else {
             console.error('Error saving content');

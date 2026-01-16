@@ -4,6 +4,36 @@ A running log of features and changes made to Yarnl.
 
 ---
 
+## 2026-01-16: Favorites Feature & Pin-to-Top Sorting
+
+Added pattern favorites system and pin-to-top sorting controls.
+
+### Features
+- **Favorites**: Star button on cards to mark patterns as favorites
+- **Favorite Badge**: Yellow star overlay on thumbnails for favorited patterns (no background, drop-shadow for visibility)
+- **Current Button Update**: Changed icon from star to play triangle, green color when active
+- **Highlight Favorites**: Added "Favorites" option to the Highlight dropdown
+- **Pin-to-Top Buttons**: Two icon buttons next to Sort dropdown (play for current, star for favorites)
+- **Pin Behavior**: Pinned patterns appear at top while maintaining the selected sort order within each group
+- **Shared Card Component**: Refactored to use single `renderPatternCard()` function for both Library and Current tabs
+
+### Technical Details
+- `is_favorite` BOOLEAN column added to patterns table
+- `PATCH /api/patterns/:id/favorite` endpoint for toggling favorite status
+- `toggleFavorite()` function mirrors `toggleCurrent()` behavior
+- `pinCurrent` and `pinFavorites` state variables with localStorage persistence
+- Sort comparison checks pin state first, then applies selected sort order
+- Pin buttons use green (current) and yellow (favorites) colors when active
+
+### Files Modified
+- `db.js` - Added is_favorite column migration
+- `server.js` - Added favorite toggle endpoint
+- `public/app.js` - toggleFavorite function, renderPatternCard refactor, pin button handlers, sort logic
+- `public/index.html` - Pin buttons in sort header, Favorites in highlight dropdown
+- `public/styles.css` - Pin button styles, favorite badge overlay
+
+---
+
 ## 2026-01-15: Inline Description Editing & Library Card Redesign
 
 Major overhaul of library card UI with inline editing and icon-only action buttons.

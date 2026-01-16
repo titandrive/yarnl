@@ -2498,6 +2498,64 @@ header {
     gap: 4px;
 }
 
+.settings-search-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.settings-search-icon {
+    position: absolute;
+    left: 10px;
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.settings-search-wrapper input {
+    width: 100%;
+    padding: 8px 32px 8px 34px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.settings-search-wrapper input::placeholder {
+    color: var(--text-muted);
+}
+
+.settings-search-wrapper input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.settings-search-clear {
+    position: absolute;
+    right: 6px;
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.settings-search-clear:hover {
+    color: var(--text-color);
+    background: var(--hover-bg);
+}
+
+.settings-search-clear.visible {
+    display: flex;
+}
+
 .settings-nav-btn {
     display: flex;
     align-items: center;
@@ -2742,8 +2800,14 @@ header {
     .settings-sidebar {
         width: 100%;
         flex-direction: row;
+        flex-wrap: wrap;
         overflow-x: auto;
         padding-bottom: 8px;
+    }
+
+    .settings-search-wrapper {
+        width: 100%;
+        margin-bottom: 8px;
     }
 
     .settings-nav-btn {
@@ -2772,6 +2836,42 @@ header {
     justify-content: space-between;
     align-items: center;
     padding: 6px 0;
+}
+
+.setting-item.search-hidden {
+    display: none;
+}
+
+.settings-subheading.search-hidden {
+    display: none;
+}
+
+.settings-section.search-hidden {
+    display: none;
+}
+
+.settings-no-results {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    color: var(--text-muted);
+    text-align: center;
+}
+
+.settings-no-results.visible {
+    display: flex;
+}
+
+.settings-no-results svg {
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.settings-no-results p {
+    margin: 0;
+    font-size: 0.95rem;
 }
 
 .settings-select {

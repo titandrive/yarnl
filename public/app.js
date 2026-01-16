@@ -2033,9 +2033,141 @@ function initSettings() {
     settingsNavBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const section = btn.dataset.section;
+            // Clear search when clicking nav
+            clearSettingsSearch();
             switchToSettingsSection(section, true);
         });
     });
+
+    // Settings search functionality
+    initSettingsSearch();
+}
+
+function initSettingsSearch() {
+    const searchInput = document.getElementById('settings-search-input');
+    const clearBtn = document.getElementById('settings-search-clear');
+    const noResults = document.getElementById('settings-no-results');
+
+    if (!searchInput) return;
+
+    searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.toLowerCase().trim();
+
+        // Show/hide clear button
+        if (clearBtn) {
+            clearBtn.classList.toggle('visible', query.length > 0);
+        }
+
+        if (query.length === 0) {
+            clearSettingsSearch();
+            return;
+        }
+
+        filterSettings(query);
+    });
+
+    if (clearBtn) {
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearBtn.classList.remove('visible');
+            clearSettingsSearch();
+            searchInput.focus();
+        });
+    }
+}
+
+function filterSettings(query) {
+    const sections = document.querySelectorAll('.settings-content .settings-section');
+    const noResults = document.getElementById('settings-no-results');
+    const navBtns = document.querySelectorAll('.settings-nav-btn');
+    let totalMatches = 0;
+
+    // Hide nav buttons during search
+    navBtns.forEach(btn => btn.style.display = 'none');
+
+    sections.forEach(section => {
+        const items = section.querySelectorAll('.setting-item');
+        const subheadings = section.querySelectorAll('.settings-subheading');
+        let sectionMatches = 0;
+
+        // Check each setting item
+        items.forEach(item => {
+            const label = item.querySelector('label')?.textContent?.toLowerCase() || '';
+            const description = item.querySelector('.setting-description')?.textContent?.toLowerCase() || '';
+            const matches = label.includes(query) || description.includes(query);
+
+            item.classList.toggle('search-hidden', !matches);
+            if (matches) sectionMatches++;
+        });
+
+        // Check section title and description
+        const sectionTitle = section.querySelector('h3')?.textContent?.toLowerCase() || '';
+        const sectionDesc = section.querySelector('.section-description')?.textContent?.toLowerCase() || '';
+        const sectionHeaderMatches = sectionTitle.includes(query) || sectionDesc.includes(query);
+
+        // If section header matches, show all items in that section
+        if (sectionHeaderMatches) {
+            items.forEach(item => item.classList.remove('search-hidden'));
+            sectionMatches = items.length;
+        }
+
+        // Show/hide subheadings based on whether they have visible items after them
+        subheadings.forEach(heading => {
+            let hasVisibleItems = false;
+            let sibling = heading.nextElementSibling;
+            while (sibling && !sibling.classList.contains('settings-subheading') && sibling.tagName !== 'H4') {
+                if (sibling.classList.contains('setting-item') && !sibling.classList.contains('search-hidden')) {
+                    hasVisibleItems = true;
+                    break;
+                }
+                sibling = sibling.nextElementSibling;
+            }
+            heading.classList.toggle('search-hidden', !hasVisibleItems);
+        });
+
+        // Show/hide entire section
+        section.classList.toggle('search-hidden', sectionMatches === 0);
+        section.classList.toggle('active', sectionMatches > 0);
+
+        totalMatches += sectionMatches;
+    });
+
+    // Show/hide no results message
+    if (noResults) {
+        noResults.classList.toggle('visible', totalMatches === 0);
+    }
+}
+
+function clearSettingsSearch() {
+    const sections = document.querySelectorAll('.settings-content .settings-section');
+    const noResults = document.getElementById('settings-no-results');
+    const navBtns = document.querySelectorAll('.settings-nav-btn');
+    const searchInput = document.getElementById('settings-search-input');
+    const clearBtn = document.getElementById('settings-search-clear');
+
+    // Clear input
+    if (searchInput) searchInput.value = '';
+    if (clearBtn) clearBtn.classList.remove('visible');
+
+    // Show nav buttons
+    navBtns.forEach(btn => btn.style.display = '');
+
+    // Remove all search-hidden classes
+    sections.forEach(section => {
+        section.classList.remove('search-hidden');
+        section.querySelectorAll('.setting-item').forEach(item => item.classList.remove('search-hidden'));
+        section.querySelectorAll('.settings-subheading').forEach(heading => heading.classList.remove('search-hidden'));
+    });
+
+    // Hide no results
+    if (noResults) noResults.classList.remove('visible');
+
+    // Restore active section based on nav
+    const activeNav = document.querySelector('.settings-nav-btn.active');
+    if (activeNav) {
+        const activeSection = activeNav.dataset.section;
+        sections.forEach(s => s.classList.toggle('active', s.dataset.section === activeSection));
+    }
 }
 
 // Switch to a specific settings section

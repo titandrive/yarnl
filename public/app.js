@@ -654,9 +654,10 @@ function initTheme() {
     const themeSelect = document.getElementById('theme-select');
     const gradientCheckbox = document.getElementById('gradient-checkbox');
     const dayModeBtn = document.getElementById('day-mode-btn');
-    const autoModeBtn = document.getElementById('auto-mode-btn');
-    const scheduledModeBtn = document.getElementById('scheduled-mode-btn');
     const nightModeBtn = document.getElementById('night-mode-btn');
+    const autoModeCheckbox = document.getElementById('auto-mode-checkbox');
+    const autoTypeContainer = document.getElementById('auto-type-container');
+    const autoTypeSelect = document.getElementById('auto-type-select');
     const scheduleTimesContainer = document.getElementById('schedule-times-container');
     const dayStartTime = document.getElementById('day-start-time');
     const nightStartTime = document.getElementById('night-start-time');
@@ -668,13 +669,15 @@ function initTheme() {
 
     // Extract base theme and mode from saved theme
     let themeBase = localStorage.getItem('themeBase');
-    let themeMode = localStorage.getItem('themeMode') || 'dark'; // light, dark, auto, or scheduled
+    let themeMode = localStorage.getItem('themeMode') || 'dark'; // light or dark (manual selection)
+    let autoEnabled = localStorage.getItem('autoModeEnabled') === 'true';
+    let autoType = localStorage.getItem('autoType') || 'system'; // system or scheduled
 
     // Schedule times (default: 7am day, 7pm night)
     let dayStart = localStorage.getItem('dayStartTime') || '07:00';
     let nightStart = localStorage.getItem('nightStartTime') || '19:00';
 
-    // Migration from old format
+    // Migration from old format (auto/scheduled modes become autoEnabled + autoType)
     if (!themeBase) {
         const match = savedTheme.match(/^(.+)-(light|dark)$/);
         if (match) {
@@ -687,6 +690,22 @@ function initTheme() {
         localStorage.setItem('themeBase', themeBase);
         localStorage.setItem('themeMode', themeMode);
     }
+    // Migrate old auto/scheduled modes
+    if (themeMode === 'auto') {
+        autoEnabled = true;
+        autoType = 'system';
+        themeMode = 'dark';
+        localStorage.setItem('autoModeEnabled', 'true');
+        localStorage.setItem('autoType', 'system');
+        localStorage.setItem('themeMode', 'dark');
+    } else if (themeMode === 'scheduled') {
+        autoEnabled = true;
+        autoType = 'scheduled';
+        themeMode = 'dark';
+        localStorage.setItem('autoModeEnabled', 'true');
+        localStorage.setItem('autoType', 'scheduled');
+        localStorage.setItem('themeMode', 'dark');
+    }
 
     // Check if current time is within day hours
     function isDayTime() {
@@ -698,21 +717,20 @@ function initTheme() {
         const nightMinutes = nightH * 60 + nightM;
 
         if (dayMinutes < nightMinutes) {
-            // Normal case: day is before night (e.g., 7am-7pm)
             return currentMinutes >= dayMinutes && currentMinutes < nightMinutes;
         } else {
-            // Inverted case: night is before day (e.g., 10pm-6am night)
             return currentMinutes >= dayMinutes || currentMinutes < nightMinutes;
         }
     }
 
-    // Get effective mode (resolves 'auto'/'scheduled' to actual light/dark)
+    // Get effective mode (resolves auto to actual light/dark)
     function getEffectiveMode() {
-        if (themeMode === 'auto') {
-            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-        }
-        if (themeMode === 'scheduled') {
-            return isDayTime() ? 'light' : 'dark';
+        if (autoEnabled) {
+            if (autoType === 'system') {
+                return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            } else {
+                return isDayTime() ? 'light' : 'dark';
+            }
         }
         return themeMode;
     }
@@ -727,16 +745,24 @@ function initTheme() {
     const useGradient = localStorage.getItem('useGradient') === 'true';
     document.documentElement.setAttribute('data-gradient', useGradient);
 
-    // Update mode button states and show/hide schedule times
-    function updateModeButtons() {
-        if (dayModeBtn && autoModeBtn && scheduledModeBtn && nightModeBtn) {
-            dayModeBtn.classList.toggle('active', themeMode === 'light');
-            autoModeBtn.classList.toggle('active', themeMode === 'auto');
-            scheduledModeBtn.classList.toggle('active', themeMode === 'scheduled');
-            nightModeBtn.classList.toggle('active', themeMode === 'dark');
+    // Update UI states
+    function updateUI() {
+        if (dayModeBtn && nightModeBtn) {
+            const currentEffective = getEffectiveMode();
+            dayModeBtn.classList.toggle('active', currentEffective === 'light');
+            nightModeBtn.classList.toggle('active', currentEffective === 'dark');
+        }
+        if (autoModeCheckbox) {
+            autoModeCheckbox.checked = autoEnabled;
+        }
+        if (autoTypeContainer) {
+            autoTypeContainer.style.display = autoEnabled ? 'flex' : 'none';
+        }
+        if (autoTypeSelect) {
+            autoTypeSelect.value = autoType;
         }
         if (scheduleTimesContainer) {
-            scheduleTimesContainer.style.display = themeMode === 'scheduled' ? 'flex' : 'none';
+            scheduleTimesContainer.style.display = (autoEnabled && autoType === 'scheduled') ? 'flex' : 'none';
         }
     }
 
@@ -748,26 +774,27 @@ function initTheme() {
         localStorage.setItem('theme', fullTheme);
         localStorage.setItem('themeBase', themeBase);
         localStorage.setItem('themeMode', themeMode);
-        updateModeButtons();
+        localStorage.setItem('autoModeEnabled', autoEnabled);
+        localStorage.setItem('autoType', autoType);
+        updateUI();
     }
 
-    // Listen for system theme changes when in auto mode
+    // Listen for system theme changes when in auto system mode
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
-        if (themeMode === 'auto') {
+        if (autoEnabled && autoType === 'system') {
             applyTheme();
         }
     });
 
     // Check scheduled theme every minute
     setInterval(() => {
-        if (themeMode === 'scheduled') {
+        if (autoEnabled && autoType === 'scheduled') {
             applyTheme();
         }
     }, 60000);
 
     if (themeSelect) {
         themeSelect.value = themeBase;
-
         themeSelect.addEventListener('change', () => {
             themeBase = themeSelect.value;
             applyTheme();
@@ -778,32 +805,34 @@ function initTheme() {
     if (dayModeBtn) {
         dayModeBtn.addEventListener('click', () => {
             themeMode = 'light';
+            autoEnabled = false;
             applyTheme();
             showToast('Day mode enabled');
-        });
-    }
-
-    if (autoModeBtn) {
-        autoModeBtn.addEventListener('click', () => {
-            themeMode = 'auto';
-            applyTheme();
-            showToast('Auto mode enabled');
-        });
-    }
-
-    if (scheduledModeBtn) {
-        scheduledModeBtn.addEventListener('click', () => {
-            themeMode = 'scheduled';
-            applyTheme();
-            showToast('Scheduled mode enabled');
         });
     }
 
     if (nightModeBtn) {
         nightModeBtn.addEventListener('click', () => {
             themeMode = 'dark';
+            autoEnabled = false;
             applyTheme();
             showToast('Night mode enabled');
+        });
+    }
+
+    if (autoModeCheckbox) {
+        autoModeCheckbox.addEventListener('change', () => {
+            autoEnabled = autoModeCheckbox.checked;
+            applyTheme();
+            showToast(autoEnabled ? 'Auto switch enabled' : 'Auto switch disabled');
+        });
+    }
+
+    if (autoTypeSelect) {
+        autoTypeSelect.addEventListener('change', () => {
+            autoType = autoTypeSelect.value;
+            applyTheme();
+            showToast(autoType === 'system' ? 'Using system preference' : 'Using schedule');
         });
     }
 
@@ -813,7 +842,7 @@ function initTheme() {
         dayStartTime.addEventListener('change', () => {
             dayStart = dayStartTime.value;
             localStorage.setItem('dayStartTime', dayStart);
-            if (themeMode === 'scheduled') {
+            if (autoEnabled && autoType === 'scheduled') {
                 applyTheme();
             }
         });
@@ -824,13 +853,13 @@ function initTheme() {
         nightStartTime.addEventListener('change', () => {
             nightStart = nightStartTime.value;
             localStorage.setItem('nightStartTime', nightStart);
-            if (themeMode === 'scheduled') {
+            if (autoEnabled && autoType === 'scheduled') {
                 applyTheme();
             }
         });
     }
 
-    updateModeButtons();
+    updateUI();
 
     if (gradientCheckbox) {
         gradientCheckbox.checked = useGradient;
@@ -979,14 +1008,17 @@ function initTheme() {
             localStorage.setItem('theme', 'lavender-dark');
             localStorage.setItem('themeBase', 'lavender');
             localStorage.setItem('themeMode', 'dark');
+            localStorage.setItem('autoModeEnabled', 'false');
+            localStorage.setItem('autoType', 'system');
             localStorage.setItem('dayStartTime', '07:00');
             localStorage.setItem('nightStartTime', '19:00');
             document.documentElement.setAttribute('data-theme', 'lavender-dark');
             if (themeSelect) themeSelect.value = 'lavender';
             if (dayModeBtn) dayModeBtn.classList.remove('active');
-            if (autoModeBtn) autoModeBtn.classList.remove('active');
-            if (scheduledModeBtn) scheduledModeBtn.classList.remove('active');
             if (nightModeBtn) nightModeBtn.classList.add('active');
+            if (autoModeCheckbox) autoModeCheckbox.checked = false;
+            if (autoTypeContainer) autoTypeContainer.style.display = 'none';
+            if (autoTypeSelect) autoTypeSelect.value = 'system';
             if (scheduleTimesContainer) scheduleTimesContainer.style.display = 'none';
             if (dayStartTime) dayStartTime.value = '07:00';
             if (nightStartTime) nightStartTime.value = '19:00';

@@ -2674,6 +2674,23 @@ header {
 }
 
 /* Backup Section */
+.warning-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: rgba(var(--warning-color-rgb, 245, 158, 11), 0.1);
+    border: 1px solid var(--warning-color);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    color: var(--warning-color);
+    font-size: 0.9rem;
+}
+
+.warning-banner svg {
+    flex-shrink: 0;
+}
+
 .backup-create-section {
     display: flex;
     align-items: center;

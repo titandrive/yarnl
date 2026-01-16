@@ -3801,6 +3801,83 @@ function initLibraryFilters() {
     }
 }
 
+function renderPatternCard(pattern, options = {}) {
+    const { highlightClass = '' } = options;
+
+    const hashtags = pattern.hashtags || [];
+    const hashtagsHtml = hashtags.length > 0
+        ? `<div class="pattern-hashtags">${hashtags.map(h => `<span class="pattern-hashtag">#${escapeHtml(h.name)}</span>`).join('')}</div>`
+        : '';
+
+    const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';
+
+    return `
+        <div class="pattern-card${highlightClass}" onclick="handlePatternClick(event, ${pattern.id})">
+            ${showStatusBadge && pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
+            ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
+            ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
+            ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
+            ${pattern.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
+            ${pattern.thumbnail
+                ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
+                : `<div class="pattern-thumbnail-placeholder">
+                    <svg viewBox="0 0 100 100" width="80" height="80">
+                        <circle cx="50" cy="50" r="35" fill="none" stroke="currentColor" stroke-width="3"/>
+                        <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2"/>
+                        <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(60 50 50)"/>
+                        <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(120 50 50)"/>
+                    </svg>
+                  </div>`}
+            <h3>${escapeHtml(pattern.name)}</h3>
+            ${pattern.completed && pattern.completed_date
+                ? `<p class="completion-date">${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` · ${formatTime(pattern.timer_seconds)}` : ''}</p>`
+                : (pattern.timer_seconds > 0
+                    ? `<p class="pattern-status elapsed">Elapsed: ${formatTime(pattern.timer_seconds)}</p>`
+                    : `<p class="pattern-status new">New Pattern</p>`)}
+            <p class="pattern-description" onclick="event.stopPropagation(); startInlineDescEdit(this, '${pattern.id}')" title="Click to edit">${pattern.description ? escapeHtml(pattern.description) : '<span class="add-description">+ Add description</span>'}</p>
+            ${hashtagsHtml}
+            <div class="pattern-actions" onclick="event.stopPropagation()">
+                <button class="action-btn ${pattern.is_current ? 'current' : ''}"
+                        onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})"
+                        title="${pattern.is_current ? 'Remove from Current' : 'Make Current'}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_current ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                </button>
+                <button class="action-btn ${pattern.is_favorite ? 'active favorite' : ''}"
+                        onclick="toggleFavorite('${pattern.id}', ${!pattern.is_favorite})"
+                        title="${pattern.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                </button>
+                <button class="action-btn ${pattern.completed ? 'completed' : ''}"
+                        onclick="toggleComplete('${pattern.id}', ${!pattern.completed})"
+                        title="${pattern.completed ? 'Mark Incomplete' : 'Mark Complete'}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${pattern.completed ? '3' : '2'}" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </button>
+                <button class="action-btn" onclick="openEditModal('${pattern.id}')" title="Edit">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </button>
+                <button class="action-btn delete" onclick="handleCardDelete(this, '${pattern.id}')" title="Delete">
+                    <svg class="trash-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    <svg class="confirm-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
 function displayCurrentPatterns() {
     const grid = document.getElementById('current-patterns-grid');
 
@@ -3809,79 +3886,7 @@ function displayCurrentPatterns() {
         return;
     }
 
-    grid.innerHTML = currentPatterns.map(pattern => {
-        const hashtags = pattern.hashtags || [];
-        const hashtagsHtml = hashtags.length > 0
-            ? `<div class="pattern-hashtags">${hashtags.map(h => `<span class="pattern-hashtag">#${escapeHtml(h.name)}</span>`).join('')}</div>`
-            : '';
-
-        const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';
-
-        return `
-            <div class="pattern-card" onclick="handlePatternClick(event, ${pattern.id})">
-                ${showStatusBadge ? (pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : '<span class="current-badge">CURRENT</span>') : ''}
-                ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
-                ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
-                ${pattern.is_favorite ? '<span class="favorite-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
-                ${pattern.thumbnail
-                    ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
-                    : `<div class="pattern-thumbnail-placeholder">
-                        <svg viewBox="0 0 100 100" width="80" height="80">
-                            <circle cx="50" cy="50" r="35" fill="none" stroke="currentColor" stroke-width="3"/>
-                            <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2"/>
-                            <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(60 50 50)"/>
-                            <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(120 50 50)"/>
-                        </svg>
-                      </div>`}
-                <h3>${escapeHtml(pattern.name)}</h3>
-                ${pattern.completed && pattern.completed_date
-                    ? `<p class="completion-date">${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` · ${formatTime(pattern.timer_seconds)}` : ''}</p>`
-                    : (pattern.timer_seconds > 0
-                        ? `<p class="pattern-status elapsed">Elapsed: ${formatTime(pattern.timer_seconds)}</p>`
-                        : `<p class="pattern-status new">New Pattern</p>`)}
-                <p class="pattern-description" onclick="event.stopPropagation(); startInlineDescEdit(this, '${pattern.id}')" title="Click to edit">${pattern.description ? escapeHtml(pattern.description) : '<span class="add-description">+ Add description</span>'}</p>
-                ${hashtagsHtml}
-                <div class="pattern-actions" onclick="event.stopPropagation()">
-                    <button class="action-btn ${pattern.is_favorite ? 'active favorite' : ''}"
-                            onclick="toggleFavorite('${pattern.id}', ${!pattern.is_favorite})"
-                            title="${pattern.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                        </svg>
-                    </button>
-                    <button class="action-btn ${pattern.is_current ? 'current' : ''}"
-                            onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})"
-                            title="${pattern.is_current ? 'Remove from Current' : 'Make Current'}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_current ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                        </svg>
-                    </button>
-                    <button class="action-btn ${pattern.completed ? 'completed' : ''}"
-                            onclick="toggleComplete('${pattern.id}', ${!pattern.completed})"
-                            title="${pattern.completed ? 'Mark Incomplete' : 'Mark Complete'}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${pattern.completed ? '3' : '2'}" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                    </button>
-                    <button class="action-btn" onclick="openEditModal('${pattern.id}')" title="Edit">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                    </button>
-                    <button class="action-btn delete" onclick="handleCardDelete(this, '${pattern.id}')" title="Delete">
-                        <svg class="trash-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                        <svg class="confirm-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        `;
-    }).join('');
+    grid.innerHTML = currentPatterns.map(pattern => renderPatternCard(pattern)).join('');
 }
 
 function displayPatterns() {
@@ -3954,81 +3959,10 @@ function displayPatterns() {
     }
 
     grid.innerHTML = filteredPatterns.map(pattern => {
-        const hashtags = pattern.hashtags || [];
-        const hashtagsHtml = hashtags.length > 0
-            ? `<div class="pattern-hashtags">${hashtags.map(h => `<span class="pattern-hashtag">#${escapeHtml(h.name)}</span>`).join('')}</div>`
-            : '';
-
-        const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';
         const isNewPattern = !pattern.completed && !pattern.timer_seconds;
         const shouldHighlight = (highlightMode === 'new' && isNewPattern) || (highlightMode === 'current' && pattern.is_current) || (highlightMode === 'favorites' && pattern.is_favorite);
         const highlightClass = shouldHighlight ? ' highlight-new' : '';
-
-        return `
-            <div class="pattern-card${highlightClass}" onclick="handlePatternClick(event, ${pattern.id})">
-                ${showStatusBadge && pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
-                ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
-                ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
-                ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
-                ${pattern.is_favorite ? '<span class="favorite-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
-                ${pattern.thumbnail
-                    ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
-                    : `<div class="pattern-thumbnail-placeholder">
-                        <svg viewBox="0 0 100 100" width="80" height="80">
-                            <circle cx="50" cy="50" r="35" fill="none" stroke="currentColor" stroke-width="3"/>
-                            <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2"/>
-                            <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(60 50 50)"/>
-                            <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(120 50 50)"/>
-                        </svg>
-                      </div>`}
-                <h3>${escapeHtml(pattern.name)}</h3>
-                ${pattern.completed && pattern.completed_date
-                    ? `<p class="completion-date">${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` · ${formatTime(pattern.timer_seconds)}` : ''}</p>`
-                    : (pattern.timer_seconds > 0
-                        ? `<p class="pattern-status elapsed">Elapsed: ${formatTime(pattern.timer_seconds)}</p>`
-                        : `<p class="pattern-status new">New Pattern</p>`)}
-                <p class="pattern-description" onclick="event.stopPropagation(); startInlineDescEdit(this, '${pattern.id}')" title="Click to edit">${pattern.description ? escapeHtml(pattern.description) : '<span class="add-description">+ Add description</span>'}</p>
-                ${hashtagsHtml}
-                <div class="pattern-actions" onclick="event.stopPropagation()">
-                    <button class="action-btn ${pattern.is_favorite ? 'active favorite' : ''}"
-                            onclick="toggleFavorite('${pattern.id}', ${!pattern.is_favorite})"
-                            title="${pattern.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                        </svg>
-                    </button>
-                    <button class="action-btn ${pattern.is_current ? 'current' : ''}"
-                            onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})"
-                            title="${pattern.is_current ? 'Remove from Current' : 'Make Current'}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_current ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                        </svg>
-                    </button>
-                    <button class="action-btn ${pattern.completed ? 'completed' : ''}"
-                            onclick="toggleComplete('${pattern.id}', ${!pattern.completed})"
-                            title="${pattern.completed ? 'Mark Incomplete' : 'Mark Complete'}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${pattern.completed ? '3' : '2'}" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                    </button>
-                    <button class="action-btn" onclick="openEditModal('${pattern.id}')" title="Edit">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                        </svg>
-                    </button>
-                    <button class="action-btn delete" onclick="handleCardDelete(this, '${pattern.id}')" title="Delete">
-                        <svg class="trash-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="3 6 5 6 21 6"></polyline>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                        <svg class="confirm-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="20 6 9 17 4 12"></polyline>
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        `;
+        return renderPatternCard(pattern, { highlightClass });
     }).join('');
 }
 

@@ -1113,6 +1113,15 @@ header {
     color: white;
 }
 
+.action-btn.current {
+    color: var(--success-color);
+}
+
+.action-btn.current:hover {
+    background: var(--success-color);
+    color: white;
+}
+
 .action-btn.completed {
     color: var(--success-color);
 }
@@ -1142,6 +1151,47 @@ header {
 
 .action-btn.delete.confirm-delete .confirm-icon {
     display: block;
+}
+
+.action-btn.favorite {
+    color: var(--warning-color);
+}
+
+.action-btn.favorite:hover {
+    background: var(--warning-color);
+    color: white;
+}
+
+/* Thumbnail container for favorite overlay */
+.thumbnail-container {
+    position: relative;
+    width: 100%;
+    height: 150px;
+    margin-bottom: 8px;
+}
+
+.thumbnail-container .pattern-thumbnail,
+.thumbnail-container .pattern-thumbnail-placeholder {
+    margin-bottom: 0;
+}
+
+.pattern-card .favorite-badge {
+    position: absolute;
+    top: 140px;
+    right: 18px;
+    background: rgba(0, 0, 0, 0.6);
+    color: var(--warning-color);
+    padding: 3px 6px;
+    border-radius: 6px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    z-index: 10;
+}
+
+.pattern-card .favorite-badge svg {
+    width: 12px;
+    height: 12px;
+    vertical-align: middle;
 }
 
 .btn-small {

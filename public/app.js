@@ -3822,6 +3822,7 @@ function displayCurrentPatterns() {
                 ${showStatusBadge ? (pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : '<span class="current-badge">CURRENT</span>') : ''}
                 ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
                 ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
+                ${pattern.is_favorite ? '<span class="favorite-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
                 ${pattern.thumbnail
                     ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
                     : `<div class="pattern-thumbnail-placeholder">
@@ -3841,14 +3842,21 @@ function displayCurrentPatterns() {
                 <p class="pattern-description" onclick="event.stopPropagation(); startInlineDescEdit(this, '${pattern.id}')" title="Click to edit">${pattern.description ? escapeHtml(pattern.description) : '<span class="add-description">+ Add description</span>'}</p>
                 ${hashtagsHtml}
                 <div class="pattern-actions" onclick="event.stopPropagation()">
-                    <button class="action-btn ${pattern.is_current ? 'active' : ''}"
-                            onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})"
-                            title="${pattern.is_current ? 'Remove from Current' : 'Make Current'}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_current ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <button class="action-btn ${pattern.is_favorite ? 'active favorite' : ''}"
+                            onclick="toggleFavorite('${pattern.id}', ${!pattern.is_favorite})"
+                            title="${pattern.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                         </svg>
                     </button>
-                    <button class="action-btn ${pattern.completed ? 'active completed' : ''}"
+                    <button class="action-btn ${pattern.is_current ? 'current' : ''}"
+                            onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})"
+                            title="${pattern.is_current ? 'Remove from Current' : 'Make Current'}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_current ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                    </button>
+                    <button class="action-btn ${pattern.completed ? 'completed' : ''}"
                             onclick="toggleComplete('${pattern.id}', ${!pattern.completed})"
                             title="${pattern.completed ? 'Mark Incomplete' : 'Mark Complete'}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${pattern.completed ? '3' : '2'}" stroke-linecap="round" stroke-linejoin="round">
@@ -3953,7 +3961,7 @@ function displayPatterns() {
 
         const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';
         const isNewPattern = !pattern.completed && !pattern.timer_seconds;
-        const shouldHighlight = (highlightMode === 'new' && isNewPattern) || (highlightMode === 'current' && pattern.is_current);
+        const shouldHighlight = (highlightMode === 'new' && isNewPattern) || (highlightMode === 'current' && pattern.is_current) || (highlightMode === 'favorites' && pattern.is_favorite);
         const highlightClass = shouldHighlight ? ' highlight-new' : '';
 
         return `
@@ -3962,6 +3970,7 @@ function displayPatterns() {
                 ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
                 ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
                 ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
+                ${pattern.is_favorite ? '<span class="favorite-badge"><svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
                 ${pattern.thumbnail
                     ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
                     : `<div class="pattern-thumbnail-placeholder">
@@ -3981,14 +3990,21 @@ function displayPatterns() {
                 <p class="pattern-description" onclick="event.stopPropagation(); startInlineDescEdit(this, '${pattern.id}')" title="Click to edit">${pattern.description ? escapeHtml(pattern.description) : '<span class="add-description">+ Add description</span>'}</p>
                 ${hashtagsHtml}
                 <div class="pattern-actions" onclick="event.stopPropagation()">
-                    <button class="action-btn ${pattern.is_current ? 'active' : ''}"
-                            onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})"
-                            title="${pattern.is_current ? 'Remove from Current' : 'Make Current'}">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_current ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <button class="action-btn ${pattern.is_favorite ? 'active favorite' : ''}"
+                            onclick="toggleFavorite('${pattern.id}', ${!pattern.is_favorite})"
+                            title="${pattern.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
                         </svg>
                     </button>
-                    <button class="action-btn ${pattern.completed ? 'active completed' : ''}"
+                    <button class="action-btn ${pattern.is_current ? 'current' : ''}"
+                            onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})"
+                            title="${pattern.is_current ? 'Remove from Current' : 'Make Current'}">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_current ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                        </svg>
+                    </button>
+                    <button class="action-btn ${pattern.completed ? 'completed' : ''}"
                             onclick="toggleComplete('${pattern.id}', ${!pattern.completed})"
                             title="${pattern.completed ? 'Mark Incomplete' : 'Mark Complete'}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${pattern.completed ? '3' : '2'}" stroke-linecap="round" stroke-linejoin="round">
@@ -4053,6 +4069,26 @@ async function toggleComplete(id, completed) {
         }
     } catch (error) {
         console.error('Error toggling completion status:', error);
+    }
+}
+
+async function toggleFavorite(id, isFavorite) {
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${id}/favorite`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isFavorite })
+        });
+
+        if (response.ok) {
+            await loadPatterns();
+            await loadCurrentPatterns();
+        } else {
+            const error = await response.json();
+            console.error('Error updating favorite status:', error.error);
+        }
+    } catch (error) {
+        console.error('Error toggling favorite status:', error);
     }
 }
 

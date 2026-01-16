@@ -171,6 +171,12 @@ async function initDatabase() {
                       WHERE table_name='patterns' AND column_name='timer_seconds') THEN
           ALTER TABLE patterns ADD COLUMN timer_seconds INTEGER DEFAULT 0;
         END IF;
+
+        -- Add is_favorite column for favorite patterns
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='is_favorite') THEN
+          ALTER TABLE patterns ADD COLUMN is_favorite BOOLEAN DEFAULT false;
+        END IF;
       END $$;
     `);
 

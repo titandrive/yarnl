@@ -1219,6 +1219,30 @@ app.patch('/api/patterns/:id/complete', async (req, res) => {
   }
 });
 
+// Toggle pattern favorite status
+app.patch('/api/patterns/:id/favorite', async (req, res) => {
+  try {
+    const { isFavorite } = req.body;
+
+    const result = await pool.query(
+      `UPDATE patterns
+       SET is_favorite = $1,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 RETURNING *`,
+      [isFavorite, req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Pattern not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating favorite status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Increment stitch count for a pattern
 app.post('/api/patterns/:id/increment-stitch', async (req, res) => {
   try {

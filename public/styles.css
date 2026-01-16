@@ -249,7 +249,27 @@
     --upload-bg: #334155;
 }
 
-/* Theme: Midnight (Black/Red) - Dark only */
+/* Theme: Midnight (Red) - Light */
+[data-theme="midnight-light"] {
+    --primary-color: #dc2626;
+    --secondary-color: #ea580c;
+    --danger-color: #dc2626;
+    --success-color: #16a34a;
+    --warning-color: #ca8a04;
+    --bg-color: #fafafa;
+    --card-bg: #ffffff;
+    --text-color: #18181b;
+    --text-muted: #52525b;
+    --border-color: #e4e4e7;
+    --shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --tab-bg: #f4f4f5;
+    --input-bg: #ffffff;
+    --hover-bg: #f4f4f5;
+    --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #fef2f2 100%);
+    --upload-bg: #f4f4f5;
+}
+
+/* Theme: Midnight (Red) - Dark */
 [data-theme="midnight-dark"] {
     --primary-color: #ef4444;
     --secondary-color: #f97316;
@@ -269,7 +289,27 @@
     --upload-bg: #27272a;
 }
 
-/* Theme: Razer (Black/Green) - Dark only */
+/* Theme: Razer (Green) - Light */
+[data-theme="razer-light"] {
+    --primary-color: #16a34a;
+    --secondary-color: #15803d;
+    --danger-color: #ef4444;
+    --success-color: #16a34a;
+    --warning-color: #ca8a04;
+    --bg-color: #f0fdf4;
+    --card-bg: #ffffff;
+    --text-color: #14532d;
+    --text-muted: #166534;
+    --border-color: #bbf7d0;
+    --shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --tab-bg: #dcfce7;
+    --input-bg: #ffffff;
+    --hover-bg: #dcfce7;
+    --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #dcfce7 100%);
+    --upload-bg: #dcfce7;
+}
+
+/* Theme: Razer (Green) - Dark */
 [data-theme="razer-dark"] {
     --primary-color: #00ff00;
     --secondary-color: #22c55e;
@@ -289,7 +329,27 @@
     --upload-bg: #1a1a1a;
 }
 
-/* Theme: Synthwave - Dark only */
+/* Theme: Synthwave (Purple/Cyan) - Light */
+[data-theme="synthwave-light"] {
+    --primary-color: #c026d3;
+    --secondary-color: #0891b2;
+    --danger-color: #ef4444;
+    --success-color: #22c55e;
+    --warning-color: #f59e0b;
+    --bg-color: #fdf4ff;
+    --card-bg: #ffffff;
+    --text-color: #701a75;
+    --text-muted: #a21caf;
+    --border-color: #f0abfc;
+    --shadow: 0 4px 6px -1px rgba(192, 38, 211, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --tab-bg: #fae8ff;
+    --input-bg: #ffffff;
+    --hover-bg: #fae8ff;
+    --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #fae8ff 100%);
+    --upload-bg: #fae8ff;
+}
+
+/* Theme: Synthwave (Purple/Cyan) - Dark */
 [data-theme="synthwave-dark"] {
     --primary-color: #e879f9;
     --secondary-color: #22d3ee;
@@ -309,7 +369,27 @@
     --upload-bg: #3b2086;
 }
 
-/* Theme: Cyberpunk - Dark only */
+/* Theme: Cyberpunk (Magenta/Cyan) - Light */
+[data-theme="cyberpunk-light"] {
+    --primary-color: #d946ef;
+    --secondary-color: #06b6d4;
+    --danger-color: #ef4444;
+    --success-color: #10b981;
+    --warning-color: #eab308;
+    --bg-color: #fafafa;
+    --card-bg: #ffffff;
+    --text-color: #171717;
+    --text-muted: #0891b2;
+    --border-color: #e5e5e5;
+    --shadow: 0 4px 6px -1px rgba(217, 70, 239, 0.1), 0 2px 4px -1px rgba(6, 182, 212, 0.06);
+    --tab-bg: #f5f5f5;
+    --input-bg: #ffffff;
+    --hover-bg: #f5f5f5;
+    --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #fdf4ff 100%);
+    --upload-bg: #f5f5f5;
+}
+
+/* Theme: Cyberpunk (Magenta/Cyan) - Dark */
 [data-theme="cyberpunk-dark"] {
     --primary-color: #ff00ff;
     --secondary-color: #00f0ff;
@@ -329,7 +409,27 @@
     --upload-bg: #1a1a1a;
 }
 
-/* Theme: Dracula - Dark only */
+/* Theme: Dracula - Light */
+[data-theme="dracula-light"] {
+    --primary-color: #7c3aed;
+    --secondary-color: #db2777;
+    --danger-color: #ef4444;
+    --success-color: #10b981;
+    --warning-color: #eab308;
+    --bg-color: #f8f8f2;
+    --card-bg: #ffffff;
+    --text-color: #282a36;
+    --text-muted: #6272a4;
+    --border-color: #e2e8f0;
+    --shadow: 0 4px 6px -1px rgba(124, 58, 237, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --tab-bg: #f1f5f9;
+    --input-bg: #ffffff;
+    --hover-bg: #f1f5f9;
+    --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #f5f3ff 100%);
+    --upload-bg: #f1f5f9;
+}
+
+/* Theme: Dracula - Dark */
 [data-theme="dracula-dark"] {
     --primary-color: #bd93f9;
     --secondary-color: #ff79c6;
@@ -349,7 +449,27 @@
     --upload-bg: #44475a;
 }
 
-/* Theme: Coffee - Dark only */
+/* Theme: Coffee - Light */
+[data-theme="coffee-light"] {
+    --primary-color: #92400e;
+    --secondary-color: #a16207;
+    --danger-color: #ef4444;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --bg-color: #fef7ed;
+    --card-bg: #ffffff;
+    --text-color: #451a03;
+    --text-muted: #78350f;
+    --border-color: #fed7aa;
+    --shadow: 0 4px 6px -1px rgba(146, 64, 14, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --tab-bg: #ffedd5;
+    --input-bg: #ffffff;
+    --hover-bg: #ffedd5;
+    --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #fef3c7 100%);
+    --upload-bg: #ffedd5;
+}
+
+/* Theme: Coffee - Dark */
 [data-theme="coffee-dark"] {
     --primary-color: #c9a26d;
     --secondary-color: #d4a574;
@@ -409,7 +529,27 @@
     --upload-bg: #155e75;
 }
 
-/* Theme: NASA - Dark only */
+/* Theme: NASA - Light */
+[data-theme="nasa-light"] {
+    --primary-color: #105bd8;
+    --secondary-color: #0b3d91;
+    --danger-color: #dd361c;
+    --success-color: #10b981;
+    --warning-color: #f59e0b;
+    --bg-color: #f8fafc;
+    --card-bg: #ffffff;
+    --text-color: #0f172a;
+    --text-muted: #475569;
+    --border-color: #cbd5e1;
+    --shadow: 0 4px 6px -1px rgba(16, 91, 216, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --tab-bg: #e2e8f0;
+    --input-bg: #ffffff;
+    --hover-bg: #e2e8f0;
+    --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #dbeafe 100%);
+    --upload-bg: #e2e8f0;
+}
+
+/* Theme: NASA - Dark */
 [data-theme="nasa-dark"] {
     --primary-color: #105bd8;
     --secondary-color: #0b3d91;
@@ -2807,6 +2947,39 @@ input[type="number"].settings-input {
 
 .toggle-switch input:checked + .toggle-slider .moon {
     opacity: 0;
+}
+
+/* Day/Night Mode Toggle */
+.day-night-toggle {
+    display: flex;
+    gap: 4px;
+    background: var(--input-bg);
+    border-radius: 8px;
+    padding: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.day-night-toggle .mode-btn {
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.day-night-toggle .mode-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.day-night-toggle .mode-btn.active {
+    background: var(--primary-color);
+    color: white;
 }
 
 .categories-list {

@@ -653,28 +653,85 @@ function applyFont(fontName, customFontName = null) {
 function initTheme() {
     const themeSelect = document.getElementById('theme-select');
     const gradientCheckbox = document.getElementById('gradient-checkbox');
+    const dayModeBtn = document.getElementById('day-mode-btn');
+    const nightModeBtn = document.getElementById('night-mode-btn');
 
     // Migrate old theme settings to new format
-    let currentTheme = localStorage.getItem('theme') || 'lavender-dark';
-    if (currentTheme === 'dark') currentTheme = 'lavender-dark';
-    if (currentTheme === 'light') currentTheme = 'lavender-light';
+    let savedTheme = localStorage.getItem('theme') || 'lavender-dark';
+    if (savedTheme === 'dark') savedTheme = 'lavender-dark';
+    if (savedTheme === 'light') savedTheme = 'lavender-light';
 
-    document.documentElement.setAttribute('data-theme', currentTheme);
+    // Extract base theme and mode from saved theme
+    let themeBase = localStorage.getItem('themeBase');
+    let themeMode = localStorage.getItem('themeMode');
+
+    // Migration from old format
+    if (!themeBase || !themeMode) {
+        const match = savedTheme.match(/^(.+)-(light|dark)$/);
+        if (match) {
+            themeBase = match[1];
+            themeMode = match[2];
+        } else {
+            themeBase = 'lavender';
+            themeMode = 'dark';
+        }
+        localStorage.setItem('themeBase', themeBase);
+        localStorage.setItem('themeMode', themeMode);
+    }
+
+    const fullTheme = `${themeBase}-${themeMode}`;
+    document.documentElement.setAttribute('data-theme', fullTheme);
+    localStorage.setItem('theme', fullTheme);
 
     // Gradient setting (default off)
     const useGradient = localStorage.getItem('useGradient') === 'true';
     document.documentElement.setAttribute('data-gradient', useGradient);
 
+    // Update mode button states
+    function updateModeButtons() {
+        if (dayModeBtn && nightModeBtn) {
+            dayModeBtn.classList.toggle('active', themeMode === 'light');
+            nightModeBtn.classList.toggle('active', themeMode === 'dark');
+        }
+    }
+
+    // Apply theme helper
+    function applyTheme() {
+        const fullTheme = `${themeBase}-${themeMode}`;
+        document.documentElement.setAttribute('data-theme', fullTheme);
+        localStorage.setItem('theme', fullTheme);
+        localStorage.setItem('themeBase', themeBase);
+        localStorage.setItem('themeMode', themeMode);
+        updateModeButtons();
+    }
+
     if (themeSelect) {
-        themeSelect.value = currentTheme;
+        themeSelect.value = themeBase;
 
         themeSelect.addEventListener('change', () => {
-            const newTheme = themeSelect.value;
-            document.documentElement.setAttribute('data-theme', newTheme);
-            localStorage.setItem('theme', newTheme);
+            themeBase = themeSelect.value;
+            applyTheme();
             showToast('Theme updated');
         });
     }
+
+    if (dayModeBtn) {
+        dayModeBtn.addEventListener('click', () => {
+            themeMode = 'light';
+            applyTheme();
+            showToast('Day mode enabled');
+        });
+    }
+
+    if (nightModeBtn) {
+        nightModeBtn.addEventListener('click', () => {
+            themeMode = 'dark';
+            applyTheme();
+            showToast('Night mode enabled');
+        });
+    }
+
+    updateModeButtons();
 
     if (gradientCheckbox) {
         gradientCheckbox.checked = useGradient;
@@ -821,8 +878,12 @@ function initTheme() {
         resetAppearanceBtn.addEventListener('click', () => {
             // Reset theme
             localStorage.setItem('theme', 'lavender-dark');
+            localStorage.setItem('themeBase', 'lavender');
+            localStorage.setItem('themeMode', 'dark');
             document.documentElement.setAttribute('data-theme', 'lavender-dark');
-            if (themeSelect) themeSelect.value = 'lavender-dark';
+            if (themeSelect) themeSelect.value = 'lavender';
+            if (dayModeBtn) dayModeBtn.classList.remove('active');
+            if (nightModeBtn) nightModeBtn.classList.add('active');
 
             // Reset gradient
             localStorage.setItem('useGradient', 'false');

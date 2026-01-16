@@ -347,6 +347,38 @@ Inc in each st around (12)
                             </label>
                         </div>
 
+                        <h4 class="settings-subheading">Font</h4>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Font Family</label>
+                                <p class="setting-description">Choose your preferred font</p>
+                            </div>
+                            <select id="font-select" class="settings-select">
+                                <option value="JetBrains Mono">JetBrains Mono (Default)</option>
+                                <option value="Inter">Inter</option>
+                                <option value="Roboto">Roboto</option>
+                                <option value="Open Sans">Open Sans</option>
+                                <option value="Lato">Lato</option>
+                                <option value="Poppins">Poppins</option>
+                                <option value="Nunito">Nunito</option>
+                                <option value="Raleway">Raleway</option>
+                                <option value="Source Sans Pro">Source Sans Pro</option>
+                                <option value="Ubuntu">Ubuntu</option>
+                                <option value="Fira Sans">Fira Sans</option>
+                                <option value="custom">Custom...</option>
+                            </select>
+                        </div>
+                        <div class="setting-item" id="custom-font-container" style="display: none;">
+                            <div class="setting-info">
+                                <label>Google Font name</label>
+                                <p class="setting-description">Enter exact name from <a href="https://fonts.google.com" target="_blank">Google Fonts</a></p>
+                            </div>
+                            <div class="custom-font-input-row">
+                                <input type="text" id="custom-font-input" class="settings-input" placeholder="e.g., Lato, Raleway, etc.">
+                                <button id="apply-custom-font-btn" class="btn btn-primary">Apply</button>
+                            </div>
+                        </div>
+
                         <h4 class="settings-subheading">Header</h4>
                         <div class="setting-item">
                             <div class="setting-info">

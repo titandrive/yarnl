@@ -25,6 +25,7 @@
     --hover-bg: #f3f4f6;
     --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #faf5ff 100%);
     --upload-bg: #f9fafb;
+    --font-family: 'JetBrains Mono', sans-serif;
 }
 
 /* Theme: Lavender (Default) - Dark */
@@ -429,7 +430,7 @@
 }
 
 body {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-color) 100%);
     color: var(--text-color);
     min-height: 100vh;
@@ -2506,6 +2507,20 @@ input[type="number"].settings-input {
     min-width: 100px;
 }
 
+.custom-font-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.custom-font-input-row .settings-input {
+    flex: 1;
+}
+
+.custom-font-input-row .btn {
+    white-space: nowrap;
+}
+
 .settings-reset {
     margin-top: 24px;
     padding-top: 16px;
@@ -2522,6 +2537,11 @@ input[type="number"].settings-input {
     font-size: 0.85rem;
     color: var(--text-muted);
     margin: 0;
+}
+
+.setting-description a {
+    color: var(--text-muted);
+    text-decoration: underline;
 }
 
 .setting-hint {

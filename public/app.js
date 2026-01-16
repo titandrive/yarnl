@@ -627,6 +627,25 @@ function setupMarkdownListContinuation(textarea) {
     });
 }
 
+// Font loading
+function applyFont(fontName, customFontName = null) {
+    const fontToLoad = customFontName || fontName;
+
+    // Remove existing custom font link if any
+    const existingLink = document.getElementById('custom-google-font');
+    if (existingLink) existingLink.remove();
+
+    // Load font from Google Fonts
+    const link = document.createElement('link');
+    link.id = 'custom-google-font';
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${fontToLoad.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`;
+    document.head.appendChild(link);
+
+    // Apply font to document
+    document.documentElement.style.setProperty('--font-family', `"${fontToLoad}", sans-serif`);
+}
+
 // Theme toggle
 function initTheme() {
     const themeSelect = document.getElementById('theme-select');
@@ -738,6 +757,61 @@ function initTheme() {
         });
     }
 
+    // Font selection
+    const fontSelect = document.getElementById('font-select');
+    const customFontContainer = document.getElementById('custom-font-container');
+    const customFontInput = document.getElementById('custom-font-input');
+    const applyCustomFontBtn = document.getElementById('apply-custom-font-btn');
+
+    const savedFont = localStorage.getItem('fontFamily') || 'JetBrains Mono';
+    const savedCustomFont = localStorage.getItem('customFontName') || '';
+
+    // Apply saved font on load
+    applyFont(savedFont, savedCustomFont);
+
+    if (fontSelect) {
+        // Check if saved font is a preset or custom
+        const isPreset = Array.from(fontSelect.options).some(opt => opt.value === savedFont && opt.value !== 'custom');
+        if (isPreset) {
+            fontSelect.value = savedFont;
+        } else if (savedCustomFont) {
+            fontSelect.value = 'custom';
+            if (customFontContainer) customFontContainer.style.display = 'flex';
+            if (customFontInput) customFontInput.value = savedCustomFont;
+        }
+
+        fontSelect.addEventListener('change', () => {
+            const selectedFont = fontSelect.value;
+            if (selectedFont === 'custom') {
+                if (customFontContainer) customFontContainer.style.display = 'flex';
+            } else {
+                if (customFontContainer) customFontContainer.style.display = 'none';
+                applyFont(selectedFont);
+                localStorage.setItem('fontFamily', selectedFont);
+                localStorage.removeItem('customFontName');
+                showToast(`Font changed to ${selectedFont}`);
+            }
+        });
+    }
+
+    if (applyCustomFontBtn && customFontInput) {
+        applyCustomFontBtn.addEventListener('click', () => {
+            const customFont = customFontInput.value.trim();
+            if (customFont) {
+                applyFont(customFont, customFont);
+                localStorage.setItem('fontFamily', customFont);
+                localStorage.setItem('customFontName', customFont);
+                showToast(`Font changed to ${customFont}`);
+            }
+        });
+
+        customFontInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                applyCustomFontBtn.click();
+            }
+        });
+    }
+
     // Reset appearance to defaults
     const resetAppearanceBtn = document.getElementById('reset-appearance-btn');
     if (resetAppearanceBtn) {
@@ -767,6 +841,14 @@ function initTheme() {
             localStorage.setItem('showLogo', 'true');
             if (headerLogo) headerLogo.style.display = 'inline';
             if (showLogoCheckbox) showLogoCheckbox.checked = true;
+
+            // Reset font
+            localStorage.setItem('fontFamily', 'JetBrains Mono');
+            localStorage.removeItem('customFontName');
+            applyFont('JetBrains Mono');
+            if (fontSelect) fontSelect.value = 'JetBrains Mono';
+            if (customFontContainer) customFontContainer.style.display = 'none';
+            if (customFontInput) customFontInput.value = '';
 
             // Reset tab counts
             localStorage.setItem('showTabCounts', 'true');

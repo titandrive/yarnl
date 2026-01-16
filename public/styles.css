@@ -621,6 +621,7 @@ header {
 .header-title h1 {
     font-size: 3rem;
     margin-bottom: 0;
+    font-family: var(--font-family);
 }
 
 .subtitle {
@@ -1165,6 +1166,40 @@ header {
 
 .sidebar-section input[type="text"]::placeholder {
     color: var(--text-muted);
+}
+
+.search-input-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.search-input-wrapper input[type="text"] {
+    padding-right: 32px;
+}
+
+.search-clear-btn {
+    position: absolute;
+    right: 8px;
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: color 0.2s, background 0.2s;
+}
+
+.search-clear-btn:hover {
+    color: var(--text-color);
+    background: var(--hover-bg);
+}
+
+.search-clear-btn.visible {
+    display: flex;
 }
 
 .sidebar-toggle-row {
@@ -2721,6 +2756,30 @@ header {
 .settings-select:focus {
     outline: none;
     border-color: var(--primary-color);
+}
+
+.party-mode-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border: 1px solid var(--primary-color);
+    border-radius: 8px;
+    background: var(--primary-color);
+    color: white;
+    font-family: inherit;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.party-mode-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.party-mode-btn:active {
+    transform: scale(0.98);
 }
 
 .settings-input {

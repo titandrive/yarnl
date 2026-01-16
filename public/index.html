@@ -64,7 +64,15 @@
                     <aside class="library-sidebar">
                         <div class="sidebar-section">
                             <label for="search-input">Search</label>
-                            <input type="text" id="search-input" placeholder="Search patterns...">
+                            <div class="search-input-wrapper">
+                                <input type="text" id="search-input" placeholder="Search patterns...">
+                                <button type="button" id="search-clear-btn" class="search-clear-btn" title="Clear search">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </div>
                         </div>
                         <div class="sidebar-section">
                             <label for="show-filter-select">Show</label>
@@ -364,6 +372,18 @@ Inc in each st around (12)
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
+                                <label>Party Mode</label>
+                                <p class="setting-description">Random theme & font combo</p>
+                            </div>
+                            <button id="party-mode-btn" class="party-mode-btn" title="Randomize theme and font">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                                </svg>
+                                Surprise Me!
+                            </button>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
                                 <label>Day / Night Mode</label>
                                 <p class="setting-description">Switch between light and dark</p>
                             </div>
@@ -532,6 +552,16 @@ Inc in each st around (12)
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="badge-category-checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Star Badge</label>
+                                <p class="setting-description">Show star on favorite cards</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="badge-star-checkbox" checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>

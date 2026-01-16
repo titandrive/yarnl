@@ -87,6 +87,7 @@ let showTabCounts = localStorage.getItem('showTabCounts') !== 'false';
 let showTypeBadge = localStorage.getItem('showTypeBadge') !== 'false';
 let showStatusBadge = localStorage.getItem('showStatusBadge') !== 'false';
 let showCategoryBadge = localStorage.getItem('showCategoryBadge') !== 'false';
+let showStarBadge = localStorage.getItem('showStarBadge') !== 'false';
 let defaultCategory = localStorage.getItem('defaultCategory') || 'Amigurumi';
 
 function getDefaultCategory() {
@@ -1010,6 +1011,34 @@ function initTheme() {
         });
     }
 
+    // Party mode - random theme and font
+    const partyModeBtn = document.getElementById('party-mode-btn');
+    if (partyModeBtn) {
+        partyModeBtn.addEventListener('click', () => {
+            const themes = ['lavender', 'ocean', 'forest', 'sunset', 'rose', 'slate', 'aqua', 'midnight', 'razer', 'synthwave', 'cyberpunk', 'dracula', 'coffee', 'nasa'];
+            const fonts = ['JetBrains Mono', 'Inter', 'Roboto', 'Open Sans', 'Lato', 'Poppins', 'Nunito', 'Raleway', 'Source Sans Pro', 'Ubuntu', 'Fira Sans'];
+
+            const randomTheme = themes[Math.floor(Math.random() * themes.length)];
+            const randomFont = fonts[Math.floor(Math.random() * fonts.length)];
+
+            // Apply random theme
+            themeBase = randomTheme;
+            applyTheme();
+            if (themeSelect) themeSelect.value = randomTheme;
+
+            // Apply random font
+            applyFont(randomFont);
+            localStorage.setItem('fontFamily', randomFont);
+            localStorage.removeItem('customFontName');
+            if (fontSelect) {
+                fontSelect.value = randomFont;
+                if (customFontContainer) customFontContainer.style.display = 'none';
+            }
+
+            showToast(`Party mode! Theme: ${randomTheme}, Font: ${randomFont}`);
+        });
+    }
+
     // Reset appearance to defaults
     const resetAppearanceBtn = document.getElementById('reset-appearance-btn');
     if (resetAppearanceBtn) {
@@ -1879,6 +1908,7 @@ function initSettings() {
     const badgeTypeCheckbox = document.getElementById('badge-type-checkbox');
     const badgeStatusCheckbox = document.getElementById('badge-status-checkbox');
     const badgeCategoryCheckbox = document.getElementById('badge-category-checkbox');
+    const badgeStarCheckbox = document.getElementById('badge-star-checkbox');
 
     if (badgeTypeCheckbox) {
         badgeTypeCheckbox.checked = showTypeBadge;
@@ -1910,6 +1940,17 @@ function initSettings() {
             displayPatterns();
             displayCurrentPatterns();
             showToast(showCategoryBadge ? 'Category badge shown' : 'Category badge hidden');
+        });
+    }
+
+    if (badgeStarCheckbox) {
+        badgeStarCheckbox.checked = showStarBadge;
+        badgeStarCheckbox.addEventListener('change', () => {
+            showStarBadge = badgeStarCheckbox.checked;
+            localStorage.setItem('showStarBadge', showStarBadge);
+            displayPatterns();
+            displayCurrentPatterns();
+            showToast(showStarBadge ? 'Star badge shown' : 'Star badge hidden');
         });
     }
 
@@ -3938,6 +3979,7 @@ function getSelectedHashtagIds(selectorId) {
 
 function initLibraryFilters() {
     const searchInput = document.getElementById('search-input');
+    const searchClearBtn = document.getElementById('search-clear-btn');
     const sortSelect = document.getElementById('sort-select');
     const showCompletedCheckbox = document.getElementById('show-completed');
     const showCurrentCheckbox = document.getElementById('show-current');
@@ -3946,6 +3988,19 @@ function initLibraryFilters() {
         searchInput.addEventListener('input', (e) => {
             searchQuery = e.target.value.toLowerCase();
             displayPatterns();
+            if (searchClearBtn) {
+                searchClearBtn.classList.toggle('visible', e.target.value.length > 0);
+            }
+        });
+    }
+
+    if (searchClearBtn) {
+        searchClearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            searchQuery = '';
+            searchClearBtn.classList.remove('visible');
+            displayPatterns();
+            searchInput.focus();
         });
     }
 
@@ -4064,7 +4119,7 @@ function renderPatternCard(pattern, options = {}) {
             ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
             ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
             ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
-            ${pattern.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
+            ${showStarBadge && pattern.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
             ${pattern.thumbnail
                 ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
                 : `<div class="pattern-thumbnail-placeholder">

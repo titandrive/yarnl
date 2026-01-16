@@ -78,6 +78,7 @@ let showMarkdown = localStorage.getItem('libraryShowMarkdown') !== 'false';
 let highlightMode = localStorage.getItem('libraryHighlightMode') || 'none';
 let pinCurrent = localStorage.getItem('libraryPinCurrent') === 'true';
 let pinFavorites = localStorage.getItem('libraryPinFavorites') === 'true';
+let showFilter = localStorage.getItem('libraryShowFilter') || 'all';
 let searchQuery = '';
 let previousTab = 'current';
 let navigationHistory = []; // Stack for UI back button
@@ -3825,6 +3826,17 @@ function initLibraryFilters() {
             displayPatterns();
         });
     }
+
+    // Show filter dropdown
+    const showFilterSelect = document.getElementById('show-filter-select');
+    if (showFilterSelect) {
+        showFilterSelect.value = showFilter;
+        showFilterSelect.addEventListener('change', (e) => {
+            showFilter = e.target.value;
+            localStorage.setItem('libraryShowFilter', showFilter);
+            displayPatterns();
+        });
+    }
 }
 
 function renderPatternCard(pattern, options = {}) {
@@ -3962,6 +3974,16 @@ function displayPatterns() {
         if (!isPdf && !showMarkdown) return false;
         return true;
     });
+
+    // Filter by show dropdown (favorites/current/new)
+    if (showFilter !== 'all') {
+        filteredPatterns = filteredPatterns.filter(p => {
+            if (showFilter === 'favorites') return p.is_favorite;
+            if (showFilter === 'current') return p.is_current && !p.completed;
+            if (showFilter === 'new') return !p.completed && !p.timer_seconds;
+            return true;
+        });
+    }
 
     // Sort patterns
     filteredPatterns = [...filteredPatterns].sort((a, b) => {

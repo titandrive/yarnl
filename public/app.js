@@ -88,6 +88,7 @@ let showTypeBadge = localStorage.getItem('showTypeBadge') !== 'false';
 let showStatusBadge = localStorage.getItem('showStatusBadge') !== 'false';
 let showCategoryBadge = localStorage.getItem('showCategoryBadge') !== 'false';
 let showStarBadge = localStorage.getItem('showStarBadge') !== 'false';
+let autoCurrentOnTimer = localStorage.getItem('autoCurrentOnTimer') === 'true';
 let defaultCategory = localStorage.getItem('defaultCategory') || 'Amigurumi';
 
 function getDefaultCategory() {
@@ -231,6 +232,11 @@ function startTimer() {
 
     timerRunning = true;
     updateTimerButtonState();
+
+    // Auto-mark as current if setting is enabled and pattern isn't already current
+    if (autoCurrentOnTimer && !currentPattern.is_current) {
+        toggleCurrent(currentPattern.id, true);
+    }
 
     timerInterval = setInterval(() => {
         timerSeconds++;
@@ -1142,6 +1148,12 @@ function initTheme() {
             const defaultPageSelect = document.getElementById('default-page-select');
             if (defaultPageSelect) defaultPageSelect.value = 'current';
 
+            // Reset auto-current on timer
+            localStorage.setItem('autoCurrentOnTimer', 'false');
+            autoCurrentOnTimer = false;
+            const autoCurrentTimerCheckbox = document.getElementById('auto-current-timer-checkbox');
+            if (autoCurrentTimerCheckbox) autoCurrentTimerCheckbox.checked = false;
+
             // Reset default zoom
             localStorage.setItem('defaultZoom', 'fit');
             const defaultZoomSelect = document.getElementById('default-zoom-select');
@@ -1940,6 +1952,17 @@ function initSettings() {
         defaultZoomSelect.addEventListener('change', () => {
             localStorage.setItem('defaultPdfZoom', defaultZoomSelect.value);
             showToast('Default zoom updated');
+        });
+    }
+
+    // Auto-current on timer setting
+    const autoCurrentTimerCheckbox = document.getElementById('auto-current-timer-checkbox');
+    if (autoCurrentTimerCheckbox) {
+        autoCurrentTimerCheckbox.checked = autoCurrentOnTimer;
+        autoCurrentTimerCheckbox.addEventListener('change', () => {
+            autoCurrentOnTimer = autoCurrentTimerCheckbox.checked;
+            localStorage.setItem('autoCurrentOnTimer', autoCurrentOnTimer);
+            showToast(autoCurrentOnTimer ? 'Patterns will be marked current on timer start' : 'Auto-current disabled');
         });
     }
 

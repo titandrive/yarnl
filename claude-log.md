@@ -4,6 +4,33 @@ A running log of features and changes made to Yarnl.
 
 ---
 
+## 2026-01-16: Theme System Refactor
+
+Major overhaul of theme settings with day/night toggle and auto-switching.
+
+### Features
+- **Theme Dropdown**: Single dropdown with all 14 themes (removed separate light/dark groups)
+- **Day/Night Toggle**: Sun and moon buttons for manual light/dark switching
+- **Auto Switch Toggle**: Enable automatic mode switching
+- **Auto Type**: Choose between System (OS preference) or Scheduled
+- **Scheduled Times**: Custom day start and night start times when using scheduled auto
+- **Light Theme Variants**: Added light versions for Midnight, Razer, Synthwave, Cyberpunk, Dracula, Coffee, NASA
+
+### Technical Details
+- `themeBase` stores theme name (e.g., "lavender"), `themeMode` stores light/dark
+- `autoModeEnabled` and `autoType` control automatic switching
+- System mode uses `matchMedia('prefers-color-scheme')` with change listener
+- Scheduled mode checks time every minute via `setInterval`
+- Clicking Day/Night buttons disables auto mode automatically
+- Gradient Header setting moved to Header section
+
+### Files Modified
+- `public/styles.css` - Added 7 new light theme variants, schedule times styling
+- `public/index.html` - New theme selector UI with auto toggle and type dropdown
+- `public/app.js` - Refactored theme logic with auto switching support
+
+---
+
 ## 2026-01-16: Favorites Feature & Pin-to-Top Sorting
 
 Added pattern favorites system and pin-to-top sorting controls.

@@ -654,7 +654,12 @@ function initTheme() {
     const themeSelect = document.getElementById('theme-select');
     const gradientCheckbox = document.getElementById('gradient-checkbox');
     const dayModeBtn = document.getElementById('day-mode-btn');
+    const autoModeBtn = document.getElementById('auto-mode-btn');
+    const scheduledModeBtn = document.getElementById('scheduled-mode-btn');
     const nightModeBtn = document.getElementById('night-mode-btn');
+    const scheduleTimesContainer = document.getElementById('schedule-times-container');
+    const dayStartTime = document.getElementById('day-start-time');
+    const nightStartTime = document.getElementById('night-start-time');
 
     // Migrate old theme settings to new format
     let savedTheme = localStorage.getItem('theme') || 'lavender-dark';
@@ -663,10 +668,14 @@ function initTheme() {
 
     // Extract base theme and mode from saved theme
     let themeBase = localStorage.getItem('themeBase');
-    let themeMode = localStorage.getItem('themeMode');
+    let themeMode = localStorage.getItem('themeMode') || 'dark'; // light, dark, auto, or scheduled
+
+    // Schedule times (default: 7am day, 7pm night)
+    let dayStart = localStorage.getItem('dayStartTime') || '07:00';
+    let nightStart = localStorage.getItem('nightStartTime') || '19:00';
 
     // Migration from old format
-    if (!themeBase || !themeMode) {
+    if (!themeBase) {
         const match = savedTheme.match(/^(.+)-(light|dark)$/);
         if (match) {
             themeBase = match[1];
@@ -679,7 +688,38 @@ function initTheme() {
         localStorage.setItem('themeMode', themeMode);
     }
 
-    const fullTheme = `${themeBase}-${themeMode}`;
+    // Check if current time is within day hours
+    function isDayTime() {
+        const now = new Date();
+        const currentMinutes = now.getHours() * 60 + now.getMinutes();
+        const [dayH, dayM] = dayStart.split(':').map(Number);
+        const [nightH, nightM] = nightStart.split(':').map(Number);
+        const dayMinutes = dayH * 60 + dayM;
+        const nightMinutes = nightH * 60 + nightM;
+
+        if (dayMinutes < nightMinutes) {
+            // Normal case: day is before night (e.g., 7am-7pm)
+            return currentMinutes >= dayMinutes && currentMinutes < nightMinutes;
+        } else {
+            // Inverted case: night is before day (e.g., 10pm-6am night)
+            return currentMinutes >= dayMinutes || currentMinutes < nightMinutes;
+        }
+    }
+
+    // Get effective mode (resolves 'auto'/'scheduled' to actual light/dark)
+    function getEffectiveMode() {
+        if (themeMode === 'auto') {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        if (themeMode === 'scheduled') {
+            return isDayTime() ? 'light' : 'dark';
+        }
+        return themeMode;
+    }
+
+    // Apply initial theme
+    const effectiveMode = getEffectiveMode();
+    const fullTheme = `${themeBase}-${effectiveMode}`;
     document.documentElement.setAttribute('data-theme', fullTheme);
     localStorage.setItem('theme', fullTheme);
 
@@ -687,23 +727,43 @@ function initTheme() {
     const useGradient = localStorage.getItem('useGradient') === 'true';
     document.documentElement.setAttribute('data-gradient', useGradient);
 
-    // Update mode button states
+    // Update mode button states and show/hide schedule times
     function updateModeButtons() {
-        if (dayModeBtn && nightModeBtn) {
+        if (dayModeBtn && autoModeBtn && scheduledModeBtn && nightModeBtn) {
             dayModeBtn.classList.toggle('active', themeMode === 'light');
+            autoModeBtn.classList.toggle('active', themeMode === 'auto');
+            scheduledModeBtn.classList.toggle('active', themeMode === 'scheduled');
             nightModeBtn.classList.toggle('active', themeMode === 'dark');
+        }
+        if (scheduleTimesContainer) {
+            scheduleTimesContainer.style.display = themeMode === 'scheduled' ? 'flex' : 'none';
         }
     }
 
     // Apply theme helper
     function applyTheme() {
-        const fullTheme = `${themeBase}-${themeMode}`;
+        const effectiveMode = getEffectiveMode();
+        const fullTheme = `${themeBase}-${effectiveMode}`;
         document.documentElement.setAttribute('data-theme', fullTheme);
         localStorage.setItem('theme', fullTheme);
         localStorage.setItem('themeBase', themeBase);
         localStorage.setItem('themeMode', themeMode);
         updateModeButtons();
     }
+
+    // Listen for system theme changes when in auto mode
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
+        if (themeMode === 'auto') {
+            applyTheme();
+        }
+    });
+
+    // Check scheduled theme every minute
+    setInterval(() => {
+        if (themeMode === 'scheduled') {
+            applyTheme();
+        }
+    }, 60000);
 
     if (themeSelect) {
         themeSelect.value = themeBase;
@@ -723,11 +783,50 @@ function initTheme() {
         });
     }
 
+    if (autoModeBtn) {
+        autoModeBtn.addEventListener('click', () => {
+            themeMode = 'auto';
+            applyTheme();
+            showToast('Auto mode enabled');
+        });
+    }
+
+    if (scheduledModeBtn) {
+        scheduledModeBtn.addEventListener('click', () => {
+            themeMode = 'scheduled';
+            applyTheme();
+            showToast('Scheduled mode enabled');
+        });
+    }
+
     if (nightModeBtn) {
         nightModeBtn.addEventListener('click', () => {
             themeMode = 'dark';
             applyTheme();
             showToast('Night mode enabled');
+        });
+    }
+
+    // Schedule time inputs
+    if (dayStartTime) {
+        dayStartTime.value = dayStart;
+        dayStartTime.addEventListener('change', () => {
+            dayStart = dayStartTime.value;
+            localStorage.setItem('dayStartTime', dayStart);
+            if (themeMode === 'scheduled') {
+                applyTheme();
+            }
+        });
+    }
+
+    if (nightStartTime) {
+        nightStartTime.value = nightStart;
+        nightStartTime.addEventListener('change', () => {
+            nightStart = nightStartTime.value;
+            localStorage.setItem('nightStartTime', nightStart);
+            if (themeMode === 'scheduled') {
+                applyTheme();
+            }
         });
     }
 
@@ -880,10 +979,17 @@ function initTheme() {
             localStorage.setItem('theme', 'lavender-dark');
             localStorage.setItem('themeBase', 'lavender');
             localStorage.setItem('themeMode', 'dark');
+            localStorage.setItem('dayStartTime', '07:00');
+            localStorage.setItem('nightStartTime', '19:00');
             document.documentElement.setAttribute('data-theme', 'lavender-dark');
             if (themeSelect) themeSelect.value = 'lavender';
             if (dayModeBtn) dayModeBtn.classList.remove('active');
+            if (autoModeBtn) autoModeBtn.classList.remove('active');
+            if (scheduledModeBtn) scheduledModeBtn.classList.remove('active');
             if (nightModeBtn) nightModeBtn.classList.add('active');
+            if (scheduleTimesContainer) scheduleTimesContainer.style.display = 'none';
+            if (dayStartTime) dayStartTime.value = '07:00';
+            if (nightStartTime) nightStartTime.value = '19:00';
 
             // Reset gradient
             localStorage.setItem('useGradient', 'false');

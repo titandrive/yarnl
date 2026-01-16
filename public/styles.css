@@ -2982,6 +2982,28 @@ input[type="number"].settings-input {
     color: white;
 }
 
+/* Schedule Times */
+.schedule-times {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.schedule-times input[type="time"] {
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-family: inherit;
+    font-size: 0.9rem;
+}
+
+.schedule-separator {
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
 .categories-list {
     display: flex;
     flex-direction: column;

@@ -954,12 +954,58 @@ header {
     gap: 8px;
 }
 
-.sidebar-section > label:first-child {
+.sidebar-section > label:first-child,
+.sort-header label {
     font-weight: 600;
     color: var(--text-color);
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+.sort-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.pin-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.pin-btn {
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 3px 5px;
+    cursor: pointer;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.pin-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.pin-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.pin-btn#pin-current.active {
+    background: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.pin-btn#pin-favorites.active {
+    background: var(--warning-color);
+    border-color: var(--warning-color);
 }
 
 .sidebar-section select,

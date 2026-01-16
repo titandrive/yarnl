@@ -76,6 +76,8 @@ let showCurrent = localStorage.getItem('libraryShowCurrent') !== 'false';
 let showPdf = localStorage.getItem('libraryShowPdf') !== 'false';
 let showMarkdown = localStorage.getItem('libraryShowMarkdown') !== 'false';
 let highlightMode = localStorage.getItem('libraryHighlightMode') || 'none';
+let pinCurrent = localStorage.getItem('libraryPinCurrent') === 'true';
+let pinFavorites = localStorage.getItem('libraryPinFavorites') === 'true';
 let searchQuery = '';
 let previousTab = 'current';
 let navigationHistory = []; // Stack for UI back button
@@ -3799,6 +3801,30 @@ function initLibraryFilters() {
             displayPatterns();
         });
     }
+
+    // Pin buttons
+    const pinCurrentBtn = document.getElementById('pin-current');
+    const pinFavoritesBtn = document.getElementById('pin-favorites');
+
+    if (pinCurrentBtn) {
+        if (pinCurrent) pinCurrentBtn.classList.add('active');
+        pinCurrentBtn.addEventListener('click', () => {
+            pinCurrent = !pinCurrent;
+            pinCurrentBtn.classList.toggle('active', pinCurrent);
+            localStorage.setItem('libraryPinCurrent', pinCurrent);
+            displayPatterns();
+        });
+    }
+
+    if (pinFavoritesBtn) {
+        if (pinFavorites) pinFavoritesBtn.classList.add('active');
+        pinFavoritesBtn.addEventListener('click', () => {
+            pinFavorites = !pinFavorites;
+            pinFavoritesBtn.classList.toggle('active', pinFavorites);
+            localStorage.setItem('libraryPinFavorites', pinFavorites);
+            displayPatterns();
+        });
+    }
 }
 
 function renderPatternCard(pattern, options = {}) {
@@ -3939,6 +3965,15 @@ function displayPatterns() {
 
     // Sort patterns
     filteredPatterns = [...filteredPatterns].sort((a, b) => {
+        // Pin favorites/current to top first
+        if (pinFavorites && a.is_favorite !== b.is_favorite) {
+            return b.is_favorite ? 1 : -1;
+        }
+        if (pinCurrent && a.is_current !== b.is_current) {
+            return b.is_current ? 1 : -1;
+        }
+
+        // Then apply selected sort
         switch (selectedSort) {
             case 'date-desc':
                 return new Date(b.upload_date) - new Date(a.upload_date);

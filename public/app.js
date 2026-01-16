@@ -3148,15 +3148,19 @@ async function loadStorageSizeStats() {
         };
 
         container.innerHTML = `
-            <div class="library-stats-grid">
-                <div class="stat-item">
-                    <span class="stat-value">${formatSize(stats.totalSize)}</span>
-                    <span class="stat-label">Library Size</span>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <label>Library Size</label>
+                    <p class="setting-description">Total size of pattern files</p>
                 </div>
+                <span class="storage-value">${formatSize(stats.totalSize)}</span>
             </div>
-            <div class="stats-path">
-                <span class="stats-path-label">Library Location:</span>
-                <code class="stats-path-value">${escapeHtml(stats.libraryPath)}</code>
+            <div class="setting-item">
+                <div class="setting-info">
+                    <label>Library Location</label>
+                    <p class="setting-description">Where patterns are stored</p>
+                </div>
+                <code class="storage-path">${escapeHtml(stats.libraryPath)}</code>
             </div>
         `;
     } catch (error) {

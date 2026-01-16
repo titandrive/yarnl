@@ -3493,6 +3493,22 @@ input[type="number"].settings-input {
     word-break: break-all;
 }
 
+.storage-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.storage-path {
+    font-size: 0.85rem;
+    color: var(--text-color);
+    background: var(--input-bg);
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--border-color);
+    word-break: break-all;
+}
+
 .stats-categories {
     border-top: 1px solid var(--border-color);
     padding-top: 16px;

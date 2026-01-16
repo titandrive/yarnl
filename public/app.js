@@ -690,6 +690,16 @@ function initTheme() {
         localStorage.setItem('themeBase', themeBase);
         localStorage.setItem('themeMode', themeMode);
     }
+    // Fix themeBase if it still contains -light or -dark suffix
+    if (themeBase && themeBase.match(/-(light|dark)$/)) {
+        const match = themeBase.match(/^(.+)-(light|dark)$/);
+        if (match) {
+            themeBase = match[1];
+            themeMode = match[2];
+            localStorage.setItem('themeBase', themeBase);
+            localStorage.setItem('themeMode', themeMode);
+        }
+    }
     // Migrate old auto/scheduled modes
     if (themeMode === 'auto') {
         autoEnabled = true;

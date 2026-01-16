@@ -75,7 +75,7 @@ let showCompleted = localStorage.getItem('libraryShowCompleted') !== 'false';
 let showCurrent = localStorage.getItem('libraryShowCurrent') !== 'false';
 let showPdf = localStorage.getItem('libraryShowPdf') !== 'false';
 let showMarkdown = localStorage.getItem('libraryShowMarkdown') !== 'false';
-let highlightNew = localStorage.getItem('libraryHighlightNew') === 'true';
+let highlightMode = localStorage.getItem('libraryHighlightMode') || 'none';
 let searchQuery = '';
 let previousTab = 'current';
 let navigationHistory = []; // Stack for UI back button
@@ -3790,13 +3790,12 @@ function initLibraryFilters() {
         });
     }
 
-    const highlightNewCheckbox = document.getElementById('highlight-new');
-    if (highlightNewCheckbox) {
-        // Restore saved checkbox state
-        highlightNewCheckbox.checked = highlightNew;
-        highlightNewCheckbox.addEventListener('change', (e) => {
-            highlightNew = e.target.checked;
-            localStorage.setItem('libraryHighlightNew', highlightNew);
+    const highlightSelect = document.getElementById('highlight-select');
+    if (highlightSelect) {
+        highlightSelect.value = highlightMode;
+        highlightSelect.addEventListener('change', (e) => {
+            highlightMode = e.target.value;
+            localStorage.setItem('libraryHighlightMode', highlightMode);
             displayPatterns();
         });
     }
@@ -3954,7 +3953,8 @@ function displayPatterns() {
 
         const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';
         const isNewPattern = !pattern.completed && !pattern.timer_seconds;
-        const highlightClass = highlightNew && isNewPattern ? ' highlight-new' : '';
+        const shouldHighlight = (highlightMode === 'new' && isNewPattern) || (highlightMode === 'current' && pattern.is_current);
+        const highlightClass = shouldHighlight ? ' highlight-new' : '';
 
         return `
             <div class="pattern-card${highlightClass}" onclick="handlePatternClick(event, ${pattern.id})">

@@ -83,32 +83,45 @@
                         </div>
                         <div class="sidebar-section">
                             <label>Status</label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="show-completed" checked>
-                                Completed
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="show-current" checked>
-                                Current
-                            </label>
+                            <div class="sidebar-toggle-row">
+                                <span>Completed</span>
+                                <label class="toggle-switch small">
+                                    <input type="checkbox" id="show-completed" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="sidebar-toggle-row">
+                                <span>Current</span>
+                                <label class="toggle-switch small">
+                                    <input type="checkbox" id="show-current" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
                         </div>
                         <div class="sidebar-section">
                             <label>Type</label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="show-pdf" checked>
-                                PDF
-                            </label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="show-markdown" checked>
-                                Markdown
-                            </label>
+                            <div class="sidebar-toggle-row">
+                                <span>PDF</span>
+                                <label class="toggle-switch small">
+                                    <input type="checkbox" id="show-pdf" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="sidebar-toggle-row">
+                                <span>Markdown</span>
+                                <label class="toggle-switch small">
+                                    <input type="checkbox" id="show-markdown" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
                         </div>
                         <div class="sidebar-section">
                             <label>Highlight</label>
-                            <label class="checkbox-label">
-                                <input type="checkbox" id="highlight-new">
-                                New Patterns
-                            </label>
+                            <select id="highlight-select" class="sidebar-select">
+                                <option value="none">None</option>
+                                <option value="current">Current</option>
+                                <option value="new">New Patterns</option>
+                            </select>
                         </div>
                     </aside>
                     <div id="patterns-grid" class="patterns-grid">

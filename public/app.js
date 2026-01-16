@@ -89,6 +89,11 @@ let showStatusBadge = localStorage.getItem('showStatusBadge') !== 'false';
 let showCategoryBadge = localStorage.getItem('showCategoryBadge') !== 'false';
 let showStarBadge = localStorage.getItem('showStarBadge') !== 'false';
 let autoCurrentOnTimer = localStorage.getItem('autoCurrentOnTimer') === 'true';
+let autoTimerDefault = localStorage.getItem('autoTimerDefault') === 'true';
+let autoTimerEnabled = false;
+let autoTimerPausedInactive = false;
+let inactivityTimeout = null;
+const INACTIVITY_DELAY = 5 * 60 * 1000; // 5 minutes
 let defaultCategory = localStorage.getItem('defaultCategory') || 'Amigurumi';
 
 function getDefaultCategory() {
@@ -177,6 +182,47 @@ function initTimer() {
         markdownResetBtn.addEventListener('click', handleTimerReset);
     }
 
+    // Auto timer buttons
+    const pdfAutoTimerBtn = document.getElementById('pdf-auto-timer-btn');
+    const markdownAutoTimerBtn = document.getElementById('markdown-auto-timer-btn');
+
+    if (pdfAutoTimerBtn) {
+        pdfAutoTimerBtn.addEventListener('click', toggleAutoTimer);
+    }
+    if (markdownAutoTimerBtn) {
+        markdownAutoTimerBtn.addEventListener('click', toggleAutoTimer);
+    }
+
+    // Inactivity detection for auto timer
+    const resetInactivity = () => {
+        if (autoTimerEnabled) {
+            // If we were paused due to inactivity, resume
+            if (autoTimerPausedInactive) {
+                autoTimerPausedInactive = false;
+                updateAutoTimerButtonState();
+                if (!timerRunning) {
+                    startTimer();
+                }
+            }
+            // Reset the timeout
+            if (inactivityTimeout) {
+                clearTimeout(inactivityTimeout);
+            }
+            inactivityTimeout = setTimeout(() => {
+                if (autoTimerEnabled && timerRunning) {
+                    autoTimerPausedInactive = true;
+                    stopTimer();
+                    updateAutoTimerButtonState();
+                }
+            }, INACTIVITY_DELAY);
+        }
+    };
+
+    // Listen for user activity
+    ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll'].forEach(event => {
+        document.addEventListener(event, resetInactivity, { passive: true });
+    });
+
     // Stop timer when window/tab becomes hidden or closes
     document.addEventListener('visibilitychange', () => {
         // Timer continues running when tab is not visible (background)
@@ -225,6 +271,55 @@ function toggleTimer() {
     } else {
         startTimer();
     }
+}
+
+function toggleAutoTimer() {
+    autoTimerEnabled = !autoTimerEnabled;
+    autoTimerPausedInactive = false;
+    updateAutoTimerButtonState();
+
+    if (autoTimerEnabled) {
+        // Start timer immediately when auto timer is enabled
+        if (!timerRunning) {
+            startTimer();
+        }
+        // Start inactivity tracking
+        if (inactivityTimeout) {
+            clearTimeout(inactivityTimeout);
+        }
+        inactivityTimeout = setTimeout(() => {
+            if (autoTimerEnabled && timerRunning) {
+                autoTimerPausedInactive = true;
+                stopTimer();
+                updateAutoTimerButtonState();
+            }
+        }, INACTIVITY_DELAY);
+    } else {
+        // Stop inactivity tracking
+        if (inactivityTimeout) {
+            clearTimeout(inactivityTimeout);
+            inactivityTimeout = null;
+        }
+    }
+}
+
+function updateAutoTimerButtonState() {
+    const pdfBtn = document.getElementById('pdf-auto-timer-btn');
+    const markdownBtn = document.getElementById('markdown-auto-timer-btn');
+
+    [pdfBtn, markdownBtn].forEach(btn => {
+        if (!btn) return;
+        btn.classList.remove('active', 'paused-inactive');
+        if (autoTimerPausedInactive) {
+            btn.classList.add('paused-inactive');
+            btn.title = 'Auto timer paused (inactive) - click or move to resume';
+        } else if (autoTimerEnabled) {
+            btn.classList.add('active');
+            btn.title = 'Auto timer enabled - click to disable';
+        } else {
+            btn.title = 'Auto timer: runs while viewing, pauses on inactivity';
+        }
+    });
 }
 
 function startTimer() {
@@ -1154,6 +1249,12 @@ function initTheme() {
             const autoCurrentTimerCheckbox = document.getElementById('auto-current-timer-checkbox');
             if (autoCurrentTimerCheckbox) autoCurrentTimerCheckbox.checked = false;
 
+            // Reset auto timer default
+            localStorage.setItem('autoTimerDefault', 'false');
+            autoTimerDefault = false;
+            const autoTimerDefaultCheckbox = document.getElementById('auto-timer-default-checkbox');
+            if (autoTimerDefaultCheckbox) autoTimerDefaultCheckbox.checked = false;
+
             // Reset default zoom
             localStorage.setItem('defaultZoom', 'fit');
             const defaultZoomSelect = document.getElementById('default-zoom-select');
@@ -1963,6 +2064,17 @@ function initSettings() {
             autoCurrentOnTimer = autoCurrentTimerCheckbox.checked;
             localStorage.setItem('autoCurrentOnTimer', autoCurrentOnTimer);
             showToast(autoCurrentOnTimer ? 'Patterns will be marked current on timer start' : 'Auto-current disabled');
+        });
+    }
+
+    // Auto timer default setting
+    const autoTimerDefaultCheckbox = document.getElementById('auto-timer-default-checkbox');
+    if (autoTimerDefaultCheckbox) {
+        autoTimerDefaultCheckbox.checked = autoTimerDefault;
+        autoTimerDefaultCheckbox.addEventListener('change', () => {
+            autoTimerDefault = autoTimerDefaultCheckbox.checked;
+            localStorage.setItem('autoTimerDefault', autoTimerDefault);
+            showToast(autoTimerDefault ? 'Auto timer will be enabled by default' : 'Auto timer disabled by default');
         });
     }
 
@@ -5017,6 +5129,23 @@ async function openPDFViewer(patternId, pushHistory = true) {
         // Load timer state
         loadPatternTimer(pattern);
 
+        // Initialize auto timer based on default setting
+        autoTimerEnabled = autoTimerDefault;
+        autoTimerPausedInactive = false;
+        updateAutoTimerButtonState();
+        if (autoTimerEnabled) {
+            // Start timer and inactivity tracking
+            startTimer();
+            if (inactivityTimeout) clearTimeout(inactivityTimeout);
+            inactivityTimeout = setTimeout(() => {
+                if (autoTimerEnabled && timerRunning) {
+                    autoTimerPausedInactive = true;
+                    stopTimer();
+                    updateAutoTimerButtonState();
+                }
+            }, INACTIVITY_DELAY);
+        }
+
         // Hide tabs and show PDF viewer
         document.querySelector('.tabs').style.display = 'none';
         tabContents.forEach(c => c.style.display = 'none');
@@ -6202,6 +6331,23 @@ async function openMarkdownViewer(pattern, pushHistory = true) {
 
         // Load timer state
         loadPatternTimer(pattern);
+
+        // Initialize auto timer based on default setting
+        autoTimerEnabled = autoTimerDefault;
+        autoTimerPausedInactive = false;
+        updateAutoTimerButtonState();
+        if (autoTimerEnabled) {
+            // Start timer and inactivity tracking
+            startTimer();
+            if (inactivityTimeout) clearTimeout(inactivityTimeout);
+            inactivityTimeout = setTimeout(() => {
+                if (autoTimerEnabled && timerRunning) {
+                    autoTimerPausedInactive = true;
+                    stopTimer();
+                    updateAutoTimerButtonState();
+                }
+            }, INACTIVITY_DELAY);
+        }
 
         // Hide tabs and show markdown viewer
         document.querySelector('.tabs').style.display = 'none';

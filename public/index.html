@@ -625,11 +625,11 @@ Inc in each st around (12)
                             </label>
                         </div>
 
-                        <h4 class="settings-subheading">PDF Viewer</h4>
+                        <h4 class="settings-subheading">Pattern Viewer</h4>
                         <div class="setting-item">
                             <div class="setting-info">
                                 <label>Default Zoom</label>
-                                <p class="setting-description">Initial zoom level</p>
+                                <p class="setting-description">Initial zoom level for PDFs</p>
                             </div>
                             <select id="default-zoom-select" class="settings-select">
                                 <option value="fit">Fit Page</option>
@@ -643,6 +643,16 @@ Inc in each st around (12)
                                 <option value="175">175%</option>
                                 <option value="200">200%</option>
                             </select>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Auto Timer</label>
+                                <p class="setting-description">Enable auto timer by default</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="auto-timer-default-checkbox">
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
 
                         <div class="settings-reset">
@@ -1049,6 +1059,11 @@ Inc in each st around (12)
                 <h2 id="pdf-pattern-name"></h2>
                 <div class="pdf-header-right">
                     <div class="timer-control">
+                        <button id="pdf-auto-timer-btn" class="btn auto-timer-btn" title="Auto timer: runs while viewing, pauses on inactivity">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M5 3l14 9-14 9V3z"></path>
+                            </svg>
+                        </button>
                         <button id="pdf-timer-btn" class="btn btn-secondary timer-btn">
                             <svg class="timer-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"></circle>
@@ -1204,6 +1219,11 @@ Inc in each st around (12)
             <h2 id="markdown-pattern-name"></h2>
             <div class="markdown-header-right">
                 <div class="timer-control">
+                    <button id="markdown-auto-timer-btn" class="btn auto-timer-btn" title="Auto timer: runs while viewing, pauses on inactivity">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 3l14 9-14 9V3z"></path>
+                        </svg>
+                    </button>
                     <button id="markdown-timer-btn" class="btn btn-secondary timer-btn">
                         <svg class="timer-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>

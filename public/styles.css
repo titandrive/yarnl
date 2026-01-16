@@ -1873,6 +1873,45 @@ header {
     align-items: center;
 }
 
+.auto-timer-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    margin-right: 6px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.auto-timer-btn:hover {
+    background: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.auto-timer-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+.auto-timer-btn.paused-inactive {
+    background: var(--warning-color);
+    border-color: var(--warning-color);
+    color: white;
+    animation: pulse-warning 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-warning {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
 .timer-btn {
     display: flex;
     align-items: center;

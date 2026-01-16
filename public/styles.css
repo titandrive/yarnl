@@ -3082,6 +3082,31 @@ input[type="number"].settings-input {
         gap: 12px;
     }
 
+    .setting-item .day-night-toggle,
+    .setting-item .toggle-switch,
+    .setting-item .settings-select,
+    .setting-item .schedule-times {
+        width: 100%;
+    }
+
+    .day-night-toggle {
+        justify-content: center;
+    }
+
+    .day-night-toggle .mode-btn {
+        flex: 1;
+        padding: 10px;
+    }
+
+    .schedule-times {
+        justify-content: center;
+    }
+
+    .schedule-times input[type="time"] {
+        flex: 1;
+        min-width: 0;
+    }
+
     .category-item {
         flex-wrap: wrap;
     }

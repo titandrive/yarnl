@@ -3083,7 +3083,6 @@ input[type="number"].settings-input {
     }
 
     .setting-item .day-night-toggle,
-    .setting-item .toggle-switch,
     .setting-item .settings-select,
     .setting-item .schedule-times {
         width: 100%;

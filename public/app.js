@@ -927,6 +927,40 @@ function initTheme() {
         });
     }
 
+    // Header theme toggle button
+    const headerThemeToggle = document.getElementById('header-theme-toggle');
+    const showHeaderThemeToggleCheckbox = document.getElementById('show-header-theme-toggle-checkbox');
+    const showHeaderThemeToggle = localStorage.getItem('showHeaderThemeToggle') !== 'false';
+
+    if (headerThemeToggle) {
+        headerThemeToggle.style.display = showHeaderThemeToggle ? 'flex' : 'none';
+
+        headerThemeToggle.addEventListener('click', () => {
+            if (themeMode === 'dark') {
+                themeMode = 'light';
+            } else {
+                themeMode = 'dark';
+            }
+            autoEnabled = false;
+            applyTheme();
+            if (autoModeCheckbox) autoModeCheckbox.checked = false;
+            showToast(themeMode === 'dark' ? 'Dark mode enabled' : 'Light mode enabled');
+        });
+    }
+
+    if (showHeaderThemeToggleCheckbox) {
+        showHeaderThemeToggleCheckbox.checked = showHeaderThemeToggle;
+
+        showHeaderThemeToggleCheckbox.addEventListener('change', () => {
+            const show = showHeaderThemeToggleCheckbox.checked;
+            localStorage.setItem('showHeaderThemeToggle', show);
+            if (headerThemeToggle) {
+                headerThemeToggle.style.display = show ? 'flex' : 'none';
+            }
+            showToast(show ? 'Theme toggle shown' : 'Theme toggle hidden');
+        });
+    }
+
     // Tagline visibility toggle
     const showTaglineCheckbox = document.getElementById('show-tagline-checkbox');
     const taglineInputContainer = document.getElementById('tagline-input-container');
@@ -1082,6 +1116,11 @@ function initTheme() {
             localStorage.setItem('showLogo', 'true');
             if (headerLogo) headerLogo.style.display = 'inline';
             if (showLogoCheckbox) showLogoCheckbox.checked = true;
+
+            // Reset header theme toggle
+            localStorage.setItem('showHeaderThemeToggle', 'true');
+            if (headerThemeToggle) headerThemeToggle.style.display = 'flex';
+            if (showHeaderThemeToggleCheckbox) showHeaderThemeToggleCheckbox.checked = true;
 
             // Reset font
             localStorage.setItem('fontFamily', 'JetBrains Mono');

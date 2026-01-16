@@ -635,6 +635,12 @@ header {
     width: auto;
 }
 
+.header-btn-container.header-left {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 .header-btn {
     background: rgba(255, 255, 255, 0.15);
     border: none;
@@ -654,6 +660,33 @@ header {
 
 .header-btn:hover {
     background: rgba(255, 255, 255, 0.25);
+}
+
+.header-theme-toggle {
+    padding: 8px;
+}
+
+.header-theme-toggle .sun-icon,
+.header-theme-toggle .moon-icon {
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+[data-theme*="-light"] .header-theme-toggle .sun-icon,
+:root .header-theme-toggle .sun-icon {
+    display: none;
+}
+
+[data-theme*="-light"] .header-theme-toggle .moon-icon,
+:root .header-theme-toggle .moon-icon {
+    display: block;
+}
+
+[data-theme*="-dark"] .header-theme-toggle .sun-icon {
+    display: block;
+}
+
+[data-theme*="-dark"] .header-theme-toggle .moon-icon {
+    display: none;
 }
 
 .header-btn-labeled span {

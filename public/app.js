@@ -910,6 +910,9 @@ function initTheme() {
         themeSelect.addEventListener('change', () => {
             themeBase = themeSelect.value;
             applyTheme();
+            if (window.applyThemeMascot) {
+                window.applyThemeMascot(themeBase);
+            }
             showToast('Theme updated');
         });
     }
@@ -1033,9 +1036,11 @@ function initTheme() {
     const mascotModal = document.getElementById('mascot-modal');
     const mascotGrid = document.getElementById('mascot-grid');
     const closeMascotModal = document.getElementById('close-mascot-modal');
+    const themeMascotCheckbox = document.getElementById('theme-mascot-checkbox');
     const headerLogoImg = headerLogo ? headerLogo.querySelector('img') : null;
     const favicon = document.querySelector('link[rel="icon"]');
     let mascotsList = [];
+    let themeMascotEnabled = localStorage.getItem('themeMascotEnabled') === 'true';
 
     function setMascot(url) {
         if (headerLogoImg) {
@@ -1046,15 +1051,43 @@ function initTheme() {
         }
     }
 
+    // Find mascot matching theme name (case-insensitive)
+    function findThemeMascot(themeName) {
+        return mascotsList.find(m => {
+            const mascotName = m.filename.replace(/\.[^/.]+$/, '').toLowerCase();
+            return mascotName === themeName.toLowerCase();
+        });
+    }
+
+    // Apply mascot for current theme (called when theme changes)
+    window.applyThemeMascot = function(themeName) {
+        if (!themeMascotEnabled) return;
+        const themeMascot = findThemeMascot(themeName);
+        if (themeMascot) {
+            setMascot(themeMascot.url);
+        }
+    };
+
     async function loadMascots() {
         try {
             const response = await fetch('/api/mascots');
             mascotsList = await response.json();
 
-            // Apply saved mascot on load
+            // Apply saved mascot on load (or theme mascot if enabled)
             if (mascotsList.length > 0) {
-                const savedMascot = localStorage.getItem('selectedMascot') || mascotsList[0].url;
-                setMascot(savedMascot);
+                if (themeMascotEnabled) {
+                    const currentTheme = localStorage.getItem('themeBase') || 'lavender';
+                    const themeMascot = findThemeMascot(currentTheme);
+                    if (themeMascot) {
+                        setMascot(themeMascot.url);
+                    } else {
+                        const savedMascot = localStorage.getItem('selectedMascot') || mascotsList[0].url;
+                        setMascot(savedMascot);
+                    }
+                } else {
+                    const savedMascot = localStorage.getItem('selectedMascot') || mascotsList[0].url;
+                    setMascot(savedMascot);
+                }
             }
         } catch (error) {
             console.error('Error loading mascots:', error);
@@ -1111,6 +1144,29 @@ function initTheme() {
         mascotModal.addEventListener('click', (e) => {
             if (e.target === mascotModal) {
                 mascotModal.style.display = 'none';
+            }
+        });
+    }
+
+    // Theme mascot toggle
+    if (themeMascotCheckbox) {
+        themeMascotCheckbox.checked = themeMascotEnabled;
+        themeMascotCheckbox.addEventListener('change', () => {
+            themeMascotEnabled = themeMascotCheckbox.checked;
+            localStorage.setItem('themeMascotEnabled', themeMascotEnabled);
+            if (themeMascotEnabled) {
+                const currentTheme = localStorage.getItem('themeBase') || 'lavender';
+                const themeMascot = findThemeMascot(currentTheme);
+                if (themeMascot) {
+                    setMascot(themeMascot.url);
+                    showToast('Theme mascot enabled');
+                } else {
+                    showToast('No mascot for this theme');
+                }
+            } else {
+                const savedMascot = localStorage.getItem('selectedMascot') || (mascotsList[0]?.url || '');
+                setMascot(savedMascot);
+                showToast('Theme mascot disabled');
             }
         });
     }

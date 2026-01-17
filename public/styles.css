@@ -578,6 +578,11 @@ body {
     transition: background 0.3s ease, color 0.3s ease;
 }
 
+/* Screenshot mode - bright green background for easy removal in image editors */
+body.screenshot-mode {
+    background: #00ff00 !important;
+}
+
 @media (min-width: 768px) {
     body {
         padding: 20px;

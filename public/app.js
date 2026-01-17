@@ -4980,15 +4980,21 @@ function initPDFViewer() {
 
     // Keyboard shortcuts for page navigation and counter control
     document.addEventListener('keydown', (e) => {
+        // Don't trigger if user is typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        // Hidden screenshot mode toggle (q key) - works globally
+        if (e.key === 'q' || e.key === 'Q') {
+            document.body.classList.toggle('screenshot-mode');
+            return;
+        }
+
         const isPdfViewerOpen = pdfViewerContainer.style.display === 'flex';
         const isMarkdownViewerOpen = markdownViewerContainer && markdownViewerContainer.style.display === 'flex';
 
         if (!isPdfViewerOpen && !isMarkdownViewerOpen) {
-            return;
-        }
-
-        // Don't trigger if user is typing in an input
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
             return;
         }
 

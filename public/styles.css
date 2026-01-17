@@ -1069,7 +1069,7 @@ header {
     position: relative;
     cursor: pointer;
     width: 220px;
-    height: 320px;
+    height: 350px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -1315,6 +1315,7 @@ header {
     overflow: hidden;
     text-overflow: ellipsis;
     display: block;
+    position: relative;
 }
 
 .pattern-description:hover:not(.editing) {
@@ -1328,16 +1329,22 @@ header {
 
 .pattern-description.editing {
     outline: none;
-    -webkit-line-clamp: unset;
-    overflow: visible;
+    overflow-y: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.pattern-description.editing::-webkit-scrollbar {
+    display: none;
 }
 
 .inline-char-counter {
     display: block;
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     color: var(--text-muted);
     text-align: right;
-    margin-top: 2px;
+    margin-top: -1em;
+    pointer-events: none;
 }
 
 .inline-char-counter.over {
@@ -3717,11 +3724,18 @@ input[type="number"].settings-input {
 /* Hashtag selector for forms */
 .hashtag-selector {
     width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.hashtag-selector::-webkit-scrollbar {
+    display: none;
 }
 
 .hashtag-selector-tags {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
 }
 
@@ -3735,6 +3749,8 @@ input[type="number"].settings-input {
     cursor: pointer;
     transition: all 0.2s ease;
     font-size: 0.85rem;
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .hashtag-tag input {
@@ -3767,9 +3783,17 @@ input[type="number"].settings-input {
 /* Pattern card hashtags */
 .pattern-hashtags {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 4px;
     margin-top: 6px;
+    margin-bottom: 2px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.pattern-hashtags::-webkit-scrollbar {
+    display: none;
 }
 
 .pattern-hashtag {
@@ -3780,6 +3804,8 @@ input[type="number"].settings-input {
     border-radius: 10px;
     font-size: 0.7rem;
     color: var(--text-color);
+    flex-shrink: 0;
+    white-space: nowrap;
 }
 
 .empty-state-small {
@@ -3792,6 +3818,7 @@ input[type="number"].settings-input {
 /* Inline hashtag add input */
 .hashtag-add-inline {
     display: inline-flex;
+    flex-shrink: 0;
 }
 
 .hashtag-add-inline input {

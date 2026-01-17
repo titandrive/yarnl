@@ -1105,12 +1105,16 @@ function initTheme() {
         }
 
         mascotGrid.innerHTML = mascotsList.map(m => {
-            const name = m.filename.replace(/\.[^/.]+$/, '');
+            // Convert filename to display name: remove extension, replace hyphens with spaces, title case
+            const displayName = m.filename
+                .replace(/\.[^/.]+$/, '')
+                .replace(/-/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase());
             const isSelected = m.url === savedMascot;
             return `
                 <div class="mascot-item${isSelected ? ' selected' : ''}" data-url="${m.url}">
-                    <img src="${m.url}" alt="${name}">
-                    <span>${name}</span>
+                    <img src="${m.url}" alt="${displayName}">
+                    <span>${displayName}</span>
                 </div>
             `;
         }).join('');
@@ -4359,6 +4363,13 @@ function createHashtagSelector(id, selectedHashtagIds = [], disabled = false) {
     return `
         <div class="hashtag-selector ${disabled ? 'disabled' : ''}" data-id="${id}">
             <div class="hashtag-selector-tags" id="hashtag-tags-${id}">
+                ${!disabled ? `
+                    <div class="hashtag-add-inline">
+                        <input type="text" placeholder="Add new..."
+                               onkeydown="handleNewHashtagInline(event, '${id}')"
+                               onclick="event.stopPropagation()">
+                    </div>
+                ` : ''}
                 ${allHashtags.map(h => `
                     <label class="hashtag-tag ${selectedHashtagIds.includes(h.id) ? 'selected' : ''}">
                         <input type="checkbox" value="${h.id}"
@@ -4368,13 +4379,6 @@ function createHashtagSelector(id, selectedHashtagIds = [], disabled = false) {
                         <span>#${escapeHtml(h.name)}</span>
                     </label>
                 `).join('')}
-                ${!disabled ? `
-                    <div class="hashtag-add-inline">
-                        <input type="text" placeholder="Add new..."
-                               onkeydown="handleNewHashtagInline(event, '${id}')"
-                               onclick="event.stopPropagation()">
-                    </div>
-                ` : ''}
             </div>
             ${allHashtags.length === 0 && disabled ? '<p class="hashtag-empty">No hashtags available.</p>' : ''}
         </div>
@@ -4421,19 +4425,38 @@ async function handleNewHashtagInline(event, selectorId) {
         if (selector) {
             selector.outerHTML = createHashtagSelector(selectorId, currentSelections, false);
         }
+
+        // Auto-save for edit modal
+        if (selectorId === 'edit-hashtags' && editingPatternId) {
+            await fetch(`${API_URL}/api/patterns/${editingPatternId}/hashtags`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hashtagIds: currentSelections })
+            });
+        }
     } catch (error) {
         console.error('Error adding hashtag:', error);
         alert(error.message);
     }
 }
 
-function toggleHashtagSelection(selectorId, hashtagId, isSelected) {
+async function toggleHashtagSelection(selectorId, hashtagId, isSelected) {
     const selector = document.querySelector(`.hashtag-selector[data-id="${selectorId}"]`);
     if (!selector) return;
 
     // Update visual state
     const label = selector.querySelector(`input[value="${hashtagId}"]`).parentElement;
     label.classList.toggle('selected', isSelected);
+
+    // Auto-save for edit modals
+    if (selectorId === 'edit-hashtags' && editingPatternId) {
+        const hashtagIds = getSelectedHashtagIds(selectorId);
+        await fetch(`${API_URL}/api/patterns/${editingPatternId}/hashtags`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hashtagIds })
+        });
+    }
 
     // Trigger callback for staged files
     const event = new CustomEvent('hashtagchange', {
@@ -4843,7 +4866,7 @@ function startInlineDescEdit(element, patternId) {
     element.contentEditable = true;
     element.classList.add('editing');
 
-    // Add character counter
+    // Add character counter (positioned absolutely via CSS)
     const counter = document.createElement('span');
     counter.className = 'inline-char-counter';
     counter.textContent = `${currentText.length}/${maxLen}`;
@@ -4879,7 +4902,7 @@ function startInlineDescEdit(element, patternId) {
 
         try {
             const response = await fetch(`${API_URL}/api/patterns/${patternId}`, {
-                method: 'PUT',
+                method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ description: newDesc })
             });

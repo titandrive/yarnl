@@ -1028,6 +1028,95 @@ function initTheme() {
         });
     }
 
+    // Mascot selector
+    const mascotSelectBtn = document.getElementById('mascot-select-btn');
+    const mascotModal = document.getElementById('mascot-modal');
+    const mascotGrid = document.getElementById('mascot-grid');
+    const closeMascotModal = document.getElementById('close-mascot-modal');
+    const headerLogoImg = headerLogo ? headerLogo.querySelector('img') : null;
+    const favicon = document.querySelector('link[rel="icon"]');
+    let mascotsList = [];
+
+    function setMascot(url) {
+        if (headerLogoImg) {
+            headerLogoImg.src = url;
+        }
+        if (favicon) {
+            favicon.href = url;
+        }
+    }
+
+    async function loadMascots() {
+        try {
+            const response = await fetch('/api/mascots');
+            mascotsList = await response.json();
+
+            // Apply saved mascot on load
+            if (mascotsList.length > 0) {
+                const savedMascot = localStorage.getItem('selectedMascot') || mascotsList[0].url;
+                setMascot(savedMascot);
+            }
+        } catch (error) {
+            console.error('Error loading mascots:', error);
+        }
+    }
+
+    function renderMascotGrid() {
+        if (!mascotGrid) return;
+
+        const savedMascot = localStorage.getItem('selectedMascot') || (mascotsList[0]?.url || '');
+
+        if (mascotsList.length === 0) {
+            mascotGrid.innerHTML = '<p>No mascots found. Add images to the mascots folder.</p>';
+            return;
+        }
+
+        mascotGrid.innerHTML = mascotsList.map(m => {
+            const name = m.filename.replace(/\.[^/.]+$/, '');
+            const isSelected = m.url === savedMascot;
+            return `
+                <div class="mascot-item${isSelected ? ' selected' : ''}" data-url="${m.url}">
+                    <img src="${m.url}" alt="${name}">
+                    <span>${name}</span>
+                </div>
+            `;
+        }).join('');
+
+        // Add click handlers
+        mascotGrid.querySelectorAll('.mascot-item').forEach(item => {
+            item.addEventListener('click', () => {
+                const url = item.dataset.url;
+                localStorage.setItem('selectedMascot', url);
+                setMascot(url);
+                mascotModal.style.display = 'none';
+                showToast('Mascot updated');
+            });
+        });
+    }
+
+    if (mascotSelectBtn) {
+        mascotSelectBtn.addEventListener('click', () => {
+            renderMascotGrid();
+            mascotModal.style.display = 'flex';
+        });
+    }
+
+    if (closeMascotModal) {
+        closeMascotModal.addEventListener('click', () => {
+            mascotModal.style.display = 'none';
+        });
+    }
+
+    if (mascotModal) {
+        mascotModal.addEventListener('click', (e) => {
+            if (e.target === mascotModal) {
+                mascotModal.style.display = 'none';
+            }
+        });
+    }
+
+    loadMascots();
+
     // Header theme toggle button
     const headerThemeToggle = document.getElementById('header-theme-toggle');
     const showHeaderThemeToggleCheckbox = document.getElementById('show-header-theme-toggle-checkbox');

@@ -2552,6 +2552,33 @@ app.get('/api/backups/:filename/download', (req, res) => {
   }
 });
 
+// Get available mascots
+app.get('/api/mascots', (req, res) => {
+  try {
+    const mascotsDir = path.join(__dirname, 'public', 'mascots');
+    if (!fs.existsSync(mascotsDir)) {
+      return res.json([]);
+    }
+    const files = fs.readdirSync(mascotsDir)
+      .filter(f => /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(f))
+      .sort((a, b) => {
+        // Default.png always first
+        if (a.toLowerCase() === 'default.png') return -1;
+        if (b.toLowerCase() === 'default.png') return 1;
+        // Then alphabetical
+        return a.localeCompare(b, undefined, { sensitivity: 'base' });
+      })
+      .map(f => ({
+        filename: f,
+        url: `/mascots/${f}`
+      }));
+    res.json(files);
+  } catch (error) {
+    console.error('Error listing mascots:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Yarnl server running on http://0.0.0.0:${PORT}`);
 });

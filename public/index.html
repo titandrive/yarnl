@@ -533,6 +533,13 @@ Inc in each st around (12)
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
+                        <div class="setting-item" id="mascot-selector-container">
+                            <div class="setting-info">
+                                <label>Mascot</label>
+                                <p class="setting-description">Choose header mascot</p>
+                            </div>
+                            <button id="mascot-select-btn" class="btn btn-secondary">Select</button>
+                        </div>
                         <div class="setting-item">
                             <div class="setting-info">
                                 <label>Show Tagline</label>
@@ -1439,6 +1446,18 @@ Inc in each st around (12)
                 <button type="button" class="btn btn-secondary" id="thumbnail-clear-btn">Clear</button>
                 <button type="button" class="btn btn-secondary" id="cancel-thumbnail-btn">Cancel</button>
                 <button type="button" class="btn btn-primary" id="confirm-thumbnail-btn">Use This Image</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="mascot-modal" class="modal" style="display: none;">
+        <div class="modal-content mascot-modal-content">
+            <div class="modal-header">
+                <h3>Choose Mascot</h3>
+                <button class="modal-close" id="close-mascot-modal">&times;</button>
+            </div>
+            <div id="mascot-grid" class="mascot-grid">
+                <p>Loading mascots...</p>
             </div>
         </div>
     </div>

@@ -1755,6 +1755,52 @@ header {
     margin-right: auto;
 }
 
+/* Mascot Modal */
+.mascot-modal-content {
+    max-width: 500px;
+}
+
+.mascot-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 16px;
+}
+
+.mascot-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+    border: 2px solid transparent;
+}
+
+.mascot-item:hover {
+    background: var(--border-color);
+    transform: scale(1.05);
+}
+
+.mascot-item.selected {
+    border-color: var(--primary-color);
+    background: var(--border-color);
+}
+
+.mascot-item img {
+    width: 80px;
+    height: 80px;
+    object-fit: contain;
+    margin-bottom: 8px;
+}
+
+.mascot-item span {
+    font-size: 0.85rem;
+    text-align: center;
+    color: var(--text-color);
+    word-break: break-word;
+}
+
 /* Pattern Info Modal */
 .pattern-info-modal-content {
     max-width: 500px;

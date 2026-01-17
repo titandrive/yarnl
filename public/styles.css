@@ -578,9 +578,16 @@ body {
     transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* Screenshot mode - bright green background for easy removal in image editors */
-body.screenshot-mode {
+/* Screenshot mode - solid background for easy removal in image editors */
+body.screenshot-mode-white {
+    background: #ffffff !important;
+}
+body.screenshot-mode-green {
     background: #00ff00 !important;
+}
+body.screenshot-mode-white .container,
+body.screenshot-mode-green .container {
+    box-shadow: none !important;
 }
 
 @media (min-width: 768px) {

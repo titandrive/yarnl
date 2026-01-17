@@ -4985,9 +4985,17 @@ function initPDFViewer() {
             return;
         }
 
-        // Hidden screenshot mode toggle (q key) - works globally
+        // Hidden screenshot mode toggle (q key) - cycles: off -> white -> green -> off
         if (e.key === 'q' || e.key === 'Q') {
-            document.body.classList.toggle('screenshot-mode');
+            const hasWhite = document.body.classList.contains('screenshot-mode-white');
+            const hasGreen = document.body.classList.contains('screenshot-mode-green');
+            document.body.classList.remove('screenshot-mode-white', 'screenshot-mode-green');
+            if (!hasWhite && !hasGreen) {
+                document.body.classList.add('screenshot-mode-white');
+            } else if (hasWhite) {
+                document.body.classList.add('screenshot-mode-green');
+            }
+            // if hasGreen, we just removed it, so it's off
             return;
         }
 

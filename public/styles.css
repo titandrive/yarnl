@@ -938,7 +938,6 @@ header {
 
 .btn-danger.confirm-delete {
     background: #dc2626;
-    animation: pulse-danger 1s ease-in-out infinite;
 }
 
 @keyframes pulse-danger {
@@ -3189,6 +3188,16 @@ input[type="number"].settings-input {
     font-size: 0.9em;
 }
 
+.setting-warning {
+    background: rgba(220, 38, 38, 0.1);
+    border: 1px solid rgba(220, 38, 38, 0.3);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    margin: 0.5rem 0 1rem 0;
+    font-size: 0.85rem;
+    color: #dc2626;
+}
+
 /* Keyboard Shortcuts */
 .shortcut-item {
     border-bottom: 1px solid var(--border-color);
@@ -3318,6 +3327,15 @@ input[type="number"].settings-input {
 
 .toggle-switch input:checked + .toggle-slider .moon {
     opacity: 0;
+}
+
+/* Toggle confirmation state */
+.toggle-switch.confirm-state .toggle-slider {
+    background: #dc2626;
+}
+
+.toggle-switch.confirm-state .toggle-slider::before {
+    background: white;
 }
 
 /* Day/Night Mode Toggle */
@@ -5157,4 +5175,112 @@ input[type="number"].settings-input {
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 0.85em;
+}
+
+/* Archived patterns list */
+.archived-patterns-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.archived-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    gap: 1rem;
+}
+
+.archived-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 0;
+    flex: 1;
+}
+
+.archived-name {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.archived-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.archived-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.no-archived {
+    color: var(--text-muted);
+    font-style: italic;
+    padding: 0.5rem 0;
+    margin: 0;
+}
+
+#delete-all-archived-btn {
+    min-width: 110px;
+}
+
+/* Archived item delete button */
+.archived-delete-btn .trash-icon {
+    display: block;
+}
+
+.archived-delete-btn .confirm-icon {
+    display: none;
+}
+
+.archived-delete-btn.confirm-delete .trash-icon {
+    display: none;
+}
+
+.archived-delete-btn.confirm-delete .confirm-icon {
+    display: block;
+}
+
+.archived-delete-btn.confirm-delete {
+    background: var(--danger-color);
+    color: white;
+}
+
+/* Archive button styling */
+.action-btn.archive .archive-icon {
+    display: block;
+}
+
+.action-btn.archive .trash-icon {
+    display: none;
+}
+
+.action-btn.archive .confirm-icon {
+    display: none;
+}
+
+.action-btn.archive.confirm-delete .archive-icon {
+    display: none;
+}
+
+.action-btn.archive.confirm-delete .confirm-icon {
+    display: block;
+}
+
+.action-btn.archive.confirm-delete {
+    background: var(--warning-color, #f59e0b);
+    color: white;
+}
+
+/* Delete button (direct delete mode) - hide archive icon */
+.action-btn.delete .archive-icon {
+    display: none;
 }

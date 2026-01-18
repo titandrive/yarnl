@@ -373,6 +373,14 @@ Inc in each st around (12)
                         </svg>
                         <span>About</span>
                     </button>
+                    <button class="settings-nav-btn" data-section="archive">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                            <rect x="1" y="3" width="22" height="5"></rect>
+                            <line x1="10" y1="12" x2="14" y2="12"></line>
+                        </svg>
+                        <span>Archive</span>
+                    </button>
                 </nav>
 
                 <!-- Settings Content -->
@@ -967,6 +975,63 @@ Inc in each st around (12)
                             </button>
                         </div>
                         <ul class="orphaned-images-list" id="orphaned-images-list"></ul>
+                    </section>
+
+                    <!-- Archive Section -->
+                    <section class="settings-section" data-section="archive">
+                        <h3>Archive</h3>
+                        <p class="section-description">Manage archived patterns</p>
+
+                        <h4 class="settings-subheading">Behavior</h4>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Delete instead of archive</label>
+                                <p class="setting-description">Disables archive and replaces archive button with delete button that permanently deletes files</p>
+                                <p class="setting-description" id="delete-mode-warning" style="display: none; font-style: italic;">Enabling will permanently delete all archived patterns</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="enable-delete-checkbox">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div id="archive-settings-section">
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>Auto-delete</label>
+                                    <p class="setting-description">Automatically delete archived patterns after a set time</p>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="auto-delete-checkbox">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+
+                            <div class="setting-item" id="auto-delete-days-setting" style="display: none;">
+                                <div class="setting-info">
+                                    <label>Delete after</label>
+                                    <p class="setting-description">Days before archived patterns are permanently deleted</p>
+                                </div>
+                                <div class="setting-input-group">
+                                    <input type="number" id="auto-delete-days" class="settings-input" min="1" max="365" value="30" style="width: 70px;">
+                                    <span class="setting-hint">days</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h4 class="settings-subheading">Archived Patterns</h4>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label><span id="archived-patterns-count">0 archived patterns</span></label>
+                            </div>
+                            <button id="delete-all-archived-btn" class="btn btn-danger" style="display: none;">
+                                Delete All
+                            </button>
+                        </div>
+
+                        <div class="archived-patterns-list" id="archived-patterns-list">
+                            <p class="no-archived">Loading...</p>
+                        </div>
                     </section>
 
                     <!-- Notifications Section -->

@@ -95,6 +95,7 @@ let autoTimerPausedInactive = false;
 let inactivityTimeout = null;
 const INACTIVITY_DELAY = 5 * 60 * 1000; // 5 minutes
 let defaultCategory = localStorage.getItem('defaultCategory') || 'Amigurumi';
+let enableDirectDelete = localStorage.getItem('enableDirectDelete') === 'true';
 
 function getDefaultCategory() {
     // Return the stored default, but fallback to first category if default doesn't exist
@@ -2579,6 +2580,8 @@ function switchToSettingsSection(section, updateHistory = true) {
     // Initialize section-specific content
     if (section === 'storage') {
         loadStorageStats();
+    } else if (section === 'archive') {
+        loadArchiveSettings();
     } else if (section === 'about') {
         loadLibraryStats();
     }
@@ -2595,6 +2598,210 @@ async function loadStorageStats() {
     if (cleanupBtn && !cleanupBtn.hasAttribute('data-initialized')) {
         cleanupBtn.setAttribute('data-initialized', 'true');
         cleanupBtn.addEventListener('click', cleanupOrphanedImages);
+    }
+}
+
+// Archive section initialization
+async function loadArchiveSettings() {
+    // Initialize enable delete toggle
+    const enableDeleteCheckbox = document.getElementById('enable-delete-checkbox');
+    const archiveSettingsSection = document.getElementById('archive-settings-section');
+    const deleteModeWarning = document.getElementById('delete-mode-warning');
+    const toggleSwitch = enableDeleteCheckbox?.closest('.toggle-switch');
+
+    // Helper to update visibility based on delete mode
+    function updateArchiveSectionVisibility(deleteEnabled) {
+        if (archiveSettingsSection) {
+            archiveSettingsSection.style.display = deleteEnabled ? 'none' : 'block';
+        }
+    }
+
+    // Helper to update warning visibility based on archived pattern count
+    async function updateWarningVisibility() {
+        if (!deleteModeWarning || enableDirectDelete) {
+            if (deleteModeWarning) deleteModeWarning.style.display = 'none';
+            return;
+        }
+        try {
+            const response = await fetch(`${API_URL}/api/patterns/archived`);
+            const archived = await response.json();
+            deleteModeWarning.style.display = archived.length > 0 ? 'block' : 'none';
+        } catch (error) {
+            deleteModeWarning.style.display = 'none';
+        }
+    }
+
+    // Reset confirmation state
+    function resetConfirmState() {
+        if (toggleSwitch) {
+            toggleSwitch.removeAttribute('data-pending-confirm');
+            toggleSwitch.classList.remove('confirm-state');
+            toggleSwitch.title = '';
+        }
+    }
+
+    // Check if pending confirmation
+    function isPendingConfirm() {
+        return toggleSwitch?.hasAttribute('data-pending-confirm');
+    }
+
+    // Set pending confirmation
+    function setPendingConfirm() {
+        if (toggleSwitch) {
+            toggleSwitch.setAttribute('data-pending-confirm', 'true');
+        }
+    }
+
+    if (enableDeleteCheckbox && !enableDeleteCheckbox.hasAttribute('data-initialized')) {
+        enableDeleteCheckbox.setAttribute('data-initialized', 'true');
+        enableDeleteCheckbox.checked = enableDirectDelete;
+        updateArchiveSectionVisibility(enableDirectDelete);
+        updateWarningVisibility();
+
+        enableDeleteCheckbox.addEventListener('change', async (e) => {
+            const turningOn = enableDeleteCheckbox.checked;
+            const pending = isPendingConfirm();
+            console.log('Toggle change:', { turningOn, pending });
+
+            // If confirming deletion (check this FIRST before the async call resets state)
+            if (turningOn && pending) {
+                console.log('Confirming deletion');
+                // Delete all archived patterns
+                try {
+                    await fetch(`${API_URL}/api/patterns/archived/all`, { method: 'DELETE' });
+                    showToast('Archived patterns deleted');
+                    await loadArchivedPatternsUI();
+                } catch (error) {
+                    console.error('Error deleting archived patterns:', error);
+                }
+                resetConfirmState();
+                // Continue to enable delete mode below
+            }
+            // If turning ON and there are archived patterns, require confirmation
+            else if (turningOn && !pending) {
+                console.log('First click - checking for archived patterns');
+                // Check if there are archived patterns
+                try {
+                    const response = await fetch(`${API_URL}/api/patterns/archived`);
+                    const archived = await response.json();
+                    console.log('Archived patterns:', archived.length);
+
+                    if (archived.length > 0) {
+                        // Prevent the toggle from activating yet
+                        enableDeleteCheckbox.checked = false;
+                        setPendingConfirm();
+                        if (toggleSwitch) {
+                            toggleSwitch.classList.add('confirm-state');
+                            toggleSwitch.title = `Click again to delete ${archived.length} archived pattern${archived.length !== 1 ? 's' : ''} and enable`;
+                        }
+                        showToast(`Click again to delete ${archived.length} archived pattern${archived.length !== 1 ? 's' : ''}`);
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Error checking archived patterns:', error);
+                }
+            }
+
+            enableDirectDelete = enableDeleteCheckbox.checked;
+            localStorage.setItem('enableDirectDelete', enableDirectDelete);
+            updateArchiveSectionVisibility(enableDirectDelete);
+            updateWarningVisibility();
+
+            if (!turningOn) {
+                resetConfirmState();
+                showToast('Archive mode enabled');
+            } else {
+                showToast('Direct delete enabled');
+            }
+
+            // Re-render pattern cards to update button icons
+            displayPatterns();
+            displayCurrentPatterns();
+        });
+
+        // Reset confirm state if user clicks elsewhere (with delay to allow change event to fire first)
+        document.addEventListener('click', (e) => {
+            if (isPendingConfirm() && !toggleSwitch?.contains(e.target)) {
+                setTimeout(() => {
+                    if (isPendingConfirm()) {
+                        resetConfirmState();
+                    }
+                }, 100);
+            }
+        });
+    }
+
+    // Initialize auto-delete toggle
+    const autoDeleteCheckbox = document.getElementById('auto-delete-checkbox');
+    const autoDeleteDaysSetting = document.getElementById('auto-delete-days-setting');
+    const autoDeleteDaysInput = document.getElementById('auto-delete-days');
+
+    if (autoDeleteCheckbox && !autoDeleteCheckbox.hasAttribute('data-initialized')) {
+        autoDeleteCheckbox.setAttribute('data-initialized', 'true');
+
+        // Load settings from server first
+        let autoDeleteEnabled = false;
+        let autoDeleteDays = 30;
+        try {
+            const response = await fetch(`${API_URL}/api/settings/archive`);
+            if (response.ok) {
+                const serverSettings = await response.json();
+                autoDeleteEnabled = serverSettings.autoDeleteEnabled || false;
+                autoDeleteDays = serverSettings.autoDeleteDays || 30;
+            }
+        } catch (error) {
+            console.error('Error loading archive settings from server:', error);
+        }
+
+        autoDeleteCheckbox.checked = autoDeleteEnabled;
+        if (autoDeleteDaysInput) autoDeleteDaysInput.value = autoDeleteDays;
+        if (autoDeleteDaysSetting) autoDeleteDaysSetting.style.display = autoDeleteEnabled ? 'flex' : 'none';
+
+        autoDeleteCheckbox.addEventListener('change', () => {
+            const enabled = autoDeleteCheckbox.checked;
+            if (autoDeleteDaysSetting) autoDeleteDaysSetting.style.display = enabled ? 'flex' : 'none';
+            saveAutoDeleteSettings();
+            showToast(enabled ? 'Auto-delete enabled' : 'Auto-delete disabled');
+        });
+    }
+
+    if (autoDeleteDaysInput && !autoDeleteDaysInput.hasAttribute('data-initialized')) {
+        autoDeleteDaysInput.setAttribute('data-initialized', 'true');
+        autoDeleteDaysInput.addEventListener('change', () => {
+            let days = parseInt(autoDeleteDaysInput.value) || 30;
+            days = Math.max(1, Math.min(365, days));
+            autoDeleteDaysInput.value = days;
+            saveAutoDeleteSettings();
+        });
+    }
+
+    // Initialize delete all archived button
+    const deleteAllBtn = document.getElementById('delete-all-archived-btn');
+    if (deleteAllBtn && !deleteAllBtn.hasAttribute('data-initialized')) {
+        deleteAllBtn.setAttribute('data-initialized', 'true');
+        deleteAllBtn.addEventListener('click', () => handleDeleteAllArchived(deleteAllBtn));
+    }
+
+    // Load archived patterns list
+    await loadArchivedPatternsUI();
+}
+
+// Save auto-delete settings to server
+async function saveAutoDeleteSettings() {
+    const autoDeleteCheckbox = document.getElementById('auto-delete-checkbox');
+    const autoDeleteDaysInput = document.getElementById('auto-delete-days');
+
+    const enabled = autoDeleteCheckbox ? autoDeleteCheckbox.checked : false;
+    const days = autoDeleteDaysInput ? parseInt(autoDeleteDaysInput.value) || 30 : 30;
+
+    try {
+        await fetch(`${API_URL}/api/settings/archive`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ autoDeleteEnabled: enabled, autoDeleteDays: days })
+        });
+    } catch (error) {
+        console.error('Error saving auto-delete settings:', error);
     }
 }
 
@@ -4763,10 +4970,15 @@ function renderPatternCard(pattern, options = {}) {
                         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                     </svg>
                 </button>
-                <button class="action-btn delete" onclick="handleCardDelete(this, '${pattern.id}')" title="Delete">
+                <button class="action-btn ${enableDirectDelete ? 'delete' : 'archive'}" onclick="handleCardDelete(this, '${pattern.id}')" title="${enableDirectDelete ? 'Delete' : 'Archive'}">
                     <svg class="trash-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="3 6 5 6 21 6"></polyline>
                         <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    <svg class="archive-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                        <rect x="1" y="3" width="22" height="5"></rect>
+                        <line x1="10" y1="12" x2="14" y2="12"></line>
                     </svg>
                     <svg class="confirm-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
@@ -4948,12 +5160,16 @@ function handleCardDelete(btn, id) {
     // First click - show confirmation state
     if (!btn.classList.contains('confirm-delete')) {
         btn.classList.add('confirm-delete');
-        btn.title = 'Click again to confirm';
+        btn.title = enableDirectDelete ? 'Click again to delete' : 'Click again to archive';
         return;
     }
 
-    // Second click - actually delete
-    deletePattern(id);
+    // Second click - archive or delete based on setting
+    if (enableDirectDelete) {
+        deletePattern(id);
+    } else {
+        archivePattern(id);
+    }
 }
 
 function startInlineDescEdit(element, patternId) {
@@ -5058,16 +5274,27 @@ function startInlineDescEdit(element, patternId) {
 }
 
 function resetCardDeleteButtons() {
-    document.querySelectorAll('.action-btn.delete.confirm-delete').forEach(btn => {
+    document.querySelectorAll('.action-btn.delete.confirm-delete, .action-btn.archive.confirm-delete').forEach(btn => {
         btn.classList.remove('confirm-delete');
-        btn.title = 'Delete';
+        btn.title = btn.classList.contains('archive') ? 'Archive' : 'Delete';
     });
+}
+
+function resetArchivedDeleteButtons() {
+    document.querySelectorAll('.archived-delete-btn.confirm-delete').forEach(btn => {
+        btn.classList.remove('confirm-delete');
+        btn.title = 'Delete permanently';
+    });
+    resetDeleteAllButton();
 }
 
 // Reset delete buttons when clicking elsewhere
 document.addEventListener('click', (e) => {
-    if (!e.target.closest('.action-btn.delete')) {
+    if (!e.target.closest('.action-btn.delete') && !e.target.closest('.action-btn.archive')) {
         resetCardDeleteButtons();
+    }
+    if (!e.target.closest('.archived-delete-btn') && !e.target.closest('#delete-all-archived-btn')) {
+        resetArchivedDeleteButtons();
     }
 });
 
@@ -5087,6 +5314,199 @@ async function deletePattern(id) {
         }
     } catch (error) {
         console.error('Error deleting pattern:', error);
+    }
+}
+
+async function archivePattern(id) {
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${id}/archive`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            showToast('Pattern archived');
+            await loadPatterns();
+            await loadCurrentPatterns();
+            await loadCategories();
+            await loadArchivedPatternsUI();
+        } else {
+            const error = await response.json();
+            console.error('Error archiving pattern:', error.error);
+            showToast('Error archiving pattern', 'error');
+        }
+    } catch (error) {
+        console.error('Error archiving pattern:', error);
+        showToast('Error archiving pattern', 'error');
+    }
+}
+
+async function restorePattern(id) {
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${id}/restore`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            showToast('Pattern restored');
+            await loadArchivedPatternsUI();
+            await loadPatterns();
+            await loadCategories();
+        } else {
+            const error = await response.json();
+            showToast('Error restoring pattern: ' + error.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error restoring pattern:', error);
+        showToast('Error restoring pattern', 'error');
+    }
+}
+
+async function permanentlyDeletePattern(id) {
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/${id}/permanent`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showToast('Pattern permanently deleted');
+            await loadArchivedPatternsUI();
+        } else {
+            const error = await response.json();
+            showToast('Error deleting pattern: ' + error.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting pattern:', error);
+        showToast('Error deleting pattern', 'error');
+    }
+}
+
+function handleDeleteAllArchived(btn) {
+    // First click - show confirmation state
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.textContent = 'Confirm?';
+        return;
+    }
+
+    // Second click - actually delete
+    deleteAllArchivedPatterns(btn);
+}
+
+async function deleteAllArchivedPatterns(btn) {
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Deleting...';
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/archived/all`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            showToast(result.message);
+            await loadArchivedPatternsUI();
+        } else {
+            const error = await response.json();
+            showToast('Error: ' + error.error, 'error');
+            resetDeleteAllButton();
+        }
+    } catch (error) {
+        console.error('Error deleting all archived:', error);
+        showToast('Error deleting archived patterns', 'error');
+        resetDeleteAllButton();
+    }
+}
+
+function resetDeleteAllButton() {
+    const btn = document.getElementById('delete-all-archived-btn');
+    if (btn) {
+        btn.disabled = false;
+        btn.classList.remove('confirm-delete');
+        btn.textContent = 'Delete All';
+    }
+}
+
+function handlePermanentDelete(btn, id) {
+    // First click - show confirmation state
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.title = 'Click again to permanently delete';
+        return;
+    }
+
+    // Second click - actually delete
+    permanentlyDeletePattern(id);
+}
+
+function formatRelativeDate(dateStr) {
+    if (!dateStr) return 'unknown';
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now - date;
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) return 'today';
+    if (diffDays === 0) return 'today';
+    if (diffDays === 1) return 'yesterday';
+    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays < 30) return `${Math.floor(diffDays / 7)} week${Math.floor(diffDays / 7) !== 1 ? 's' : ''} ago`;
+    if (diffDays < 365) return `${Math.floor(diffDays / 30)} month${Math.floor(diffDays / 30) !== 1 ? 's' : ''} ago`;
+    return `${Math.floor(diffDays / 365)} year${Math.floor(diffDays / 365) !== 1 ? 's' : ''} ago`;
+}
+
+async function loadArchivedPatternsUI() {
+    const container = document.getElementById('archived-patterns-list');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/archived`);
+        const archived = await response.json();
+
+        const countEl = document.getElementById('archived-patterns-count');
+        if (countEl) {
+            countEl.textContent = `${archived.length} archived pattern${archived.length !== 1 ? 's' : ''}`;
+        }
+
+        const deleteAllBtn = document.getElementById('delete-all-archived-btn');
+        if (deleteAllBtn) {
+            deleteAllBtn.style.display = archived.length > 0 ? 'inline-flex' : 'none';
+        }
+
+        if (archived.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        container.innerHTML = archived.map(pattern => `
+            <div class="archived-item" data-id="${pattern.id}">
+                <div class="archived-info">
+                    <span class="archived-name">${escapeHtml(pattern.name)}</span>
+                    <span class="archived-meta">${escapeHtml(pattern.category)} · Archived ${formatRelativeDate(pattern.archived_at)}</span>
+                </div>
+                <div class="archived-actions">
+                    <button class="btn btn-small btn-secondary" onclick="restorePattern(${pattern.id})" title="Restore">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="1 4 1 10 7 10"></polyline>
+                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                        </svg>
+                    </button>
+                    <button class="btn btn-small btn-danger archived-delete-btn" onclick="handlePermanentDelete(this, ${pattern.id})" title="Delete permanently">
+                        <svg class="trash-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        <svg class="confirm-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading archived patterns:', error);
+        container.innerHTML = '<p class="no-archived">Error loading archived patterns</p>';
     }
 }
 
@@ -5761,9 +6181,9 @@ async function openPdfEditModal() {
     // Set current toggle state
     document.getElementById('pdf-edit-is-current').checked = currentPattern.is_current || false;
 
-    // Reset delete button state
+    // Reset delete button state with appropriate label
     const deleteBtn = document.getElementById('delete-pdf-pattern');
-    resetDeleteButton(deleteBtn, 'Delete Pattern');
+    resetDeleteButton(deleteBtn, enableDirectDelete ? 'Delete Pattern' : 'Archive Pattern');
 
     modal.style.display = 'flex';
 }
@@ -5772,31 +6192,37 @@ function closePdfEditModal() {
     document.getElementById('pdf-edit-modal').style.display = 'none';
     // Reset delete button state
     const deleteBtn = document.getElementById('delete-pdf-pattern');
-    resetDeleteButton(deleteBtn, 'Delete Pattern');
+    resetDeleteButton(deleteBtn, enableDirectDelete ? 'Delete Pattern' : 'Archive Pattern');
 }
 
 async function deletePdfPattern() {
     if (!currentPattern) return;
 
     const btn = document.getElementById('delete-pdf-pattern');
+    const actionText = enableDirectDelete ? 'Delete' : 'Archive';
+    const actioningText = enableDirectDelete ? 'Deleting...' : 'Archiving...';
 
     // First click - show confirmation state
     if (!btn.classList.contains('confirm-delete')) {
         btn.classList.add('confirm-delete');
-        btn.textContent = 'Confirm Delete';
+        btn.textContent = `Confirm ${actionText}`;
         return;
     }
 
-    // Second click - actually delete
+    // Second click - actually archive or delete
     btn.disabled = true;
-    btn.textContent = 'Deleting...';
+    btn.textContent = actioningText;
 
     try {
-        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}`, {
-            method: 'DELETE'
-        });
+        const url = enableDirectDelete
+            ? `${API_URL}/api/patterns/${currentPattern.id}`
+            : `${API_URL}/api/patterns/${currentPattern.id}/archive`;
+        const method = enableDirectDelete ? 'DELETE' : 'POST';
+
+        const response = await fetch(url, { method });
 
         if (response.ok) {
+            showToast(enableDirectDelete ? 'Pattern deleted' : 'Pattern archived');
             closePdfEditModal();
             closePDFViewer();
             await loadPatterns();
@@ -5804,12 +6230,12 @@ async function deletePdfPattern() {
             await loadCategories();
         } else {
             const error = await response.json();
-            console.error('Error deleting pattern:', error.error);
-            resetDeleteButton(btn, 'Delete Pattern');
+            console.error(`Error ${actionText.toLowerCase()}ing pattern:`, error.error);
+            resetDeleteButton(btn, `${actionText} Pattern`);
         }
     } catch (error) {
-        console.error('Error deleting pattern:', error);
-        resetDeleteButton(btn, 'Delete Pattern');
+        console.error(`Error ${actionText.toLowerCase()}ing pattern:`, error);
+        resetDeleteButton(btn, `${actionText} Pattern`);
     }
 }
 

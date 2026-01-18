@@ -59,6 +59,16 @@ if (!fs.existsSync(thumbnailsDir)) {
   fs.mkdirSync(thumbnailsDir, { recursive: true });
 }
 
+// Archive directories
+const archiveDir = path.join(__dirname, 'archive');
+const archiveThumbnailsDir = path.join(archiveDir, 'thumbnails');
+if (!fs.existsSync(archiveDir)) {
+  fs.mkdirSync(archiveDir, { recursive: true });
+}
+if (!fs.existsSync(archiveThumbnailsDir)) {
+  fs.mkdirSync(archiveThumbnailsDir, { recursive: true });
+}
+
 // Helper function to format local timestamp for filenames
 function getLocalTimestamp(date = new Date()) {
   const year = date.getFullYear();
@@ -106,6 +116,38 @@ function renameCategoryDir(oldName, newName) {
   } else {
     // Old folder doesn't exist, just create the new one
     ensureCategoryDir(newName);
+  }
+}
+
+// Helper function to get archive category folder path
+function getArchiveCategoryDir(categoryName) {
+  return path.join(archiveDir, categoryName);
+}
+
+// Helper function to ensure archive category folder exists
+function ensureArchiveCategoryDir(categoryName) {
+  const categoryDir = getArchiveCategoryDir(categoryName);
+  if (!fs.existsSync(categoryDir)) {
+    fs.mkdirSync(categoryDir, { recursive: true });
+  }
+  return categoryDir;
+}
+
+// Helper function to clean up empty archive category directories
+function cleanupEmptyArchiveCategories() {
+  try {
+    const entries = fs.readdirSync(archiveDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory()) continue;
+      if (entry.name === 'thumbnails') continue;
+      const categoryPath = path.join(archiveDir, entry.name);
+      const files = fs.readdirSync(categoryPath);
+      if (files.length === 0) {
+        fs.rmdirSync(categoryPath);
+      }
+    }
+  } catch (error) {
+    console.error('Error cleaning up empty archive categories:', error);
   }
 }
 
@@ -261,11 +303,11 @@ initDatabase()
 
 // Routes
 
-// Get all patterns with their hashtags
+// Get all patterns with their hashtags (excludes archived)
 app.get('/api/patterns', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM patterns ORDER BY upload_date DESC'
+      'SELECT * FROM patterns WHERE is_archived = false OR is_archived IS NULL ORDER BY upload_date DESC'
     );
 
     // Fetch hashtags for each pattern
@@ -552,7 +594,7 @@ app.get('/api/patterns/:id/thumbnail', async (req, res) => {
 app.get('/api/patterns/current', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM patterns WHERE is_current = true ORDER BY updated_at DESC'
+      'SELECT * FROM patterns WHERE is_current = true AND (is_archived = false OR is_archived IS NULL) ORDER BY updated_at DESC'
     );
 
     // Fetch hashtags for each pattern
@@ -570,6 +612,72 @@ app.get('/api/patterns/current', async (req, res) => {
     res.json(patterns);
   } catch (error) {
     console.error('Error fetching current patterns:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get all archived patterns (must come before /api/patterns/:id)
+app.get('/api/patterns/archived', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM patterns WHERE is_archived = true ORDER BY archived_at DESC'
+    );
+
+    // Fetch hashtags for each pattern
+    const patterns = await Promise.all(result.rows.map(async (pattern) => {
+      const hashtagsResult = await pool.query(
+        `SELECT h.* FROM hashtags h
+         JOIN pattern_hashtags ph ON h.id = ph.hashtag_id
+         WHERE ph.pattern_id = $1
+         ORDER BY h.name`,
+        [pattern.id]
+      );
+      return { ...pattern, hashtags: hashtagsResult.rows };
+    }));
+
+    res.json(patterns);
+  } catch (error) {
+    console.error('Error fetching archived patterns:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Permanently delete all archived patterns (must come before /api/patterns/:id)
+app.delete('/api/patterns/archived/all', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM patterns WHERE is_archived = true'
+    );
+
+    let deletedCount = 0;
+
+    for (const pattern of result.rows) {
+      // Delete file from archive
+      const archiveFilePath = path.join(archiveDir, pattern.category, pattern.filename);
+      if (fs.existsSync(archiveFilePath)) {
+        fs.unlinkSync(archiveFilePath);
+      }
+
+      // Delete thumbnail from archive
+      if (pattern.thumbnail) {
+        const thumbnailPath = path.join(archiveThumbnailsDir, pattern.thumbnail);
+        if (fs.existsSync(thumbnailPath)) {
+          fs.unlinkSync(thumbnailPath);
+        }
+      }
+
+      deletedCount++;
+    }
+
+    // Delete all archived patterns from database
+    await pool.query('DELETE FROM patterns WHERE is_archived = true');
+
+    // Clean up all empty archive directories
+    cleanupEmptyArchiveCategories();
+
+    res.json({ message: `${deletedCount} pattern${deletedCount !== 1 ? 's' : ''} permanently deleted` });
+  } catch (error) {
+    console.error('Error deleting all archived patterns:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -848,6 +956,158 @@ app.delete('/api/patterns/:id', async (req, res) => {
     res.json({ message: 'Pattern deleted successfully' });
   } catch (error) {
     console.error('Error deleting pattern:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Archive a pattern (move to archive instead of deleting)
+app.post('/api/patterns/:id/archive', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM patterns WHERE id = $1',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Pattern not found' });
+    }
+
+    const pattern = result.rows[0];
+
+    // Find current file location
+    let filePath = path.join(patternsDir, pattern.category, pattern.filename);
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(patternsDir, pattern.filename);
+    }
+
+    // Ensure archive category directory exists
+    const archiveCategoryDir = ensureArchiveCategoryDir(pattern.category);
+
+    // Move pattern file to archive (use copy+delete for cross-device support)
+    if (fs.existsSync(filePath)) {
+      const archiveFilePath = path.join(archiveCategoryDir, pattern.filename);
+      fs.copyFileSync(filePath, archiveFilePath);
+      fs.unlinkSync(filePath);
+    }
+
+    // Move thumbnail to archive if exists
+    if (pattern.thumbnail) {
+      const thumbnailPath = path.join(thumbnailsDir, pattern.thumbnail);
+      if (fs.existsSync(thumbnailPath)) {
+        const archiveThumbnailPath = path.join(archiveThumbnailsDir, pattern.thumbnail);
+        fs.copyFileSync(thumbnailPath, archiveThumbnailPath);
+        fs.unlinkSync(thumbnailPath);
+      }
+    }
+
+    // Update database - mark as archived
+    await pool.query(
+      `UPDATE patterns
+       SET is_archived = true, archived_at = CURRENT_TIMESTAMP, is_current = false
+       WHERE id = $1`,
+      [req.params.id]
+    );
+
+    // Clean up empty category directories
+    await cleanupEmptyCategories();
+
+    res.json({ message: 'Pattern archived successfully' });
+  } catch (error) {
+    console.error('Error archiving pattern:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Restore a pattern from archive
+app.post('/api/patterns/:id/restore', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM patterns WHERE id = $1 AND is_archived = true',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Archived pattern not found' });
+    }
+
+    const pattern = result.rows[0];
+
+    // Ensure target category directory exists
+    const categoryDir = ensureCategoryDir(pattern.category);
+
+    // Move pattern file from archive back to patterns (use copy+delete for cross-device support)
+    const archiveFilePath = path.join(archiveDir, pattern.category, pattern.filename);
+    if (fs.existsSync(archiveFilePath)) {
+      const filePath = path.join(categoryDir, pattern.filename);
+      fs.copyFileSync(archiveFilePath, filePath);
+      fs.unlinkSync(archiveFilePath);
+    }
+
+    // Move thumbnail from archive
+    if (pattern.thumbnail) {
+      const archiveThumbnailPath = path.join(archiveThumbnailsDir, pattern.thumbnail);
+      if (fs.existsSync(archiveThumbnailPath)) {
+        const thumbnailPath = path.join(thumbnailsDir, pattern.thumbnail);
+        fs.copyFileSync(archiveThumbnailPath, thumbnailPath);
+        fs.unlinkSync(archiveThumbnailPath);
+      }
+    }
+
+    // Update database - mark as not archived
+    await pool.query(
+      `UPDATE patterns
+       SET is_archived = false, archived_at = NULL
+       WHERE id = $1`,
+      [req.params.id]
+    );
+
+    // Clean up empty archive directories
+    cleanupEmptyArchiveCategories();
+
+    res.json({ message: 'Pattern restored successfully' });
+  } catch (error) {
+    console.error('Error restoring pattern:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Permanently delete an archived pattern
+app.delete('/api/patterns/:id/permanent', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM patterns WHERE id = $1 AND is_archived = true',
+      [req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Archived pattern not found' });
+    }
+
+    const pattern = result.rows[0];
+
+    // Delete file from archive
+    const archiveFilePath = path.join(archiveDir, pattern.category, pattern.filename);
+    if (fs.existsSync(archiveFilePath)) {
+      fs.unlinkSync(archiveFilePath);
+    }
+
+    // Delete thumbnail from archive
+    if (pattern.thumbnail) {
+      const thumbnailPath = path.join(archiveThumbnailsDir, pattern.thumbnail);
+      if (fs.existsSync(thumbnailPath)) {
+        fs.unlinkSync(thumbnailPath);
+      }
+    }
+
+    // Delete from database
+    await pool.query('DELETE FROM patterns WHERE id = $1', [req.params.id]);
+
+    // Clean up empty archive directories
+    cleanupEmptyArchiveCategories();
+
+    res.json({ message: 'Pattern permanently deleted' });
+  } catch (error) {
+    console.error('Error permanently deleting pattern:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2575,6 +2835,119 @@ app.get('/api/mascots', (req, res) => {
     res.json(files);
   } catch (error) {
     console.error('Error listing mascots:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Archive auto-delete settings
+const defaultArchiveSettings = {
+  autoDeleteEnabled: false,
+  autoDeleteDays: 30
+};
+
+async function loadArchiveSettings() {
+  try {
+    const result = await pool.query(
+      "SELECT value FROM settings WHERE key = 'archive_settings'"
+    );
+    if (result.rows.length > 0) {
+      return { ...defaultArchiveSettings, ...result.rows[0].value };
+    }
+  } catch (error) {
+    console.error('Error loading archive settings:', error);
+  }
+  return defaultArchiveSettings;
+}
+
+async function saveArchiveSettings(settings) {
+  try {
+    await pool.query(`
+      INSERT INTO settings (key, value, updated_at)
+      VALUES ('archive_settings', $1, NOW())
+      ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()
+    `, [JSON.stringify(settings)]);
+  } catch (error) {
+    console.error('Error saving archive settings:', error);
+  }
+}
+
+// Auto-delete old archived patterns
+async function autoDeleteOldArchived() {
+  try {
+    const settings = await loadArchiveSettings();
+    if (!settings.autoDeleteEnabled) return;
+
+    const daysAgo = new Date();
+    daysAgo.setDate(daysAgo.getDate() - settings.autoDeleteDays);
+
+    // Find archived patterns older than the threshold
+    const result = await pool.query(
+      'SELECT * FROM patterns WHERE is_archived = true AND archived_at < $1',
+      [daysAgo]
+    );
+
+    if (result.rows.length === 0) return;
+
+    console.log(`Auto-deleting ${result.rows.length} archived patterns older than ${settings.autoDeleteDays} days`);
+
+    for (const pattern of result.rows) {
+      // Delete file from archive
+      const archiveFilePath = path.join(archiveDir, pattern.category, pattern.filename);
+      if (fs.existsSync(archiveFilePath)) {
+        fs.unlinkSync(archiveFilePath);
+      }
+
+      // Delete thumbnail from archive
+      if (pattern.thumbnail) {
+        const thumbnailPath = path.join(archiveThumbnailsDir, pattern.thumbnail);
+        if (fs.existsSync(thumbnailPath)) {
+          fs.unlinkSync(thumbnailPath);
+        }
+      }
+
+      // Delete from database
+      await pool.query('DELETE FROM patterns WHERE id = $1', [pattern.id]);
+    }
+
+    // Clean up empty archive directories
+    cleanupEmptyArchiveCategories();
+
+    console.log(`Auto-deleted ${result.rows.length} old archived patterns`);
+  } catch (error) {
+    console.error('Error auto-deleting old archived patterns:', error);
+  }
+}
+
+// Run auto-delete check daily at midnight
+cron.schedule('0 0 * * *', () => {
+  autoDeleteOldArchived();
+});
+
+// Also run on startup (after a delay to ensure DB is ready)
+setTimeout(() => {
+  autoDeleteOldArchived();
+}, 5000);
+
+// Get archive settings
+app.get('/api/settings/archive', async (req, res) => {
+  try {
+    const settings = await loadArchiveSettings();
+    res.json(settings);
+  } catch (error) {
+    console.error('Error getting archive settings:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Save archive settings
+app.post('/api/settings/archive', async (req, res) => {
+  try {
+    const currentSettings = await loadArchiveSettings();
+    const newSettings = { ...currentSettings, ...req.body };
+    await saveArchiveSettings(newSettings);
+    res.json({ success: true, settings: newSettings });
+  } catch (error) {
+    console.error('Error saving archive settings:', error);
     res.status(500).json({ error: error.message });
   }
 });

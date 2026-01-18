@@ -177,6 +177,18 @@ async function initDatabase() {
                       WHERE table_name='patterns' AND column_name='is_favorite') THEN
           ALTER TABLE patterns ADD COLUMN is_favorite BOOLEAN DEFAULT false;
         END IF;
+
+        -- Add is_archived column for archive feature
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='is_archived') THEN
+          ALTER TABLE patterns ADD COLUMN is_archived BOOLEAN DEFAULT false;
+        END IF;
+
+        -- Add archived_at timestamp column
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='archived_at') THEN
+          ALTER TABLE patterns ADD COLUMN archived_at TIMESTAMP;
+        END IF;
       END $$;
     `);
 

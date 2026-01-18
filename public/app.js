@@ -1068,6 +1068,15 @@ function initTheme() {
         }
     };
 
+    // Set random mascot (called by party mode)
+    window.setRandomMascot = function() {
+        if (mascotsList.length > 0) {
+            const randomMascot = mascotsList[Math.floor(Math.random() * mascotsList.length)];
+            setMascot(randomMascot.url);
+            localStorage.setItem('selectedMascot', randomMascot.url);
+        }
+    };
+
     async function loadMascots() {
         try {
             const response = await fetch('/api/mascots');
@@ -1295,10 +1304,10 @@ function initTheme() {
         });
     }
 
-    // Party mode - random theme and font
+    // Party mode - random theme, font, and mascot
     const partyModeBtn = document.getElementById('party-mode-btn');
     if (partyModeBtn) {
-        partyModeBtn.addEventListener('click', () => {
+        partyModeBtn.addEventListener('click', async () => {
             const themes = ['lavender', 'ocean', 'forest', 'sunset', 'rose', 'slate', 'aqua', 'midnight', 'razer', 'synthwave', 'cyberpunk', 'dracula', 'coffee', 'nasa'];
             const fonts = ['JetBrains Mono', 'Inter', 'Roboto', 'Open Sans', 'Lato', 'Poppins', 'Nunito', 'Raleway', 'Source Sans Pro', 'Ubuntu', 'Fira Sans'];
 
@@ -1317,6 +1326,11 @@ function initTheme() {
             if (fontSelect) {
                 fontSelect.value = randomFont;
                 if (customFontContainer) customFontContainer.style.display = 'none';
+            }
+
+            // Apply random mascot
+            if (window.setRandomMascot) {
+                window.setRandomMascot();
             }
 
             showToast(`Party mode! Theme: ${randomTheme}, Font: ${randomFont}`);

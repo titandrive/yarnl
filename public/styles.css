@@ -2082,7 +2082,7 @@ header {
     display: flex;
     justify-content: center;
     align-items: flex-start;
-    padding: 20px;
+    padding: 0;
     background: var(--card-bg);
     position: relative;
 }

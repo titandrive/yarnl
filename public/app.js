@@ -5438,8 +5438,11 @@ async function renderPage(pageNum) {
         const context = canvas.getContext('2d');
 
         const wrapper = document.querySelector('.pdf-viewer-wrapper');
-        const containerWidth = wrapper.clientWidth - 40;
-        const containerHeight = wrapper.clientHeight - 40;
+        const counterOverlay = document.querySelector('#pdf-viewer-container .counter-overlay');
+        // Counter overlay is position:fixed, so we need to subtract its height from available space
+        const counterOverlayHeight = counterOverlay ? counterOverlay.offsetHeight : 0;
+        const containerWidth = wrapper.clientWidth;
+        const containerHeight = wrapper.clientHeight - counterOverlayHeight;
         const viewport = page.getViewport({ scale: 1 });
 
         // Calculate fit scales

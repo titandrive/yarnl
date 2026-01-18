@@ -2148,6 +2148,7 @@ const defaultBackupSettings = {
   time: '03:00',
   includePatterns: true,
   includeImages: true,
+  includeArchive: false,
   pruneEnabled: false,
   pruneMode: 'keep',
   pruneValue: 5,
@@ -2221,6 +2222,7 @@ async function createScheduledBackup() {
       account: null,
       includePatterns: settings.includePatterns,
       includeImages: settings.includeImages,
+      includeArchive: settings.includeArchive,
       tables: {}
     };
 
@@ -2248,6 +2250,11 @@ async function createScheduledBackup() {
       const imagesDir = path.join(__dirname, 'patterns', 'images');
       if (settings.includeImages && fs.existsSync(imagesDir)) {
         archive.directory(imagesDir, 'images');
+      }
+
+      const archiveDir = path.join(__dirname, 'archive');
+      if (settings.includeArchive && fs.existsSync(archiveDir)) {
+        archive.directory(archiveDir, 'archive');
       }
 
       archive.finalize();
@@ -2497,7 +2504,7 @@ app.get('/api/backups', (req, res) => {
 // Create a new backup
 app.post('/api/backups', async (req, res) => {
   try {
-    const { clientSettings, includePatterns = true, includeImages = true } = req.body;
+    const { clientSettings, includePatterns = true, includeImages = true, includeArchive = false } = req.body;
     const timestamp = getLocalTimestamp();
     const backupFilename = `yarnl-backup-${timestamp}.zip`;
     const backupPath = path.join(backupsDir, backupFilename);
@@ -2509,6 +2516,7 @@ app.post('/api/backups', async (req, res) => {
       account: null, // For future user accounts
       includePatterns,
       includeImages,
+      includeArchive,
       tables: {}
     };
 
@@ -2556,6 +2564,12 @@ app.post('/api/backups', async (req, res) => {
     const imagesDir = path.join(__dirname, 'patterns', 'images');
     if (includeImages && fs.existsSync(imagesDir)) {
       archive.directory(imagesDir, 'images');
+    }
+
+    // Add archive directory only if requested
+    const archiveDir = path.join(__dirname, 'archive');
+    if (includeArchive && fs.existsSync(archiveDir)) {
+      archive.directory(archiveDir, 'archive');
     }
 
     await archive.finalize();

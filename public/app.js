@@ -2614,6 +2614,10 @@ async function loadArchiveSettings() {
         if (archiveSettingsSection) {
             archiveSettingsSection.style.display = deleteEnabled ? 'none' : 'block';
         }
+        const archivedPatternsSection = document.getElementById('archived-patterns-section');
+        if (archivedPatternsSection) {
+            archivedPatternsSection.style.display = deleteEnabled ? 'none' : 'block';
+        }
     }
 
     // Helper to update warning visibility based on archived pattern count
@@ -3872,6 +3876,7 @@ async function createBackup() {
 
     const includePatterns = document.getElementById('backup-include-patterns')?.checked ?? true;
     const includeImages = document.getElementById('backup-include-images')?.checked ?? true;
+    const includeArchive = document.getElementById('backup-include-archive')?.checked ?? false;
 
     try {
         const response = await fetch(`${API_URL}/api/backups`, {
@@ -3880,7 +3885,8 @@ async function createBackup() {
             body: JSON.stringify({
                 clientSettings: getClientSettings(),
                 includePatterns,
-                includeImages
+                includeImages,
+                includeArchive
             })
         });
 
@@ -3975,6 +3981,12 @@ function initBackups() {
         includeImages.addEventListener('change', updateBackupEstimate);
     }
 
+    // Include archive checkbox - update estimate when changed
+    const includeArchive = document.getElementById('backup-include-archive');
+    if (includeArchive) {
+        includeArchive.addEventListener('change', updateBackupEstimate);
+    }
+
     // Load library size for the backup option
     loadLibrarySizeForBackup();
 
@@ -4012,6 +4024,7 @@ function initBackups() {
                     time: timeInput?.value ?? '03:00',
                     includePatterns: includePatterns?.checked ?? true,
                     includeImages: includeImages?.checked ?? true,
+                    includeArchive: includeArchive?.checked ?? false,
                     pruneEnabled: pruneEnabled?.checked ?? false,
                     pruneMode: pruneMode?.value ?? 'keep',
                     pruneValue: parseInt(pruneValue?.value ?? '5'),
@@ -4036,6 +4049,7 @@ function initBackups() {
             if (timeInput) timeInput.value = settings.time || '03:00';
             if (includePatterns) includePatterns.checked = settings.includePatterns ?? true;
             if (includeImages) includeImages.checked = settings.includeImages ?? true;
+            if (includeArchive) includeArchive.checked = settings.includeArchive ?? false;
             if (pruneEnabled) pruneEnabled.checked = settings.pruneEnabled ?? false;
             if (pruneMode) pruneMode.value = settings.pruneMode || 'keep';
             if (pruneValue) pruneValue.value = settings.pruneValue || '5';
@@ -4359,6 +4373,8 @@ async function cleanupOrphanedImages() {
 let cachedLibrarySize = 0;
 let cachedImagesSize = 0;
 let cachedImagesCount = 0;
+let cachedArchiveSize = 0;
+let cachedArchiveCount = 0;
 
 async function loadLibrarySizeForBackup() {
     try {
@@ -4379,6 +4395,9 @@ async function loadLibrarySizeForBackup() {
 
         // Load images size
         await loadImagesSizeForBackup();
+
+        // Load archive size
+        await loadArchiveSizeForBackup();
 
         // Update backup estimate
         updateBackupEstimate();
@@ -4420,12 +4439,33 @@ async function loadImagesSizeForBackup() {
     }
 }
 
+async function loadArchiveSizeForBackup() {
+    try {
+        const response = await fetch(`${API_URL}/api/patterns/archived`);
+        const archived = await response.json();
+        cachedArchiveCount = archived.length || 0;
+        cachedArchiveSize = archived.reduce((sum, p) => sum + (p.fileSize || 0), 0);
+
+        const sizeInfo = document.getElementById('archive-size-info');
+        if (sizeInfo) {
+            const formattedSize = formatBackupSize(cachedArchiveSize);
+            sizeInfo.textContent = `${cachedArchiveCount} pattern${cachedArchiveCount === 1 ? '' : 's'} (${formattedSize})`;
+        }
+    } catch (error) {
+        const sizeInfo = document.getElementById('archive-size-info');
+        if (sizeInfo) {
+            sizeInfo.textContent = 'Could not load archive size';
+        }
+    }
+}
+
 function updateBackupEstimate() {
     const estimate = document.getElementById('backup-estimate');
     if (!estimate) return;
 
     const includePatterns = document.getElementById('backup-include-patterns');
     const includeImages = document.getElementById('backup-include-images');
+    const includeArchive = document.getElementById('backup-include-archive');
     const dbEstimate = 50000; // ~50KB for database JSON
 
     let totalSize = dbEstimate;
@@ -4434,6 +4474,9 @@ function updateBackupEstimate() {
     }
     if (includeImages && includeImages.checked) {
         totalSize += cachedImagesSize;
+    }
+    if (includeArchive && includeArchive.checked) {
+        totalSize += cachedArchiveSize;
     }
 
     estimate.textContent = `Estimated backup size: ${formatBackupSize(totalSize)}`;

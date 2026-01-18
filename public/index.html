@@ -869,6 +869,16 @@ Inc in each st around (12)
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Include Archive</label>
+                                <p class="setting-description" id="archive-size-info">Loading archive size...</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="backup-include-archive">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                         <p class="backup-estimate" id="backup-estimate">Estimated backup size: calculating...</p>
 
                         <h4 class="settings-subheading">Schedule</h4>
@@ -1030,18 +1040,20 @@ Inc in each st around (12)
                             </div>
                         </div>
 
-                        <h4 class="settings-subheading">Archived Patterns</h4>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label><span id="archived-patterns-count">0 archived patterns</span></label>
+                        <div id="archived-patterns-section">
+                            <h4 class="settings-subheading">Archived Patterns</h4>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label><span id="archived-patterns-count">0 archived patterns</span></label>
+                                </div>
+                                <button id="delete-all-archived-btn" class="btn btn-danger" style="display: none;">
+                                    Delete All
+                                </button>
                             </div>
-                            <button id="delete-all-archived-btn" class="btn btn-danger" style="display: none;">
-                                Delete All
-                            </button>
-                        </div>
 
-                        <div class="archived-patterns-list" id="archived-patterns-list">
-                            <p class="no-archived">Loading...</p>
+                            <div class="archived-patterns-list" id="archived-patterns-list">
+                                <p class="no-archived">Loading...</p>
+                            </div>
                         </div>
                     </section>
 

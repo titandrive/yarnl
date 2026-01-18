@@ -2826,7 +2826,11 @@ function getKeyDisplayName(key) {
         'Delete': 'Del',
         '+': '+',
         '-': '-',
-        '=': '='
+        '=': '=',
+        'MediaPlayPause': '⏯',
+        'MediaTrackNext': '⏭',
+        'MediaTrackPrevious': '⏮',
+        'MediaStop': '⏹'
     };
     return keyNames[key] || key.toUpperCase();
 }
@@ -2856,12 +2860,14 @@ function initKeyboardShortcuts() {
             if (listeningBtn === btn) {
                 btn.classList.remove('listening');
                 listeningBtn = null;
+                updateShortcutDisplays();
                 return;
             }
 
             // Cancel any other listening button
             if (listeningBtn) {
                 listeningBtn.classList.remove('listening');
+                updateShortcutDisplays();
             }
 
             // Start listening on this button
@@ -2886,25 +2892,24 @@ function initKeyboardShortcuts() {
         });
     });
 
-    // Global keydown handler for capturing shortcuts
-    document.addEventListener('keydown', (e) => {
-        if (!listeningBtn) return;
-
-        e.preventDefault();
-        e.stopPropagation();
+    // Helper to save a captured key
+    const captureKey = (key) => {
+        if (!listeningBtn) return false;
 
         const shortcutName = listeningBtn.dataset.shortcut;
         const index = parseInt(listeningBtn.dataset.index);
 
-        // Escape cancels listening without changes
-        if (e.key === 'Escape') {
-            listeningBtn.classList.remove('listening');
-            listeningBtn = null;
-            return;
+        // Remove this key from any other shortcut to prevent conflicts
+        for (const [name, keys] of Object.entries(keyboardShortcuts)) {
+            for (let i = 0; i < keys.length; i++) {
+                if (keys[i] === key && !(name === shortcutName && i === index)) {
+                    keyboardShortcuts[name][i] = '';
+                }
+            }
         }
 
         // Set the new shortcut
-        keyboardShortcuts[shortcutName][index] = e.key;
+        keyboardShortcuts[shortcutName][index] = key;
 
         // Save to localStorage
         localStorage.setItem('keyboardShortcuts', JSON.stringify(keyboardShortcuts));
@@ -2914,7 +2919,21 @@ function initKeyboardShortcuts() {
         updateShortcutDisplays();
         listeningBtn = null;
         showToast('Shortcut updated');
+        return true;
+    };
+
+    // Global keydown handler for capturing shortcuts
+    document.addEventListener('keydown', (e) => {
+        if (!listeningBtn) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        captureKey(e.key);
     }, true);
+
+    // Expose captureKey globally so media session handlers can use it
+    window._yarnlCaptureMediaKey = captureKey;
 
     // Reset to defaults button
     if (resetBtn) {
@@ -5847,6 +5866,108 @@ function initPDFViewer() {
             return;
         }
     });
+
+    // Media Session API for Bluetooth remotes and media keys
+    if ('mediaSession' in navigator) {
+        // Helper to dispatch media key to shortcut matching
+        const dispatchMediaKey = (key) => {
+            // If in shortcut capture mode, capture the key instead
+            if (window._yarnlCaptureMediaKey && window._yarnlCaptureMediaKey(key)) {
+                return;
+            }
+
+            const isPdfViewerOpen = pdfViewerContainer.style.display === 'flex';
+            const isMarkdownViewerOpen = markdownViewerContainer && markdownViewerContainer.style.display === 'flex';
+
+            if (!isPdfViewerOpen && !isMarkdownViewerOpen) return;
+
+            // Check each shortcut and execute matching action
+            if (matchesShortcut(key, 'prevPage') && isPdfViewerOpen) {
+                changePage(-1);
+            } else if (matchesShortcut(key, 'nextPage') && isPdfViewerOpen) {
+                changePage(1);
+            } else if (matchesShortcut(key, 'counterIncrease')) {
+                incrementLastUsedCounter();
+            } else if (matchesShortcut(key, 'counterDecrease')) {
+                decrementLastUsedCounter();
+            } else if (matchesShortcut(key, 'toggleTimer')) {
+                toggleTimer();
+            } else if (matchesShortcut(key, 'nextCounter')) {
+                selectNextCounter();
+            } else if (matchesShortcut(key, 'zoomIn') && isPdfViewerOpen) {
+                zoomIn();
+            } else if (matchesShortcut(key, 'zoomOut') && isPdfViewerOpen) {
+                zoomOut();
+            } else if (matchesShortcut(key, 'exitViewer')) {
+                if (isPdfViewerOpen) {
+                    closePDFViewer();
+                } else if (isMarkdownViewerOpen) {
+                    closeMarkdownViewer();
+                }
+            }
+        };
+
+        // Set up media session handlers (always registered, but only work when audio is playing)
+        navigator.mediaSession.setActionHandler('play', () => dispatchMediaKey('MediaPlayPause'));
+        navigator.mediaSession.setActionHandler('pause', () => dispatchMediaKey('MediaPlayPause'));
+        navigator.mediaSession.setActionHandler('nexttrack', () => dispatchMediaKey('MediaTrackNext'));
+        navigator.mediaSession.setActionHandler('previoustrack', () => dispatchMediaKey('MediaTrackPrevious'));
+        navigator.mediaSession.setActionHandler('stop', () => dispatchMediaKey('MediaStop'));
+
+        // Toggle function for enabling/disabling media remote
+        let silentAudio = null;
+        window.toggleMediaRemote = (enabled) => {
+            if (enabled) {
+                if (!silentAudio) {
+                    silentAudio = document.createElement('audio');
+                    silentAudio.src = '/silence.wav';
+                    silentAudio.loop = true;
+                    silentAudio.volume = 0.01;
+                    document.body.appendChild(silentAudio);
+                }
+                silentAudio.play().then(() => {
+                    console.log('Media remote audio playing');
+                    navigator.mediaSession.metadata = new MediaMetadata({
+                        title: 'Yarnl Remote Active',
+                        artist: 'Pattern Viewer'
+                    });
+                    navigator.mediaSession.playbackState = 'playing';
+                }).catch((e) => {
+                    console.error('Media remote failed to start:', e);
+                });
+            } else {
+                if (silentAudio) {
+                    silentAudio.pause();
+                }
+                navigator.mediaSession.playbackState = 'paused';
+            }
+            localStorage.setItem('mediaRemoteEnabled', enabled);
+        };
+
+        // Initialize from saved preference
+        const remoteCheckbox = document.getElementById('media-remote-enabled');
+        if (remoteCheckbox) {
+            const savedPref = localStorage.getItem('mediaRemoteEnabled') === 'true';
+            remoteCheckbox.checked = savedPref;
+            // Don't auto-start on page load - needs user gesture
+            // Instead, start on first user interaction if preference was enabled
+            if (savedPref) {
+                const startOnInteraction = () => {
+                    if (remoteCheckbox.checked && (!silentAudio || silentAudio.paused)) {
+                        window.toggleMediaRemote(true);
+                    }
+                    document.removeEventListener('click', startOnInteraction);
+                    document.removeEventListener('keydown', startOnInteraction);
+                };
+                document.addEventListener('click', startOnInteraction);
+                document.addEventListener('keydown', startOnInteraction);
+            }
+            remoteCheckbox.addEventListener('change', (e) => {
+                window.toggleMediaRemote(e.target.checked);
+                showToast(e.target.checked ? 'Media remote enabled' : 'Media remote disabled');
+            });
+        }
+    }
 }
 
 // Handle pattern card click - supports cmd/ctrl+click to open in new window

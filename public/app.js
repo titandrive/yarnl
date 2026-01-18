@@ -5164,6 +5164,74 @@ function initPDFViewer() {
         }
     }, { passive: true });
 
+    // Swipe gestures for page navigation and counter control
+    let swipeStartX = null;
+    let swipeStartY = null;
+    let swipeStartTime = null;
+    const SWIPE_THRESHOLD = 50; // Minimum distance for a swipe
+    const SWIPE_TIME_LIMIT = 300; // Maximum time in ms for a swipe
+
+    pdfWrapper.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            swipeStartX = e.touches[0].pageX;
+            swipeStartY = e.touches[0].pageY;
+            swipeStartTime = Date.now();
+        }
+    }, { passive: true });
+
+    // Prevent pull-to-refresh when swiping down at top of page
+    pdfWrapper.addEventListener('touchmove', (e) => {
+        if (e.touches.length === 1 && pdfWrapper.scrollTop === 0) {
+            const deltaY = e.touches[0].pageY - swipeStartY;
+            if (deltaY > 0) {
+                e.preventDefault();
+            }
+        }
+    }, { passive: false });
+
+    pdfWrapper.addEventListener('touchend', (e) => {
+        if (swipeStartX === null || swipeStartY === null) return;
+        if (e.touches.length > 0) return; // Still touching with another finger
+
+        const touchEndX = e.changedTouches[0].pageX;
+        const touchEndY = e.changedTouches[0].pageY;
+        const deltaX = touchEndX - swipeStartX;
+        const deltaY = touchEndY - swipeStartY;
+        const elapsed = Date.now() - swipeStartTime;
+
+        // Reset swipe tracking
+        swipeStartX = null;
+        swipeStartY = null;
+        swipeStartTime = null;
+
+        // Only register as swipe if it was quick enough
+        if (elapsed > SWIPE_TIME_LIMIT) return;
+
+        const absDeltaX = Math.abs(deltaX);
+        const absDeltaY = Math.abs(deltaY);
+
+        // Determine if horizontal or vertical swipe
+        if (absDeltaX > absDeltaY && absDeltaX > SWIPE_THRESHOLD) {
+            // Horizontal swipe - page navigation
+            if (deltaX > 0) {
+                // Swipe right - previous page
+                changePage(-1);
+            } else {
+                // Swipe left - next page
+                changePage(1);
+            }
+        } else if (absDeltaY > absDeltaX && absDeltaY > SWIPE_THRESHOLD) {
+            // Vertical swipe - counter control
+            if (deltaY > 0) {
+                // Swipe down - decrease counter
+                decrementLastUsedCounter();
+            } else {
+                // Swipe up - increase counter
+                incrementLastUsedCounter();
+            }
+        }
+    }, { passive: true });
+
     // Mouse wheel zoom (with ctrl key for intentional zoom)
     pdfWrapper.addEventListener('wheel', (e) => {
         // Only trigger on ctrl+wheel (intentional zoom), not on trackpad scroll

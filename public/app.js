@@ -4500,6 +4500,19 @@ function initLibraryFilters() {
         });
     }
 
+    // Filter by hashtag (called when clicking a tag on a card)
+    window.filterByHashtag = function(tagName) {
+        const query = `#${tagName}`;
+        searchQuery = query.toLowerCase();
+        if (searchInput) {
+            searchInput.value = query;
+            if (searchClearBtn) {
+                searchClearBtn.classList.add('visible');
+            }
+        }
+        displayPatterns();
+    };
+
     if (sortSelect) {
         // Restore saved sort value
         sortSelect.value = selectedSort;
@@ -4604,7 +4617,7 @@ function renderPatternCard(pattern, options = {}) {
 
     const hashtags = pattern.hashtags || [];
     const hashtagsHtml = hashtags.length > 0
-        ? `<div class="pattern-hashtags">${hashtags.map(h => `<span class="pattern-hashtag">#${escapeHtml(h.name)}</span>`).join('')}</div>`
+        ? `<div class="pattern-hashtags">${hashtags.map(h => `<span class="pattern-hashtag" onclick="event.stopPropagation(); filterByHashtag('${escapeHtml(h.name)}')">#${escapeHtml(h.name)}</span>`).join('')}</div>`
         : '';
 
     const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';

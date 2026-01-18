@@ -3805,7 +3805,13 @@ input[type="number"].settings-input {
     font-size: 0.7rem;
     color: var(--text-color);
     flex-shrink: 0;
-    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.pattern-hashtag:hover {
+    border-color: var(--primary-color);
+    background: var(--border-color);
 }
 
 .empty-state-small {

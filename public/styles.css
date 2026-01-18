@@ -3036,6 +3036,15 @@ header {
     border-color: var(--primary-color);
 }
 
+#mascot-select-btn {
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+#mascot-select-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
 .party-mode-btn {
     display: flex;
     align-items: center;

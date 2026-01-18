@@ -1082,11 +1082,11 @@ Inc in each st around (12)
                 <h2 id="pdf-pattern-name"></h2>
                 <div class="pdf-header-right">
                     <div class="timer-control">
-                        <button id="pdf-auto-timer-btn" class="btn auto-timer-btn" title="Auto timer: runs while viewing, pauses on inactivity">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M5 3l14 9-14 9V3z"></path>
-                            </svg>
-                        </button>
+                        <label class="auto-timer-toggle" title="Auto timer: runs while viewing, pauses on inactivity">
+                            <input type="checkbox" id="pdf-auto-timer-checkbox">
+                            <span class="auto-timer-slider"></span>
+                            <span class="auto-timer-label">Auto</span>
+                        </label>
                         <button id="pdf-timer-btn" class="btn btn-secondary timer-btn">
                             <svg class="timer-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                                 <circle cx="12" cy="12" r="10"></circle>
@@ -1094,8 +1094,8 @@ Inc in each st around (12)
                             </svg>
                             <span id="pdf-timer-display">0:00:00</span>
                         </button>
-                        <button id="pdf-timer-reset-btn" class="btn timer-reset-btn" title="Reset timer">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <button id="pdf-timer-reset-btn" class="timer-reset-btn" title="Reset timer">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
                                 <line x1="6" y1="6" x2="18" y2="18"></line>
                             </svg>
@@ -1242,11 +1242,11 @@ Inc in each st around (12)
             <h2 id="markdown-pattern-name"></h2>
             <div class="markdown-header-right">
                 <div class="timer-control">
-                    <button id="markdown-auto-timer-btn" class="btn auto-timer-btn" title="Auto timer: runs while viewing, pauses on inactivity">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M5 3l14 9-14 9V3z"></path>
-                        </svg>
-                    </button>
+                    <label class="auto-timer-toggle" title="Auto timer: runs while viewing, pauses on inactivity">
+                        <input type="checkbox" id="markdown-auto-timer-checkbox">
+                        <span class="auto-timer-slider"></span>
+                        <span class="auto-timer-label">Auto</span>
+                    </label>
                     <button id="markdown-timer-btn" class="btn btn-secondary timer-btn">
                         <svg class="timer-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
@@ -1254,7 +1254,7 @@ Inc in each st around (12)
                         </svg>
                         <span id="markdown-timer-display">0:00:00</span>
                     </button>
-                    <button id="markdown-timer-reset-btn" class="btn timer-reset-btn" title="Reset timer">
+                    <button id="markdown-timer-reset-btn" class="timer-reset-btn" title="Reset timer">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>

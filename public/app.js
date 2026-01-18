@@ -182,15 +182,15 @@ function initTimer() {
         markdownResetBtn.addEventListener('click', handleTimerReset);
     }
 
-    // Auto timer buttons
-    const pdfAutoTimerBtn = document.getElementById('pdf-auto-timer-btn');
-    const markdownAutoTimerBtn = document.getElementById('markdown-auto-timer-btn');
+    // Auto timer checkboxes
+    const pdfAutoTimerCheckbox = document.getElementById('pdf-auto-timer-checkbox');
+    const markdownAutoTimerCheckbox = document.getElementById('markdown-auto-timer-checkbox');
 
-    if (pdfAutoTimerBtn) {
-        pdfAutoTimerBtn.addEventListener('click', toggleAutoTimer);
+    if (pdfAutoTimerCheckbox) {
+        pdfAutoTimerCheckbox.addEventListener('change', toggleAutoTimer);
     }
-    if (markdownAutoTimerBtn) {
-        markdownAutoTimerBtn.addEventListener('click', toggleAutoTimer);
+    if (markdownAutoTimerCheckbox) {
+        markdownAutoTimerCheckbox.addEventListener('change', toggleAutoTimer);
     }
 
     // Inactivity detection for auto timer
@@ -273,8 +273,19 @@ function toggleTimer() {
     }
 }
 
-function toggleAutoTimer() {
-    autoTimerEnabled = !autoTimerEnabled;
+function toggleAutoTimer(e) {
+    // If called from checkbox change event, use checkbox state; otherwise toggle
+    if (e && e.target && e.target.type === 'checkbox') {
+        autoTimerEnabled = e.target.checked;
+        // Sync the other checkbox
+        const otherId = e.target.id === 'pdf-auto-timer-checkbox'
+            ? 'markdown-auto-timer-checkbox'
+            : 'pdf-auto-timer-checkbox';
+        const otherCheckbox = document.getElementById(otherId);
+        if (otherCheckbox) otherCheckbox.checked = autoTimerEnabled;
+    } else {
+        autoTimerEnabled = !autoTimerEnabled;
+    }
     autoTimerPausedInactive = false;
     updateAutoTimerButtonState();
 
@@ -304,20 +315,26 @@ function toggleAutoTimer() {
 }
 
 function updateAutoTimerButtonState() {
-    const pdfBtn = document.getElementById('pdf-auto-timer-btn');
-    const markdownBtn = document.getElementById('markdown-auto-timer-btn');
+    const pdfCheckbox = document.getElementById('pdf-auto-timer-checkbox');
+    const markdownCheckbox = document.getElementById('markdown-auto-timer-checkbox');
+    const pdfToggle = pdfCheckbox?.closest('.auto-timer-toggle');
+    const markdownToggle = markdownCheckbox?.closest('.auto-timer-toggle');
 
-    [pdfBtn, markdownBtn].forEach(btn => {
-        if (!btn) return;
-        btn.classList.remove('active', 'paused-inactive');
+    [pdfCheckbox, markdownCheckbox].forEach(checkbox => {
+        if (!checkbox) return;
+        checkbox.checked = autoTimerEnabled;
+    });
+
+    [pdfToggle, markdownToggle].forEach(toggle => {
+        if (!toggle) return;
+        toggle.classList.remove('paused-inactive');
         if (autoTimerPausedInactive) {
-            btn.classList.add('paused-inactive');
-            btn.title = 'Auto timer paused (inactive) - click or move to resume';
+            toggle.classList.add('paused-inactive');
+            toggle.title = 'Auto timer paused (inactive) - move to resume';
         } else if (autoTimerEnabled) {
-            btn.classList.add('active');
-            btn.title = 'Auto timer enabled - click to disable';
+            toggle.title = 'Auto timer enabled - click to disable';
         } else {
-            btn.title = 'Auto timer: runs while viewing, pauses on inactivity';
+            toggle.title = 'Auto timer: runs while viewing, pauses on inactivity';
         }
     });
 }
@@ -5562,7 +5579,7 @@ async function renderPage(pageNum) {
         await page.render(renderContext).promise;
 
         // Update page info
-        document.getElementById('page-info').textContent = `Page ${pageNum} of ${totalPages}`;
+        document.getElementById('page-info').textContent = `${pageNum} of ${totalPages}`;
 
         // Update zoom level display
         let zoomDisplay;
@@ -5952,6 +5969,10 @@ async function loadCounters(patternId) {
         if (counters.length === 0) {
             await addCounter('Row Counter');
         } else {
+            // Set first counter as active if none selected
+            if (!lastUsedCounterId || !counters.find(c => c.id === lastUsedCounterId)) {
+                lastUsedCounterId = counters[0].id;
+            }
             displayCounters();
         }
     } catch (error) {
@@ -5986,8 +6007,18 @@ function displayCounters() {
             <div class="counter-controls">
                 <button class="counter-btn counter-btn-minus" onclick="event.stopPropagation(); decrementCounter(${counter.id})">−</button>
                 <button class="counter-btn counter-btn-plus" onclick="event.stopPropagation(); incrementCounter(${counter.id})">+</button>
-                <button class="counter-btn counter-btn-reset" onclick="handleCounterReset(event, ${counter.id})" title="Click twice to reset">↺</button>
-                <button class="counter-btn counter-btn-delete" onclick="handleCounterDelete(event, ${counter.id})" title="Click twice to delete">×</button>
+                <button class="counter-btn counter-btn-reset" onclick="handleCounterReset(event, ${counter.id})" title="Click twice to reset">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
+                </button>
+                <button class="counter-btn counter-btn-delete" onclick="handleCounterDelete(event, ${counter.id})" title="Click twice to delete">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
         </div>
     `).join('');
@@ -6972,6 +7003,10 @@ async function loadMarkdownCounters(patternId) {
         if (counters.length === 0) {
             await addCounter('Row Counter');
         } else {
+            // Set first counter as active if none selected
+            if (!lastUsedCounterId || !counters.find(c => c.id === lastUsedCounterId)) {
+                lastUsedCounterId = counters[0].id;
+            }
             displayMarkdownCounters();
         }
     } catch (error) {
@@ -7001,8 +7036,18 @@ function displayMarkdownCounters() {
             <div class="counter-controls">
                 <button class="counter-btn counter-btn-minus" onclick="event.stopPropagation(); decrementCounter(${counter.id})">−</button>
                 <button class="counter-btn counter-btn-plus" onclick="event.stopPropagation(); incrementCounter(${counter.id})">+</button>
-                <button class="counter-btn counter-btn-reset" onclick="handleCounterReset(event, ${counter.id})" title="Click twice to reset">↺</button>
-                <button class="counter-btn counter-btn-delete" onclick="handleCounterDelete(event, ${counter.id})" title="Click twice to delete">×</button>
+                <button class="counter-btn counter-btn-reset" onclick="handleCounterReset(event, ${counter.id})" title="Click twice to reset">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                        <path d="M3 3v5h5"/>
+                    </svg>
+                </button>
+                <button class="counter-btn counter-btn-delete" onclick="handleCounterDelete(event, ${counter.id})" title="Click twice to delete">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
             </div>
         </div>
     `).join('');

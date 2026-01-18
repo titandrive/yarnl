@@ -1122,8 +1122,8 @@ Inc in each st around (12)
                 </div>
             </div>
 
-            <!-- Counter Overlay at Bottom -->
-            <div class="counter-overlay">
+            <!-- Shared Counter Overlay at Bottom -->
+            <div id="shared-counter-overlay" class="counter-overlay">
                 <div id="counters-list" class="counters-list">
                     <!-- Counters will be dynamically added here -->
                 </div>
@@ -1270,15 +1270,7 @@ Inc in each st around (12)
             </div>
         </div>
 
-        <!-- Counter Overlay at Bottom (same as PDF viewer) -->
-        <div class="counter-overlay">
-            <div id="markdown-counters-list" class="counters-list">
-                <!-- Counters will be dynamically added here -->
-            </div>
-            <div class="counter-actions">
-                <button id="markdown-add-counter-btn" class="btn btn-success">+ Add Counter</button>
-            </div>
-        </div>
+        <!-- Counter overlay is shared - see #shared-counter-overlay -->
 
         <!-- Notes Popover (reuse same structure) -->
         <div id="markdown-notes-popover" class="notes-popover" style="display: none;">

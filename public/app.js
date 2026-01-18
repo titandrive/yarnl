@@ -5506,6 +5506,11 @@ async function openPDFViewer(patternId, pushHistory = true) {
             }, INACTIVITY_DELAY);
         }
 
+        // Clear old counters and move overlay before showing viewer
+        document.getElementById('counters-list').innerHTML = '';
+        const counterOverlay = document.getElementById('shared-counter-overlay');
+        pdfViewerContainer.appendChild(counterOverlay);
+
         // Hide tabs and show PDF viewer
         document.querySelector('.tabs').style.display = 'none';
         tabContents.forEach(c => c.style.display = 'none');
@@ -5540,7 +5545,7 @@ async function renderPage(pageNum) {
         const context = canvas.getContext('2d');
 
         const wrapper = document.querySelector('.pdf-viewer-wrapper');
-        const counterOverlay = document.querySelector('#pdf-viewer-container .counter-overlay');
+        const counterOverlay = document.getElementById('shared-counter-overlay');
         // Counter overlay is position:fixed, so we need to subtract its height from available space
         const counterOverlayHeight = counterOverlay ? counterOverlay.offsetHeight : 0;
         const containerWidth = wrapper.clientWidth;
@@ -5981,13 +5986,6 @@ async function loadCounters(patternId) {
 }
 
 function displayCounters() {
-    // Check if markdown viewer is active
-    const markdownViewer = document.getElementById('markdown-viewer-container');
-    if (markdownViewer && markdownViewer.style.display !== 'none') {
-        displayMarkdownCounters();
-        return;
-    }
-
     const countersList = document.getElementById('counters-list');
 
     if (counters.length === 0) {
@@ -6133,7 +6131,6 @@ function selectNextCounter() {
     const nextIndex = (currentIndex + 1) % counters.length;
     lastUsedCounterId = counters[nextIndex].id;
     displayCounters();
-    displayMarkdownCounters();
 }
 
 // Counter confirmation handlers
@@ -6719,6 +6716,11 @@ async function openMarkdownViewer(pattern, pushHistory = true) {
             }, INACTIVITY_DELAY);
         }
 
+        // Clear old counters and move overlay before showing viewer
+        document.getElementById('counters-list').innerHTML = '';
+        const counterOverlay = document.getElementById('shared-counter-overlay');
+        markdownViewerContainer.appendChild(counterOverlay);
+
         // Hide tabs and show markdown viewer
         document.querySelector('.tabs').style.display = 'none';
         tabContents.forEach(c => c.style.display = 'none');
@@ -6736,7 +6738,7 @@ async function openMarkdownViewer(pattern, pushHistory = true) {
         }
 
         // Load counters
-        await loadMarkdownCounters(pattern.id);
+        await loadCounters(pattern.id);
 
         // Initialize markdown viewer events
         initMarkdownViewerEvents();
@@ -6793,10 +6795,6 @@ function initMarkdownViewerEvents() {
     // Enable auto-continue for lists and image paste
     setupMarkdownListContinuation(notesEditor);
     setupImagePaste(notesEditor, () => currentPattern?.name || 'pattern');
-
-    // Add counter button
-    const addCounterBtn = document.getElementById('markdown-add-counter-btn');
-    addCounterBtn.onclick = () => addCounter('Counter');
 
     // Edit modal events
     const closeEditModalBtn = document.getElementById('close-markdown-edit-modal');
@@ -6992,65 +6990,6 @@ async function clearMarkdownNotes() {
     document.getElementById('markdown-notes-editor').value = '';
     await saveMarkdownNotes();
     switchMarkdownNotesTab('edit');
-}
-
-// Markdown counters (reuse existing counter logic)
-async function loadMarkdownCounters(patternId) {
-    try {
-        const response = await fetch(`${API_URL}/api/patterns/${patternId}/counters`);
-        counters = await response.json();
-
-        if (counters.length === 0) {
-            await addCounter('Row Counter');
-        } else {
-            // Set first counter as active if none selected
-            if (!lastUsedCounterId || !counters.find(c => c.id === lastUsedCounterId)) {
-                lastUsedCounterId = counters[0].id;
-            }
-            displayMarkdownCounters();
-        }
-    } catch (error) {
-        console.error('Error loading counters:', error);
-    }
-}
-
-function displayMarkdownCounters() {
-    const countersList = document.getElementById('markdown-counters-list');
-
-    if (!countersList) return;
-
-    if (counters.length === 0) {
-        countersList.innerHTML = '<p style="text-align: center; color: #6b7280;">No counters. Click "Add Counter" to create one.</p>';
-        return;
-    }
-
-    countersList.innerHTML = counters.map(counter => `
-        <div class="counter-item${lastUsedCounterId === counter.id ? ' active' : ''}" data-counter-id="${counter.id}" onclick="selectCounter(${counter.id})">
-            <div class="counter-name">
-                <input type="text" value="${escapeHtml(counter.name)}"
-                       onchange="updateCounterName(${counter.id}, this.value)"
-                       onclick="event.stopPropagation()"
-                       placeholder="Counter name">
-            </div>
-            <div class="counter-value">${counter.value}</div>
-            <div class="counter-controls">
-                <button class="counter-btn counter-btn-minus" onclick="event.stopPropagation(); decrementCounter(${counter.id})">−</button>
-                <button class="counter-btn counter-btn-plus" onclick="event.stopPropagation(); incrementCounter(${counter.id})">+</button>
-                <button class="counter-btn counter-btn-reset" onclick="handleCounterReset(event, ${counter.id})" title="Click twice to reset">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                        <path d="M3 3v5h5"/>
-                    </svg>
-                </button>
-                <button class="counter-btn counter-btn-delete" onclick="handleCounterDelete(event, ${counter.id})" title="Click twice to delete">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
-            </div>
-        </div>
-    `).join('');
 }
 
 // Markdown edit modal

@@ -2087,6 +2087,7 @@ header {
     background: var(--card-bg);
     position: relative;
     overscroll-behavior: none;
+    touch-action: pan-x pan-y; /* Allow panning but not browser zoom */
 }
 
 #pdf-canvas {

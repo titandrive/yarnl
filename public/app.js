@@ -5124,9 +5124,12 @@ function initPDFViewer() {
     const pdfWrapper = document.querySelector('.pdf-viewer-wrapper');
     let initialPinchDistance = null;
     let initialZoom = 1.0;
+    let pinchRenderTimeout = null;
+    let lastPinchScale = 1.0;
 
     pdfWrapper.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
+            e.preventDefault(); // Prevent browser zoom
             initialPinchDistance = Math.hypot(
                 e.touches[0].pageX - e.touches[1].pageX,
                 e.touches[0].pageY - e.touches[1].pageY
@@ -5139,27 +5142,41 @@ function initPDFViewer() {
             } else {
                 initialZoom = pdfZoomScale;
             }
+            lastPinchScale = initialZoom;
         }
-    }, { passive: true });
+    }, { passive: false });
 
     pdfWrapper.addEventListener('touchmove', (e) => {
         if (e.touches.length === 2 && initialPinchDistance) {
+            e.preventDefault(); // Prevent browser zoom
             const currentDistance = Math.hypot(
                 e.touches[0].pageX - e.touches[1].pageX,
                 e.touches[0].pageY - e.touches[1].pageY
             );
-            // Reduce sensitivity: scale factor is dampened
+            // Calculate zoom scale
             const rawScale = currentDistance / initialPinchDistance;
-            const dampenedScale = 1 + (rawScale - 1) * 0.3; // 30% of the raw change
-            pdfZoomMode = 'manual';
-            pdfZoomScale = Math.min(Math.max(initialZoom * dampenedScale, 0.1), 4.0);
-            document.getElementById('zoom-level').value = `${Math.round(pdfZoomScale * 100)}%`;
+            const newZoom = Math.min(Math.max(initialZoom * rawScale, 0.1), 4.0);
+
+            // Only re-render if scale changed enough (reduces render calls)
+            if (Math.abs(newZoom - lastPinchScale) > 0.02) {
+                lastPinchScale = newZoom;
+                pdfZoomScale = newZoom;
+                pdfZoomMode = 'manual';
+                document.getElementById('zoom-level').value = `${Math.round(pdfZoomScale * 100)}%`;
+
+                // Debounce renders for performance
+                if (pinchRenderTimeout) clearTimeout(pinchRenderTimeout);
+                pinchRenderTimeout = setTimeout(() => {
+                    renderPage(currentPageNum);
+                }, 16); // ~60fps
+            }
         }
-    }, { passive: true });
+    }, { passive: false });
 
     pdfWrapper.addEventListener('touchend', (e) => {
         if (initialPinchDistance && e.touches.length < 2) {
             initialPinchDistance = null;
+            if (pinchRenderTimeout) clearTimeout(pinchRenderTimeout);
             renderPage(currentPageNum);
         }
     }, { passive: true });

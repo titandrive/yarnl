@@ -626,17 +626,25 @@ async function handleInitialNavigation() {
         return;
     }
 
-    // No hash - check sessionStorage for refresh persistence
-    const viewingPatternId = sessionStorage.getItem('viewingPatternId');
-    if (viewingPatternId) {
-        const pattern = patterns.find(p => p.id === parseInt(viewingPatternId));
-        if (pattern) {
-            await openPDFViewer(parseInt(viewingPatternId), false);
-            const slug = getPatternSlug(pattern);
-            history.replaceState({ view: `pattern/${slug}` }, '', `#pattern/${slug}`);
+    // No hash - check sessionStorage for refresh persistence (only on actual page reload)
+    const navEntries = performance.getEntriesByType('navigation');
+    const isPageReload = navEntries.length > 0 && navEntries[0].type === 'reload';
+
+    if (isPageReload) {
+        const viewingPatternId = sessionStorage.getItem('viewingPatternId');
+        if (viewingPatternId) {
+            const pattern = patterns.find(p => p.id === parseInt(viewingPatternId));
+            if (pattern) {
+                await openPDFViewer(parseInt(viewingPatternId), false);
+                const slug = getPatternSlug(pattern);
+                history.replaceState({ view: `pattern/${slug}` }, '', `#pattern/${slug}`);
+                return;
+            }
         }
-        return;
     }
+
+    // Clear stale viewingPatternId on fresh navigation
+    sessionStorage.removeItem('viewingPatternId');
 
     // Default: go to default page
     const defaultPage = localStorage.getItem('defaultPage') || 'current';

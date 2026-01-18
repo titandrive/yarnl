@@ -5519,18 +5519,20 @@ async function openPDFViewer(patternId, pushHistory = true) {
         // Update header
         document.getElementById('pdf-pattern-name').textContent = pattern.name;
 
-        // Load PDF
+        // Load PDF and counters in parallel
         const pdfUrl = `${API_URL}/api/patterns/${pattern.id}/file`;
         const loadingTask = pdfjsLib.getDocument(pdfUrl);
 
-        pdfDoc = await loadingTask.promise;
+        const [pdfDocResult] = await Promise.all([
+            loadingTask.promise,
+            loadCounters(pattern.id)
+        ]);
+
+        pdfDoc = pdfDocResult;
         totalPages = pdfDoc.numPages;
 
         // Render the current page
         await renderPage(currentPageNum);
-
-        // Load counters
-        await loadCounters(pattern.id);
 
     } catch (error) {
         console.error('Error opening PDF viewer:', error);
@@ -6729,16 +6731,17 @@ async function openMarkdownViewer(pattern, pushHistory = true) {
         // Update header
         document.getElementById('markdown-pattern-name').textContent = pattern.name;
 
-        // Load markdown content from file
-        const contentResponse = await fetch(`${API_URL}/api/patterns/${pattern.id}/content`);
+        // Load markdown content and counters in parallel
+        const [contentResponse] = await Promise.all([
+            fetch(`${API_URL}/api/patterns/${pattern.id}/content`),
+            loadCounters(pattern.id)
+        ]);
+
         if (contentResponse.ok) {
             const data = await contentResponse.json();
             const markdownContent = document.getElementById('markdown-content');
             markdownContent.innerHTML = renderMarkdown(data.content || '');
         }
-
-        // Load counters
-        await loadCounters(pattern.id);
 
         // Initialize markdown viewer events
         initMarkdownViewerEvents();

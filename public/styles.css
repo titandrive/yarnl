@@ -2092,6 +2092,15 @@ header {
     height: auto;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     background: white;
+    margin-bottom: 100px; /* Space for counter overlay when scrolling */
+}
+
+.pdf-viewer-wrapper.fit-mode {
+    overflow: hidden;
+}
+
+.pdf-viewer-wrapper.fit-mode #pdf-canvas {
+    margin-bottom: 0;
 }
 
 /* Floating Zoom Controls */

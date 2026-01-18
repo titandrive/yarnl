@@ -5455,10 +5455,13 @@ async function renderPage(pageNum) {
         let scale;
         if (pdfZoomMode === 'fit') {
             scale = pdfFitScale;
+            wrapper.classList.add('fit-mode');
         } else if (pdfZoomMode === 'fit-width') {
             scale = pdfFitWidthScale;
+            wrapper.classList.remove('fit-mode');
         } else {
             scale = pdfZoomScale;
+            wrapper.classList.remove('fit-mode');
         }
 
         const scaledViewport = page.getViewport({ scale: scale });

@@ -5991,7 +5991,7 @@ function displayCounters() {
     const countersList = document.getElementById('counters-list');
 
     if (counters.length === 0) {
-        countersList.innerHTML = '<p style="text-align: center; color: #6b7280;">No counters. Click "Add Counter" to create one.</p>';
+        countersList.innerHTML = '<p style="text-align: center; color: #6b7280;">No counters. Click + to create one.</p>';
         return;
     }
 
@@ -6000,6 +6000,7 @@ function displayCounters() {
             <div class="counter-name">
                 <input type="text" value="${escapeHtml(counter.name)}"
                        onchange="updateCounterName(${counter.id}, this.value)"
+                       onkeydown="if(event.key==='Enter'){this.blur()}"
                        onclick="event.stopPropagation()"
                        placeholder="Counter name">
             </div>
@@ -6029,27 +6030,28 @@ function selectCounter(counterId) {
     displayCounters();
 }
 
-async function addCounter(defaultName = '') {
+async function addCounter(defaultName = 'New Counter') {
     if (!currentPattern) return;
-
-    let name = defaultName;
-    if (!name) {
-        const promptResult = prompt('Enter counter name:', 'New Counter');
-        if (promptResult === null) return; // User cancelled
-        name = promptResult.trim() || 'New Counter'; // Use default if empty
-    }
 
     try {
         const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/counters`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, value: 0 })
+            body: JSON.stringify({ name: defaultName, value: 0 })
         });
 
         if (response.ok) {
             const newCounter = await response.json();
             counters.push(newCounter);
+            lastUsedCounterId = newCounter.id;
             displayCounters();
+
+            // Focus the new counter's name input
+            const newCounterEl = document.querySelector(`.counter-item[data-counter-id="${newCounter.id}"] input`);
+            if (newCounterEl) {
+                newCounterEl.focus();
+                newCounterEl.select();
+            }
         }
     } catch (error) {
         console.error('Error adding counter:', error);

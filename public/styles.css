@@ -2348,7 +2348,6 @@ header {
 
 .counter-btn-delete.confirming {
     background: #b91c1c;
-    animation: pulse-danger 0.6s ease-in-out infinite;
 }
 
 .counter-actions {

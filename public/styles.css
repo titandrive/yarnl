@@ -2184,7 +2184,7 @@ header {
     right: 0;
     background: var(--card-bg);
     border-top: 2px solid var(--border-color);
-    padding: 15px 20px;
+    padding: 8px 15px;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
     z-index: 2100;
     max-height: 40vh;
@@ -2206,8 +2206,8 @@ header {
 .counter-item {
     background: var(--upload-bg);
     border: 2px solid var(--border-color);
-    border-radius: 12px;
-    padding: 8px 12px;
+    border-radius: 8px;
+    padding: 6px 10px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -2248,30 +2248,33 @@ header {
 }
 
 .counter-value {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: bold;
     color: var(--primary-color);
-    min-width: 50px;
+    min-width: 30px;
     text-align: center;
     font-variant-numeric: tabular-nums;
 }
 
 .counter-controls {
     display: flex;
-    gap: 10px;
+    gap: 4px;
     align-items: center;
 }
 
 .counter-btn {
-    padding: 8px 16px;
+    padding: 0;
     border: none;
-    border-radius: 8px;
-    font-size: 1.2rem;
+    border-radius: 6px;
+    font-size: 1rem;
     font-weight: bold;
     cursor: pointer;
     transition: all 0.2s ease;
-    min-width: 45px;
-    height: 38px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .counter-btn-minus {
@@ -2295,12 +2298,6 @@ header {
 .counter-btn-reset {
     background: var(--warning-color);
     color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 45px;
-    height: 38px;
-    padding: 8px;
 }
 
 .counter-btn-reset:hover {
@@ -2320,12 +2317,6 @@ header {
 .counter-btn-delete {
     background: var(--danger-color);
     color: white;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 45px;
-    height: 38px;
-    padding: 8px;
 }
 
 .counter-btn-delete:hover {

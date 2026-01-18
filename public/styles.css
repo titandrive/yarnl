@@ -1764,21 +1764,22 @@ header {
 
 /* Mascot Modal */
 .mascot-modal-content {
-    max-width: 500px;
+    max-width: 800px;
+    padding: 20px;
 }
 
 .mascot-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 16px;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
 }
 
 .mascot-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding: 12px;
-    border-radius: 12px;
+    padding: 8px;
+    border-radius: 8px;
     cursor: pointer;
     transition: background 0.2s, transform 0.2s;
     border: 2px solid transparent;
@@ -1786,7 +1787,7 @@ header {
 
 .mascot-item:hover {
     background: var(--border-color);
-    transform: scale(1.05);
+    transform: scale(1.03);
 }
 
 .mascot-item.selected {
@@ -1795,17 +1796,40 @@ header {
 }
 
 .mascot-item img {
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 65px;
     object-fit: contain;
-    margin-bottom: 8px;
+    margin-bottom: 4px;
 }
 
 .mascot-item span {
-    font-size: 0.85rem;
+    font-size: 0.75rem;
     text-align: center;
     color: var(--text-color);
     word-break: break-word;
+}
+
+.setting-link-btn {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    transition: color 0.2s, background 0.2s;
+}
+
+.setting-link-btn:hover {
+    color: var(--text-color);
+    background: var(--border-color);
+}
+
+.setting-link-btn svg {
+    opacity: 0.6;
 }
 
 /* Pattern Info Modal */

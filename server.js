@@ -2565,8 +2565,8 @@ app.get('/api/mascots', (req, res) => {
         // Default.png always first
         if (a.toLowerCase() === 'default.png') return -1;
         if (b.toLowerCase() === 'default.png') return 1;
-        // Then alphabetical
-        return a.localeCompare(b, undefined, { sensitivity: 'base' });
+        // Then alphabetical (case-insensitive)
+        return a.toLowerCase().localeCompare(b.toLowerCase());
       })
       .map(f => ({
         filename: f,

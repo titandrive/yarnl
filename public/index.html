@@ -8,8 +8,14 @@
         // Set theme immediately to prevent flash
         const theme = localStorage.getItem('theme') || 'dark';
         document.documentElement.setAttribute('data-theme', theme);
+        // Set mascot immediately to prevent flash
+        const savedMascot = localStorage.getItem('selectedMascot');
+        if (savedMascot) {
+            document.write('<link rel="icon" type="image/png" sizes="128x128" href="' + savedMascot + '">');
+        } else {
+            document.write('<link rel="icon" type="image/png" sizes="128x128" href="mascots/default.png">');
+        }
     </script>
-    <link rel="icon" type="image/png" sizes="128x128" href="yarboi.png">
     <link rel="stylesheet" href="styles.css?v=41">
 </head>
 <body>
@@ -41,7 +47,7 @@
                 </button>
             </div>
             <div class="header-title">
-                <h1>Yarnl<span id="header-logo"><img src="yarboi.png" alt="Yarnl mascot" style="height: 2.59em; vertical-align: middle; margin-left: 0.3em;"></span></h1>
+                <h1>Yarnl<span id="header-logo"><img id="header-mascot-img" alt="Yarnl mascot" style="height: 2.59em; vertical-align: middle; margin-left: 0.3em;"><script>document.getElementById('header-mascot-img').src = localStorage.getItem('selectedMascot') || 'mascots/default.png';</script></span></h1>
                 <p class="subtitle" id="header-tagline">Your self-hosted crochet companion</p>
             </div>
             <div class="header-btn-container header-right">
@@ -538,7 +544,7 @@ Inc in each st around (12)
                                 <label>Mascot</label>
                                 <p class="setting-description">Choose header mascot</p>
                             </div>
-                            <button id="mascot-select-btn" class="btn btn-secondary">Select</button>
+                            <button id="mascot-select-btn" class="settings-select"><span id="current-mascot-name">Default</span></button>
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">

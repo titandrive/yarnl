@@ -1808,38 +1808,41 @@ app.delete('/api/counters/:id', async (req, res) => {
 // Get library stats
 app.get('/api/stats', async (req, res) => {
   try {
-    // Get total patterns count
-    const totalResult = await pool.query('SELECT COUNT(*) as count FROM patterns');
+    // Base condition to exclude archived patterns
+    const notArchived = '(is_archived = false OR is_archived IS NULL)';
+
+    // Get total patterns count (excluding archived)
+    const totalResult = await pool.query(`SELECT COUNT(*) as count FROM patterns WHERE ${notArchived}`);
     const totalPatterns = parseInt(totalResult.rows[0].count);
 
-    // Get current patterns count
-    const currentResult = await pool.query('SELECT COUNT(*) as count FROM patterns WHERE is_current = true');
+    // Get current patterns count (excluding archived)
+    const currentResult = await pool.query(`SELECT COUNT(*) as count FROM patterns WHERE is_current = true AND ${notArchived}`);
     const currentPatterns = parseInt(currentResult.rows[0].count);
 
-    // Get completed patterns count
-    const completedResult = await pool.query('SELECT COUNT(*) as count FROM patterns WHERE completed = true');
+    // Get completed patterns count (excluding archived)
+    const completedResult = await pool.query(`SELECT COUNT(*) as count FROM patterns WHERE completed = true AND ${notArchived}`);
     const completedPatterns = parseInt(completedResult.rows[0].count);
 
-    // Get total time spent
-    const timeResult = await pool.query('SELECT COALESCE(SUM(timer_seconds), 0) as total FROM patterns');
+    // Get total time spent (excluding archived)
+    const timeResult = await pool.query(`SELECT COALESCE(SUM(timer_seconds), 0) as total FROM patterns WHERE ${notArchived}`);
     const totalTimeSeconds = parseInt(timeResult.rows[0].total);
 
-    // Get count of patterns with time logged
-    const patternsWithTimeResult = await pool.query('SELECT COUNT(*) as count FROM patterns WHERE timer_seconds > 0');
+    // Get count of patterns with time logged (excluding archived)
+    const patternsWithTimeResult = await pool.query(`SELECT COUNT(*) as count FROM patterns WHERE timer_seconds > 0 AND ${notArchived}`);
     const patternsWithTime = parseInt(patternsWithTimeResult.rows[0].count);
 
-    // Get patterns by category
+    // Get patterns by category (excluding archived)
     const categoriesResult = await pool.query(
-      `SELECT category, COUNT(*) as count FROM patterns GROUP BY category ORDER BY count DESC`
+      `SELECT category, COUNT(*) as count FROM patterns WHERE ${notArchived} GROUP BY category ORDER BY count DESC`
     );
     const patternsByCategory = categoriesResult.rows.map(row => ({
       name: row.category,
       count: parseInt(row.count)
     }));
 
-    // Calculate total library size from files
+    // Calculate total library size from files (exclude archived patterns)
     let totalSize = 0;
-    const patterns = await pool.query('SELECT filename, category FROM patterns');
+    const patterns = await pool.query('SELECT filename, category FROM patterns WHERE is_archived = false OR is_archived IS NULL');
     for (const pattern of patterns.rows) {
       let filePath = path.join(patternsDir, pattern.category, pattern.filename);
       if (!fs.existsSync(filePath)) {

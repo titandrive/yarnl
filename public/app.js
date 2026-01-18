@@ -3720,10 +3720,10 @@ async function loadStorageSizeStats() {
 
         // Format file size
         const formatSize = (bytes) => {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
-            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
-            return (bytes / (1024 * 1024 * 1024)).toFixed(1) + ' GB';
+            if (bytes < 1024) return bytes + '\u2009B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + '\u2009KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + '\u2009MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(1) + '\u2009GB';
         };
 
         container.innerHTML = `

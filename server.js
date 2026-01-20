@@ -1840,6 +1840,14 @@ app.get('/api/stats', async (req, res) => {
       count: parseInt(row.count)
     }));
 
+    // Get total rows counted (sum of all counter values from non-archived patterns)
+    const rowsCountedResult = await pool.query(
+      `SELECT COALESCE(SUM(c.value), 0) as total FROM counters c
+       JOIN patterns p ON c.pattern_id = p.id
+       WHERE ${notArchived.replace(/is_archived/g, 'p.is_archived')}`
+    );
+    const totalRowsCounted = parseInt(rowsCountedResult.rows[0].total);
+
     // Calculate total library size from files (exclude archived patterns)
     let totalSize = 0;
     const patterns = await pool.query('SELECT filename, category FROM patterns WHERE is_archived = false OR is_archived IS NULL');
@@ -1860,6 +1868,7 @@ app.get('/api/stats', async (req, res) => {
       completedPatterns,
       totalTimeSeconds,
       patternsWithTime,
+      totalRowsCounted,
       patternsByCategory,
       totalSize,
       libraryPath: '/opt/yarnl/patterns',

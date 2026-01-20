@@ -3702,6 +3702,10 @@ async function loadLibraryStats() {
                     <span class="stat-label">In Progress</span>
                 </div>
                 <div class="stat-item">
+                    <span class="stat-value">${(stats.totalRowsCounted || 0).toLocaleString()}</span>
+                    <span class="stat-label">Rows Counted</span>
+                </div>
+                <div class="stat-item">
                     <span class="stat-value">${stats.completedPatterns}</span>
                     <span class="stat-label">Completed</span>
                 </div>

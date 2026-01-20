@@ -123,6 +123,28 @@ To enable push notifications for backup events:
 - **PDF Processing:** PDF.js (viewing), Sharp (thumbnails)
 - **Containerization:** Docker & Docker Compose
 
+## Recent Updates
+
+### v0.5.0 (January 2026)
+
+- `6f71da7` Store pattern notes as markdown files instead of database
+- `27a3f28` Improve upload staging UI with compact layout and thumbnails
+- `311ea92` Add Minimal and Halloween themes
+- `f83c14b` Add Bluetooth/media remote support for shortcuts
+- `03cc6d6` Add archive feature with auto-delete option
+- `9dd0617` Improve counter UX: inline naming, enter to save
+- `4271cd8` Share counter overlay between PDF and markdown viewers
+- `4439e88` Add swipe gestures for mobile PDF viewer
+- `d2ab434` Improve mobile pinch-to-zoom for PDF viewer
+
+### Earlier Updates
+
+- `7c62182` Fix auto-prune after manual backups
+- `a238bd8` Add archive backup option
+- `65156a9` Exclude archived patterns from library stats
+- `cd36f61` Fix homepage redirect to last visited pattern
+- `25d8d32` Fix PDF scroll behavior for fit vs zoomed modes
+
 ## Documentation
 
 See the [User Guide](https://yarnl.com/docs/category/user-guide) for detailed usage instructions.

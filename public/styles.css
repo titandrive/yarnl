@@ -3861,18 +3861,12 @@ input[type="number"].settings-input {
 
 .library-stats-grid {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    margin-bottom: 20px;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin-bottom: 16px;
 }
 
-@media (min-width: 768px) {
-    .library-stats-grid {
-        grid-template-columns: repeat(4, 1fr);
-    }
-}
-
-@media (min-width: 992px) {
+@media (max-width: 767px) {
     .library-stats-grid {
         grid-template-columns: repeat(2, 1fr);
     }
@@ -3880,25 +3874,25 @@ input[type="number"].settings-input {
 
 .stat-item {
     background: var(--input-bg);
-    border-radius: 10px;
-    padding: 16px;
+    border-radius: 8px;
+    padding: 10px 8px;
     text-align: center;
     border: 1px solid var(--border-color);
 }
 
 .stat-value {
     display: block;
-    font-size: 1.8rem;
+    font-size: 1.1rem;
     font-weight: 700;
     color: var(--primary-color);
-    margin-bottom: 4px;
+    margin-bottom: 2px;
 }
 
 .stat-label {
-    font-size: 0.8rem;
+    font-size: 0.7rem;
     color: var(--text-muted);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
+    letter-spacing: 0.3px;
 }
 
 .stats-path {

@@ -3781,7 +3781,7 @@ async function loadLibraryStats() {
             <div class="library-stats-grid">
                 <div class="stat-item">
                     <span class="stat-value">${stats.totalPatterns}</span>
-                    <span class="stat-label">Total Patterns</span>
+                    <span class="stat-label">Total Pattern${stats.totalPatterns === 1 ? '' : 's'}</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-value">${stats.currentPatterns}</span>
@@ -3789,11 +3789,11 @@ async function loadLibraryStats() {
                 </div>
                 <div class="stat-item">
                     <span class="stat-value">${(stats.totalRowsCounted || 0).toLocaleString()}</span>
-                    <span class="stat-label">Rows Counted</span>
+                    <span class="stat-label">Row${stats.totalRowsCounted === 1 ? '' : 's'} Counted</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-value">${stats.completedPatterns}</span>
-                    <span class="stat-label">Patterns Completed</span>
+                    <span class="stat-label">Pattern${stats.completedPatterns === 1 ? '' : 's'} Completed</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-value">${formatTime(stats.totalTimeSeconds || 0)}</span>
@@ -3809,7 +3809,7 @@ async function loadLibraryStats() {
                 </div>
                 <div class="stat-item">
                     <span class="stat-value">${stats.totalCategories || 0}</span>
-                    <span class="stat-label">Categories</span>
+                    <span class="stat-label">Categor${stats.totalCategories === 1 ? 'y' : 'ies'}</span>
                 </div>
             </div>
             <div class="library-location">

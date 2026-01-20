@@ -1069,13 +1069,35 @@ function initTheme() {
     let mascotsList = [];
     let themeMascotEnabled = localStorage.getItem('themeMascotEnabled') === 'true';
 
+    // Parse mascot filename: name.theme.ext or name.ext
+    // Returns { name: 'Display Name', theme: 'themename' or null }
+    function parseMascotFilename(filename) {
+        const withoutExt = filename.replace(/\.[^/.]+$/, '');
+        const parts = withoutExt.split('.');
+
+        // Capitalize name: replace hyphens with spaces, title case each word
+        const capitalize = (str) => str
+            .replace(/-/g, ' ')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+            .join(' ');
+
+        if (parts.length >= 2) {
+            // Has theme: name.theme
+            const theme = parts.pop().toLowerCase();
+            const name = capitalize(parts.join('.'));
+            return { name, theme };
+        } else {
+            // No theme: just name
+            const name = capitalize(withoutExt);
+            return { name, theme: null };
+        }
+    }
+
     function getMascotDisplayName(url) {
         const mascot = mascotsList.find(m => m.url === url);
         if (!mascot) return 'Default';
-        return mascot.filename
-            .replace(/\.[^/.]+$/, '')
-            .replace(/-/g, ' ')
-            .replace(/\b\w/g, c => c.toUpperCase());
+        return parseMascotFilename(mascot.filename).name;
     }
 
     function updateMascotButtonName() {
@@ -1096,8 +1118,8 @@ function initTheme() {
     // Find mascot matching theme name (case-insensitive)
     function findThemeMascot(themeName) {
         return mascotsList.find(m => {
-            const mascotName = m.filename.replace(/\.[^/.]+$/, '').toLowerCase();
-            return mascotName === themeName.toLowerCase();
+            const parsed = parseMascotFilename(m.filename);
+            return parsed.theme === themeName.toLowerCase();
         });
     }
 
@@ -1157,11 +1179,7 @@ function initTheme() {
         }
 
         mascotGrid.innerHTML = mascotsList.map(m => {
-            // Convert filename to display name: remove extension, replace hyphens with spaces, title case
-            const displayName = m.filename
-                .replace(/\.[^/.]+$/, '')
-                .replace(/-/g, ' ')
-                .replace(/\b\w/g, c => c.toUpperCase());
+            const displayName = parseMascotFilename(m.filename).name;
             const isSelected = m.url === savedMascot;
             return `
                 <div class="mascot-item${isSelected ? ' selected' : ''}" data-url="${m.url}">

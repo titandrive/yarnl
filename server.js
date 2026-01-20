@@ -2845,12 +2845,22 @@ app.get('/api/mascots', (req, res) => {
     if (!fs.existsSync(mascotsDir)) {
       return res.json([]);
     }
+
+    // Parse mascot filename to check for .default theme
+    const hasDefaultTheme = (filename) => {
+      const withoutExt = filename.replace(/\.[^/.]+$/, '');
+      const parts = withoutExt.split('.');
+      return parts.length >= 2 && parts[parts.length - 1].toLowerCase() === 'default';
+    };
+
     const files = fs.readdirSync(mascotsDir)
       .filter(f => /\.(png|jpg|jpeg|gif|svg|webp)$/i.test(f))
       .sort((a, b) => {
-        // Default.png always first
-        if (a.toLowerCase() === 'default.png') return -1;
-        if (b.toLowerCase() === 'default.png') return 1;
+        // Mascots with .default theme always first
+        const aIsDefault = hasDefaultTheme(a);
+        const bIsDefault = hasDefaultTheme(b);
+        if (aIsDefault && !bIsDefault) return -1;
+        if (!aIsDefault && bIsDefault) return 1;
         // Then alphabetical (case-insensitive)
         return a.toLowerCase().localeCompare(b.toLowerCase());
       })

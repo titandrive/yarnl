@@ -1352,7 +1352,7 @@ function initTheme() {
     const partyModeBtn = document.getElementById('party-mode-btn');
     if (partyModeBtn) {
         partyModeBtn.addEventListener('click', async () => {
-            const themes = ['lavender', 'ocean', 'forest', 'sunset', 'rose', 'slate', 'aqua', 'midnight', 'razer', 'synthwave', 'cyberpunk', 'dracula', 'coffee', 'nasa'];
+            const themes = ['lavender', 'ocean', 'forest', 'sunset', 'rose', 'slate', 'aqua', 'midnight', 'razer', 'synthwave', 'cyberpunk', 'dracula', 'coffee', 'nasa', 'minimal', 'halloween'];
             const fonts = ['JetBrains Mono', 'Inter', 'Roboto', 'Open Sans', 'Lato', 'Poppins', 'Nunito', 'Raleway', 'Source Sans Pro', 'Ubuntu', 'Fira Sans'];
 
             const randomTheme = themes[Math.floor(Math.random() * themes.length)];

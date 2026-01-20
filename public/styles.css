@@ -570,6 +570,86 @@
     --upload-bg: #323a45;
 }
 
+/* Theme: Minimal - Light */
+[data-theme="minimal-light"] {
+    --primary-color: #6b7280;
+    --secondary-color: #9ca3af;
+    --danger-color: #dc2626;
+    --success-color: #059669;
+    --warning-color: #d97706;
+    --bg-color: #ffffff;
+    --card-bg: #fafafa;
+    --text-color: #1f2937;
+    --text-muted: #6b7280;
+    --border-color: #e5e7eb;
+    --shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --tab-bg: #f5f5f5;
+    --input-bg: #ffffff;
+    --hover-bg: #f3f4f6;
+    --counter-card-bg: linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%);
+    --upload-bg: #f5f5f5;
+}
+
+/* Theme: Minimal - Dark */
+[data-theme="minimal-dark"] {
+    --primary-color: #9ca3af;
+    --secondary-color: #d1d5db;
+    --danger-color: #f87171;
+    --success-color: #34d399;
+    --warning-color: #fbbf24;
+    --bg-color: #18181b;
+    --card-bg: #27272a;
+    --text-color: #e4e4e7;
+    --text-muted: #a1a1aa;
+    --border-color: #3f3f46;
+    --shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+    --tab-bg: #27272a;
+    --input-bg: #3f3f46;
+    --hover-bg: #3f3f46;
+    --counter-card-bg: linear-gradient(135deg, #27272a 0%, #3f3f46 100%);
+    --upload-bg: #27272a;
+}
+
+/* Theme: Halloween - Light */
+[data-theme="halloween-light"] {
+    --primary-color: #f97316;
+    --secondary-color: #22c55e;
+    --danger-color: #dc2626;
+    --success-color: #22c55e;
+    --warning-color: #f97316;
+    --bg-color: #fefce8;
+    --card-bg: #ffffff;
+    --text-color: #1c1917;
+    --text-muted: #78716c;
+    --border-color: #fed7aa;
+    --shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --tab-bg: #ffedd5;
+    --input-bg: #ffffff;
+    --hover-bg: #ffedd5;
+    --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #ffedd5 100%);
+    --upload-bg: #ffedd5;
+}
+
+/* Theme: Halloween - Dark */
+[data-theme="halloween-dark"] {
+    --primary-color: #f97316;
+    --secondary-color: #22c55e;
+    --danger-color: #ef4444;
+    --success-color: #22c55e;
+    --warning-color: #f97316;
+    --bg-color: #0a0a0a;
+    --card-bg: #171717;
+    --text-color: #f97316;
+    --text-muted: #22c55e;
+    --border-color: #292524;
+    --shadow: 0 4px 6px -1px rgba(249, 115, 22, 0.15), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+    --tab-bg: #1c1917;
+    --input-bg: #292524;
+    --hover-bg: #292524;
+    --counter-card-bg: linear-gradient(135deg, #171717 0%, #1c1917 100%);
+    --upload-bg: #1c1917;
+}
+
 body {
     font-family: var(--font-family);
     background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-color) 100%);

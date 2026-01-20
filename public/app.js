@@ -3707,11 +3707,11 @@ async function loadLibraryStats() {
                 </div>
                 <div class="stat-item">
                     <span class="stat-value">${stats.completedPatterns}</span>
-                    <span class="stat-label">Completed</span>
+                    <span class="stat-label">Patterns Completed</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-value">${formatTime(stats.totalTimeSeconds || 0)}</span>
-                    <span class="stat-label">Time Crocheting</span>
+                    <span class="stat-label">Total Time Crocheting</span>
                 </div>
                 <div class="stat-item">
                     <span class="stat-value">${stats.patternsWithTime > 0 ? formatTime(Math.round((stats.totalTimeSeconds || 0) / stats.patternsWithTime)) : '–'}</span>

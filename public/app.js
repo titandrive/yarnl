@@ -7022,6 +7022,18 @@ function closeNotesPopover() {
     popover.style.display = 'none';
 }
 
+// Close notes popover when clicking outside
+document.addEventListener('click', (e) => {
+    const popover = document.getElementById('notes-popover');
+    if (popover && popover.style.display !== 'none') {
+        // Check if click is outside the popover and not on the notes button
+        const notesBtn = document.getElementById('notes-btn');
+        if (!popover.contains(e.target) && e.target !== notesBtn && !notesBtn?.contains(e.target)) {
+            closeNotesPopover();
+        }
+    }
+});
+
 function initNotesDrag() {
     const popover = document.getElementById('notes-popover');
     const header = document.querySelector('.notes-popover-header');
@@ -7639,6 +7651,17 @@ async function toggleMarkdownNotes() {
 function closeMarkdownNotes() {
     document.getElementById('markdown-notes-popover').style.display = 'none';
 }
+
+// Close markdown notes popover when clicking outside
+document.addEventListener('click', (e) => {
+    const popover = document.getElementById('markdown-notes-popover');
+    if (popover && popover.style.display !== 'none') {
+        const notesBtn = document.getElementById('markdown-notes-btn');
+        if (!popover.contains(e.target) && e.target !== notesBtn && !notesBtn?.contains(e.target)) {
+            closeMarkdownNotes();
+        }
+    }
+});
 
 function switchMarkdownNotesTab(tab) {
     const tabs = document.querySelectorAll('#markdown-notes-popover .notes-tab');

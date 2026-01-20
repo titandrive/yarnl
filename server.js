@@ -1385,11 +1385,26 @@ app.put('/api/patterns/:id/hashtags', async (req, res) => {
   }
 });
 
+// Notes directory
+const notesDir = path.join(__dirname, 'notes');
+if (!fs.existsSync(notesDir)) {
+  fs.mkdirSync(notesDir, { recursive: true });
+}
+
+// Helper to sanitize pattern name for filename
+function sanitizeNotesFilename(name) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .substring(0, 100);
+}
+
 // Get notes for a pattern
 app.get('/api/patterns/:id/notes', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT notes FROM patterns WHERE id = $1',
+      'SELECT name FROM patterns WHERE id = $1',
       [req.params.id]
     );
 
@@ -1397,7 +1412,15 @@ app.get('/api/patterns/:id/notes', async (req, res) => {
       return res.status(404).json({ error: 'Pattern not found' });
     }
 
-    res.json({ notes: result.rows[0].notes || '' });
+    const filename = sanitizeNotesFilename(result.rows[0].name) + '.md';
+    const notesPath = path.join(notesDir, filename);
+
+    let notes = '';
+    if (fs.existsSync(notesPath)) {
+      notes = fs.readFileSync(notesPath, 'utf8');
+    }
+
+    res.json({ notes });
   } catch (error) {
     console.error('Error fetching notes:', error);
     res.status(500).json({ error: error.message });
@@ -1410,15 +1433,24 @@ app.put('/api/patterns/:id/notes', async (req, res) => {
     const { notes } = req.body;
 
     const result = await pool.query(
-      'UPDATE patterns SET notes = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING notes',
-      [notes || '', req.params.id]
+      'SELECT name FROM patterns WHERE id = $1',
+      [req.params.id]
     );
 
-    if (result.rowCount === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Pattern not found' });
     }
 
-    res.json({ notes: result.rows[0].notes });
+    const filename = sanitizeNotesFilename(result.rows[0].name) + '.md';
+    const notesPath = path.join(notesDir, filename);
+
+    if (notes && notes.trim()) {
+      fs.writeFileSync(notesPath, notes, 'utf8');
+    } else if (fs.existsSync(notesPath)) {
+      fs.unlinkSync(notesPath);
+    }
+
+    res.json({ notes: notes || '' });
   } catch (error) {
     console.error('Error updating notes:', error);
     res.status(500).json({ error: error.message });
@@ -1991,9 +2023,14 @@ app.post('/api/images', imageUpload.single('image'), async (req, res) => {
 async function getAllImageReferences() {
   let allContent = '';
 
-  // Get all notes from patterns (PDF notes)
-  const result = await pool.query('SELECT notes FROM patterns WHERE notes IS NOT NULL');
-  allContent += result.rows.map(r => r.notes || '').join('\n');
+  // Get all notes from notes directory
+  if (fs.existsSync(notesDir)) {
+    const noteFiles = fs.readdirSync(notesDir).filter(f => f.endsWith('.md'));
+    for (const file of noteFiles) {
+      const content = fs.readFileSync(path.join(notesDir, file), 'utf8');
+      allContent += content + '\n';
+    }
+  }
 
   // Get content from all markdown files in patterns directory
   const categories = fs.readdirSync(patternsDir).filter(f => {

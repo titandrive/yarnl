@@ -534,6 +534,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initTimer();
     initBackups();
     initNavigation();
+    initGlobalDragDrop();
     initServerEvents();
     await loadPatterns();
     loadCurrentPatterns();
@@ -596,6 +597,45 @@ function initNavigation() {
             }
         }
         isNavigatingBack = false;
+    });
+}
+
+// Global drag-drop to open upload panel
+function initGlobalDragDrop() {
+    const libraryTab = document.getElementById('library');
+    const currentTab = document.getElementById('current');
+
+    const handleGlobalDrop = (e) => {
+        e.preventDefault();
+        document.body.classList.remove('global-drag-over');
+
+        const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+        if (files.length > 0) {
+            // Show upload panel and add files
+            showUploadPanel();
+            handleFiles(files);
+        }
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        document.body.classList.add('global-drag-over');
+    };
+
+    const handleDragLeave = (e) => {
+        // Only remove class if leaving the document
+        if (e.relatedTarget === null || !document.body.contains(e.relatedTarget)) {
+            document.body.classList.remove('global-drag-over');
+        }
+    };
+
+    // Add listeners to library and current tabs
+    [libraryTab, currentTab].forEach(tab => {
+        if (tab) {
+            tab.addEventListener('dragover', handleDragOver);
+            tab.addEventListener('dragleave', handleDragLeave);
+            tab.addEventListener('drop', handleGlobalDrop);
+        }
     });
 }
 
@@ -1757,7 +1797,7 @@ function initUpload() {
     clearAllBtn.addEventListener('click', () => clearAllStaged());
 }
 
-function handleFiles(files) {
+async function handleFiles(files) {
     // Filter only PDF files
     const pdfFiles = files.filter(f => f.type === 'application/pdf');
 
@@ -1766,7 +1806,7 @@ function handleFiles(files) {
     }
 
     // Add files to staging area
-    pdfFiles.forEach(file => {
+    for (const file of pdfFiles) {
         const fileId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         const stagedFile = {
             id: fileId,
@@ -1778,13 +1818,38 @@ function handleFiles(files) {
             isCurrent: false,
             status: 'staged', // staged, uploading, success, error
             progress: 0,
-            error: null
+            error: null,
+            thumbnailUrl: null
         };
         stagedFiles.push(stagedFile);
-    });
+
+        // Generate thumbnail preview asynchronously
+        generatePdfThumbnail(file).then(url => {
+            stagedFile.thumbnailUrl = url;
+            renderStagedFiles();
+        }).catch(err => console.log('Could not generate thumbnail:', err));
+    }
 
     renderStagedFiles();
     showStagingArea();
+}
+
+async function generatePdfThumbnail(file) {
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+    const page = await pdf.getPage(1);
+
+    const scale = 0.5;
+    const viewport = page.getViewport({ scale });
+
+    const canvas = document.createElement('canvas');
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+
+    const context = canvas.getContext('2d');
+    await page.render({ canvasContext: context, viewport }).promise;
+
+    return canvas.toDataURL('image/jpeg', 0.7);
 }
 
 function showStagingArea() {
@@ -1836,51 +1901,61 @@ function renderStagedFiles() {
             `;
         }
 
+        const thumbnailHtml = stagedFile.thumbnailUrl
+            ? `<img src="${stagedFile.thumbnailUrl}" alt="Preview" class="staged-file-thumbnail">`
+            : `<div class="staged-file-thumbnail staged-file-thumbnail-loading"></div>`;
+
         return `
             <div class="staged-file-item ${statusClass}" data-file-id="${stagedFile.id}">
-                <div class="staged-file-header">
-                    <div class="staged-file-info">
-                        <div class="staged-file-name">${escapeHtml(stagedFile.file.name)}</div>
-                        <div class="staged-file-size">${fileSize} MB</div>
+                <div class="staged-file-layout">
+                    <div class="staged-file-sidebar">
+                        ${thumbnailHtml}
+                        <button class="staged-file-remove" onclick="removeStagedFile('${stagedFile.id}')"
+                                ${isUploading ? 'disabled' : ''}>
+                            Remove
+                        </button>
+                        <div class="staged-file-current-toggle">
+                            <span class="mark-current-label">Current</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox"
+                                       ${stagedFile.isCurrent ? 'checked' : ''}
+                                       onchange="updateStagedFile('${stagedFile.id}', 'isCurrent', this.checked)"
+                                       ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </div>
-                    <button class="staged-file-remove" onclick="removeStagedFile('${stagedFile.id}')"
-                            ${isUploading ? 'disabled' : ''}>
-                        Remove
-                    </button>
+                    <div class="staged-file-content">
+                        <div class="staged-file-info">
+                            <div class="staged-file-name">${escapeHtml(stagedFile.file.name)}</div>
+                            <div class="staged-file-size">${fileSize} MB</div>
+                        </div>
+                        <div class="staged-file-form">
+                            <div class="staged-file-form-row">
+                                <div class="form-group">
+                                    <label>Name <span class="required">required</span></label>
+                                    <input type="text"
+                                           value="${escapeHtml(stagedFile.name)}"
+                                           oninput="updateStagedFile('${stagedFile.id}', 'name', this.value)"
+                                           ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
+                                </div>
+                                <div class="form-group">
+                                    <label>Category <span class="required">required</span></label>
+                                    ${createCategoryDropdown(`staged-${stagedFile.id}`, stagedFile.category, isUploading || stagedFile.status === 'success')}
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Description</label>
+                                <textarea rows="1"
+                                          onchange="updateStagedFile('${stagedFile.id}', 'description', this.value)"
+                                          ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>${escapeHtml(stagedFile.description)}</textarea>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-
-                <div class="staged-file-form">
-                    <div class="form-group">
-                        <label>Name <span class="required">required</span></label>
-                        <input type="text"
-                               value="${escapeHtml(stagedFile.name)}"
-                               oninput="updateStagedFile('${stagedFile.id}', 'name', this.value)"
-                               ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
-                    </div>
-                    <div class="form-group">
-                        <label>Category <span class="required">required</span></label>
-                        ${createCategoryDropdown(`staged-${stagedFile.id}`, stagedFile.category, isUploading || stagedFile.status === 'success')}
-                    </div>
-                    <div class="form-group">
-                        <label>Description</label>
-                        <textarea rows="2"
-                                  onchange="updateStagedFile('${stagedFile.id}', 'description', this.value)"
-                                  ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>${escapeHtml(stagedFile.description)}</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label>Hashtags</label>
-                        ${createHashtagSelector(`staged-${stagedFile.id}`, stagedFile.hashtagIds || [], isUploading || stagedFile.status === 'success')}
-                    </div>
-                    <div class="form-group mark-current-toggle">
-                        <span class="mark-current-label">Mark as current pattern</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox"
-                                   ${stagedFile.isCurrent ? 'checked' : ''}
-                                   onchange="updateStagedFile('${stagedFile.id}', 'isCurrent', this.checked)"
-                                   ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
+                <div class="staged-file-hashtags">
+                    <label>Hashtags</label>
+                    ${createHashtagSelector(`staged-${stagedFile.id}`, stagedFile.hashtagIds || [], isUploading || stagedFile.status === 'success')}
                 </div>
 
                 ${showProgress ? `

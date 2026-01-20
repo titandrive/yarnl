@@ -32,6 +32,7 @@ function broadcastEvent(type, data) {
 app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
+app.use('/mascots', express.static('mascots'));
 
 // SSE endpoint for real-time notifications
 app.get('/api/events', (req, res) => {
@@ -3004,7 +3005,7 @@ app.get('/api/backups/:filename/download', (req, res) => {
 // Get available mascots
 app.get('/api/mascots', (req, res) => {
   try {
-    const mascotsDir = path.join(__dirname, 'public', 'mascots');
+    const mascotsDir = path.join(__dirname, 'mascots');
     if (!fs.existsSync(mascotsDir)) {
       return res.json([]);
     }

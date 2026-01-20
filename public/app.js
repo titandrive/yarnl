@@ -4625,10 +4625,10 @@ async function loadLibrarySizeForBackup() {
         const stats = await response.json();
         cachedLibrarySize = stats.totalSize || 0;
 
-        const sizeInfo = document.getElementById('library-size-info');
+        const sizeInfo = document.getElementById('pdf-size-info');
         if (sizeInfo) {
             const formattedSize = formatBackupSize(cachedLibrarySize);
-            sizeInfo.textContent = `Pattern library is ${formattedSize}`;
+            sizeInfo.textContent = `${stats.totalPatterns || 0} patterns (${formattedSize})`;
         }
         // Update backup path display
         const pathDisplay = document.getElementById('backup-path-display');
@@ -4636,18 +4636,21 @@ async function loadLibrarySizeForBackup() {
             pathDisplay.textContent = stats.backupHostPath;
         }
 
-        // Load images size
+        // Load markdown/images size
         await loadImagesSizeForBackup();
 
         // Load archive size
         await loadArchiveSizeForBackup();
 
+        // Load notes size
+        await loadNotesSizeForBackup();
+
         // Update backup estimate
         updateBackupEstimate();
     } catch (error) {
-        const sizeInfo = document.getElementById('library-size-info');
+        const sizeInfo = document.getElementById('pdf-size-info');
         if (sizeInfo) {
-            sizeInfo.textContent = 'Could not load library size';
+            sizeInfo.textContent = 'Could not load size';
         }
     }
 }
@@ -4659,15 +4662,38 @@ async function loadImagesSizeForBackup() {
         cachedImagesSize = stats.totalSize || 0;
         cachedImagesCount = stats.count || 0;
 
-        const sizeInfo = document.getElementById('images-size-info');
+        const sizeInfo = document.getElementById('markdown-size-info');
         if (sizeInfo) {
             const formattedSize = formatBackupSize(cachedImagesSize);
             sizeInfo.textContent = `${cachedImagesCount} image${cachedImagesCount === 1 ? '' : 's'} (${formattedSize})`;
         }
     } catch (error) {
-        const sizeInfo = document.getElementById('images-size-info');
+        const sizeInfo = document.getElementById('markdown-size-info');
         if (sizeInfo) {
-            sizeInfo.textContent = 'Could not load images size';
+            sizeInfo.textContent = 'Could not load size';
+        }
+    }
+}
+
+let cachedNotesSize = 0;
+let cachedNotesCount = 0;
+
+async function loadNotesSizeForBackup() {
+    try {
+        const response = await fetch(`${API_URL}/api/notes/stats`);
+        const stats = await response.json();
+        cachedNotesSize = stats.totalSize || 0;
+        cachedNotesCount = stats.count || 0;
+
+        const sizeInfo = document.getElementById('notes-size-info');
+        if (sizeInfo) {
+            const formattedSize = formatBackupSize(cachedNotesSize);
+            sizeInfo.textContent = `${cachedNotesCount} note${cachedNotesCount === 1 ? '' : 's'} (${formattedSize})`;
+        }
+    } catch (error) {
+        const sizeInfo = document.getElementById('notes-size-info');
+        if (sizeInfo) {
+            sizeInfo.textContent = 'Could not load size';
         }
     }
 }

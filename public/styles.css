@@ -3351,6 +3351,11 @@ body.global-drag-over #current::after {
     margin-bottom: 16px;
 }
 
+.section-description a {
+    color: inherit;
+    text-decoration: underline;
+}
+
 .setting-item {
     display: flex;
     justify-content: space-between;
@@ -3765,7 +3770,7 @@ input[type="number"].settings-input {
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 12px;
+    padding: 8px 12px;
     background: var(--input-bg);
     border-radius: 8px;
     border: 1px solid var(--border-color);
@@ -4134,7 +4139,7 @@ input[type="number"].settings-input {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px;
+    padding: 8px 12px;
     background: var(--input-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;

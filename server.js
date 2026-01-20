@@ -2157,6 +2157,31 @@ app.get('/api/images/stats', async (req, res) => {
   }
 });
 
+// Get notes directory size for backup estimates
+app.get('/api/notes/stats', async (req, res) => {
+  try {
+    let totalSize = 0;
+    let count = 0;
+
+    if (fs.existsSync(notesDir)) {
+      const files = fs.readdirSync(notesDir);
+      for (const file of files) {
+        const filePath = path.join(notesDir, file);
+        const stat = fs.statSync(filePath);
+        if (stat.isFile()) {
+          totalSize += stat.size;
+          count++;
+        }
+      }
+    }
+
+    res.json({ totalSize, count });
+  } catch (error) {
+    console.error('Error getting notes stats:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Clean up orphaned images (images not referenced anywhere)
 app.post('/api/images/cleanup', async (req, res) => {
   try {

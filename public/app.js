@@ -4736,7 +4736,7 @@ function renderCategoriesList() {
                 <div class="category-actions">
                     ${!isDefault ? `<button class="btn btn-small btn-secondary" onclick="setDefaultCategory('${escapeHtml(category)}')" title="Set as default">★</button>` : ''}
                     <button class="btn btn-small btn-secondary" onclick="editCategory('${escapeHtml(category)}')">Edit</button>
-                    <button class="btn btn-small btn-danger" onclick="deleteCategory('${escapeHtml(category)}', ${patternCount})">Delete</button>
+                    <button class="btn btn-small btn-danger" onclick="deleteCategory(this, '${escapeHtml(category)}', ${patternCount})">Delete</button>
                 </div>
             </div>
         `;
@@ -4805,14 +4805,20 @@ async function editCategory(oldName) {
     }
 }
 
-async function deleteCategory(name, patternCount) {
+async function deleteCategory(btn, name, patternCount) {
     if (patternCount > 0) {
         alert(`Cannot delete "${name}" because it contains ${patternCount} pattern${patternCount !== 1 ? 's' : ''}. Move or delete the patterns first.`);
         return;
     }
 
-    if (!confirm(`Are you sure you want to delete the category "${name}"?`)) return;
+    // First click - show confirmation state
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.textContent = 'Confirm';
+        return;
+    }
 
+    // Second click - delete
     try {
         const response = await fetch(`${API_URL}/api/categories/${encodeURIComponent(name)}`, {
             method: 'DELETE'
@@ -4846,7 +4852,7 @@ function renderHashtagsList() {
             <span class="hashtag-name">#${escapeHtml(hashtag.name)}</span>
             <div class="hashtag-actions">
                 <button class="btn btn-small btn-secondary" onclick="editHashtag(${hashtag.id}, '${escapeHtml(hashtag.name)}')">Edit</button>
-                <button class="btn btn-small btn-danger" onclick="deleteHashtag(${hashtag.id})">Delete</button>
+                <button class="btn btn-small btn-danger" onclick="deleteHashtag(this, ${hashtag.id})">Delete</button>
             </div>
         </div>
     `).join('');
@@ -4908,9 +4914,15 @@ async function editHashtag(id, oldName) {
     }
 }
 
-async function deleteHashtag(id) {
-    if (!confirm('Are you sure you want to delete this hashtag?')) return;
+async function deleteHashtag(btn, id) {
+    // First click - show confirmation state
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.textContent = 'Confirm';
+        return;
+    }
 
+    // Second click - delete
     try {
         const response = await fetch(`${API_URL}/api/hashtags/${id}`, {
             method: 'DELETE'
@@ -5564,6 +5576,20 @@ function resetArchivedDeleteButtons() {
     resetDeleteAllButton();
 }
 
+function resetCategoryDeleteButtons() {
+    document.querySelectorAll('.category-actions .btn-danger.confirm-delete').forEach(btn => {
+        btn.classList.remove('confirm-delete');
+        btn.textContent = 'Delete';
+    });
+}
+
+function resetHashtagDeleteButtons() {
+    document.querySelectorAll('.hashtag-actions .btn-danger.confirm-delete').forEach(btn => {
+        btn.classList.remove('confirm-delete');
+        btn.textContent = 'Delete';
+    });
+}
+
 // Reset delete buttons when clicking elsewhere
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.action-btn.delete') && !e.target.closest('.action-btn.archive')) {
@@ -5571,6 +5597,12 @@ document.addEventListener('click', (e) => {
     }
     if (!e.target.closest('.archived-delete-btn') && !e.target.closest('#delete-all-archived-btn')) {
         resetArchivedDeleteButtons();
+    }
+    if (!e.target.closest('.category-actions .btn-danger')) {
+        resetCategoryDeleteButtons();
+    }
+    if (!e.target.closest('.hashtag-actions .btn-danger')) {
+        resetHashtagDeleteButtons();
     }
 });
 

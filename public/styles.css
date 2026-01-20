@@ -3086,6 +3086,16 @@ header {
     justify-content: space-between;
     align-items: center;
     padding: 6px 0;
+    gap: 12px;
+}
+
+.setting-item .setting-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.setting-item .toggle-switch {
+    flex-shrink: 0;
 }
 
 .setting-item.search-hidden {
@@ -3550,6 +3560,11 @@ input[type="number"].settings-input {
         flex-direction: column;
         align-items: flex-start;
         gap: 12px;
+    }
+
+    .setting-item .toggle-switch {
+        align-self: flex-start;
+        flex-shrink: 0;
     }
 
     .setting-item .day-night-toggle,

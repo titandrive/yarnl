@@ -2071,13 +2071,11 @@ body.global-drag-over #current::after {
 
 .pdf-header {
     background: var(--card-bg);
-    border-bottom: 2px solid var(--border-color);
     padding: 8px 15px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     gap: 15px;
-    box-shadow: var(--shadow);
     z-index: 1001;
     position: relative;
 }
@@ -2293,12 +2291,12 @@ body.global-drag-over #current::after {
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: 8px;
-    background: rgba(0, 0, 0, 0.7);
-    padding: 8px 16px;
-    border-radius: 24px;
+    gap: 6px;
+    background: rgba(0, 0, 0, 0.6);
+    padding: 6px 12px;
+    border-radius: 20px;
     z-index: 100;
-    opacity: 0.6;
+    opacity: 0.35;
     transition: opacity 0.2s ease;
 }
 
@@ -2307,13 +2305,13 @@ body.global-drag-over #current::after {
 }
 
 .zoom-btn {
-    width: 36px;
-    height: 36px;
+    width: 30px;
+    height: 30px;
     border: none;
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.2);
     color: white;
-    font-size: 1.2rem;
+    font-size: 1rem;
     font-weight: bold;
     cursor: pointer;
     display: flex;
@@ -2328,9 +2326,9 @@ body.global-drag-over #current::after {
 
 .zoom-btn.zoom-fit {
     width: auto;
-    padding: 0 12px;
-    border-radius: 18px;
-    font-size: 0.85rem;
+    padding: 0 10px;
+    border-radius: 15px;
+    font-size: 0.75rem;
 }
 
 #zoom-level {
@@ -2362,9 +2360,7 @@ body.global-drag-over #current::after {
     left: 0;
     right: 0;
     background: var(--card-bg);
-    border-top: 2px solid var(--border-color);
     padding: 8px 15px;
-    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
     z-index: 2100;
     max-height: 40vh;
     overflow-y: auto;

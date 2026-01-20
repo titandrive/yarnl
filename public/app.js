@@ -6942,7 +6942,7 @@ async function loadCounters(patternId) {
 
         // If no counters exist, create a default one
         if (counters.length === 0) {
-            await addCounter('Row Counter');
+            await addCounter('Counter');
         } else {
             // Set first counter as active if none selected
             if (!lastUsedCounterId || !counters.find(c => c.id === lastUsedCounterId)) {

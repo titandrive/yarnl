@@ -3778,6 +3778,16 @@ input[type="number"].settings-input {
     font-weight: 500;
 }
 
+.category-name.editing,
+.hashtag-name.editing {
+    background: var(--input-bg);
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
+    padding: 2px 6px;
+    outline: none;
+    min-width: 80px;
+}
+
 .category-item.is-default {
     /* Star icon indicates default, no special styling needed */
 }

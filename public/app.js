@@ -4735,7 +4735,7 @@ function renderCategoriesList() {
                 <span class="category-count">${patternCount} pattern${patternCount !== 1 ? 's' : ''}</span>
                 <div class="category-actions">
                     ${!isDefault ? `<button class="btn btn-small btn-secondary" onclick="setDefaultCategory('${escapeHtml(category)}')" title="Set as default">★</button>` : ''}
-                    <button class="btn btn-small btn-secondary" onclick="editCategory('${escapeHtml(category)}')">Edit</button>
+                    <button class="btn btn-small btn-secondary" onclick="startCategoryEdit(this.closest('.category-item'))">Edit</button>
                     <button class="btn btn-small btn-danger" onclick="deleteCategory(this, '${escapeHtml(category)}', ${patternCount})">Delete</button>
                 </div>
             </div>
@@ -4775,34 +4775,74 @@ async function addCategory() {
     }
 }
 
-async function editCategory(oldName) {
-    const newName = prompt('Enter new category name:', oldName);
-    if (!newName || newName === oldName) return;
+function startCategoryEdit(item) {
+    const nameSpan = item.querySelector('.category-name');
+    const oldName = item.dataset.category;
 
-    if (allCategories.includes(newName)) {
-        alert('Category already exists');
-        return;
-    }
+    // Don't start if already editing
+    if (nameSpan.isContentEditable) return;
 
-    try {
-        const response = await fetch(`${API_URL}/api/categories/${encodeURIComponent(oldName)}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: newName })
-        });
+    nameSpan.contentEditable = true;
+    nameSpan.classList.add('editing');
+    nameSpan.focus();
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to update category');
+    // Select all text
+    const range = document.createRange();
+    range.selectNodeContents(nameSpan);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const saveEdit = async () => {
+        const newName = nameSpan.textContent.trim();
+        nameSpan.contentEditable = false;
+        nameSpan.classList.remove('editing');
+
+        if (!newName || newName === oldName) {
+            nameSpan.textContent = oldName;
+            return;
         }
 
-        await loadCategories();
-        await loadPatterns();
-        showToast('Category renamed');
-    } catch (error) {
-        console.error('Error updating category:', error);
-        alert(error.message);
-    }
+        if (allCategories.includes(newName)) {
+            showToast('Category already exists');
+            nameSpan.textContent = oldName;
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/api/categories/${encodeURIComponent(oldName)}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to update category');
+            }
+
+            await loadCategories();
+            await loadPatterns();
+            showToast('Category renamed');
+        } catch (error) {
+            console.error('Error updating category:', error);
+            nameSpan.textContent = oldName;
+            showToast(error.message);
+        }
+    };
+
+    const handleKeydown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            nameSpan.blur();
+        } else if (e.key === 'Escape') {
+            nameSpan.textContent = oldName;
+            nameSpan.blur();
+        }
+    };
+
+    nameSpan.addEventListener('keydown', handleKeydown);
+    nameSpan.addEventListener('blur', saveEdit, { once: true });
 }
 
 async function deleteCategory(btn, name, patternCount) {
@@ -4851,7 +4891,7 @@ function renderHashtagsList() {
         <div class="hashtag-item" data-hashtag-id="${hashtag.id}">
             <span class="hashtag-name">#${escapeHtml(hashtag.name)}</span>
             <div class="hashtag-actions">
-                <button class="btn btn-small btn-secondary" onclick="editHashtag(${hashtag.id}, '${escapeHtml(hashtag.name)}')">Edit</button>
+                <button class="btn btn-small btn-secondary" onclick="startHashtagEdit(this.closest('.hashtag-item'))">Edit</button>
                 <button class="btn btn-small btn-danger" onclick="deleteHashtag(this, ${hashtag.id})">Delete</button>
             </div>
         </div>
@@ -4890,28 +4930,78 @@ async function addHashtag() {
     }
 }
 
-async function editHashtag(id, oldName) {
-    const newName = prompt('Enter new hashtag name:', oldName);
-    if (!newName || newName.replace(/^#/, '').toLowerCase() === oldName) return;
+function startHashtagEdit(item) {
+    const nameSpan = item.querySelector('.hashtag-name');
+    const id = parseInt(item.dataset.hashtagId);
+    const oldName = nameSpan.textContent.replace(/^#/, '');
 
-    try {
-        const response = await fetch(`${API_URL}/api/hashtags/${id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: newName })
-        });
+    // Don't start if already editing
+    if (nameSpan.isContentEditable) return;
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to update hashtag');
+    // Remove the # prefix for editing
+    nameSpan.textContent = oldName;
+    nameSpan.contentEditable = true;
+    nameSpan.classList.add('editing');
+    nameSpan.focus();
+
+    // Select all text
+    const range = document.createRange();
+    range.selectNodeContents(nameSpan);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const saveEdit = async () => {
+        let newName = nameSpan.textContent.trim().replace(/^#/, '').toLowerCase();
+        nameSpan.contentEditable = false;
+        nameSpan.classList.remove('editing');
+
+        // Restore # prefix
+        nameSpan.textContent = '#' + (newName || oldName);
+
+        if (!newName || newName === oldName) {
+            return;
         }
 
-        await loadHashtags();
-        showToast('Hashtag renamed');
-    } catch (error) {
-        console.error('Error updating hashtag:', error);
-        alert(error.message);
-    }
+        if (allHashtags.some(h => h.name === newName && h.id !== id)) {
+            showToast('Hashtag already exists');
+            nameSpan.textContent = '#' + oldName;
+            return;
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/api/hashtags/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName })
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to update hashtag');
+            }
+
+            await loadHashtags();
+            showToast('Hashtag renamed');
+        } catch (error) {
+            console.error('Error updating hashtag:', error);
+            nameSpan.textContent = '#' + oldName;
+            showToast(error.message);
+        }
+    };
+
+    const handleKeydown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            nameSpan.blur();
+        } else if (e.key === 'Escape') {
+            nameSpan.textContent = oldName;
+            nameSpan.blur();
+        }
+    };
+
+    nameSpan.addEventListener('keydown', handleKeydown);
+    nameSpan.addEventListener('blur', saveEdit, { once: true });
 }
 
 async function deleteHashtag(btn, id) {

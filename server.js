@@ -80,9 +80,19 @@ function getLocalTimestamp(date = new Date()) {
   return `${year}-${month}-${day}T${hours}-${minutes}-${seconds}`;
 }
 
+// Convert category name to folder name (lowercase, spaces to underscores, sanitized)
+function categoryToFolderName(categoryName) {
+  return categoryName
+    .toLowerCase()
+    .replace(/\s+/g, '_')           // spaces to underscores
+    .replace(/[^a-z0-9_-]/g, '')    // remove unsafe characters
+    .replace(/_+/g, '_')            // collapse multiple underscores
+    .replace(/^_|_$/g, '');         // trim leading/trailing underscores
+}
+
 // Helper function to get category folder path
 function getCategoryDir(categoryName) {
-  return path.join(patternsDir, categoryName);
+  return path.join(patternsDir, categoryToFolderName(categoryName));
 }
 
 // Helper function to ensure category folder exists
@@ -121,7 +131,7 @@ function renameCategoryDir(oldName, newName) {
 
 // Helper function to get archive category folder path
 function getArchiveCategoryDir(categoryName) {
-  return path.join(archiveDir, categoryName);
+  return path.join(archiveDir, categoryToFolderName(categoryName));
 }
 
 // Helper function to ensure archive category folder exists
@@ -151,9 +161,42 @@ function cleanupEmptyArchiveCategories() {
   }
 }
 
+// Migrate old category folder names to new format (lowercase, underscores)
+async function migrateCategoryFolders() {
+  try {
+    const result = await pool.query('SELECT name FROM categories');
+    const categories = result.rows.map(r => r.name);
+
+    for (const category of categories) {
+      const newFolderName = categoryToFolderName(category);
+      const newPath = path.join(patternsDir, newFolderName);
+      const oldPath = path.join(patternsDir, category);
+
+      // Check if old-style folder exists (exact category name as folder)
+      if (category !== newFolderName && fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
+        console.log(`Migrating category folder: "${category}" -> "${newFolderName}"`);
+        fs.renameSync(oldPath, newPath);
+      }
+
+      // Also check archive
+      const oldArchivePath = path.join(archiveDir, category);
+      const newArchivePath = path.join(archiveDir, newFolderName);
+      if (category !== newFolderName && fs.existsSync(oldArchivePath) && !fs.existsSync(newArchivePath)) {
+        console.log(`Migrating archive folder: "${category}" -> "${newFolderName}"`);
+        fs.renameSync(oldArchivePath, newArchivePath);
+      }
+    }
+  } catch (error) {
+    console.error('Error migrating category folders:', error);
+  }
+}
+
 // Sync category folders with database on startup
 async function syncCategoryFolders() {
   try {
+    // First migrate any old-style folder names
+    await migrateCategoryFolders();
+
     const result = await pool.query('SELECT name FROM categories');
     const categories = result.rows.map(r => r.name);
 
@@ -348,7 +391,7 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
     console.log('  - req.file.originalname:', req.file.originalname);
 
     // Now we have access to req.body! Determine the final filename
-    const categoryDir = path.join(patternsDir, category);
+    const categoryDir = getCategoryDir(category);
 
     let finalFilename;
     if (req.body.name) {
@@ -472,7 +515,7 @@ app.get('/api/patterns/:id/content', async (req, res) => {
     }
 
     // Read content from file
-    let filePath = path.join(patternsDir, pattern.category, pattern.filename);
+    let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
     if (!fs.existsSync(filePath)) {
       filePath = path.join(patternsDir, pattern.filename);
     }
@@ -510,7 +553,7 @@ app.put('/api/patterns/:id/content', async (req, res) => {
     }
 
     // Write content to file
-    let filePath = path.join(patternsDir, pattern.category, pattern.filename);
+    let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
     if (!fs.existsSync(path.dirname(filePath))) {
       filePath = path.join(patternsDir, pattern.filename);
     }
@@ -543,7 +586,7 @@ app.get('/api/patterns/:id/file', async (req, res) => {
     }
 
     const pattern = result.rows[0];
-    let filePath = path.join(patternsDir, pattern.category, pattern.filename);
+    let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
 
     // Check if file exists in category folder, otherwise check root patterns folder (for legacy files)
     if (!fs.existsSync(filePath)) {
@@ -653,7 +696,7 @@ app.delete('/api/patterns/archived/all', async (req, res) => {
 
     for (const pattern of result.rows) {
       // Delete file from archive
-      const archiveFilePath = path.join(archiveDir, pattern.category, pattern.filename);
+      const archiveFilePath = path.join(getArchiveCategoryDir(pattern.category), pattern.filename);
       if (fs.existsSync(archiveFilePath)) {
         fs.unlinkSync(archiveFilePath);
       }
@@ -723,7 +766,7 @@ app.get('/api/patterns/:id/info', async (req, res) => {
     }
 
     const pattern = result.rows[0];
-    let filePath = path.join(patternsDir, pattern.category, pattern.filename);
+    let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
     if (!fs.existsSync(filePath)) {
       filePath = path.join(patternsDir, pattern.filename);
     }
@@ -799,10 +842,10 @@ app.patch('/api/patterns/:id', async (req, res) => {
 
     // Determine the working category (use new category if changing, otherwise current)
     const workingCategory = category !== undefined ? category : pattern.category;
-    const categoryDir = path.join(patternsDir, workingCategory);
+    const categoryDir = getCategoryDir(workingCategory);
 
     // Find current file location (check category folder first, then root)
-    let oldFilePath = path.join(patternsDir, pattern.category, pattern.filename);
+    let oldFilePath = path.join(getCategoryDir(pattern.category), pattern.filename);
     console.log(`Checking for file at: ${oldFilePath}`);
 
     if (!fs.existsSync(oldFilePath)) {
@@ -928,7 +971,7 @@ app.delete('/api/patterns/:id', async (req, res) => {
     }
 
     const pattern = result.rows[0];
-    let filePath = path.join(patternsDir, pattern.category, pattern.filename);
+    let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
 
     // Delete the file (check category folder first, then root for legacy files)
     if (fs.existsSync(filePath)) {
@@ -975,7 +1018,7 @@ app.post('/api/patterns/:id/archive', async (req, res) => {
     const pattern = result.rows[0];
 
     // Find current file location
-    let filePath = path.join(patternsDir, pattern.category, pattern.filename);
+    let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
     if (!fs.existsSync(filePath)) {
       filePath = path.join(patternsDir, pattern.filename);
     }
@@ -1036,7 +1079,7 @@ app.post('/api/patterns/:id/restore', async (req, res) => {
     const categoryDir = ensureCategoryDir(pattern.category);
 
     // Move pattern file from archive back to patterns (use copy+delete for cross-device support)
-    const archiveFilePath = path.join(archiveDir, pattern.category, pattern.filename);
+    const archiveFilePath = path.join(getArchiveCategoryDir(pattern.category), pattern.filename);
     if (fs.existsSync(archiveFilePath)) {
       const filePath = path.join(categoryDir, pattern.filename);
       fs.copyFileSync(archiveFilePath, filePath);
@@ -1086,7 +1129,7 @@ app.delete('/api/patterns/:id/permanent', async (req, res) => {
     const pattern = result.rows[0];
 
     // Delete file from archive
-    const archiveFilePath = path.join(archiveDir, pattern.category, pattern.filename);
+    const archiveFilePath = path.join(getArchiveCategoryDir(pattern.category), pattern.filename);
     if (fs.existsSync(archiveFilePath)) {
       fs.unlinkSync(archiveFilePath);
     }
@@ -1884,7 +1927,7 @@ app.get('/api/stats', async (req, res) => {
     let totalSize = 0;
     const patterns = await pool.query('SELECT filename, category FROM patterns WHERE is_archived = false OR is_archived IS NULL');
     for (const pattern of patterns.rows) {
-      let filePath = path.join(patternsDir, pattern.category, pattern.filename);
+      let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
       if (!fs.existsSync(filePath)) {
         filePath = path.join(patternsDir, pattern.filename);
       }
@@ -3048,7 +3091,7 @@ async function autoDeleteOldArchived() {
 
     for (const pattern of result.rows) {
       // Delete file from archive
-      const archiveFilePath = path.join(archiveDir, pattern.category, pattern.filename);
+      const archiveFilePath = path.join(getArchiveCategoryDir(pattern.category), pattern.filename);
       if (fs.existsSync(archiveFilePath)) {
         fs.unlinkSync(archiveFilePath);
       }

@@ -618,7 +618,11 @@ function initGlobalDragDrop() {
     const handleDragOver = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        document.body.classList.add('global-drag-over');
+        // Don't show overlay if upload panel is already visible
+        const uploadPanel = document.getElementById('upload-panel');
+        if (!uploadPanel || uploadPanel.style.display === 'none') {
+            document.body.classList.add('global-drag-over');
+        }
     };
 
     const handleDragLeave = (e) => {
@@ -2026,13 +2030,11 @@ function renderStagedFiles() {
 
         return `
             <div class="staged-file-item ${statusClass}" data-file-id="${stagedFile.id}">
+                <button class="staged-file-close" onclick="removeStagedFile('${stagedFile.id}')"
+                        ${isUploading ? 'disabled' : ''} title="Remove">×</button>
                 <div class="staged-file-layout">
                     <div class="staged-file-sidebar">
                         ${thumbnailHtml}
-                        <button class="staged-file-remove" onclick="removeStagedFile('${stagedFile.id}')"
-                                ${isUploading ? 'disabled' : ''}>
-                            Remove
-                        </button>
                         <div class="staged-file-current-toggle">
                             <span class="mark-current-label">Current</span>
                             <label class="toggle-switch">

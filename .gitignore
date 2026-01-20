@@ -16,8 +16,11 @@ postgres-data/
 .dockerignore
 docker-compose.override.yml
 
-# Uploads (user-generated content)
+# User-generated content
 uploads/
+patterns/
+archive/
+notes/
 
 # Backups
 backups/

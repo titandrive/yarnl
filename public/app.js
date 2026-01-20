@@ -69,6 +69,7 @@ let allHashtags = []; // All available hashtags
 let selectedFile = null;
 let editingPatternId = null;
 let stagedFiles = []; // Array to hold staged files with metadata
+let completedUploads = []; // Array to hold completed upload info for display
 let selectedCategoryFilter = localStorage.getItem('libraryCategoryFilter') || 'all';
 let selectedSort = localStorage.getItem('librarySort') || 'date-desc';
 let showCompleted = localStorage.getItem('libraryShowCompleted') !== 'false';
@@ -1754,6 +1755,7 @@ function initUpload() {
     const browseBtn = document.getElementById('browse-btn');
     const uploadAllBtn = document.getElementById('upload-all-btn');
     const clearAllBtn = document.getElementById('clear-all-btn');
+    const clearCompletedBtn = document.getElementById('clear-completed-btn');
 
     // Click to browse
     dropZone.addEventListener('click', () => fileInput.click());
@@ -1795,6 +1797,11 @@ function initUpload() {
 
     // Clear all button
     clearAllBtn.addEventListener('click', () => clearAllStaged());
+
+    // Clear completed uploads button
+    if (clearCompletedBtn) {
+        clearCompletedBtn.addEventListener('click', () => clearCompletedUploads());
+    }
 }
 
 async function handleFiles(files) {
@@ -1861,6 +1868,9 @@ function showStagingArea() {
 function hideStagingArea() {
     const stagingArea = document.getElementById('staging-area');
     stagingArea.style.display = 'none';
+    // Clear completed uploads when hiding
+    completedUploads = [];
+    renderCompletedUploads();
 }
 
 function updateStagedCount() {
@@ -2023,6 +2033,36 @@ function clearAllStaged() {
     }
 }
 
+function renderCompletedUploads() {
+    const container = document.getElementById('completed-uploads');
+    const list = document.getElementById('completed-uploads-list');
+
+    if (!container || !list) return;
+
+    if (completedUploads.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    list.innerHTML = completedUploads.map(upload => {
+        const thumbSrc = upload.thumbnail
+            ? `${API_URL}/patterns/thumbnails/${upload.thumbnail}`
+            : `${API_URL}/patterns/thumbnails/default.png`;
+        return `
+            <div class="completed-upload-item" onclick="viewPattern(${upload.id})" title="${escapeHtml(upload.name)}">
+                <img src="${thumbSrc}" alt="${escapeHtml(upload.name)}" class="completed-upload-thumb" onerror="this.src='${API_URL}/patterns/thumbnails/default.png'">
+                <span class="completed-upload-name">${escapeHtml(upload.name)}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+function clearCompletedUploads() {
+    completedUploads = [];
+    renderCompletedUploads();
+}
+
 async function uploadAllPatterns() {
     const filesToUpload = stagedFiles.filter(f => f.status === 'staged' || f.status === 'error');
 
@@ -2040,15 +2080,14 @@ async function uploadAllPatterns() {
     await loadCurrentPatterns();
     await loadCategories();
 
-    // Remove successful uploads after a delay
-    setTimeout(() => {
-        stagedFiles = stagedFiles.filter(f => f.status !== 'success');
-        if (stagedFiles.length === 0) {
-            hideStagingArea();
-        } else {
-            renderStagedFiles();
-        }
-    }, 2000);
+    // Remove successful uploads from staging (they're now in completed section)
+    stagedFiles = stagedFiles.filter(f => f.status !== 'success');
+    if (stagedFiles.length === 0 && completedUploads.length === 0) {
+        hideStagingArea();
+    } else {
+        renderStagedFiles();
+        updateStagedCount();
+    }
 }
 
 async function uploadStagedFile(stagedFile) {
@@ -2114,6 +2153,17 @@ async function uploadStagedFile(stagedFile) {
 
         stagedFile.status = 'success';
         stagedFile.progress = 100;
+
+        // Store completed upload info for display
+        if (result && result.id) {
+            completedUploads.push({
+                id: result.id,
+                name: result.name || stagedFile.name,
+                thumbnail: result.thumbnail
+            });
+            renderCompletedUploads();
+        }
+
         renderStagedFiles();
 
     } catch (error) {
@@ -2178,6 +2228,8 @@ async function loadHashtags() {
     try {
         const response = await fetch(`${API_URL}/api/hashtags`);
         allHashtags = await response.json();
+        // Sort hashtags alphabetically
+        allHashtags.sort((a, b) => a.name.localeCompare(b.name));
         renderHashtagsList();
 
         // Re-render staged files if any exist to populate hashtag selectors

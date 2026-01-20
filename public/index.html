@@ -205,13 +205,22 @@
                     <div id="staging-area" class="staging-area" style="display: none;">
                         <div class="staging-header">
                             <h3>Staged Files (<span id="staged-count">0</span>)</h3>
-                            <div class="staging-actions">
-                                <button type="button" id="upload-all-btn" class="btn btn-primary">Upload All</button>
-                                <button type="button" id="clear-all-btn" class="btn btn-secondary">Clear All</button>
-                            </div>
+                            <button type="button" id="clear-all-btn" class="btn btn-secondary btn-sm">Clear All</button>
                         </div>
                         <div id="staged-files-list" class="staged-files-list">
                             <!-- Staged files will be added here -->
+                        </div>
+                        <div class="staging-footer">
+                            <button type="button" id="upload-all-btn" class="btn btn-primary">Upload All</button>
+                        </div>
+                        <div id="completed-uploads" class="completed-uploads" style="display: none;">
+                            <div class="completed-uploads-header">
+                                <h4>Completed</h4>
+                                <button type="button" id="clear-completed-btn" class="btn btn-secondary btn-sm">Clear</button>
+                            </div>
+                            <div id="completed-uploads-list" class="completed-uploads-list">
+                                <!-- Completed uploads will be added here -->
+                            </div>
                         </div>
                     </div>
                 </div>

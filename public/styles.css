@@ -4134,7 +4134,7 @@ input[type="number"].settings-input {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 12px;
+    padding: 12px;
     background: var(--input-bg);
     border: 1px solid var(--border-color);
     border-radius: 8px;

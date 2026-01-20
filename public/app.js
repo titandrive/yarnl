@@ -603,16 +603,13 @@ function initNavigation() {
 
 // Global drag-drop to open upload panel
 function initGlobalDragDrop() {
-    const libraryTab = document.getElementById('library');
-    const currentTab = document.getElementById('current');
-
-    const handleGlobalDrop = (e) => {
+    const handleDrop = (e) => {
         e.preventDefault();
+        e.stopPropagation();
         document.body.classList.remove('global-drag-over');
 
         const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
         if (files.length > 0) {
-            // Show upload panel and add files
             showUploadPanel();
             handleFiles(files);
         }
@@ -620,24 +617,22 @@ function initGlobalDragDrop() {
 
     const handleDragOver = (e) => {
         e.preventDefault();
+        e.stopPropagation();
         document.body.classList.add('global-drag-over');
     };
 
     const handleDragLeave = (e) => {
-        // Only remove class if leaving the document
+        e.preventDefault();
+        e.stopPropagation();
         if (e.relatedTarget === null || !document.body.contains(e.relatedTarget)) {
             document.body.classList.remove('global-drag-over');
         }
     };
 
-    // Add listeners to library and current tabs
-    [libraryTab, currentTab].forEach(tab => {
-        if (tab) {
-            tab.addEventListener('dragover', handleDragOver);
-            tab.addEventListener('dragleave', handleDragLeave);
-            tab.addEventListener('drop', handleGlobalDrop);
-        }
-    });
+    // Add to document to catch all drag-drop events
+    document.addEventListener('dragover', handleDragOver);
+    document.addEventListener('dragleave', handleDragLeave);
+    document.addEventListener('drop', handleDrop);
 }
 
 async function handleInitialNavigation() {
@@ -1750,6 +1745,7 @@ function updateSettingsButton(inSettings) {
 
 // Upload functionality
 function initUpload() {
+    const uploadPanel = document.getElementById('upload-panel');
     const dropZone = document.getElementById('drop-zone');
     const fileInput = document.getElementById('file-input');
     const browseBtn = document.getElementById('browse-btn');
@@ -1769,26 +1765,6 @@ function initUpload() {
         if (e.target.files.length > 0) {
             handleFiles(Array.from(e.target.files));
             fileInput.value = ''; // Reset input
-        }
-    });
-
-    // Drag and drop - handle multiple files
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('drag-over');
-    });
-
-    dropZone.addEventListener('dragleave', () => {
-        dropZone.classList.remove('drag-over');
-    });
-
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('drag-over');
-
-        const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
-        if (files.length > 0) {
-            handleFiles(files);
         }
     });
 
@@ -1812,33 +1788,145 @@ async function handleFiles(files) {
         return;
     }
 
-    // Add files to staging area
+    // Process files one at a time to handle duplicates sequentially
     for (const file of pdfFiles) {
-        const fileId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const stagedFile = {
-            id: fileId,
-            file: file,
-            name: file.name.replace('.pdf', ''),
-            category: getDefaultCategory(),
-            description: '',
-            hashtagIds: [],
-            isCurrent: false,
-            status: 'staged', // staged, uploading, success, error
-            progress: 0,
-            error: null,
-            thumbnailUrl: null
-        };
-        stagedFiles.push(stagedFile);
+        const result = await processFileForStaging(file);
+        if (result) {
+            stagedFiles.push(result);
 
-        // Generate thumbnail preview asynchronously
-        generatePdfThumbnail(file).then(url => {
-            stagedFile.thumbnailUrl = url;
-            renderStagedFiles();
-        }).catch(err => console.log('Could not generate thumbnail:', err));
+            // Generate thumbnail preview asynchronously
+            generatePdfThumbnail(file).then(url => {
+                result.thumbnailUrl = url;
+                renderStagedFiles();
+            }).catch(err => console.log('Could not generate thumbnail:', err));
+        }
     }
 
-    renderStagedFiles();
-    showStagingArea();
+    if (stagedFiles.length > 0) {
+        renderStagedFiles();
+        showStagingArea();
+    }
+}
+
+// Check if a filename already exists in the library
+function findDuplicatePattern(filename) {
+    const normalizedFilename = filename.toLowerCase();
+    return patterns.find(p => {
+        const patternFilename = (p.filename || '').toLowerCase();
+        const patternOriginalName = (p.original_name || '').toLowerCase();
+        return patternFilename === normalizedFilename || patternOriginalName === normalizedFilename;
+    });
+}
+
+// Generate a unique filename by appending a number
+function generateUniqueName(baseName) {
+    let counter = 2;
+    let newName = `${baseName} (${counter})`;
+
+    // Check both existing patterns and staged files
+    while (
+        patterns.some(p => (p.name || '').toLowerCase() === newName.toLowerCase()) ||
+        stagedFiles.some(f => f.name.toLowerCase() === newName.toLowerCase())
+    ) {
+        counter++;
+        newName = `${baseName} (${counter})`;
+    }
+
+    return newName;
+}
+
+// Process a single file for staging, handling duplicates
+async function processFileForStaging(file) {
+    const baseName = file.name.replace('.pdf', '');
+    const duplicate = findDuplicatePattern(file.name);
+
+    // Also check if already staged
+    const alreadyStaged = stagedFiles.some(f =>
+        f.file.name.toLowerCase() === file.name.toLowerCase()
+    );
+
+    if (alreadyStaged) {
+        showToast(`${file.name} is already staged`, 'warning');
+        return null;
+    }
+
+    if (duplicate) {
+        // Show duplicate modal and wait for user decision
+        const action = await showDuplicateModal(file.name, duplicate);
+
+        if (action === 'skip') {
+            return null;
+        } else if (action === 'overwrite') {
+            // Mark for overwrite - store the existing pattern ID
+            return createStagedFile(file, baseName, duplicate.id);
+        } else if (action === 'rename') {
+            // Generate a unique name
+            const newName = generateUniqueName(baseName);
+            return createStagedFile(file, newName, null);
+        }
+    }
+
+    return createStagedFile(file, baseName, null);
+}
+
+function createStagedFile(file, name, overwritePatternId) {
+    const fileId = `file-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return {
+        id: fileId,
+        file: file,
+        name: name,
+        category: getDefaultCategory(),
+        description: '',
+        hashtagIds: [],
+        isCurrent: false,
+        status: 'staged', // staged, uploading, success, error
+        progress: 0,
+        error: null,
+        thumbnailUrl: null,
+        overwritePatternId: overwritePatternId // ID of pattern to overwrite, or null
+    };
+}
+
+function showDuplicateModal(filename, existingPattern) {
+    return new Promise((resolve) => {
+        const modal = document.getElementById('duplicate-modal');
+        const filenameEl = document.getElementById('duplicate-filename');
+        const skipBtn = document.getElementById('duplicate-cancel-btn');
+        const overwriteBtn = document.getElementById('duplicate-overwrite-btn');
+        const renameBtn = document.getElementById('duplicate-rename-btn');
+        const closeBtn = document.getElementById('close-duplicate-modal');
+
+        filenameEl.textContent = filename;
+        modal.style.display = 'flex';
+
+        const cleanup = () => {
+            modal.style.display = 'none';
+            skipBtn.removeEventListener('click', handleSkip);
+            overwriteBtn.removeEventListener('click', handleOverwrite);
+            renameBtn.removeEventListener('click', handleRename);
+            closeBtn.removeEventListener('click', handleSkip);
+        };
+
+        const handleSkip = () => {
+            cleanup();
+            resolve('skip');
+        };
+
+        const handleOverwrite = () => {
+            cleanup();
+            resolve('overwrite');
+        };
+
+        const handleRename = () => {
+            cleanup();
+            resolve('rename');
+        };
+
+        skipBtn.addEventListener('click', handleSkip);
+        overwriteBtn.addEventListener('click', handleOverwrite);
+        renameBtn.addEventListener('click', handleRename);
+        closeBtn.addEventListener('click', handleSkip);
+    });
 }
 
 async function generatePdfThumbnail(file) {
@@ -1878,8 +1966,29 @@ function updateStagedCount() {
     countElement.textContent = stagedFiles.length;
 }
 
+function updateUploadProgress(fileId, progress) {
+    // Update only the progress bar without re-rendering everything
+    const fileItem = document.querySelector(`.staged-file-item[data-file-id="${fileId}"]`);
+    if (fileItem) {
+        const progressBar = fileItem.querySelector('.upload-progress-bar');
+        const progressText = fileItem.querySelector('.upload-progress-text span:last-child');
+        if (progressBar) progressBar.style.width = `${progress}%`;
+        if (progressText) progressText.textContent = `${progress}%`;
+    }
+}
+
 function renderStagedFiles() {
     const container = document.getElementById('staged-files-list');
+    const header = document.querySelector('.staging-header');
+    const footer = document.querySelector('.staging-footer');
+
+    // Count files that are actually staged (not yet uploaded/uploading)
+    const pendingCount = stagedFiles.filter(f => f.status === 'staged' || f.status === 'error').length;
+    const hasActiveFiles = stagedFiles.length > 0;
+
+    // Show/hide header and footer based on whether there are staged files
+    if (header) header.style.display = hasActiveFiles ? 'flex' : 'none';
+    if (footer) footer.style.display = pendingCount > 0 ? 'flex' : 'none';
 
     container.innerHTML = stagedFiles.map(stagedFile => {
         const statusClass = stagedFile.status;
@@ -1955,10 +2064,12 @@ function renderStagedFiles() {
                                 </div>
                             </div>
                             <div class="form-group">
-                                <label>Description</label>
-                                <textarea rows="1"
-                                          onchange="updateStagedFile('${stagedFile.id}', 'description', this.value)"
-                                          ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>${escapeHtml(stagedFile.description)}</textarea>
+                                <label>Description <span class="char-counter"><span id="desc-count-${stagedFile.id}">${(stagedFile.description || '').length}</span>/45</span></label>
+                                <input type="text"
+                                          maxlength="45"
+                                          value="${escapeHtml(stagedFile.description)}"
+                                          oninput="document.getElementById('desc-count-${stagedFile.id}').textContent = this.value.length; updateStagedFile('${stagedFile.id}', 'description', this.value)"
+                                          ${isUploading || stagedFile.status === 'success' ? 'disabled' : ''}>
                             </div>
                         </div>
                     </div>
@@ -2033,7 +2144,7 @@ function clearAllStaged() {
     }
 }
 
-function renderCompletedUploads() {
+function renderCompletedUploads(newUpload = null) {
     const container = document.getElementById('completed-uploads');
     const list = document.getElementById('completed-uploads-list');
 
@@ -2041,17 +2152,31 @@ function renderCompletedUploads() {
 
     if (completedUploads.length === 0) {
         container.style.display = 'none';
+        list.innerHTML = '';
         return;
     }
 
     container.style.display = 'block';
+
+    // If we have a new upload, just append it instead of re-rendering everything
+    if (newUpload) {
+        const thumbSrc = `${API_URL}/api/patterns/${newUpload.id}/thumbnail`;
+        const itemHtml = `
+            <div class="completed-upload-item" onclick="openPDFViewer(${newUpload.id})" title="${escapeHtml(newUpload.name)}">
+                <img src="${thumbSrc}" alt="${escapeHtml(newUpload.name)}" class="completed-upload-thumb">
+                <span class="completed-upload-name">${escapeHtml(newUpload.name)}</span>
+            </div>
+        `;
+        list.insertAdjacentHTML('beforeend', itemHtml);
+        return;
+    }
+
+    // Full re-render (only used when clearing or initial load)
     list.innerHTML = completedUploads.map(upload => {
-        const thumbSrc = upload.thumbnail
-            ? `${API_URL}/patterns/thumbnails/${upload.thumbnail}`
-            : `${API_URL}/patterns/thumbnails/default.png`;
+        const thumbSrc = `${API_URL}/api/patterns/${upload.id}/thumbnail`;
         return `
-            <div class="completed-upload-item" onclick="viewPattern(${upload.id})" title="${escapeHtml(upload.name)}">
-                <img src="${thumbSrc}" alt="${escapeHtml(upload.name)}" class="completed-upload-thumb" onerror="this.src='${API_URL}/patterns/thumbnails/default.png'">
+            <div class="completed-upload-item" onclick="openPDFViewer(${upload.id})" title="${escapeHtml(upload.name)}">
+                <img src="${thumbSrc}" alt="${escapeHtml(upload.name)}" class="completed-upload-thumb">
                 <span class="completed-upload-name">${escapeHtml(upload.name)}</span>
             </div>
         `;
@@ -2075,13 +2200,15 @@ async function uploadAllPatterns() {
         await uploadStagedFile(stagedFile);
     }
 
+    // Remove successful uploads from staging BEFORE reloading (to avoid flicker from loadCategories)
+    stagedFiles = stagedFiles.filter(f => f.status !== 'success');
+
     // Reload patterns and categories after all uploads
     await loadPatterns();
     await loadCurrentPatterns();
     await loadCategories();
 
-    // Remove successful uploads from staging (they're now in completed section)
-    stagedFiles = stagedFiles.filter(f => f.status !== 'success');
+    // Update UI
     if (stagedFiles.length === 0 && completedUploads.length === 0) {
         hideStagingArea();
     } else {
@@ -2101,6 +2228,18 @@ async function uploadStagedFile(stagedFile) {
 
     renderStagedFiles();
 
+    // If this is an overwrite, delete the existing pattern first
+    if (stagedFile.overwritePatternId) {
+        try {
+            await fetch(`${API_URL}/api/patterns/${stagedFile.overwritePatternId}`, {
+                method: 'DELETE'
+            });
+        } catch (err) {
+            console.error('Error deleting pattern for overwrite:', err);
+            // Continue with upload anyway
+        }
+    }
+
     const formData = new FormData();
     formData.append('pdf', stagedFile.file);
     formData.append('name', stagedFile.name || stagedFile.file.name.replace('.pdf', ''));
@@ -2111,12 +2250,12 @@ async function uploadStagedFile(stagedFile) {
     try {
         const xhr = new XMLHttpRequest();
 
-        // Track upload progress
+        // Track upload progress - update only the progress bar to avoid flickering
         xhr.upload.addEventListener('progress', (e) => {
             if (e.lengthComputable) {
                 const percentComplete = (e.loaded / e.total) * 100;
                 stagedFile.progress = Math.round(percentComplete);
-                renderStagedFiles();
+                updateUploadProgress(stagedFile.id, stagedFile.progress);
             }
         });
 
@@ -2156,15 +2295,16 @@ async function uploadStagedFile(stagedFile) {
 
         // Store completed upload info for display
         if (result && result.id) {
-            completedUploads.push({
+            const newUpload = {
                 id: result.id,
                 name: result.name || stagedFile.name,
                 thumbnail: result.thumbnail
-            });
-            renderCompletedUploads();
+            };
+            completedUploads.push(newUpload);
+            renderCompletedUploads(newUpload);
         }
 
-        renderStagedFiles();
+        // Don't re-render staged files here - uploadAllPatterns will handle cleanup
 
     } catch (error) {
         console.error('Error uploading pattern:', error);

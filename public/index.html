@@ -16,7 +16,7 @@
             document.write('<link rel="icon" type="image/png" sizes="128x128" href="mascots/default.png">');
         }
     </script>
-    <link rel="stylesheet" href="styles.css?v=48">
+    <link rel="stylesheet" href="styles.css?v=51">
 </head>
 <body>
     <div class="container">
@@ -1548,6 +1548,28 @@ Inc in each st around (12)
         </div>
     </div>
 
+    <!-- Duplicate File Modal -->
+    <div id="duplicate-modal" class="modal" style="display: none;">
+        <div class="modal-content duplicate-modal-content">
+            <div class="modal-header">
+                <h2>Duplicate File Detected</h2>
+                <button class="modal-close" id="close-duplicate-modal">&times;</button>
+            </div>
+            <div class="duplicate-modal-body">
+                <p>A pattern with this filename already exists:</p>
+                <div class="duplicate-file-info">
+                    <span class="duplicate-filename" id="duplicate-filename"></span>
+                </div>
+                <p class="duplicate-question">What would you like to do?</p>
+            </div>
+            <div class="modal-actions duplicate-modal-actions">
+                <button type="button" class="btn btn-secondary" id="duplicate-cancel-btn">Skip</button>
+                <button type="button" class="btn btn-warning" id="duplicate-overwrite-btn">Overwrite</button>
+                <button type="button" class="btn btn-primary" id="duplicate-rename-btn">Rename</button>
+            </div>
+        </div>
+    </div>
+
     <div id="mascot-modal" class="modal" style="display: none;">
         <div class="modal-content mascot-modal-content">
             <div class="modal-header">
@@ -1562,6 +1584,6 @@ Inc in each st around (12)
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script src="app.js?v=72"></script>
+    <script src="app.js?v=87"></script>
 </body>
 </html>

@@ -5312,7 +5312,7 @@ function renderPatternCard(pattern, options = {}) {
                         <ellipse cx="50" cy="50" rx="35" ry="12" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(120 50 50)"/>
                     </svg>
                   </div>`}
-            <h3>${escapeHtml(pattern.name)}</h3>
+            <h3 title="${escapeHtml(pattern.name)}">${escapeHtml(pattern.name)}</h3>
             ${pattern.completed && pattern.completed_date
                 ? `<p class="completion-date">${new Date(pattern.completed_date).toLocaleDateString()}${pattern.timer_seconds > 0 ? ` · ${formatTime(pattern.timer_seconds)}` : ''}</p>`
                 : (pattern.timer_seconds > 0

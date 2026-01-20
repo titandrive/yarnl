@@ -1164,9 +1164,15 @@ header {
     color: var(--primary-color);
     margin-bottom: 4px;
     font-size: 1.1rem;
-    word-wrap: break-word;
-    overflow-wrap: break-word;
-    hyphens: auto;
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+}
+
+.pattern-card h3::-webkit-scrollbar {
+    display: none;
 }
 
 .pattern-card .pattern-date {

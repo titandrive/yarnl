@@ -1772,11 +1772,11 @@ function initUpload() {
     uploadAllBtn.addEventListener('click', () => uploadAllPatterns());
 
     // Clear all button
-    clearAllBtn.addEventListener('click', () => clearAllStaged());
+    clearAllBtn.addEventListener('click', (e) => clearAllStaged(e.target));
 
     // Clear completed uploads button
     if (clearCompletedBtn) {
-        clearCompletedBtn.addEventListener('click', () => clearCompletedUploads());
+        clearCompletedBtn.addEventListener('click', (e) => clearCompletedUploads(e.target));
     }
 }
 
@@ -2127,20 +2127,28 @@ function removeStagedFile(fileId) {
     }
 }
 
-function clearAllStaged() {
+function clearAllStaged(btn) {
     // Only clear staged and error files, not uploading or success
     const canClear = stagedFiles.filter(f => f.status === 'staged' || f.status === 'error');
     if (canClear.length === 0) {
         return;
     }
 
-    if (confirm(`Clear ${canClear.length} file(s)?`)) {
-        stagedFiles = stagedFiles.filter(f => f.status === 'uploading' || f.status === 'success');
-        if (stagedFiles.length === 0) {
-            hideStagingArea();
-        } else {
-            renderStagedFiles();
-        }
+    // First click - show confirmation state
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.textContent = 'Confirm';
+        return;
+    }
+
+    // Second click - clear
+    btn.classList.remove('confirm-delete');
+    btn.textContent = 'Clear All';
+    stagedFiles = stagedFiles.filter(f => f.status === 'uploading' || f.status === 'success');
+    if (stagedFiles.length === 0) {
+        hideStagingArea();
+    } else {
+        renderStagedFiles();
     }
 }
 
@@ -2183,7 +2191,17 @@ function renderCompletedUploads(newUpload = null) {
     }).join('');
 }
 
-function clearCompletedUploads() {
+function clearCompletedUploads(btn) {
+    // First click - show confirmation state
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.textContent = 'Confirm';
+        return;
+    }
+
+    // Second click - clear
+    btn.classList.remove('confirm-delete');
+    btn.textContent = 'Clear';
     completedUploads = [];
     renderCompletedUploads();
 }
@@ -5680,6 +5698,19 @@ function resetHashtagDeleteButtons() {
     });
 }
 
+function resetUploadClearButtons() {
+    const clearAllBtn = document.getElementById('clear-all-btn');
+    const clearCompletedBtn = document.getElementById('clear-completed-btn');
+    if (clearAllBtn && clearAllBtn.classList.contains('confirm-delete')) {
+        clearAllBtn.classList.remove('confirm-delete');
+        clearAllBtn.textContent = 'Clear All';
+    }
+    if (clearCompletedBtn && clearCompletedBtn.classList.contains('confirm-delete')) {
+        clearCompletedBtn.classList.remove('confirm-delete');
+        clearCompletedBtn.textContent = 'Clear';
+    }
+}
+
 // Reset delete buttons when clicking elsewhere
 document.addEventListener('click', (e) => {
     if (!e.target.closest('.action-btn.delete') && !e.target.closest('.action-btn.archive')) {
@@ -5693,6 +5724,9 @@ document.addEventListener('click', (e) => {
     }
     if (!e.target.closest('.hashtag-actions .btn-danger')) {
         resetHashtagDeleteButtons();
+    }
+    if (!e.target.closest('#clear-all-btn') && !e.target.closest('#clear-completed-btn')) {
+        resetUploadClearButtons();
     }
 });
 

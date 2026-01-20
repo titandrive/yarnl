@@ -3928,25 +3928,29 @@ input[type="number"].settings-input {
     word-break: break-all;
 }
 
-.storage-value {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--primary-color);
+.library-location {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 
-.storage-path {
-    font-size: 0.85rem;
-    color: var(--text-color);
+.library-location code {
     background: var(--input-bg);
-    padding: 6px 12px;
-    border-radius: 6px;
-    border: 1px solid var(--border-color);
-    word-break: break-all;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: var(--text-color);
 }
 
 .stats-categories {
     border-top: 1px solid var(--border-color);
     padding-top: 16px;
+    margin-top: 16px;
 }
 
 .stats-categories h4 {

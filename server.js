@@ -1902,6 +1902,7 @@ app.get('/api/stats', async (req, res) => {
       patternsWithTime,
       totalRowsCounted,
       patternsByCategory,
+      totalCategories: patternsByCategory.length,
       totalSize,
       libraryPath: '/opt/yarnl/patterns',
       backupHostPath: process.env.BACKUP_HOST_PATH || './backups'

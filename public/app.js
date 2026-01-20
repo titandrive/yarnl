@@ -2671,20 +2671,13 @@ function switchToSettingsSection(section, updateHistory = true) {
     }
 
     // Initialize section-specific content
-    if (section === 'storage') {
-        loadStorageStats();
-    } else if (section === 'archive') {
+    if (section === 'archive') {
         loadArchiveSettings();
     } else if (section === 'about') {
         loadLibraryStats();
     }
 }
 
-// Storage section initialization
-async function loadStorageStats() {
-    await loadImagesSizeForBackup();
-    loadStorageSizeStats();
-}
 
 // Archive section initialization
 async function loadArchiveSettings() {
@@ -3776,6 +3769,14 @@ async function loadLibraryStats() {
         const container = document.getElementById('library-stats');
         if (!container) return;
 
+        // Format file size
+        const formatSize = (bytes) => {
+            if (bytes < 1024) return bytes + '\u2009B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + '\u2009KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + '\u2009MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(1) + '\u2009GB';
+        };
+
         container.innerHTML = `
             <div class="library-stats-grid">
                 <div class="stat-item">
@@ -3802,6 +3803,18 @@ async function loadLibraryStats() {
                     <span class="stat-value">${stats.patternsWithTime > 0 ? formatTime(Math.round((stats.totalTimeSeconds || 0) / stats.patternsWithTime)) : '–'}</span>
                     <span class="stat-label">Avg Time per Project</span>
                 </div>
+                <div class="stat-item">
+                    <span class="stat-value">${formatSize(stats.totalSize)}</span>
+                    <span class="stat-label">Library Size</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-value">${stats.totalCategories || 0}</span>
+                    <span class="stat-label">Categories</span>
+                </div>
+            </div>
+            <div class="library-location">
+                <span class="location-label">Library Location:</span>
+                <code>${escapeHtml(stats.libraryPath)}</code>
             </div>
             ${stats.patternsByCategory.length > 0 ? `
                 <div class="stats-categories">
@@ -3822,42 +3835,6 @@ async function loadLibraryStats() {
     }
 }
 
-async function loadStorageSizeStats() {
-    try {
-        const response = await fetch(`${API_URL}/api/stats`);
-        const stats = await response.json();
-
-        const container = document.getElementById('storage-stats');
-        if (!container) return;
-
-        // Format file size
-        const formatSize = (bytes) => {
-            if (bytes < 1024) return bytes + '\u2009B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + '\u2009KB';
-            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + '\u2009MB';
-            return (bytes / (1024 * 1024 * 1024)).toFixed(1) + '\u2009GB';
-        };
-
-        container.innerHTML = `
-            <div class="setting-item">
-                <div class="setting-info">
-                    <label>Library Size</label>
-                    <p class="setting-description">Total size of pattern files</p>
-                </div>
-                <span class="storage-value">${formatSize(stats.totalSize)}</span>
-            </div>
-            <div class="setting-item">
-                <div class="setting-info">
-                    <label>Library Location</label>
-                    <p class="setting-description">Where patterns are stored</p>
-                </div>
-                <code class="storage-path">${escapeHtml(stats.libraryPath)}</code>
-            </div>
-        `;
-    } catch (error) {
-        console.error('Error loading storage stats:', error);
-    }
-}
 
 // Backup Functions
 async function loadBackups() {

@@ -4197,6 +4197,12 @@ function initBackups() {
         });
     }
 
+    if (includeArchive) {
+        includeArchive.addEventListener('change', () => {
+            saveScheduleSettings(true, includeArchive.checked ? 'Archive will be included' : 'Archive excluded from backup');
+        });
+    }
+
     const updatePruneVisibility = () => {
         if (pruneOptions) {
             pruneOptions.style.display = pruneEnabled && pruneEnabled.checked ? 'block' : 'none';

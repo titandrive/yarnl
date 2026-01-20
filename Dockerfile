@@ -2,8 +2,8 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install poppler-utils for PDF processing
-RUN apk add --no-cache poppler-utils
+# Install poppler-utils for PDF processing and timezone data
+RUN apk add --no-cache poppler-utils tzdata
 
 # Install dependencies
 COPY package*.json ./

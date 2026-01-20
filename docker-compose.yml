@@ -26,11 +26,14 @@ services:
   yarnl:
     container_name: yarnl
     build: .
-    ports:
-      - "3000:3000"
+    # ports: #DO NOT UNCOMMENT PORTS
+    #   - "3000:3000"
     volumes:
-      - ./uploads:/app/uploads
+      - ./patterns:/app/patterns
+      - ./archive:/app/archive
       - ./public:/app/public
+      - ./backups:/app/backups
+      - ./notes:/app/notes
     environment:
       - NODE_ENV=production
       - POSTGRES_HOST=postgres
@@ -38,6 +41,8 @@ services:
       - POSTGRES_DB=yarnl
       - POSTGRES_USER=yarnl
       - POSTGRES_PASSWORD=yarnl
+      - BACKUP_HOST_PATH=/opt/yarnl/backups
+      - TZ=America/Los_Angeles
     restart: unless-stopped
     depends_on:
       postgres:

@@ -1021,7 +1021,7 @@ Inc in each st around (12)
                         <div id="archive-settings-section">
                             <div class="setting-item">
                                 <div class="setting-info">
-                                    <label>Auto-delete</label>
+                                    <label>Auto Empty</label>
                                     <p class="setting-description">Automatically delete archived patterns after a set time</p>
                                 </div>
                                 <label class="toggle-switch">
@@ -1032,7 +1032,7 @@ Inc in each st around (12)
 
                             <div class="setting-item" id="auto-delete-days-setting" style="display: none;">
                                 <div class="setting-info">
-                                    <label>Delete after</label>
+                                    <label>Empty After</label>
                                     <p class="setting-description">Days before archived patterns are permanently deleted</p>
                                 </div>
                                 <div class="setting-input-group">
@@ -1117,6 +1117,16 @@ Inc in each st around (12)
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="notify-backup-error" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Archive Emptied</label>
+                                <p class="setting-description">Notify when archived patterns are auto-deleted</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="notify-auto-delete" checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>

@@ -4214,6 +4214,7 @@ function initNotificationsSection() {
     const pushoverTestBtn = document.getElementById('pushover-test-btn');
     const notifyBackupComplete = document.getElementById('notify-backup-complete');
     const notifyBackupError = document.getElementById('notify-backup-error');
+    const notifyAutoDelete = document.getElementById('notify-auto-delete');
 
     if (!pushoverEnabled) return;
 
@@ -4229,6 +4230,7 @@ function initNotificationsSection() {
             pushoverAppToken.value = settings.pushoverAppToken || '';
             notifyBackupComplete.checked = settings.notifyBackupComplete;
             notifyBackupError.checked = settings.notifyBackupError;
+            notifyAutoDelete.checked = settings.notifyAutoDelete;
         } catch (error) {
             console.error('Error loading notification settings:', error);
         }
@@ -4298,6 +4300,11 @@ function initNotificationsSection() {
     notifyBackupError.addEventListener('change', () => {
         saveNotificationSettings({ notifyBackupError: notifyBackupError.checked },
             'Backup error notification ' + (notifyBackupError.checked ? 'enabled' : 'disabled'));
+    });
+
+    notifyAutoDelete.addEventListener('change', () => {
+        saveNotificationSettings({ notifyAutoDelete: notifyAutoDelete.checked },
+            'Auto-delete notification ' + (notifyAutoDelete.checked ? 'enabled' : 'disabled'));
     });
 
     // Test notification

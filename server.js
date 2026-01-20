@@ -2373,7 +2373,8 @@ const defaultNotificationSettings = {
   pushoverUserKey: '',
   pushoverAppToken: '',
   notifyBackupComplete: true,
-  notifyBackupError: true
+  notifyBackupError: true,
+  notifyAutoDelete: true
 };
 
 async function loadNotificationSettings() {
@@ -2465,6 +2466,7 @@ app.post('/api/notifications/settings', async (req, res) => {
     }
     if (req.body.notifyBackupComplete !== undefined) newSettings.notifyBackupComplete = req.body.notifyBackupComplete;
     if (req.body.notifyBackupError !== undefined) newSettings.notifyBackupError = req.body.notifyBackupError;
+    if (req.body.notifyAutoDelete !== undefined) newSettings.notifyAutoDelete = req.body.notifyAutoDelete;
 
     await saveNotificationSettings(newSettings);
     res.json({ success: true });
@@ -2949,6 +2951,16 @@ async function autoDeleteOldArchived() {
     cleanupEmptyArchiveCategories();
 
     console.log(`Auto-deleted ${result.rows.length} old archived patterns`);
+
+    // Send notification if enabled
+    const notificationSettings = await loadNotificationSettings();
+    if (notificationSettings.notifyAutoDelete) {
+      const patternNames = result.rows.map(p => p.name).join(', ');
+      await sendPushoverNotification(
+        'Archive Emptied',
+        `${result.rows.length} pattern${result.rows.length !== 1 ? 's' : ''} deleted: ${patternNames}`
+      );
+    }
   } catch (error) {
     console.error('Error auto-deleting old archived patterns:', error);
   }

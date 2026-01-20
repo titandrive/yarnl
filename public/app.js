@@ -3994,10 +3994,10 @@ async function createBackup() {
 
         const result = await response.json();
         await loadBackups();
-        alert(`Backup created: ${result.filename}`);
+        showToast(`Backup created: ${result.filename}`, 'success');
     } catch (error) {
         console.error('Error creating backup:', error);
-        alert('Error creating backup: ' + error.message);
+        showToast('Error creating backup: ' + error.message, 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
@@ -4029,12 +4029,12 @@ async function restoreBackup(filename) {
         if (result.clientSettings) {
             applyClientSettings(result.clientSettings);
         } else {
-            alert('Backup restored successfully!');
+            showToast('Backup restored successfully!', 'success');
             window.location.reload();
         }
     } catch (error) {
         console.error('Error restoring backup:', error);
-        alert('Error restoring backup: ' + error.message);
+        showToast('Error restoring backup: ' + error.message, 'error');
     }
 }
 
@@ -4054,9 +4054,10 @@ async function deleteBackup(filename) {
         }
 
         await loadBackups();
+        showToast('Backup deleted', 'success');
     } catch (error) {
         console.error('Error deleting backup:', error);
-        alert('Error deleting backup: ' + error.message);
+        showToast('Error deleting backup: ' + error.message, 'error');
     }
 }
 

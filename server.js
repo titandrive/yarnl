@@ -2542,7 +2542,7 @@ app.post('/api/backups', async (req, res) => {
     const output = fs.createWriteStream(backupPath);
     const archive = archiver('zip', { zlib: { level: 9 } });
 
-    output.on('close', () => {
+    output.on('close', async () => {
       const stats = fs.statSync(backupPath);
       res.json({
         success: true,
@@ -2550,6 +2550,21 @@ app.post('/api/backups', async (req, res) => {
         size: stats.size,
         created: new Date().toISOString()
       });
+
+      // Run auto-prune if enabled
+      try {
+        const scheduleResult = await pool.query(
+          "SELECT value FROM settings WHERE key = 'backup_schedule'"
+        );
+        if (scheduleResult.rows.length > 0) {
+          const settings = scheduleResult.rows[0].value;
+          if (settings.pruneEnabled) {
+            runScheduledPrune(settings);
+          }
+        }
+      } catch (pruneError) {
+        console.error('Error running auto-prune after manual backup:', pruneError);
+      }
     });
 
     archive.on('error', (err) => {

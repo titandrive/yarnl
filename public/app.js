@@ -2683,15 +2683,7 @@ function switchToSettingsSection(section, updateHistory = true) {
 // Storage section initialization
 async function loadStorageStats() {
     await loadImagesSizeForBackup();
-    loadOrphanedImagesCount();
     loadStorageSizeStats();
-
-    // Setup cleanup button if not already set up
-    const cleanupBtn = document.getElementById('cleanup-images-btn');
-    if (cleanupBtn && !cleanupBtn.hasAttribute('data-initialized')) {
-        cleanupBtn.setAttribute('data-initialized', 'true');
-        cleanupBtn.addEventListener('click', cleanupOrphanedImages);
-    }
 }
 
 // Archive section initialization
@@ -3972,8 +3964,9 @@ async function createBackup() {
     btn.innerHTML = '<span class="spinner"></span> Creating backup...';
 
     const includePatterns = document.getElementById('backup-include-patterns')?.checked ?? true;
-    const includeImages = document.getElementById('backup-include-images')?.checked ?? true;
+    const includeMarkdown = document.getElementById('backup-include-markdown')?.checked ?? true;
     const includeArchive = document.getElementById('backup-include-archive')?.checked ?? false;
+    const includeNotes = document.getElementById('backup-include-notes')?.checked ?? true;
 
     try {
         const response = await fetch(`${API_URL}/api/backups`, {
@@ -3982,8 +3975,9 @@ async function createBackup() {
             body: JSON.stringify({
                 clientSettings: getClientSettings(),
                 includePatterns,
-                includeImages,
-                includeArchive
+                includeMarkdown,
+                includeArchive,
+                includeNotes
             })
         });
 
@@ -4073,16 +4067,22 @@ function initBackups() {
         includePatterns.addEventListener('change', updateBackupEstimate);
     }
 
-    // Include images checkbox - update estimate when changed
-    const includeImages = document.getElementById('backup-include-images');
-    if (includeImages) {
-        includeImages.addEventListener('change', updateBackupEstimate);
+    // Include markdown checkbox - update estimate when changed
+    const includeMarkdown = document.getElementById('backup-include-markdown');
+    if (includeMarkdown) {
+        includeMarkdown.addEventListener('change', updateBackupEstimate);
     }
 
     // Include archive checkbox - update estimate when changed
     const includeArchive = document.getElementById('backup-include-archive');
     if (includeArchive) {
         includeArchive.addEventListener('change', updateBackupEstimate);
+    }
+
+    // Include notes checkbox - update estimate when changed
+    const includeNotes = document.getElementById('backup-include-notes');
+    if (includeNotes) {
+        includeNotes.addEventListener('change', updateBackupEstimate);
     }
 
     // Load library size for the backup option
@@ -4121,8 +4121,9 @@ function initBackups() {
                     schedule: scheduleSelect?.value ?? 'daily',
                     time: timeInput?.value ?? '03:00',
                     includePatterns: includePatterns?.checked ?? true,
-                    includeImages: includeImages?.checked ?? true,
+                    includeMarkdown: includeMarkdown?.checked ?? true,
                     includeArchive: includeArchive?.checked ?? false,
+                    includeNotes: includeNotes?.checked ?? true,
                     pruneEnabled: pruneEnabled?.checked ?? false,
                     pruneMode: pruneMode?.value ?? 'keep',
                     pruneValue: parseInt(pruneValue?.value ?? '5'),
@@ -4146,8 +4147,9 @@ function initBackups() {
             if (scheduleSelect) scheduleSelect.value = settings.schedule || 'daily';
             if (timeInput) timeInput.value = settings.time || '03:00';
             if (includePatterns) includePatterns.checked = settings.includePatterns ?? true;
-            if (includeImages) includeImages.checked = settings.includeImages ?? true;
+            if (includeMarkdown) includeMarkdown.checked = settings.includeMarkdown ?? true;
             if (includeArchive) includeArchive.checked = settings.includeArchive ?? false;
+            if (includeNotes) includeNotes.checked = settings.includeNotes ?? true;
             if (pruneEnabled) pruneEnabled.checked = settings.pruneEnabled ?? false;
             if (pruneMode) pruneMode.value = settings.pruneMode || 'keep';
             if (pruneValue) pruneValue.value = settings.pruneValue || '5';
@@ -4187,19 +4189,25 @@ function initBackups() {
 
     if (includePatterns) {
         includePatterns.addEventListener('change', () => {
-            saveScheduleSettings(true, includePatterns.checked ? 'Patterns will be included' : 'Patterns excluded from backup');
+            saveScheduleSettings(true, includePatterns.checked ? 'PDF patterns will be included' : 'PDF patterns excluded from backup');
         });
     }
 
-    if (includeImages) {
-        includeImages.addEventListener('change', () => {
-            saveScheduleSettings(true, includeImages.checked ? 'Images will be included' : 'Images excluded from backup');
+    if (includeMarkdown) {
+        includeMarkdown.addEventListener('change', () => {
+            saveScheduleSettings(true, includeMarkdown.checked ? 'Markdown patterns will be included' : 'Markdown patterns excluded from backup');
         });
     }
 
     if (includeArchive) {
         includeArchive.addEventListener('change', () => {
             saveScheduleSettings(true, includeArchive.checked ? 'Archive will be included' : 'Archive excluded from backup');
+        });
+    }
+
+    if (includeNotes) {
+        includeNotes.addEventListener('change', () => {
+            saveScheduleSettings(true, includeNotes.checked ? 'Notes will be included' : 'Notes excluded from backup');
         });
     }
 
@@ -4416,71 +4424,6 @@ function initNotificationsSection() {
     loadNotificationSettings();
 }
 
-async function loadOrphanedImagesCount() {
-    const countEl = document.getElementById('orphaned-images-count');
-    const descEl = document.getElementById('orphaned-images-desc');
-    const listEl = document.getElementById('orphaned-images-list');
-    const btn = document.getElementById('cleanup-images-btn');
-
-    if (!countEl) return;
-
-    try {
-        const response = await fetch(`${API_URL}/api/images/orphaned`);
-        const data = await response.json();
-
-        if (data.count === 0) {
-            countEl.textContent = 'No orphaned images';
-            descEl.textContent = '— all images are in use';
-            btn.style.display = 'none';
-            if (listEl) listEl.innerHTML = '';
-        } else {
-            countEl.textContent = `${data.count} orphaned image${data.count === 1 ? '' : 's'}`;
-            descEl.textContent = '— can be safely deleted';
-            btn.style.display = 'block';
-            if (listEl) {
-                listEl.innerHTML = data.files.map(f => {
-                    // Handle both object format {filename, patternName} and string format
-                    const filename = typeof f === 'string' ? f : f.filename;
-                    const patternName = typeof f === 'string' ? parsePatternFromFilename(f) : f.patternName;
-                    return `<li><code>${escapeHtml(filename)}</code> <span class="setting-hint">from "${escapeHtml(patternName)}"</span></li>`;
-                }).join('');
-            }
-        }
-    } catch (error) {
-        countEl.textContent = 'Could not check images';
-        descEl.textContent = '';
-        btn.style.display = 'none';
-        if (listEl) listEl.innerHTML = '';
-    }
-}
-
-async function cleanupOrphanedImages() {
-    const btn = document.getElementById('cleanup-images-btn');
-    const originalText = btn.textContent;
-    btn.textContent = 'Cleaning...';
-    btn.disabled = true;
-
-    try {
-        const response = await fetch(`${API_URL}/api/images/cleanup`, {
-            method: 'POST'
-        });
-        const data = await response.json();
-
-        // Refresh the count
-        await loadOrphanedImagesCount();
-
-        // Show brief success message
-        const countEl = document.getElementById('orphaned-images-count');
-        countEl.textContent = `Deleted ${data.count} image${data.count === 1 ? '' : 's'}`;
-        setTimeout(loadOrphanedImagesCount, 2000);
-    } catch (error) {
-        console.error('Error cleaning up images:', error);
-    } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
-    }
-}
-
 let cachedLibrarySize = 0;
 let cachedImagesSize = 0;
 let cachedImagesCount = 0;
@@ -4532,16 +4475,6 @@ async function loadImagesSizeForBackup() {
             const formattedSize = formatBackupSize(cachedImagesSize);
             sizeInfo.textContent = `${cachedImagesCount} image${cachedImagesCount === 1 ? '' : 's'} (${formattedSize})`;
         }
-
-        // Update storage section
-        const storageCount = document.getElementById('storage-images-count');
-        const storageSize = document.getElementById('storage-images-size');
-        if (storageCount) {
-            storageCount.textContent = `${cachedImagesCount} image${cachedImagesCount === 1 ? '' : 's'}`;
-        }
-        if (storageSize) {
-            storageSize.textContent = `— ${formatBackupSize(cachedImagesSize)} total`;
-        }
     } catch (error) {
         const sizeInfo = document.getElementById('images-size-info');
         if (sizeInfo) {
@@ -4575,7 +4508,7 @@ function updateBackupEstimate() {
     if (!estimate) return;
 
     const includePatterns = document.getElementById('backup-include-patterns');
-    const includeImages = document.getElementById('backup-include-images');
+    const includeMarkdown = document.getElementById('backup-include-markdown');
     const includeArchive = document.getElementById('backup-include-archive');
     const dbEstimate = 50000; // ~50KB for database JSON
 
@@ -4583,7 +4516,8 @@ function updateBackupEstimate() {
     if (includePatterns && includePatterns.checked) {
         totalSize += cachedLibrarySize;
     }
-    if (includeImages && includeImages.checked) {
+    // Images are included with markdown patterns
+    if (includeMarkdown && includeMarkdown.checked) {
         totalSize += cachedImagesSize;
     }
     if (includeArchive && includeArchive.checked) {

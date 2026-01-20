@@ -2193,8 +2193,9 @@ const defaultBackupSettings = {
   schedule: 'daily',
   time: '03:00',
   includePatterns: true,
-  includeImages: true,
+  includeMarkdown: true,
   includeArchive: false,
+  includeNotes: true,
   pruneEnabled: false,
   pruneMode: 'keep',
   pruneValue: 5,
@@ -2267,8 +2268,9 @@ async function createScheduledBackup() {
       version: '1.0',
       account: null,
       includePatterns: settings.includePatterns,
-      includeImages: settings.includeImages,
+      includeMarkdown: settings.includeMarkdown,
       includeArchive: settings.includeArchive,
+      includeNotes: settings.includeNotes,
       tables: {}
     };
 
@@ -2293,14 +2295,34 @@ async function createScheduledBackup() {
         archive.directory(patternsDir, 'patterns');
       }
 
-      const imagesDir = path.join(__dirname, 'patterns', 'images');
-      if (settings.includeImages && fs.existsSync(imagesDir)) {
-        archive.directory(imagesDir, 'images');
+      // Add markdown patterns and images when includeMarkdown is enabled
+      if (settings.includeMarkdown) {
+        const categories = fs.readdirSync(patternsDir).filter(f => {
+          const stat = fs.statSync(path.join(patternsDir, f));
+          return stat.isDirectory() && f !== 'thumbnails' && f !== 'images';
+        });
+        for (const category of categories) {
+          const categoryPath = path.join(patternsDir, category);
+          const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.md'));
+          for (const file of files) {
+            archive.file(path.join(categoryPath, file), { name: `patterns/${category}/${file}` });
+          }
+        }
+        // Include images directory with markdown patterns
+        const imagesDir = path.join(__dirname, 'patterns', 'images');
+        if (fs.existsSync(imagesDir)) {
+          archive.directory(imagesDir, 'images');
+        }
       }
 
       const archiveDir = path.join(__dirname, 'archive');
       if (settings.includeArchive && fs.existsSync(archiveDir)) {
         archive.directory(archiveDir, 'archive');
+      }
+
+      // Add notes directory when includeNotes is enabled
+      if (settings.includeNotes && fs.existsSync(notesDir)) {
+        archive.directory(notesDir, 'notes');
       }
 
       archive.finalize();
@@ -2552,7 +2574,13 @@ app.get('/api/backups', (req, res) => {
 // Create a new backup
 app.post('/api/backups', async (req, res) => {
   try {
-    const { clientSettings, includePatterns = true, includeImages = true, includeArchive = false } = req.body;
+    const {
+      clientSettings,
+      includePatterns = true,
+      includeMarkdown = true,
+      includeArchive = false,
+      includeNotes = true
+    } = req.body;
     const timestamp = getLocalTimestamp();
     const backupFilename = `yarnl-backup-${timestamp}.zip`;
     const backupPath = path.join(backupsDir, backupFilename);
@@ -2563,8 +2591,9 @@ app.post('/api/backups', async (req, res) => {
       version: '1.0',
       account: null, // For future user accounts
       includePatterns,
-      includeImages,
+      includeMarkdown,
       includeArchive,
+      includeNotes,
       tables: {}
     };
 
@@ -2618,14 +2647,45 @@ app.post('/api/backups', async (req, res) => {
       archive.append(JSON.stringify(clientSettings, null, 2), { name: 'settings.json' });
     }
 
-    // Add patterns directory (including thumbnails) only if requested
+    // Add PDF patterns (and thumbnails) only if requested
     if (includePatterns) {
-      archive.directory(patternsDir, 'patterns');
+      // Add each category directory but only PDF files and thumbnails
+      const categories = fs.readdirSync(patternsDir).filter(f => {
+        const fullPath = path.join(patternsDir, f);
+        return fs.statSync(fullPath).isDirectory() && f !== 'images' && f !== 'thumbnails';
+      });
+      for (const category of categories) {
+        const categoryPath = path.join(patternsDir, category);
+        const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.pdf'));
+        for (const file of files) {
+          archive.file(path.join(categoryPath, file), { name: `patterns/${category}/${file}` });
+        }
+      }
+      // Add thumbnails
+      const thumbsDir = path.join(patternsDir, 'thumbnails');
+      if (fs.existsSync(thumbsDir)) {
+        archive.directory(thumbsDir, 'patterns/thumbnails');
+      }
     }
 
-    // Add images directory only if requested
+    // Add markdown patterns only if requested
+    if (includeMarkdown) {
+      const categories = fs.readdirSync(patternsDir).filter(f => {
+        const fullPath = path.join(patternsDir, f);
+        return fs.statSync(fullPath).isDirectory() && f !== 'images' && f !== 'thumbnails';
+      });
+      for (const category of categories) {
+        const categoryPath = path.join(patternsDir, category);
+        const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.md'));
+        for (const file of files) {
+          archive.file(path.join(categoryPath, file), { name: `patterns/${category}/${file}` });
+        }
+      }
+    }
+
+    // Add images directory when markdown patterns are included
     const imagesDir = path.join(__dirname, 'patterns', 'images');
-    if (includeImages && fs.existsSync(imagesDir)) {
+    if (includeMarkdown && fs.existsSync(imagesDir)) {
       archive.directory(imagesDir, 'images');
     }
 
@@ -2633,6 +2693,11 @@ app.post('/api/backups', async (req, res) => {
     const archiveDir = path.join(__dirname, 'archive');
     if (includeArchive && fs.existsSync(archiveDir)) {
       archive.directory(archiveDir, 'archive');
+    }
+
+    // Add notes directory only if requested
+    if (includeNotes && fs.existsSync(notesDir)) {
+      archive.directory(notesDir, 'notes');
     }
 
     await archive.finalize();

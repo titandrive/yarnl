@@ -5399,30 +5399,6 @@ input[type="number"].settings-input {
     border-left-color: var(--danger-color);
 }
 
-/* Orphaned images list */
-.orphaned-images-list {
-    margin: 12px 0 0 0;
-    padding: 0;
-    list-style: none;
-    font-size: 0.85rem;
-}
-
-.orphaned-images-list li {
-    padding: 6px 0;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.orphaned-images-list li:last-child {
-    border-bottom: none;
-}
-
-.orphaned-images-list code {
-    background: var(--hover-bg);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-size: 0.85em;
-}
-
 /* Archived patterns list */
 .archived-patterns-list {
     display: flex;

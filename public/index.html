@@ -853,8 +853,8 @@ Inc in each st around (12)
                         <h4 class="settings-subheading">Backup Options</h4>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Include Pattern Library</label>
-                                <p class="setting-description" id="library-size-info">Loading library size...</p>
+                                <label>Include PDF Patterns</label>
+                                <p class="setting-description" id="pdf-size-info">Loading size...</p>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="backup-include-patterns" checked>
@@ -863,11 +863,11 @@ Inc in each st around (12)
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Include Images</label>
-                                <p class="setting-description" id="images-size-info">Loading images size...</p>
+                                <label>Include Markdown Patterns</label>
+                                <p class="setting-description" id="markdown-size-info">Loading size...</p>
                             </div>
                             <label class="toggle-switch">
-                                <input type="checkbox" id="backup-include-images" checked>
+                                <input type="checkbox" id="backup-include-markdown" checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -878,6 +878,16 @@ Inc in each st around (12)
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="backup-include-archive">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Include Notes</label>
+                                <p class="setting-description" id="notes-size-info">Loading notes size...</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="backup-include-notes" checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -981,23 +991,6 @@ Inc in each st around (12)
                             <!-- Storage stats will be populated here -->
                         </div>
 
-                        <h4 class="settings-subheading">Images</h4>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label><span id="storage-images-count">Loading...</span> <span class="setting-hint" id="storage-images-size"></span></label>
-                            </div>
-                        </div>
-
-                        <h4 class="settings-subheading">Orphaned Images</h4>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label><span id="orphaned-images-count">Checking...</span> <span class="setting-hint" id="orphaned-images-desc"></span></label>
-                            </div>
-                            <button id="cleanup-images-btn" class="btn btn-secondary" style="display: none;">
-                                Clean Up
-                            </button>
-                        </div>
-                        <ul class="orphaned-images-list" id="orphaned-images-list"></ul>
                     </section>
 
                     <!-- Archive Section -->

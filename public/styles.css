@@ -292,17 +292,17 @@
 
 /* Theme: Razer (Green) - Light */
 [data-theme="razer-light"] {
-    --primary-color: #008800;
-    --secondary-color: #15803d;
+    --primary-color: #00ff00;
+    --secondary-color: #22c55e;
     --danger-color: #ef4444;
-    --success-color: #008800;
-    --warning-color: #ca8a04;
+    --success-color: #00ff00;
+    --warning-color: #eab308;
     --bg-color: #f0fdf4;
     --card-bg: #ffffff;
     --text-color: #14532d;
     --text-muted: #166534;
     --border-color: #bbf7d0;
-    --shadow: 0 4px 6px -1px rgba(0, 136, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow: 0 4px 6px -1px rgba(0, 255, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --tab-bg: #dcfce7;
     --input-bg: #ffffff;
     --hover-bg: #dcfce7;

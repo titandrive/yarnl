@@ -537,6 +537,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initNavigation();
     initGlobalDragDrop();
     initServerEvents();
+    initHorizontalScroll();
     await loadPatterns();
     loadCurrentPatterns();
     loadCategories();
@@ -545,6 +546,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Handle initial URL hash or restore pattern viewer
     await handleInitialNavigation();
 });
+
+// Enable horizontal scrolling with mouse wheel for hashtag selectors
+function initHorizontalScroll() {
+    document.addEventListener('wheel', (e) => {
+        const selector = e.target.closest('.hashtag-selector');
+        if (selector && !e.ctrlKey && !e.shiftKey) {
+            // Only handle if there's horizontal overflow
+            if (selector.scrollWidth > selector.clientWidth) {
+                e.preventDefault();
+                selector.scrollLeft += e.deltaY;
+            }
+        }
+    }, { passive: false });
+}
 
 // Server-sent events for real-time notifications
 function initServerEvents() {
@@ -6730,8 +6745,8 @@ async function openPdfEditModal() {
 
     // Populate hashtags selector
     const hashtagsContainer = document.getElementById('pdf-edit-hashtags-container');
-    const patternHashtags = currentPattern.hashtags || [];
-    hashtagsContainer.innerHTML = createHashtagSelector('pdf-edit-hashtags', patternHashtags);
+    const patternHashtagIds = (currentPattern.hashtags || []).map(h => h.id);
+    hashtagsContainer.innerHTML = createHashtagSelector('pdf-edit-hashtags', patternHashtagIds);
 
     // Set existing thumbnail in selector
     if (currentPattern.thumbnail) {
@@ -8048,8 +8063,8 @@ async function openMarkdownEditModal() {
 
     // Populate hashtags selector
     const hashtagsContainer = document.getElementById('markdown-edit-hashtags-container');
-    const patternHashtags = currentPattern.hashtags || [];
-    hashtagsContainer.innerHTML = createHashtagSelector('markdown-edit-hashtags', patternHashtags);
+    const patternHashtagIds = (currentPattern.hashtags || []).map(h => h.id);
+    hashtagsContainer.innerHTML = createHashtagSelector('markdown-edit-hashtags', patternHashtagIds);
 
     // Set existing thumbnail in selector
     if (currentPattern.thumbnail) {

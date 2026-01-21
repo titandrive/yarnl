@@ -6846,6 +6846,14 @@ async function openPatternInfoModal() {
             rows.splice(2, 0, { label: 'Description', value: escapeHtml(info.description) });
         }
 
+        // Add hashtags if available
+        if (currentPattern.hashtags && currentPattern.hashtags.length > 0) {
+            const hashtagsHtml = currentPattern.hashtags.map(h =>
+                `<span class="info-hashtag">#${escapeHtml(h.name)}</span>`
+            ).join(' ');
+            rows.push({ label: 'Hashtags', value: hashtagsHtml });
+        }
+
         // Add PDF metadata if available
         if (info.pdf_metadata) {
             const meta = info.pdf_metadata;

@@ -292,17 +292,17 @@
 
 /* Theme: Razer (Green) - Light */
 [data-theme="razer-light"] {
-    --primary-color: #16a34a;
+    --primary-color: #008800;
     --secondary-color: #15803d;
     --danger-color: #ef4444;
-    --success-color: #16a34a;
+    --success-color: #008800;
     --warning-color: #ca8a04;
     --bg-color: #f0fdf4;
     --card-bg: #ffffff;
     --text-color: #14532d;
     --text-muted: #166534;
     --border-color: #bbf7d0;
-    --shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow: 0 4px 6px -1px rgba(0, 136, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --tab-bg: #dcfce7;
     --input-bg: #ffffff;
     --hover-bg: #dcfce7;
@@ -412,17 +412,17 @@
 
 /* Theme: Dracula - Light */
 [data-theme="dracula-light"] {
-    --primary-color: #7c3aed;
-    --secondary-color: #db2777;
-    --danger-color: #ef4444;
-    --success-color: #10b981;
-    --warning-color: #eab308;
+    --primary-color: #bd93f9;
+    --secondary-color: #ff79c6;
+    --danger-color: #ff5555;
+    --success-color: #50fa7b;
+    --warning-color: #f1fa8c;
     --bg-color: #f8f8f2;
     --card-bg: #ffffff;
     --text-color: #282a36;
     --text-muted: #6272a4;
     --border-color: #e2e8f0;
-    --shadow: 0 4px 6px -1px rgba(124, 58, 237, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --shadow: 0 4px 6px -1px rgba(189, 147, 249, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
     --tab-bg: #f1f5f9;
     --input-bg: #ffffff;
     --hover-bg: #f1f5f9;
@@ -2016,6 +2016,16 @@ body.global-drag-over #current::after {
     padding: 2px 6px;
     border-radius: 4px;
     font-size: 0.85rem;
+}
+
+.info-hashtag {
+    display: inline-block;
+    background: var(--primary-color);
+    color: white;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    margin: 2px 4px 2px 0;
 }
 
 .help-text {

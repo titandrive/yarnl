@@ -3026,6 +3026,10 @@ body.global-drag-over #current::after {
     font-size: 0.9rem;
 }
 
+[data-theme*="-light"] .settings-search-wrapper input {
+    border-color: var(--primary-color);
+}
+
 .settings-search-wrapper input::placeholder {
     color: var(--text-muted);
 }
@@ -3421,6 +3425,10 @@ body.global-drag-over #current::after {
     min-width: 100px;
 }
 
+[data-theme*="-light"] .settings-select {
+    border-color: var(--primary-color);
+}
+
 .settings-select:focus {
     outline: none;
     border-color: var(--primary-color);
@@ -3653,6 +3661,10 @@ input[type="number"].settings-input {
     transition: 0.3s;
 }
 
+[data-theme*="-light"] .toggle-slider {
+    border-color: var(--primary-color);
+}
+
 .toggle-slider::before {
     content: "";
     position: absolute;
@@ -3712,6 +3724,10 @@ input[type="number"].settings-input {
     border-radius: 8px;
     padding: 4px;
     border: 1px solid var(--border-color);
+}
+
+[data-theme*="-light"] .day-night-toggle {
+    border-color: var(--primary-color);
 }
 
 .day-night-toggle .mode-btn {

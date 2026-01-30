@@ -668,6 +668,7 @@
     --hover-bg: #dcfce7;
     --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #dcfce7 100%);
     --upload-bg: #dcfce7;
+    --header-text-color: #14532d;
 }
 
 /* Theme: Nuked (Fallout CRT) - Dark */
@@ -688,6 +689,7 @@
     --hover-bg: #1a3d24;
     --counter-card-bg: linear-gradient(135deg, #0d2212 0%, #122a18 100%);
     --upload-bg: #122a18;
+    --header-text-color: #0a1a0f;
 }
 
 /* CRT Scanline overlay for Nuked dark theme */
@@ -792,7 +794,7 @@ body.screenshot-mode-green .container {
 
 header {
     background: var(--primary-color);
-    color: white;
+    color: var(--header-text-color, white);
     padding: 30px 40px;
     display: flex;
     align-items: center;
@@ -889,13 +891,16 @@ html[data-theme="nuked-dark"] .btn-primary {
     z-index: 100;
 }
 
-html[data-theme="nuked-light"] header {
+[data-theme="nuked-light"] header,
+[data-theme="nuked-light"] header *,
+[data-theme="nuked-light"] .header-title,
+[data-theme="nuked-light"] .header-title h1,
+[data-theme="nuked-light"] .header-title .subtitle,
+[data-theme="nuked-light"] header h1,
+[data-theme="nuked-light"] header p,
+[data-theme="nuked-light"] .subtitle {
     color: #14532d !important;
-}
-
-html[data-theme="nuked-light"] header h1,
-html[data-theme="nuked-light"] header .subtitle {
-    color: #14532d !important;
+    -webkit-text-fill-color: #14532d !important;
 }
 
 .header-theme-toggle {
@@ -5815,4 +5820,15 @@ input[type="number"].settings-input {
 /* Delete button (direct delete mode) - hide archive icon */
 .action-btn.delete .archive-icon {
     display: none;
+}
+
+/* Nuked light theme header text color fix */
+[data-theme="nuked-light"] header {
+    color: #14532d !important;
+}
+[data-theme="nuked-light"] header h1 {
+    color: #14532d !important;
+}
+[data-theme="nuked-light"] header .subtitle {
+    color: #14532d !important;
 }

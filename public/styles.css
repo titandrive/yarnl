@@ -650,6 +650,104 @@
     --upload-bg: #1c1917;
 }
 
+/* Theme: Nuked (Fallout CRT) - Light */
+[data-theme="nuked-light"] {
+    --primary-color: #16a34a;
+    --secondary-color: #15803d;
+    --danger-color: #ef4444;
+    --success-color: #16a34a;
+    --warning-color: #eab308;
+    --bg-color: #f0fdf4;
+    --card-bg: #ffffff;
+    --text-color: #14532d;
+    --text-muted: #166534;
+    --border-color: #dcfce7;
+    --shadow: 0 4px 6px -1px rgba(22, 163, 74, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    --tab-bg: #dcfce7;
+    --input-bg: #ffffff;
+    --hover-bg: #dcfce7;
+    --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #dcfce7 100%);
+    --upload-bg: #dcfce7;
+}
+
+/* Theme: Nuked (Fallout CRT) - Dark */
+[data-theme="nuked-dark"] {
+    --primary-color: #1aff80;
+    --secondary-color: #14cc66;
+    --danger-color: #ff6b6b;
+    --success-color: #1aff80;
+    --warning-color: #eab308;
+    --bg-color: #0a1a0f;
+    --card-bg: #0d2212;
+    --text-color: #1aff80;
+    --text-muted: #10b860;
+    --border-color: #0d4020;
+    --shadow: 0 4px 6px -1px rgba(26, 255, 128, 0.15), 0 2px 4px -1px rgba(0, 0, 0, 0.4);
+    --tab-bg: #122a18;
+    --input-bg: #122a18;
+    --hover-bg: #1a3d24;
+    --counter-card-bg: linear-gradient(135deg, #0d2212 0%, #122a18 100%);
+    --upload-bg: #122a18;
+}
+
+/* CRT Scanline overlay for Nuked dark theme */
+[data-theme="nuked-dark"] body::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 99;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.05) 0px,
+        rgba(0, 0, 0, 0.05) 1px,
+        transparent 1px,
+        transparent 2px
+    );
+}
+
+/* CRT Vignette effect for Nuked dark theme */
+[data-theme="nuked-dark"] body::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 98;
+    background: radial-gradient(
+        ellipse at center,
+        transparent 0%,
+        transparent 50%,
+        rgba(0, 0, 0, 0.3) 100%
+    );
+}
+
+/* Nuked theme button styling */
+[data-theme="nuked-dark"] .btn-secondary {
+    background: #0d4020;
+    color: #1aff80;
+    border: 1px solid #1aff80;
+}
+
+[data-theme="nuked-dark"] .btn-secondary:hover {
+    background: #1a5c30;
+}
+
+html[data-theme="nuked-light"] .btn-secondary {
+    background: #16a34a !important;
+    color: #fff !important;
+    border: 2px solid #14532d !important;
+}
+
+html[data-theme="nuked-light"] .btn-secondary:hover {
+    background: #15803d !important;
+}
+
 body {
     font-family: var(--font-family);
     background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-color) 100%);
@@ -753,6 +851,42 @@ header {
 
 .header-btn:hover {
     background: rgba(255, 255, 255, 0.25);
+}
+
+html[data-theme="nuked-light"] .header-btn {
+    background: #16a34a !important;
+    color: #fff !important;
+    border: 2px solid #14532d !important;
+}
+
+html[data-theme="nuked-light"] .header-btn:hover {
+    background: #15803d !important;
+}
+
+html[data-theme="nuked-dark"] .header-btn {
+    background: #0d4020 !important;
+    color: #1aff80 !important;
+    border: 1px solid #1aff80 !important;
+    position: relative;
+    z-index: 100;
+}
+
+html[data-theme="nuked-dark"] .header-btn:hover {
+    background: #1a5c30 !important;
+}
+
+html[data-theme="nuked-light"] .btn,
+html[data-theme="nuked-light"] .btn-secondary,
+html[data-theme="nuked-light"] .btn-primary {
+    position: relative;
+    z-index: 100;
+}
+
+html[data-theme="nuked-dark"] .btn,
+html[data-theme="nuked-dark"] .btn-secondary,
+html[data-theme="nuked-dark"] .btn-primary {
+    position: relative;
+    z-index: 100;
 }
 
 .header-theme-toggle {

@@ -889,6 +889,11 @@ html[data-theme="nuked-dark"] .btn-primary {
     z-index: 100;
 }
 
+html[data-theme="nuked-light"] .header-title h1,
+html[data-theme="nuked-light"] .subtitle {
+    color: #14532d !important;
+}
+
 .header-theme-toggle {
     padding: 8px;
 }

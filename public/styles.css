@@ -5832,3 +5832,417 @@ input[type="number"].settings-input {
 [data-theme="nuked-light"] header .subtitle {
     color: #14532d !important;
 }
+
+/* ============================================
+   Login Page Styles
+   ============================================ */
+
+.login-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-color);
+    z-index: 10000;
+}
+
+.login-card {
+    background: var(--card-bg);
+    border-radius: 16px;
+    padding: 2.5rem;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+    border: 1px solid var(--border-color);
+}
+
+.login-header {
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+.login-mascot {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 1rem;
+    border-radius: 12px;
+}
+
+.login-header h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 2rem;
+    color: var(--text-color);
+}
+
+.login-subtitle {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.login-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.login-form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.login-form-group label {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: var(--text-muted);
+}
+
+.login-form-group input {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.login-form-group input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.login-form-group input::placeholder {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.login-btn {
+    margin-top: 0.5rem;
+    padding: 0.875rem;
+    font-size: 1rem;
+    font-weight: 600;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+
+.login-btn:hover {
+    background: var(--primary-hover);
+}
+
+.login-btn:active {
+    transform: scale(0.98);
+}
+
+.login-error {
+    color: var(--error-color, #ef4444);
+    text-align: center;
+    font-size: 0.9rem;
+    min-height: 1.5em;
+}
+
+.oidc-section {
+    margin-top: 1.5rem;
+}
+
+.login-divider {
+    display: flex;
+    align-items: center;
+    margin: 1rem 0;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.login-divider::before,
+.login-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.login-divider span {
+    padding: 0 1rem;
+}
+
+.oidc-btn {
+    width: 100%;
+    padding: 0.75rem;
+    background: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.oidc-btn:hover {
+    background: var(--hover-bg);
+    border-color: var(--primary-color);
+}
+
+/* ============================================
+   User Management Styles
+   ============================================ */
+
+.users-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.user-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    gap: 1rem;
+}
+
+.user-info {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.user-name {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.user-username {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.user-badge {
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.role-badge.admin {
+    background: var(--primary-color);
+    color: white;
+}
+
+.role-badge.user {
+    background: var(--hover-bg);
+    color: var(--text-muted);
+}
+
+.oidc-badge {
+    background: var(--card-bg);
+    color: var(--text-color);
+    border: 1px solid var(--border-color);
+}
+
+.password-badge {
+    background: var(--success-color);
+    color: white;
+}
+
+.no-password-badge {
+    background: var(--hover-bg);
+    color: var(--text-muted);
+    border: 1px dashed var(--border-color);
+}
+
+.required-badge {
+    background: var(--warning-color);
+    color: white;
+}
+
+.user-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.user-permission {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.user-permission input {
+    cursor: pointer;
+}
+
+.user-role-select {
+    padding: 0.4rem 0.6rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.user-current-badge {
+    padding: 0.3rem 0.75rem;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.btn-small {
+    padding: 0.4rem 0.75rem;
+    font-size: 0.85rem;
+}
+
+.add-user-form {
+    padding: 1rem;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
+.add-user-form .setting-item {
+    margin-bottom: 1rem;
+}
+
+.add-user-form .btn {
+    margin-top: 0.5rem;
+}
+
+.settings-input {
+    padding: 0.6rem 0.8rem;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--card-bg);
+    color: var(--text-color);
+    font-size: 0.9rem;
+    width: 200px;
+}
+
+.settings-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.settings-input-wide {
+    width: 300px;
+}
+
+.copy-input-group,
+.discover-input-group {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.copy-input-group input,
+.discover-input-group input {
+    flex: 1;
+}
+
+.discovery-status {
+    padding: 0.75rem;
+    margin: 0.5rem 0 1rem 0;
+    border-radius: var(--border-radius);
+    font-size: 0.9rem;
+}
+
+.discovery-status.success {
+    background: var(--success-color);
+    color: white;
+}
+
+.discovery-status.error {
+    background: var(--danger-color);
+    color: white;
+}
+
+.discovery-status.loading {
+    background: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.discovered-endpoints {
+    margin: 0.5rem 0 1rem 0;
+}
+
+.discovered-endpoints details {
+    background: var(--hover-bg);
+    border-radius: var(--border-radius);
+    padding: 0.5rem;
+}
+
+.discovered-endpoints summary {
+    cursor: pointer;
+    font-weight: 500;
+    padding: 0.5rem;
+    color: var(--text-color);
+}
+
+.discovered-endpoints summary:hover {
+    color: var(--primary-color);
+}
+
+.endpoints-list {
+    padding: 0.5rem;
+}
+
+.endpoint-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-bottom: 0.75rem;
+}
+
+.endpoint-item:last-child {
+    margin-bottom: 0;
+}
+
+.endpoint-item label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.endpoint-item code {
+    font-size: 0.85rem;
+    background: var(--card-bg);
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    word-break: break-all;
+    color: var(--text-color);
+}
+
+@media (max-width: 600px) {
+    .settings-input-wide {
+        width: 100%;
+    }
+
+    .copy-input-group,
+    .discover-input-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

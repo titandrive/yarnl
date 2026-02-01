@@ -1,6 +1,714 @@
 // API base URL
 const API_URL = '';
 
+// Auth state
+let currentUser = null;
+let authMode = 'single-user';
+
+// Auth functions
+async function checkAuth() {
+    try {
+        // Check auth mode first
+        const modeResponse = await fetch(`${API_URL}/api/auth/mode`);
+        const modeData = await modeResponse.json();
+        authMode = modeData.mode;
+
+        if (authMode === 'single-user') {
+            // No login needed, auto-authenticated as admin
+            const userResponse = await fetch(`${API_URL}/api/auth/me`);
+            if (userResponse.ok) {
+                currentUser = await userResponse.json();
+            }
+            return true;
+        }
+
+        // Multi-user mode: check if we have a valid session
+        const userResponse = await fetch(`${API_URL}/api/auth/me`);
+        if (userResponse.ok) {
+            currentUser = await userResponse.json();
+            return true;
+        }
+
+        // No valid session
+        return false;
+    } catch (error) {
+        console.error('Auth check failed:', error);
+        return false;
+    }
+}
+
+function showLogin() {
+    document.getElementById('login-container').style.display = 'flex';
+    document.querySelector('.container').style.display = 'none';
+    // Set mascot in login - ensure proper path
+    const savedMascot = localStorage.getItem('selectedMascot') || '/mascots/default.png';
+    const loginMascot = document.getElementById('login-mascot');
+    if (loginMascot) {
+        // Ensure path starts with /
+        loginMascot.src = savedMascot.startsWith('/') ? savedMascot : '/' + savedMascot;
+    }
+    // Check if OIDC is enabled
+    checkOIDCEnabled();
+    // Focus username field
+    setTimeout(() => document.getElementById('login-username').focus(), 100);
+}
+
+function showApp() {
+    document.getElementById('login-container').style.display = 'none';
+    document.querySelector('.container').style.display = 'block';
+    updateUIForUser();
+}
+
+function updateUIForUser() {
+    // Hide "New Pattern" button if user can't add patterns
+    const addPatternBtn = document.getElementById('add-pattern-btn');
+    if (addPatternBtn && currentUser) {
+        if (currentUser.role !== 'admin' && !currentUser.canAddPatterns) {
+            addPatternBtn.style.display = 'none';
+        } else {
+            addPatternBtn.style.display = '';
+        }
+    }
+
+    // Show admin nav button if admin
+    const usersNavBtn = document.getElementById('admin-nav-btn');
+    if (usersNavBtn) {
+        usersNavBtn.style.display = currentUser?.role === 'admin' ? '' : 'none';
+    }
+
+    // Update current user info
+    const userInfo = document.getElementById('current-user-info');
+    if (userInfo && currentUser) {
+        userInfo.textContent = `${currentUser.displayName || currentUser.username} (${currentUser.role})`;
+    }
+}
+
+async function handleLogin(e) {
+    e.preventDefault();
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    const errorDiv = document.getElementById('login-error');
+
+    errorDiv.textContent = '';
+
+    try {
+        const response = await fetch(`${API_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password: password || undefined })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            currentUser = data.user;
+            showApp();
+            // Load data after login
+            await loadPatterns();
+            loadCurrentPatterns();
+            loadCategories();
+            loadHashtags();
+            await handleInitialNavigation();
+        } else {
+            const error = await response.json();
+            errorDiv.textContent = error.error || 'Login failed';
+        }
+    } catch (error) {
+        console.error('Login error:', error);
+        errorDiv.textContent = 'Login failed. Please try again.';
+    }
+}
+
+async function handleLogout() {
+    try {
+        await fetch(`${API_URL}/api/auth/logout`, { method: 'POST' });
+    } catch (error) {
+        console.error('Logout error:', error);
+    }
+    currentUser = null;
+    showLogin();
+}
+
+function initAuth() {
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+    }
+
+    const oidcLoginBtn = document.getElementById('oidc-login-btn');
+    if (oidcLoginBtn) {
+        oidcLoginBtn.addEventListener('click', () => {
+            window.location.href = `${API_URL}/api/auth/oidc/login`;
+        });
+    }
+}
+
+// User management functions
+let allUsers = [];
+
+async function loadUsers() {
+    if (!currentUser || currentUser.role !== 'admin') return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/users`);
+        if (response.ok) {
+            allUsers = await response.json();
+            displayUsers();
+        }
+    } catch (error) {
+        console.error('Failed to load users:', error);
+    }
+}
+
+function displayUsers() {
+    const container = document.getElementById('users-list');
+    if (!container) return;
+
+    if (allUsers.length === 0) {
+        container.innerHTML = '<p class="empty-state">No users found</p>';
+        return;
+    }
+
+    container.innerHTML = allUsers.map(user => `
+        <div class="user-item" data-user-id="${user.id}">
+            <div class="user-info">
+                <span class="user-name">${user.display_name || user.username}</span>
+                <span class="user-username">@${user.username}</span>
+                ${user.oidc_provider ? `<span class="user-badge oidc-badge">${user.oidc_provider}</span>` : ''}
+                <span class="user-badge role-badge ${user.role}">${user.role}</span>
+                ${user.has_password ? '<span class="user-badge password-badge">password</span>' : '<span class="user-badge no-password-badge">no password</span>'}
+                ${user.password_required ? '<span class="user-badge required-badge">required</span>' : ''}
+            </div>
+            <div class="user-actions">
+                ${user.id !== currentUser.id ? `
+                    <label class="user-permission" title="Can add patterns">
+                        <input type="checkbox" ${user.can_add_patterns ? 'checked' : ''} onchange="toggleUserPermission(${user.id}, 'canAddPatterns', this.checked)">
+                        <span>Add patterns</span>
+                    </label>
+                    <label class="user-permission" title="Require password for login">
+                        <input type="checkbox" ${user.password_required ? 'checked' : ''} onchange="togglePasswordRequired(${user.id}, this.checked)">
+                        <span>Require PW</span>
+                    </label>
+                    <select class="user-role-select" onchange="updateUserRole(${user.id}, this.value)">
+                        <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
+                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
+                    </select>
+                    ${user.has_password && !user.password_required ? `<button class="btn btn-secondary btn-small" onclick="removeUserPassword(${user.id})" title="Allow passwordless login">Remove PW</button>` : ''}
+                    <button class="btn btn-secondary btn-small" onclick="deleteUser(${user.id})">Delete</button>
+                ` : '<span class="user-current-badge">You</span>'}
+            </div>
+        </div>
+    `).join('');
+}
+
+async function toggleUserPermission(userId, permission, value) {
+    try {
+        const body = {};
+        if (permission === 'canAddPatterns') {
+            body.canAddPatterns = value;
+        }
+
+        const response = await fetch(`${API_URL}/api/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (response.ok) {
+            showToast('User updated');
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to update user', 'error');
+            loadUsers(); // Reload to reset UI
+        }
+    } catch (error) {
+        console.error('Failed to update user:', error);
+        showToast('Failed to update user', 'error');
+        loadUsers();
+    }
+}
+
+async function updateUserRole(userId, role) {
+    try {
+        const response = await fetch(`${API_URL}/api/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role })
+        });
+
+        if (response.ok) {
+            showToast('User role updated');
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to update role', 'error');
+            loadUsers();
+        }
+    } catch (error) {
+        console.error('Failed to update role:', error);
+        showToast('Failed to update role', 'error');
+        loadUsers();
+    }
+}
+
+async function deleteUser(userId) {
+    if (!confirm('Are you sure you want to delete this user? Their patterns will remain but become unowned.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/users/${userId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showToast('User deleted');
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to delete user', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to delete user:', error);
+        showToast('Failed to delete user', 'error');
+    }
+}
+
+async function removeUserPassword(userId) {
+    const adminPassword = prompt('Enter your admin password to confirm:');
+    if (!adminPassword) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/users/${userId}/remove-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ adminPassword })
+        });
+
+        if (response.ok) {
+            showToast('Password removed - user can now login without password');
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to remove password', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to remove password:', error);
+        showToast('Failed to remove password', 'error');
+    }
+}
+
+async function togglePasswordRequired(userId, required) {
+    try {
+        const response = await fetch(`${API_URL}/api/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ passwordRequired: required })
+        });
+
+        if (response.ok) {
+            showToast(required ? 'Password now required for this user' : 'Password no longer required');
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to update setting', 'error');
+            loadUsers();
+        }
+    } catch (error) {
+        console.error('Failed to update password requirement:', error);
+        showToast('Failed to update setting', 'error');
+        loadUsers();
+    }
+}
+
+async function addNewUser() {
+    const username = document.getElementById('new-user-username').value.trim();
+    const password = document.getElementById('new-user-password').value;
+    const role = document.getElementById('new-user-role').value;
+    const canAddPatterns = document.getElementById('new-user-can-add').checked;
+
+    if (!username) {
+        showToast('Username is required', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/users`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                username,
+                password: password || undefined,
+                role,
+                canAddPatterns
+            })
+        });
+
+        if (response.ok) {
+            showToast('User created');
+            document.getElementById('new-user-username').value = '';
+            document.getElementById('new-user-password').value = '';
+            document.getElementById('new-user-role').value = 'user';
+            document.getElementById('new-user-can-add').checked = true;
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to create user', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to create user:', error);
+        showToast('Failed to create user', 'error');
+    }
+}
+
+function initUserManagement() {
+    const addUserBtn = document.getElementById('add-user-btn');
+    if (addUserBtn) {
+        addUserBtn.addEventListener('click', addNewUser);
+    }
+
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
+
+    // Update current user info
+    const userInfo = document.getElementById('current-user-info');
+    if (userInfo && currentUser) {
+        userInfo.textContent = `${currentUser.displayName || currentUser.username} (${currentUser.role})`;
+    }
+
+    // Show admin nav button if admin
+    const usersNavBtn = document.getElementById('admin-nav-btn');
+    if (usersNavBtn && currentUser?.role === 'admin') {
+        usersNavBtn.style.display = '';
+        loadUsers();
+        initOIDCSettings();
+    }
+
+    // Setup password management
+    const removePasswordBtn = document.getElementById('remove-password-btn');
+    if (removePasswordBtn) {
+        removePasswordBtn.addEventListener('click', handleRemoveOwnPassword);
+    }
+
+    // Setup SSO linking
+    const linkSsoBtn = document.getElementById('link-sso-btn');
+    if (linkSsoBtn) {
+        linkSsoBtn.addEventListener('click', () => {
+            // Redirect to OIDC link endpoint
+            window.location.href = `${API_URL}/api/auth/oidc/link`;
+        });
+    }
+
+    const unlinkSsoBtn = document.getElementById('unlink-sso-btn');
+    if (unlinkSsoBtn) {
+        unlinkSsoBtn.addEventListener('click', handleUnlinkSso);
+    }
+
+    loadAccountInfo();
+}
+
+// Account password management
+async function loadAccountInfo() {
+    try {
+        const response = await fetch(`${API_URL}/api/auth/account`);
+        if (!response.ok) return;
+
+        const account = await response.json();
+        const passwordItem = document.getElementById('password-setting-item');
+        const passwordStatus = document.getElementById('password-status');
+        const removeBtn = document.getElementById('remove-password-btn');
+
+        if (passwordItem) {
+            passwordItem.style.display = '';
+
+            if (account.has_password) {
+                passwordStatus.textContent = account.password_required
+                    ? 'Set (required by admin)'
+                    : 'Set';
+                // Only show remove button if has password and not required
+                removeBtn.style.display = account.password_required ? 'none' : '';
+            } else {
+                passwordStatus.textContent = account.password_required
+                    ? 'Not set (required by admin - contact admin)'
+                    : 'Not set (passwordless login)';
+                removeBtn.style.display = 'none';
+            }
+        }
+
+        // Handle SSO linking section
+        const ssoItem = document.getElementById('sso-link-setting-item');
+        const ssoStatus = document.getElementById('sso-link-status');
+        const linkBtn = document.getElementById('link-sso-btn');
+        const unlinkBtn = document.getElementById('unlink-sso-btn');
+
+        // Check if OIDC is enabled
+        const oidcResponse = await fetch(`${API_URL}/api/auth/oidc/enabled`);
+        const oidcData = await oidcResponse.json();
+
+        if (ssoItem && oidcData.enabled) {
+            ssoItem.style.display = '';
+
+            if (account.oidc_provider) {
+                ssoStatus.textContent = `Linked to ${account.oidc_provider}`;
+                linkBtn.style.display = 'none';
+                unlinkBtn.style.display = '';
+            } else {
+                ssoStatus.textContent = 'Not linked';
+                linkBtn.textContent = `Link ${oidcData.providerName || 'SSO'} Account`;
+                linkBtn.style.display = '';
+                unlinkBtn.style.display = 'none';
+            }
+        } else if (ssoItem) {
+            ssoItem.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Failed to load account info:', error);
+    }
+}
+
+async function handleRemoveOwnPassword() {
+    const currentPassword = prompt('Enter your current password to confirm removal:');
+    if (!currentPassword) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/auth/remove-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currentPassword })
+        });
+
+        if (response.ok) {
+            showToast('Password removed - you can now login with just your username');
+            loadAccountInfo();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to remove password', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to remove password:', error);
+        showToast('Failed to remove password', 'error');
+    }
+}
+
+async function handleUnlinkSso() {
+    if (!confirm('Are you sure you want to unlink your SSO account? You will need to use your username/password to login.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/auth/oidc/unlink`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            showToast('SSO account unlinked');
+            loadAccountInfo();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to unlink SSO account', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to unlink SSO:', error);
+        showToast('Failed to unlink SSO account', 'error');
+    }
+}
+
+// OIDC settings functions
+async function loadOIDCSettings() {
+    try {
+        // Set callback URL automatically
+        const callbackUrl = `${window.location.origin}/api/auth/oidc/callback`;
+        document.getElementById('oidc-callback-url').value = callbackUrl;
+
+        const response = await fetch(`${API_URL}/api/auth/oidc/settings`);
+        if (response.ok) {
+            const settings = await response.json();
+            document.getElementById('oidc-enabled-toggle').checked = settings.enabled;
+            document.getElementById('oidc-issuer').value = settings.issuer || '';
+            document.getElementById('oidc-client-id').value = settings.clientId || '';
+            document.getElementById('oidc-client-secret').value = settings.clientSecret || '';
+            document.getElementById('oidc-provider-name').value = settings.providerName || '';
+            document.getElementById('oidc-disable-local').checked = settings.disableLocalLogin || false;
+            document.getElementById('oidc-auto-create').checked = settings.autoCreateUsers !== false;
+            document.getElementById('oidc-default-role').value = settings.defaultRole || 'user';
+
+            // Show/hide config fields
+            document.getElementById('oidc-config-fields').style.display = settings.enabled ? 'block' : 'none';
+
+            // Show discovery status if issuer is configured
+            if (settings.issuer && settings.discoveredAt) {
+                showDiscoveryStatus('success', `Discovered from ${settings.issuer}`);
+            }
+        }
+    } catch (error) {
+        console.error('Failed to load OIDC settings:', error);
+    }
+}
+
+async function saveOIDCSettings() {
+    const settings = {
+        enabled: document.getElementById('oidc-enabled-toggle').checked,
+        issuer: document.getElementById('oidc-issuer').value.trim(),
+        clientId: document.getElementById('oidc-client-id').value.trim(),
+        clientSecret: document.getElementById('oidc-client-secret').value,
+        providerName: document.getElementById('oidc-provider-name').value.trim(),
+        disableLocalLogin: document.getElementById('oidc-disable-local').checked,
+        autoCreateUsers: document.getElementById('oidc-auto-create').checked,
+        defaultRole: document.getElementById('oidc-default-role').value
+    };
+
+    try {
+        const response = await fetch(`${API_URL}/api/auth/oidc/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+
+        if (response.ok) {
+            showToast('OIDC settings saved');
+            // Update login page OIDC button visibility
+            checkOIDCEnabled();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to save OIDC settings', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to save OIDC settings:', error);
+        showToast('Failed to save OIDC settings', 'error');
+    }
+}
+
+function showDiscoveryStatus(type, message) {
+    const status = document.getElementById('oidc-discovery-status');
+    if (status) {
+        status.style.display = 'block';
+        status.className = `discovery-status ${type}`;
+        status.textContent = message;
+    }
+}
+
+async function discoverOIDCIssuer() {
+    const issuer = document.getElementById('oidc-issuer').value.trim();
+    if (!issuer) {
+        showToast('Enter an issuer URL first', 'error');
+        return;
+    }
+
+    showDiscoveryStatus('loading', 'Discovering...');
+
+    try {
+        const response = await fetch(`${API_URL}/api/auth/oidc/discover`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ issuer })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            showDiscoveryStatus('success', `Found: ${data.issuer_name || data.issuer}`);
+            // Auto-populate provider name if not set
+            const providerNameInput = document.getElementById('oidc-provider-name');
+            if (providerNameInput && !providerNameInput.value && data.issuer_name) {
+                providerNameInput.value = data.issuer_name;
+            }
+            // Display discovered endpoints
+            displayDiscoveredEndpoints(data);
+            showToast('Issuer discovered successfully');
+        } else {
+            const error = await response.json();
+            showDiscoveryStatus('error', error.error || 'Discovery failed');
+            hideDiscoveredEndpoints();
+        }
+    } catch (error) {
+        console.error('Failed to discover issuer:', error);
+        showDiscoveryStatus('error', 'Discovery failed - check the URL');
+        hideDiscoveredEndpoints();
+    }
+}
+
+function displayDiscoveredEndpoints(data) {
+    const container = document.getElementById('oidc-discovered-endpoints');
+    if (!container) return;
+
+    container.style.display = 'block';
+    document.getElementById('oidc-auth-endpoint').textContent = data.authorization_endpoint || '-';
+    document.getElementById('oidc-token-endpoint').textContent = data.token_endpoint || '-';
+    document.getElementById('oidc-userinfo-endpoint').textContent = data.userinfo_endpoint || '-';
+    document.getElementById('oidc-jwks-endpoint').textContent = data.jwks_uri || '-';
+    document.getElementById('oidc-logout-endpoint').textContent = data.end_session_endpoint || '-';
+}
+
+function hideDiscoveredEndpoints() {
+    const container = document.getElementById('oidc-discovered-endpoints');
+    if (container) {
+        container.style.display = 'none';
+    }
+}
+
+function copyCallbackUrl() {
+    const input = document.getElementById('oidc-callback-url');
+    if (input) {
+        navigator.clipboard.writeText(input.value).then(() => {
+            showToast('Callback URL copied');
+        }).catch(() => {
+            // Fallback
+            input.select();
+            document.execCommand('copy');
+            showToast('Callback URL copied');
+        });
+    }
+}
+
+function initOIDCSettings() {
+    const enabledToggle = document.getElementById('oidc-enabled-toggle');
+    if (enabledToggle) {
+        enabledToggle.addEventListener('change', () => {
+            document.getElementById('oidc-config-fields').style.display = enabledToggle.checked ? 'block' : 'none';
+        });
+    }
+
+    const saveBtn = document.getElementById('save-oidc-btn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', saveOIDCSettings);
+    }
+
+    const discoverBtn = document.getElementById('oidc-discover-btn');
+    if (discoverBtn) {
+        discoverBtn.addEventListener('click', discoverOIDCIssuer);
+    }
+
+    loadOIDCSettings();
+}
+
+// Check if OIDC is enabled and show/hide login button
+async function checkOIDCEnabled() {
+    try {
+        const response = await fetch(`${API_URL}/api/auth/oidc/enabled`);
+        const data = await response.json();
+        const oidcSection = document.getElementById('oidc-login');
+        const localLoginForm = document.getElementById('login-form');
+        const oidcLoginBtn = document.getElementById('oidc-login-btn');
+
+        if (oidcSection) {
+            oidcSection.style.display = data.enabled ? 'block' : 'none';
+        }
+
+        // Update OIDC button text with provider name
+        if (oidcLoginBtn && data.enabled) {
+            oidcLoginBtn.textContent = `Login with ${data.providerName || 'SSO'}`;
+        }
+
+        // Hide local login form if OIDC is enabled and local login is disabled
+        if (localLoginForm) {
+            localLoginForm.style.display = (data.enabled && data.disableLocalLogin) ? 'none' : 'block';
+        }
+    } catch (error) {
+        console.error('Failed to check OIDC status:', error);
+    }
+}
+
 // Toast notification system
 function showToast(message, type = 'success', duration = 2000) {
     let container = document.querySelector('.toast-container');
@@ -522,7 +1230,20 @@ const pdfCanvas = document.getElementById('pdf-canvas');
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize auth and login form
+    initAuth();
     initTheme();
+
+    // Check authentication
+    const isAuthenticated = await checkAuth();
+    if (!isAuthenticated) {
+        showLogin();
+        return;
+    }
+
+    // User is authenticated, show app and initialize
+    showApp();
+
     initTabs();
     initUpload();
     initEditModal();
@@ -538,6 +1259,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initGlobalDragDrop();
     initServerEvents();
     initHorizontalScroll();
+    initUserManagement();
     await loadPatterns();
     loadCurrentPatterns();
     loadCategories();

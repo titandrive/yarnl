@@ -43,6 +43,8 @@ services:
       - POSTGRES_PASSWORD=yarnl
       - BACKUP_HOST_PATH=/opt/yarnl/backups
       - TZ=America/Los_Angeles
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=password
     restart: unless-stopped
     depends_on:
       postgres:

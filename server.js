@@ -3,6 +3,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 const cors = require('cors');
+const cookieParser = require('cookie-parser');
 const { promisify } = require('util');
 const { exec } = require('child_process');
 const execPromise = promisify(exec);
@@ -13,6 +14,17 @@ const unzipper = require('unzipper');
 const cron = require('node-cron');
 const EventEmitter = require('events');
 const { pool, initDatabase } = require('./db');
+const {
+  hashPassword,
+  verifyPassword,
+  createSession,
+  validateSession,
+  deleteSession,
+  getAuthMode,
+  getAdminUser,
+  initializeAdmin,
+  migratePatternOwnership,
+} = require('./auth');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -29,10 +41,65 @@ function broadcastEvent(type, data) {
 }
 
 // Middleware
-app.use(cors());
+app.use(cors({ credentials: true, origin: true }));
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static('public'));
 app.use('/mascots', express.static('mascots'));
+
+// Auth middleware - checks session or auto-authenticates in single-user mode
+async function authMiddleware(req, res, next) {
+  try {
+    const authMode = await getAuthMode();
+
+    if (authMode === 'single-user') {
+      // Auto-authenticate as admin
+      const admin = await getAdminUser();
+      if (admin) {
+        req.user = admin;
+        return next();
+      }
+      // No admin yet, allow unauthenticated access (first run)
+      req.user = null;
+      return next();
+    }
+
+    // Multi-user mode: require session
+    const sessionId = req.cookies.session_id;
+    if (!sessionId) {
+      return res.status(401).json({ error: 'Authentication required', authRequired: true });
+    }
+
+    const session = await validateSession(sessionId);
+    if (!session) {
+      res.clearCookie('session_id');
+      return res.status(401).json({ error: 'Session expired', authRequired: true });
+    }
+
+    req.user = session;
+    req.sessionId = session.session_id;
+    next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    res.status(500).json({ error: 'Authentication error' });
+  }
+}
+
+// Admin-only middleware
+function adminOnly(req, res, next) {
+  if (req.user?.role !== 'admin') {
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+  next();
+}
+
+// Pattern permission middleware
+function canAddPatterns(req, res, next) {
+  if (req.user?.role === 'admin' || req.user?.can_add_patterns) {
+    return next();
+  }
+  return res.status(403).json({ error: 'Permission denied: cannot add patterns' });
+}
 
 // SSE endpoint for real-time notifications
 app.get('/api/events', (req, res) => {
@@ -48,6 +115,689 @@ app.get('/api/events', (req, res) => {
     sseClients.delete(res);
     console.log(`SSE client disconnected (${sseClients.size} remaining)`);
   });
+});
+
+// ============================================
+// Auth endpoints (public)
+// ============================================
+
+// Get auth mode (single-user or multi-user)
+app.get('/api/auth/mode', async (req, res) => {
+  try {
+    const mode = await getAuthMode();
+    const admin = await getAdminUser();
+    res.json({
+      mode,
+      hasAdmin: !!admin,
+      adminUsername: admin?.username || null
+    });
+  } catch (error) {
+    console.error('Error getting auth mode:', error);
+    res.status(500).json({ error: 'Failed to get auth mode' });
+  }
+});
+
+// Get current user
+app.get('/api/auth/me', authMiddleware, (req, res) => {
+  if (!req.user) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
+  res.json({
+    id: req.user.id,
+    username: req.user.username,
+    displayName: req.user.display_name,
+    role: req.user.role,
+    canAddPatterns: req.user.can_add_patterns
+  });
+});
+
+// Login
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    const result = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
+    if (result.rows.length === 0) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const user = result.rows[0];
+
+    // Check if local login is disabled (admin can still login locally)
+    if (user.role !== 'admin') {
+      const oidcSettings = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
+      const settings = oidcSettings.rows[0]?.value;
+      if (settings?.enabled && settings?.disableLocalLogin) {
+        return res.status(403).json({ error: 'Local login is disabled - please use SSO' });
+      }
+    }
+
+    // If password_required is set but user has no password, they can't login
+    if (user.password_required && !user.password_hash) {
+      return res.status(401).json({ error: 'Password required - please contact admin to set a password' });
+    }
+
+    // If user has password, verify it
+    if (user.password_hash) {
+      if (!password) {
+        return res.status(401).json({ error: 'Password is required' });
+      }
+      const valid = await verifyPassword(password, user.password_hash);
+      if (!valid) {
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
+    }
+    // If no password set and none provided (and not required), allow login
+
+    const { sessionId, expiresAt } = await createSession(user.id);
+
+    // Update last login
+    await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
+
+    res.cookie('session_id', sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      expires: expiresAt
+    });
+
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        displayName: user.display_name,
+        role: user.role,
+        canAddPatterns: user.can_add_patterns
+      }
+    });
+  } catch (error) {
+    console.error('Login error:', error);
+    res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Logout
+app.post('/api/auth/logout', authMiddleware, async (req, res) => {
+  try {
+    if (req.sessionId) {
+      await deleteSession(req.sessionId);
+    }
+    res.clearCookie('session_id');
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Logout failed' });
+  }
+});
+
+// ============================================
+// User management endpoints (admin only)
+// ============================================
+
+// List all users
+app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, username, display_name, role, can_add_patterns, password_required, oidc_provider, created_at, last_login,
+              (password_hash IS NOT NULL) as has_password
+       FROM users ORDER BY created_at`
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error listing users:', error);
+    res.status(500).json({ error: 'Failed to list users' });
+  }
+});
+
+// Create user
+app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { username, password, displayName, role, canAddPatterns } = req.body;
+
+    if (!username) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    // Check if username already exists
+    const existing = await pool.query('SELECT id FROM users WHERE username = $1', [username]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'Username already exists' });
+    }
+
+    const passwordHash = password ? await hashPassword(password) : null;
+
+    const result = await pool.query(
+      `INSERT INTO users (username, password_hash, display_name, role, can_add_patterns)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, username, display_name, role, can_add_patterns, created_at`,
+      [username, passwordHash, displayName || username, role || 'user', canAddPatterns !== false]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating user:', error);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+// Update user
+app.patch('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { role, canAddPatterns, password, displayName, passwordRequired } = req.body;
+
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (role !== undefined) {
+      updates.push(`role = $${paramCount++}`);
+      values.push(role);
+    }
+    if (canAddPatterns !== undefined) {
+      updates.push(`can_add_patterns = $${paramCount++}`);
+      values.push(canAddPatterns);
+    }
+    if (displayName !== undefined) {
+      updates.push(`display_name = $${paramCount++}`);
+      values.push(displayName);
+    }
+    if (password !== undefined) {
+      const hash = password ? await hashPassword(password) : null;
+      updates.push(`password_hash = $${paramCount++}`);
+      values.push(hash);
+    }
+    if (passwordRequired !== undefined) {
+      updates.push(`password_required = $${paramCount++}`);
+      values.push(passwordRequired);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No updates provided' });
+    }
+
+    updates.push(`updated_at = NOW()`);
+    values.push(userId);
+
+    const result = await pool.query(
+      `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount}
+       RETURNING id, username, display_name, role, can_add_patterns, password_required`,
+      values
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating user:', error);
+    res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// Delete user
+app.delete('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+
+    // Prevent deleting self
+    if (userId === req.user.id) {
+      return res.status(400).json({ error: 'Cannot delete yourself' });
+    }
+
+    // Check if user exists
+    const user = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
+    if (user.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    await pool.query('DELETE FROM users WHERE id = $1', [userId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// Remove user password (admin only, requires admin password verification)
+app.post('/api/users/:id/remove-password', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { adminPassword } = req.body;
+
+    if (!adminPassword) {
+      return res.status(400).json({ error: 'Admin password required' });
+    }
+
+    // Verify admin's password
+    const adminUser = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (!adminUser.rows[0]?.password_hash) {
+      return res.status(400).json({ error: 'Admin has no password set' });
+    }
+
+    const validPassword = await verifyPassword(adminPassword, adminUser.rows[0].password_hash);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Invalid admin password' });
+    }
+
+    // Remove the user's password
+    await pool.query('UPDATE users SET password_hash = NULL, updated_at = NOW() WHERE id = $1', [userId]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error removing password:', error);
+    res.status(500).json({ error: 'Failed to remove password' });
+  }
+});
+
+// User removes their own password (requires current password verification)
+app.post('/api/auth/remove-password', authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword } = req.body;
+
+    // Check if user has password_required set
+    const user = await pool.query('SELECT password_hash, password_required FROM users WHERE id = $1', [req.user.id]);
+    if (user.rows[0]?.password_required) {
+      return res.status(403).json({ error: 'Password removal not allowed - admin requires you to have a password' });
+    }
+
+    // Verify current password
+    if (!user.rows[0]?.password_hash) {
+      return res.status(400).json({ error: 'You don\'t have a password set' });
+    }
+
+    if (!currentPassword) {
+      return res.status(400).json({ error: 'Current password required' });
+    }
+
+    const validPassword = await verifyPassword(currentPassword, user.rows[0].password_hash);
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Invalid password' });
+    }
+
+    // Remove password
+    await pool.query('UPDATE users SET password_hash = NULL, updated_at = NOW() WHERE id = $1', [req.user.id]);
+    res.json({ success: true, message: 'Password removed - you can now login without a password' });
+  } catch (error) {
+    console.error('Error removing own password:', error);
+    res.status(500).json({ error: 'Failed to remove password' });
+  }
+});
+
+// Get current user's account info
+app.get('/api/auth/account', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, username, display_name, role, can_add_patterns, password_required, oidc_provider,
+              (password_hash IS NOT NULL) as has_password
+       FROM users WHERE id = $1`,
+      [req.user.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error getting account info:', error);
+    res.status(500).json({ error: 'Failed to get account info' });
+  }
+});
+
+// ============================================
+// OIDC endpoints
+// ============================================
+
+// Get OIDC settings (admin only)
+app.get('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
+    const settings = result.rows[0]?.value || {
+      enabled: false,
+      issuer: '',
+      clientId: '',
+      clientSecret: '',
+      disableLocalLogin: false,
+      autoCreateUsers: true,
+      defaultRole: 'user'
+    };
+    // Don't expose client secret
+    res.json({ ...settings, clientSecret: settings.clientSecret ? '********' : '' });
+  } catch (error) {
+    console.error('Error getting OIDC settings:', error);
+    res.status(500).json({ error: 'Failed to get OIDC settings' });
+  }
+});
+
+// Save OIDC settings (admin only)
+app.post('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { enabled, issuer, clientId, clientSecret, disableLocalLogin, autoCreateUsers, defaultRole, providerName } = req.body;
+
+    // Get existing settings to preserve client secret if not changed
+    const existing = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
+    const existingSettings = existing.rows[0]?.value || {};
+
+    const settings = {
+      enabled: enabled === true,
+      issuer: issuer || '',
+      clientId: clientId || '',
+      clientSecret: clientSecret === '********' ? existingSettings.clientSecret : (clientSecret || ''),
+      disableLocalLogin: disableLocalLogin === true,
+      autoCreateUsers: autoCreateUsers !== false,
+      defaultRole: defaultRole || 'user',
+      providerName: providerName || existingSettings.providerName || ''
+    };
+
+    await pool.query(
+      `INSERT INTO settings (key, value, updated_at) VALUES ('oidc', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [JSON.stringify(settings)]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving OIDC settings:', error);
+    res.status(500).json({ error: 'Failed to save OIDC settings' });
+  }
+});
+
+// OIDC issuer discovery
+app.post('/api/auth/oidc/discover', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { issuer: issuerUrl } = req.body;
+
+    if (!issuerUrl) {
+      return res.status(400).json({ error: 'Issuer URL is required' });
+    }
+
+    const { Issuer } = require('openid-client');
+    const discovered = await Issuer.discover(issuerUrl);
+
+    // Store discovery info
+    const existing = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
+    const existingSettings = existing.rows[0]?.value || {};
+
+    const settings = {
+      ...existingSettings,
+      issuer: discovered.issuer,
+      providerName: discovered.metadata?.service_documentation?.split('/')[2] ||
+                    new URL(discovered.issuer).hostname.split('.')[0] ||
+                    'SSO',
+      discoveredAt: new Date().toISOString()
+    };
+
+    await pool.query(
+      `INSERT INTO settings (key, value, updated_at) VALUES ('oidc', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [JSON.stringify(settings)]
+    );
+
+    res.json({
+      issuer: discovered.issuer,
+      issuer_name: settings.providerName,
+      authorization_endpoint: discovered.authorization_endpoint,
+      token_endpoint: discovered.token_endpoint,
+      userinfo_endpoint: discovered.userinfo_endpoint,
+      jwks_uri: discovered.jwks_uri,
+      end_session_endpoint: discovered.end_session_endpoint,
+      scopes_supported: discovered.scopes_supported
+    });
+  } catch (error) {
+    console.error('OIDC discovery error:', error);
+    res.status(400).json({ error: 'Failed to discover issuer - check the URL' });
+  }
+});
+
+// OIDC login initiation
+app.get('/api/auth/oidc/login', async (req, res) => {
+  try {
+    const result = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
+    const settings = result.rows[0]?.value;
+
+    if (!settings?.enabled || !settings?.issuer || !settings?.clientId) {
+      return res.status(400).json({ error: 'OIDC not configured' });
+    }
+
+    const { Issuer, generators } = require('openid-client');
+
+    // Auto-generate redirect URI from request
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.get('host');
+    const redirectUri = `${protocol}://${host}/api/auth/oidc/callback`;
+
+    const issuer = await Issuer.discover(settings.issuer);
+    const client = new issuer.Client({
+      client_id: settings.clientId,
+      client_secret: settings.clientSecret,
+      redirect_uris: [redirectUri],
+      response_types: ['code']
+    });
+
+    const state = generators.state();
+    const nonce = generators.nonce();
+
+    // Store state, nonce, and redirect URI in cookies
+    res.cookie('oidc_state', state, { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('oidc_nonce', nonce, { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('oidc_redirect', redirectUri, { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+
+    const authUrl = client.authorizationUrl({
+      scope: 'openid profile email',
+      state,
+      nonce
+    });
+
+    res.redirect(authUrl);
+  } catch (error) {
+    console.error('OIDC login error:', error);
+    res.redirect('/#login-error');
+  }
+});
+
+// OIDC callback - handles both login and account linking
+app.get('/api/auth/oidc/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+    const storedState = req.cookies.oidc_state;
+    const storedNonce = req.cookies.oidc_nonce;
+    const storedRedirect = req.cookies.oidc_redirect;
+    const linkUserId = req.cookies.oidc_link_user; // Present if this is a link operation
+
+    if (state !== storedState) {
+      return res.status(400).send('State mismatch - possible CSRF attack');
+    }
+
+    const result = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
+    const settings = result.rows[0]?.value;
+
+    if (!settings?.enabled) {
+      return res.status(400).send('OIDC not enabled');
+    }
+
+    const { Issuer } = require('openid-client');
+
+    // Use stored redirect URI from cookie
+    const redirectUri = storedRedirect || `${req.protocol}://${req.get('host')}/api/auth/oidc/callback`;
+
+    const issuer = await Issuer.discover(settings.issuer);
+    const client = new issuer.Client({
+      client_id: settings.clientId,
+      client_secret: settings.clientSecret,
+      redirect_uris: [redirectUri],
+      response_types: ['code']
+    });
+
+    const tokenSet = await client.callback(redirectUri, req.query, { state: storedState, nonce: storedNonce });
+    const claims = tokenSet.claims();
+
+    // Clear OIDC cookies
+    res.clearCookie('oidc_state');
+    res.clearCookie('oidc_nonce');
+    res.clearCookie('oidc_redirect');
+    res.clearCookie('oidc_link_user');
+
+    // Check if this is a link operation
+    if (linkUserId) {
+      // Check if this OIDC subject is already linked to another user
+      const existingUser = await pool.query('SELECT id FROM users WHERE oidc_subject = $1', [claims.sub]);
+      if (existingUser.rows.length > 0 && existingUser.rows[0].id !== parseInt(linkUserId)) {
+        return res.redirect('/#settings?error=oidc-already-used');
+      }
+
+      // Link the OIDC account to the user
+      await pool.query(
+        `UPDATE users SET oidc_subject = $1, oidc_provider = $2, updated_at = NOW() WHERE id = $3`,
+        [claims.sub, settings.providerName || new URL(settings.issuer).hostname, parseInt(linkUserId)]
+      );
+
+      return res.redirect('/#settings?success=oidc-linked');
+    }
+
+    // Regular login flow - find or create user
+    let user = await pool.query('SELECT * FROM users WHERE oidc_subject = $1', [claims.sub]);
+
+    if (user.rows.length === 0) {
+      if (!settings.autoCreateUsers) {
+        return res.status(403).send('User not found and auto-creation is disabled');
+      }
+
+      // Create new user from OIDC claims
+      const username = claims.preferred_username || claims.email || claims.sub;
+      const displayName = claims.name || username;
+
+      user = await pool.query(
+        `INSERT INTO users (username, display_name, role, oidc_subject, oidc_provider)
+         VALUES ($1, $2, $3, $4, $5)
+         RETURNING *`,
+        [username, displayName, settings.defaultRole || 'user', claims.sub, settings.providerName || 'oidc']
+      );
+    }
+
+    const userData = user.rows[0];
+
+    // Create session
+    const { sessionId, expiresAt } = await createSession(userData.id);
+
+    // Update last login
+    await pool.query('UPDATE users SET last_login = NOW() WHERE id = $1', [userData.id]);
+
+    res.cookie('session_id', sessionId, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      expires: expiresAt
+    });
+
+    res.redirect('/#current');
+  } catch (error) {
+    console.error('OIDC callback error:', error);
+    res.redirect('/#login-error');
+  }
+});
+
+// Check if OIDC is enabled (public)
+app.get('/api/auth/oidc/enabled', async (req, res) => {
+  try {
+    const result = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
+    const settings = result.rows[0]?.value;
+    res.json({
+      enabled: settings?.enabled === true,
+      disableLocalLogin: settings?.disableLocalLogin === true,
+      providerName: settings?.providerName || 'SSO'
+    });
+  } catch (error) {
+    res.json({ enabled: false, disableLocalLogin: false, providerName: 'SSO' });
+  }
+});
+
+// OIDC account linking - initiate linking for logged-in user
+app.get('/api/auth/oidc/link', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
+    const settings = result.rows[0]?.value;
+
+    if (!settings?.enabled || !settings?.issuer || !settings?.clientId) {
+      return res.status(400).json({ error: 'OIDC not configured' });
+    }
+
+    // Check if user already has OIDC linked
+    const user = await pool.query('SELECT oidc_subject FROM users WHERE id = $1', [req.user.id]);
+    if (user.rows[0]?.oidc_subject) {
+      return res.redirect('/#settings?error=already-linked');
+    }
+
+    const { Issuer, generators } = require('openid-client');
+
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.get('host');
+    // Use the same callback URL as regular login
+    const redirectUri = `${protocol}://${host}/api/auth/oidc/callback`;
+
+    const issuer = await Issuer.discover(settings.issuer);
+    const client = new issuer.Client({
+      client_id: settings.clientId,
+      client_secret: settings.clientSecret,
+      redirect_uris: [redirectUri],
+      response_types: ['code']
+    });
+
+    const state = generators.state();
+    const nonce = generators.nonce();
+
+    // Store state, nonce, redirect URI, and user ID being linked
+    res.cookie('oidc_state', state, { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('oidc_nonce', nonce, { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('oidc_redirect', redirectUri, { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('oidc_link_user', req.user.id.toString(), { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+
+    const authUrl = client.authorizationUrl({
+      scope: 'openid profile email',
+      state,
+      nonce
+    });
+
+    res.redirect(authUrl);
+  } catch (error) {
+    console.error('OIDC link error:', error);
+    res.redirect('/#settings?error=link-failed');
+  }
+});
+
+// Unlink OIDC account
+app.post('/api/auth/oidc/unlink', authMiddleware, async (req, res) => {
+  try {
+    // Check if user has a password or would be locked out
+    const user = await pool.query('SELECT password_hash FROM users WHERE id = $1', [req.user.id]);
+    if (!user.rows[0]?.password_hash) {
+      return res.status(400).json({ error: 'Cannot unlink - you need a password set first to login without SSO' });
+    }
+
+    await pool.query(
+      'UPDATE users SET oidc_subject = NULL, oidc_provider = NULL, updated_at = NOW() WHERE id = $1',
+      [req.user.id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error unlinking OIDC:', error);
+    res.status(500).json({ error: 'Failed to unlink SSO account' });
+  }
+});
+
+// ============================================
+
+// Apply auth middleware to all protected API routes
+app.use('/api', (req, res, next) => {
+  // Skip auth for public endpoints
+  const publicPaths = ['/auth/mode', '/auth/login', '/auth/oidc/login', '/auth/oidc/callback', '/events'];
+  const isPublic = publicPaths.some(p => req.path === p || req.path.startsWith(p));
+  if (isPublic) {
+    return next();
+  }
+  // Apply auth middleware to everything else
+  return authMiddleware(req, res, next);
 });
 
 // Ensure patterns and thumbnails directories exist
@@ -340,6 +1090,8 @@ async function generateThumbnail(pdfPath, outputFilename) {
 // Database will be initialized on startup
 initDatabase()
   .then(() => syncCategoryFolders())
+  .then(() => initializeAdmin())
+  .then(() => migratePatternOwnership())
   .catch(err => {
     console.error('Failed to initialize database:', err);
     process.exit(1);
@@ -350,9 +1102,30 @@ initDatabase()
 // Get all patterns with their hashtags (excludes archived)
 app.get('/api/patterns', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE is_archived = false OR is_archived IS NULL ORDER BY upload_date DESC'
-    );
+    let result;
+    if (req.user?.role === 'admin') {
+      // Admin sees all patterns
+      result = await pool.query(
+        'SELECT * FROM patterns WHERE is_archived = false OR is_archived IS NULL ORDER BY upload_date DESC'
+      );
+    } else if (req.user?.id) {
+      // Regular user sees own patterns + public patterns
+      result = await pool.query(
+        `SELECT * FROM patterns
+         WHERE (is_archived = false OR is_archived IS NULL)
+         AND (user_id = $1 OR visibility = 'public' OR user_id IS NULL)
+         ORDER BY upload_date DESC`,
+        [req.user.id]
+      );
+    } else {
+      // No user (shouldn't happen with auth middleware, but fallback)
+      result = await pool.query(
+        `SELECT * FROM patterns
+         WHERE (is_archived = false OR is_archived IS NULL)
+         AND visibility = 'public'
+         ORDER BY upload_date DESC`
+      );
+    }
 
     // Fetch hashtags for each pattern
     const patterns = await Promise.all(result.rows.map(async (pattern) => {
@@ -421,11 +1194,12 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
     const thumbnailFilename = `thumb-${category}-${finalFilename}.jpg`;
     const thumbnail = await generateThumbnail(pdfPath, thumbnailFilename);
 
+    const userId = req.user?.id || null;
     const result = await pool.query(
-      `INSERT INTO patterns (name, filename, original_name, category, description, is_current, thumbnail)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO patterns (name, filename, original_name, category, description, is_current, thumbnail, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [name, finalFilename, req.file.originalname, category, description, isCurrent, thumbnail]
+      [name, finalFilename, req.file.originalname, category, description, isCurrent, thumbnail, userId]
     );
 
     res.json(result.rows[0]);
@@ -463,11 +1237,12 @@ app.post('/api/patterns/markdown', async (req, res) => {
     const filePath = path.join(categoryDir, filename);
     fs.writeFileSync(filePath, content, 'utf8');
 
+    const userId = req.user?.id || null;
     const result = await pool.query(
-      `INSERT INTO patterns (name, filename, original_name, category, description, is_current, pattern_type)
-       VALUES ($1, $2, $3, $4, $5, $6, 'markdown')
+      `INSERT INTO patterns (name, filename, original_name, category, description, is_current, pattern_type, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, 'markdown', $7)
        RETURNING *`,
-      [name.trim(), filename, filename, patternCategory, patternDescription, patternIsCurrent]
+      [name.trim(), filename, filename, patternCategory, patternDescription, patternIsCurrent, userId]
     );
 
     const pattern = result.rows[0];
@@ -637,9 +1412,27 @@ app.get('/api/patterns/:id/thumbnail', async (req, res) => {
 // Get current patterns (must come before /api/patterns/:id)
 app.get('/api/patterns/current', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE is_current = true AND (is_archived = false OR is_archived IS NULL) ORDER BY updated_at DESC'
-    );
+    let result;
+    if (req.user?.role === 'admin') {
+      result = await pool.query(
+        'SELECT * FROM patterns WHERE is_current = true AND (is_archived = false OR is_archived IS NULL) ORDER BY updated_at DESC'
+      );
+    } else if (req.user?.id) {
+      result = await pool.query(
+        `SELECT * FROM patterns
+         WHERE is_current = true AND (is_archived = false OR is_archived IS NULL)
+         AND (user_id = $1 OR visibility = 'public' OR user_id IS NULL)
+         ORDER BY updated_at DESC`,
+        [req.user.id]
+      );
+    } else {
+      result = await pool.query(
+        `SELECT * FROM patterns
+         WHERE is_current = true AND (is_archived = false OR is_archived IS NULL)
+         AND visibility = 'public'
+         ORDER BY updated_at DESC`
+      );
+    }
 
     // Fetch hashtags for each pattern
     const patterns = await Promise.all(result.rows.map(async (pattern) => {

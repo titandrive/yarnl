@@ -93,6 +93,45 @@ async function initDatabase() {
       )
     `);
 
+    // Create users table for authentication
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(100) NOT NULL UNIQUE,
+        password_hash VARCHAR(255),
+        password_required BOOLEAN DEFAULT false,
+        role VARCHAR(20) DEFAULT 'user',
+        display_name VARCHAR(255),
+        oidc_subject VARCHAR(255) UNIQUE,
+        oidc_provider VARCHAR(100),
+        can_add_patterns BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP
+      )
+    `);
+
+    // Add password_required column if it doesn't exist (migration)
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='users' AND column_name='password_required') THEN
+          ALTER TABLE users ADD COLUMN password_required BOOLEAN DEFAULT false;
+        END IF;
+      END $$;
+    `);
+
+    // Create sessions table for auth sessions
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sessions (
+        id VARCHAR(64) PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        expires_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     // Add columns to existing patterns table if they don't exist
     await client.query(`
       DO $$
@@ -188,6 +227,18 @@ async function initDatabase() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                       WHERE table_name='patterns' AND column_name='archived_at') THEN
           ALTER TABLE patterns ADD COLUMN archived_at TIMESTAMP;
+        END IF;
+
+        -- Add user_id for pattern ownership
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='user_id') THEN
+          ALTER TABLE patterns ADD COLUMN user_id INTEGER REFERENCES users(id);
+        END IF;
+
+        -- Add visibility for pattern sharing
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='visibility') THEN
+          ALTER TABLE patterns ADD COLUMN visibility VARCHAR(20) DEFAULT 'private';
         END IF;
       END $$;
     `);

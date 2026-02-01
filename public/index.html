@@ -26,6 +26,40 @@
     </style>
 </head>
 <body>
+    <!-- Login Container -->
+    <div id="login-container" class="login-container" style="display: none;">
+        <div class="login-card">
+            <div class="login-header">
+                <img id="login-mascot" src="mascots/default.png" alt="Yarnl" class="login-mascot">
+                <h1>Yarnl</h1>
+                <p class="login-subtitle">Your self-hosted crochet companion</p>
+            </div>
+
+            <form id="login-form" class="login-form">
+                <div class="login-form-group">
+                    <label for="login-username">Username</label>
+                    <input type="text" id="login-username" required autocomplete="username" placeholder="Enter username">
+                </div>
+
+                <div class="login-form-group" id="password-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" autocomplete="current-password" placeholder="Enter password (if set)">
+                </div>
+
+                <button type="submit" class="btn login-btn">Log In</button>
+
+                <div id="login-error" class="login-error"></div>
+            </form>
+
+            <div id="oidc-login" class="oidc-section" style="display: none;">
+                <div class="login-divider"><span>or</span></div>
+                <button id="oidc-login-btn" class="btn oidc-btn">
+                    Login with SSO
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div class="container">
         <header>
             <div class="header-btn-container header-left">
@@ -380,6 +414,12 @@ Inc in each st around (12)
                             <line x1="12" y1="8" x2="12.01" y2="8"></line>
                         </svg>
                         <span>About</span>
+                    </button>
+                    <button class="settings-nav-btn" data-section="admin" id="admin-nav-btn" style="display: none;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                        <span>Admin</span>
                     </button>
                     <button class="settings-nav-btn" data-section="archive">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1162,6 +1202,191 @@ Inc in each st around (12)
                                 </svg>
                                 Docs
                             </a>
+                        </div>
+                    </section>
+
+                    <!-- Admin Section (Admin Only) -->
+                    <section class="settings-section" data-section="admin" id="admin-section">
+                        <h3>Admin</h3>
+                        <p class="section-description">Manage users, authentication, and system settings</p>
+
+                        <h4 class="settings-subheading">User Management</h4>
+                        <div id="users-list" class="users-list">
+                            <!-- Users will be populated here -->
+                        </div>
+
+                        <div class="add-user-form" id="add-user-form">
+                            <h4 class="settings-subheading">Add New User</h4>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label for="new-user-username">Username</label>
+                                </div>
+                                <input type="text" id="new-user-username" class="settings-input" placeholder="Enter username">
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label for="new-user-password">Password (optional)</label>
+                                    <p class="setting-description">Leave blank for password-less login</p>
+                                </div>
+                                <input type="password" id="new-user-password" class="settings-input" placeholder="Enter password">
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label for="new-user-role">Role</label>
+                                </div>
+                                <select id="new-user-role" class="settings-select">
+                                    <option value="user">User</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>Can Add Patterns</label>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="new-user-can-add" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <button id="add-user-btn" class="btn">Add User</button>
+                        </div>
+
+                        <h4 class="settings-subheading">OIDC / Single Sign-On</h4>
+                        <p class="setting-description" style="margin-bottom: 1rem;">Configure authentication with PocketID or other OIDC providers</p>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Enable OIDC</label>
+                                <p class="setting-description">Allow users to login with SSO</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="oidc-enabled-toggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div id="oidc-config-fields" style="display: none;">
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>Callback URL</label>
+                                    <p class="setting-description">Add this to your OIDC provider</p>
+                                </div>
+                                <div class="copy-input-group">
+                                    <input type="text" id="oidc-callback-url" class="settings-input settings-input-wide" readonly>
+                                    <button type="button" class="btn btn-secondary btn-small" onclick="copyCallbackUrl()">Copy</button>
+                                </div>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label for="oidc-issuer">Issuer URL</label>
+                                    <p class="setting-description">Enter URL and click Discover</p>
+                                </div>
+                                <div class="discover-input-group">
+                                    <input type="url" id="oidc-issuer" class="settings-input settings-input-wide" placeholder="https://auth.example.com">
+                                    <button type="button" id="oidc-discover-btn" class="btn btn-secondary">Discover</button>
+                                </div>
+                            </div>
+                            <div id="oidc-discovery-status" class="discovery-status" style="display: none;"></div>
+                            <div id="oidc-discovered-endpoints" class="discovered-endpoints" style="display: none;">
+                                <details>
+                                    <summary>Discovered Endpoints</summary>
+                                    <div class="endpoints-list">
+                                        <div class="endpoint-item">
+                                            <label>Authorization</label>
+                                            <code id="oidc-auth-endpoint">-</code>
+                                        </div>
+                                        <div class="endpoint-item">
+                                            <label>Token</label>
+                                            <code id="oidc-token-endpoint">-</code>
+                                        </div>
+                                        <div class="endpoint-item">
+                                            <label>User Info</label>
+                                            <code id="oidc-userinfo-endpoint">-</code>
+                                        </div>
+                                        <div class="endpoint-item">
+                                            <label>JWKS</label>
+                                            <code id="oidc-jwks-endpoint">-</code>
+                                        </div>
+                                        <div class="endpoint-item">
+                                            <label>Logout</label>
+                                            <code id="oidc-logout-endpoint">-</code>
+                                        </div>
+                                    </div>
+                                </details>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label for="oidc-client-id">Client ID</label>
+                                </div>
+                                <input type="text" id="oidc-client-id" class="settings-input settings-input-wide" placeholder="Client ID">
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label for="oidc-client-secret">Client Secret</label>
+                                </div>
+                                <input type="password" id="oidc-client-secret" class="settings-input settings-input-wide" placeholder="Client Secret">
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label for="oidc-provider-name">Provider Name</label>
+                                    <p class="setting-description">Shows on login button (e.g., "PocketID")</p>
+                                </div>
+                                <input type="text" id="oidc-provider-name" class="settings-input" placeholder="SSO">
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>Disable local login</label>
+                                    <p class="setting-description">Only allow SSO login (admin can still use local)</p>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="oidc-disable-local">
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>Auto-create users</label>
+                                    <p class="setting-description">Create accounts for new OIDC users</p>
+                                </div>
+                                <label class="toggle-switch">
+                                    <input type="checkbox" id="oidc-auto-create" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label for="oidc-default-role">Default role for new users</label>
+                                </div>
+                                <select id="oidc-default-role" class="settings-select">
+                                    <option value="user">User</option>
+                                    <option value="admin">Admin</option>
+                                </select>
+                            </div>
+                            <button id="save-oidc-btn" class="btn">Save OIDC Settings</button>
+                        </div>
+
+                        <h4 class="settings-subheading">Account</h4>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Logged in as</label>
+                                <p class="setting-description" id="current-user-info">-</p>
+                            </div>
+                            <button id="logout-btn" class="btn btn-secondary">Log Out</button>
+                        </div>
+                        <div class="setting-item" id="password-setting-item" style="display: none;">
+                            <div class="setting-info">
+                                <label>Password</label>
+                                <p class="setting-description" id="password-status">-</p>
+                            </div>
+                            <button id="remove-password-btn" class="btn btn-secondary" style="display: none;">Remove Password</button>
+                        </div>
+                        <div class="setting-item" id="sso-link-setting-item" style="display: none;">
+                            <div class="setting-info">
+                                <label>SSO Account</label>
+                                <p class="setting-description" id="sso-link-status">Not linked</p>
+                            </div>
+                            <button id="link-sso-btn" class="btn btn-secondary">Link SSO Account</button>
+                            <button id="unlink-sso-btn" class="btn btn-secondary" style="display: none;">Unlink</button>
                         </div>
                     </section>
                 </div>

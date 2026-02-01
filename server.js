@@ -1266,7 +1266,7 @@ async function getPatternWithOwner(patternId) {
   return result.rows[0];
 }
 
-// Helper function to verify pattern ownership (returns pattern with owner or null if not authorized)
+// Helper function to verify pattern ownership for modifications (returns pattern with owner or null if not authorized)
 async function verifyPatternOwnership(patternId, currentUserId, isAdmin = false) {
   const pattern = await getPatternWithOwner(patternId);
   if (!pattern) return null;
@@ -1274,6 +1274,44 @@ async function verifyPatternOwnership(patternId, currentUserId, isAdmin = false)
   // Admins can access any pattern, or user owns the pattern
   if (isAdmin || pattern.user_id === currentUserId) {
     return pattern;
+  }
+  return null;
+}
+
+// Helper function to verify pattern read access (allows owner, admin, or public patterns)
+async function verifyPatternReadAccess(patternId, currentUserId, isAdmin = false) {
+  const pattern = await getPatternWithOwner(patternId);
+  if (!pattern) return null;
+
+  // Admins can access any pattern
+  if (isAdmin) return pattern;
+
+  // Owner can access their own pattern
+  if (pattern.user_id === currentUserId) return pattern;
+
+  // Anyone can access public patterns
+  if (pattern.visibility === 'public') return pattern;
+
+  // Legacy patterns with no user_id are accessible
+  if (pattern.user_id === null) return pattern;
+
+  return null;
+}
+
+// Helper function to verify counter ownership through its associated pattern
+async function verifyCounterOwnership(counterId, currentUserId, isAdmin = false) {
+  // Get counter and its associated pattern
+  const counterResult = await pool.query(
+    'SELECT c.*, p.user_id as pattern_user_id FROM counters c JOIN patterns p ON c.pattern_id = p.id WHERE c.id = $1',
+    [counterId]
+  );
+  if (counterResult.rows.length === 0) return null;
+
+  const counter = counterResult.rows[0];
+
+  // Admins can access any counter, or user owns the pattern
+  if (isAdmin || counter.pattern_user_id === currentUserId) {
+    return counter;
   }
   return null;
 }
@@ -1697,16 +1735,13 @@ app.post('/api/patterns/markdown', async (req, res) => {
 // Get markdown content for a pattern
 app.get('/api/patterns/:id/content', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT filename, category, pattern_type FROM patterns WHERE id = $1',
-      [req.params.id]
-    );
+    // Verify read access (owner, admin, or public)
+    const pattern = await verifyPatternReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to access this pattern' });
     }
 
-    const pattern = result.rows[0];
     if (pattern.pattern_type !== 'markdown') {
       return res.status(400).json({ error: 'Pattern is not a markdown pattern' });
     }
@@ -1734,17 +1769,12 @@ app.put('/api/patterns/:id/content', async (req, res) => {
   try {
     const { content } = req.body;
 
-    // First get the pattern details
-    const checkResult = await pool.query(
-      'SELECT filename, category, pattern_type FROM patterns WHERE id = $1',
-      [req.params.id]
-    );
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
 
-    if (checkResult.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
     }
-
-    const pattern = checkResult.rows[0];
     if (pattern.pattern_type !== 'markdown') {
       return res.status(400).json({ error: 'Pattern is not a markdown pattern' });
     }
@@ -1773,21 +1803,19 @@ app.put('/api/patterns/:id/content', async (req, res) => {
 // Get a specific pattern PDF (must come before /api/patterns/:id)
 app.get('/api/patterns/:id/file', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE id = $1',
-      [req.params.id]
-    );
+    // Verify read access (owner, admin, or public)
+    const pattern = await verifyPatternReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to access this pattern' });
     }
 
-    const pattern = result.rows[0];
-    let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+    let filePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
 
-    // Check if file exists in category folder, otherwise check root patterns folder (for legacy files)
+    // Check if file exists in category folder, otherwise check user's root patterns folder (for legacy files)
     if (!fs.existsSync(filePath)) {
-      filePath = path.join(patternsDir, pattern.filename);
+      filePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
       if (!fs.existsSync(filePath)) {
         return res.status(404).json({ error: 'File not found' });
       }
@@ -1803,10 +1831,11 @@ app.get('/api/patterns/:id/file', async (req, res) => {
 // Get a pattern thumbnail
 app.get('/api/patterns/:id/thumbnail', async (req, res) => {
   try {
-    const pattern = await getPatternWithOwner(req.params.id);
+    // Verify read access (owner, admin, or public)
+    const pattern = await verifyPatternReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
 
     if (!pattern) {
-      return res.status(404).json({ error: 'Pattern not found' });
+      return res.status(403).json({ error: 'Not authorized to access this pattern' });
     }
 
     if (!pattern.thumbnail) {
@@ -1947,13 +1976,11 @@ app.delete('/api/patterns/archived/all', async (req, res) => {
 // Get a single pattern by ID (must come after all /api/patterns/:id/something routes)
 app.get('/api/patterns/:id', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE id = $1',
-      [req.params.id]
-    );
+    // Verify read access (owner, admin, or public)
+    const pattern = await verifyPatternReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to access this pattern' });
     }
 
     // Fetch hashtags for the pattern
@@ -1965,7 +1992,7 @@ app.get('/api/patterns/:id', async (req, res) => {
       [req.params.id]
     );
 
-    res.json({ ...result.rows[0], hashtags: hashtagsResult.rows });
+    res.json({ ...pattern, hashtags: hashtagsResult.rows });
   } catch (error) {
     console.error('Error fetching pattern:', error);
     res.status(500).json({ error: error.message });
@@ -1975,19 +2002,17 @@ app.get('/api/patterns/:id', async (req, res) => {
 // Get pattern info (metadata including file size)
 app.get('/api/patterns/:id/info', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE id = $1',
-      [req.params.id]
-    );
+    // Verify read access (owner, admin, or public)
+    const pattern = await verifyPatternReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to access this pattern' });
     }
 
-    const pattern = result.rows[0];
-    let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+    let filePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
     if (!fs.existsSync(filePath)) {
-      filePath = path.join(patternsDir, pattern.filename);
+      filePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
     }
 
     let fileSize = 0;
@@ -2046,11 +2071,11 @@ app.patch('/api/patterns/:id', async (req, res) => {
     const { name, description, category } = req.body;
     console.log('Extracted values:', { name, description, category });
 
-    // Get the current pattern data with owner info
-    const pattern = await getPatternWithOwner(req.params.id);
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
 
     if (!pattern) {
-      return res.status(404).json({ error: 'Pattern not found' });
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
     }
 
     // Get owner username for paths
@@ -2179,10 +2204,11 @@ app.patch('/api/patterns/:id', async (req, res) => {
 // Delete a pattern
 app.delete('/api/patterns/:id', async (req, res) => {
   try {
-    const pattern = await getPatternWithOwner(req.params.id);
+    // Verify ownership before allowing deletion
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
 
     if (!pattern) {
-      return res.status(404).json({ error: 'Pattern not found' });
+      return res.status(403).json({ error: 'Not authorized to delete this pattern' });
     }
 
     const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
@@ -2221,10 +2247,11 @@ app.delete('/api/patterns/:id', async (req, res) => {
 // Archive a pattern (move to archive instead of deleting)
 app.post('/api/patterns/:id/archive', async (req, res) => {
   try {
-    const pattern = await getPatternWithOwner(req.params.id);
+    // Verify ownership before allowing archive
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
 
     if (!pattern) {
-      return res.status(404).json({ error: 'Pattern not found' });
+      return res.status(403).json({ error: 'Not authorized to archive this pattern' });
     }
 
     const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
@@ -2279,9 +2306,14 @@ app.post('/api/patterns/:id/archive', async (req, res) => {
 // Restore a pattern from archive
 app.post('/api/patterns/:id/restore', async (req, res) => {
   try {
-    const pattern = await getPatternWithOwner(req.params.id);
+    // Verify ownership before allowing restore
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
 
-    if (!pattern || !pattern.is_archived) {
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to restore this pattern' });
+    }
+
+    if (!pattern.is_archived) {
       return res.status(404).json({ error: 'Archived pattern not found' });
     }
 
@@ -2329,9 +2361,14 @@ app.post('/api/patterns/:id/restore', async (req, res) => {
 // Permanently delete an archived pattern
 app.delete('/api/patterns/:id/permanent', async (req, res) => {
   try {
-    const pattern = await getPatternWithOwner(req.params.id);
+    // Verify ownership before allowing permanent deletion
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
 
-    if (!pattern || !pattern.is_archived) {
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to delete this pattern' });
+    }
+
+    if (!pattern.is_archived) {
       return res.status(404).json({ error: 'Archived pattern not found' });
     }
 
@@ -2623,6 +2660,13 @@ app.delete('/api/hashtags/:id', async (req, res) => {
 // Get hashtags for a pattern
 app.get('/api/patterns/:id/hashtags', async (req, res) => {
   try {
+    // Verify read access (owner, admin, or public)
+    const pattern = await verifyPatternReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to access this pattern' });
+    }
+
     const result = await pool.query(
       `SELECT h.* FROM hashtags h
        JOIN pattern_hashtags ph ON h.id = ph.hashtag_id
@@ -2642,6 +2686,13 @@ app.put('/api/patterns/:id/hashtags', async (req, res) => {
   try {
     const { hashtagIds } = req.body;
     const patternId = req.params.id;
+
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(patternId, req.user?.id, req.user?.role === 'admin');
+
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
+    }
 
     // Delete existing associations
     await pool.query('DELETE FROM pattern_hashtags WHERE pattern_id = $1', [patternId]);
@@ -2684,10 +2735,11 @@ function sanitizeNotesFilename(name) {
 // Get notes for a pattern
 app.get('/api/patterns/:id/notes', async (req, res) => {
   try {
-    const pattern = await getPatternWithOwner(req.params.id);
+    // Verify read access (owner, admin, or public)
+    const pattern = await verifyPatternReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
 
     if (!pattern) {
-      return res.status(404).json({ error: 'Pattern not found' });
+      return res.status(403).json({ error: 'Not authorized to access this pattern' });
     }
 
     const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
@@ -2712,10 +2764,11 @@ app.put('/api/patterns/:id/notes', async (req, res) => {
   try {
     const { notes } = req.body;
 
-    const pattern = await getPatternWithOwner(req.params.id);
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
 
     if (!pattern) {
-      return res.status(404).json({ error: 'Pattern not found' });
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
     }
 
     const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
@@ -2747,6 +2800,12 @@ app.patch('/api/patterns/:id/current', async (req, res) => {
   try {
     const { isCurrent } = req.body;
 
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
+    }
+
     // When marking as current, un-complete it (but keep completed_date for history)
     const result = await pool.query(
       `UPDATE patterns
@@ -2756,10 +2815,6 @@ app.patch('/api/patterns/:id/current', async (req, res) => {
        WHERE id = $2 RETURNING *`,
       [isCurrent, req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -2772,6 +2827,13 @@ app.patch('/api/patterns/:id/current', async (req, res) => {
 app.patch('/api/patterns/:id/complete', async (req, res) => {
   try {
     const { completed } = req.body;
+
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
+    }
+
     const completedDate = completed ? 'CURRENT_TIMESTAMP' : 'NULL';
 
     // When marking as complete, remove from current. When marking incomplete, keep current status unchanged
@@ -2785,10 +2847,6 @@ app.patch('/api/patterns/:id/complete', async (req, res) => {
       [completed, req.params.id]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
-    }
-
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error updating completion status:', error);
@@ -2801,6 +2859,12 @@ app.patch('/api/patterns/:id/favorite', async (req, res) => {
   try {
     const { isFavorite } = req.body;
 
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
+    }
+
     const result = await pool.query(
       `UPDATE patterns
        SET is_favorite = $1,
@@ -2808,10 +2872,6 @@ app.patch('/api/patterns/:id/favorite', async (req, res) => {
        WHERE id = $2 RETURNING *`,
       [isFavorite, req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -2823,6 +2883,12 @@ app.patch('/api/patterns/:id/favorite', async (req, res) => {
 // Increment stitch count for a pattern
 app.post('/api/patterns/:id/increment-stitch', async (req, res) => {
   try {
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
+    }
+
     const result = await pool.query(
       `UPDATE patterns
        SET stitch_count = stitch_count + 1, updated_at = CURRENT_TIMESTAMP
@@ -2830,10 +2896,6 @@ app.post('/api/patterns/:id/increment-stitch', async (req, res) => {
        RETURNING *`,
       [req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -2845,6 +2907,12 @@ app.post('/api/patterns/:id/increment-stitch', async (req, res) => {
 // Decrement stitch count for a pattern
 app.post('/api/patterns/:id/decrement-stitch', async (req, res) => {
   try {
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
+    }
+
     const result = await pool.query(
       `UPDATE patterns
        SET stitch_count = GREATEST(stitch_count - 1, 0), updated_at = CURRENT_TIMESTAMP
@@ -2852,10 +2920,6 @@ app.post('/api/patterns/:id/decrement-stitch', async (req, res) => {
        RETURNING *`,
       [req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -2867,6 +2931,12 @@ app.post('/api/patterns/:id/decrement-stitch', async (req, res) => {
 // Increment row count for a pattern
 app.post('/api/patterns/:id/increment-row', async (req, res) => {
   try {
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
+    }
+
     const result = await pool.query(
       `UPDATE patterns
        SET row_count = row_count + 1, updated_at = CURRENT_TIMESTAMP
@@ -2874,10 +2944,6 @@ app.post('/api/patterns/:id/increment-row', async (req, res) => {
        RETURNING *`,
       [req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -2889,6 +2955,12 @@ app.post('/api/patterns/:id/increment-row', async (req, res) => {
 // Decrement row count for a pattern
 app.post('/api/patterns/:id/decrement-row', async (req, res) => {
   try {
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
+    }
+
     const result = await pool.query(
       `UPDATE patterns
        SET row_count = GREATEST(row_count - 1, 0), updated_at = CURRENT_TIMESTAMP
@@ -2896,10 +2968,6 @@ app.post('/api/patterns/:id/decrement-row', async (req, res) => {
        RETURNING *`,
       [req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -2911,6 +2979,12 @@ app.post('/api/patterns/:id/decrement-row', async (req, res) => {
 // Reset counters for a pattern
 app.post('/api/patterns/:id/reset', async (req, res) => {
   try {
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
+    }
+
     const result = await pool.query(
       `UPDATE patterns
        SET stitch_count = 0, row_count = 0, updated_at = CURRENT_TIMESTAMP
@@ -2918,10 +2992,6 @@ app.post('/api/patterns/:id/reset', async (req, res) => {
        RETURNING *`,
       [req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -2934,15 +3004,18 @@ app.post('/api/patterns/:id/reset', async (req, res) => {
 app.patch('/api/patterns/:id/page', async (req, res) => {
   try {
     const { currentPage } = req.body;
+
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
+    }
+
     const result = await pool.query(
       `UPDATE patterns SET current_page = $1, updated_at = CURRENT_TIMESTAMP
        WHERE id = $2 RETURNING *`,
       [currentPage, req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -2956,6 +3029,13 @@ app.patch('/api/patterns/:id/page', async (req, res) => {
 // Get all counters for a pattern
 app.get('/api/patterns/:id/counters', async (req, res) => {
   try {
+    // Verify read access (owner, admin, or public)
+    const pattern = await verifyPatternReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to access this pattern' });
+    }
+
     const result = await pool.query(
       'SELECT * FROM counters WHERE pattern_id = $1 ORDER BY position ASC',
       [req.params.id]
@@ -2971,6 +3051,12 @@ app.get('/api/patterns/:id/counters', async (req, res) => {
 app.post('/api/patterns/:id/counters', async (req, res) => {
   try {
     const { name, value = 0 } = req.body;
+
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
+    }
 
     // Get the max position for this pattern
     const maxPosResult = await pool.query(
@@ -2996,6 +3082,12 @@ app.post('/api/patterns/:id/counters', async (req, res) => {
 // Update a counter's value
 app.patch('/api/counters/:id', async (req, res) => {
   try {
+    // Verify ownership through associated pattern
+    const counter = await verifyCounterOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!counter) {
+      return res.status(403).json({ error: 'Not authorized to modify this counter' });
+    }
+
     const { value, name } = req.body;
     const updates = [];
     const values = [];
@@ -3040,6 +3132,12 @@ app.patch('/api/counters/:id', async (req, res) => {
 // Increment counter
 app.post('/api/counters/:id/increment', async (req, res) => {
   try {
+    // Verify ownership through associated pattern
+    const counter = await verifyCounterOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!counter) {
+      return res.status(403).json({ error: 'Not authorized to modify this counter' });
+    }
+
     const result = await pool.query(
       `UPDATE counters
        SET value = value + 1, updated_at = CURRENT_TIMESTAMP
@@ -3047,10 +3145,6 @@ app.post('/api/counters/:id/increment', async (req, res) => {
        RETURNING *`,
       [req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Counter not found' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -3062,6 +3156,12 @@ app.post('/api/counters/:id/increment', async (req, res) => {
 // Decrement counter
 app.post('/api/counters/:id/decrement', async (req, res) => {
   try {
+    // Verify ownership through associated pattern
+    const counter = await verifyCounterOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!counter) {
+      return res.status(403).json({ error: 'Not authorized to modify this counter' });
+    }
+
     const result = await pool.query(
       `UPDATE counters
        SET value = GREATEST(value - 1, 0), updated_at = CURRENT_TIMESTAMP
@@ -3069,10 +3169,6 @@ app.post('/api/counters/:id/decrement', async (req, res) => {
        RETURNING *`,
       [req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Counter not found' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -3084,6 +3180,12 @@ app.post('/api/counters/:id/decrement', async (req, res) => {
 // Reset counter to zero
 app.post('/api/counters/:id/reset', async (req, res) => {
   try {
+    // Verify ownership through associated pattern
+    const counter = await verifyCounterOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!counter) {
+      return res.status(403).json({ error: 'Not authorized to modify this counter' });
+    }
+
     const result = await pool.query(
       `UPDATE counters
        SET value = 0, updated_at = CURRENT_TIMESTAMP
@@ -3091,10 +3193,6 @@ app.post('/api/counters/:id/reset', async (req, res) => {
        RETURNING *`,
       [req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Counter not found' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {
@@ -3106,14 +3204,16 @@ app.post('/api/counters/:id/reset', async (req, res) => {
 // Delete a counter
 app.delete('/api/counters/:id', async (req, res) => {
   try {
+    // Verify ownership through associated pattern
+    const counter = await verifyCounterOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!counter) {
+      return res.status(403).json({ error: 'Not authorized to delete this counter' });
+    }
+
     const result = await pool.query(
       'DELETE FROM counters WHERE id = $1 RETURNING *',
       [req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Counter not found' });
-    }
 
     res.json({ message: 'Counter deleted successfully' });
   } catch (error) {
@@ -3242,11 +3342,11 @@ app.post('/api/patterns/:id/thumbnail', imageUpload.single('thumbnail'), async (
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Get current pattern with owner info
-    const pattern = await getPatternWithOwner(req.params.id);
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
 
     if (!pattern) {
-      return res.status(404).json({ error: 'Pattern not found' });
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
     }
 
     const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
@@ -3520,6 +3620,13 @@ app.get('/api/images/:username/:filename', (req, res) => {
 app.put('/api/patterns/:id/timer', async (req, res) => {
   try {
     const { timer_seconds } = req.body;
+
+    // Verify ownership before allowing modification
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to modify this pattern' });
+    }
+
     const result = await pool.query(
       `UPDATE patterns
        SET timer_seconds = $1, updated_at = CURRENT_TIMESTAMP
@@ -3527,10 +3634,6 @@ app.put('/api/patterns/:id/timer', async (req, res) => {
        RETURNING *`,
       [timer_seconds, req.params.id]
     );
-
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Pattern not found' });
-    }
 
     res.json(result.rows[0]);
   } catch (error) {

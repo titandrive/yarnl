@@ -288,7 +288,15 @@ app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
       ]
     );
 
-    res.json(result.rows[0]);
+    const newUser = result.rows[0];
+
+    // Create default categories for the new user
+    await createDefaultCategoriesForUser(newUser.id);
+
+    // Create user directories
+    await ensureUserDirectories(username);
+
+    res.json(newUser);
   } catch (error) {
     console.error('Error creating user:', error);
     res.status(500).json({ error: 'Failed to create user' });
@@ -373,11 +381,16 @@ app.delete('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
       return res.status(400).json({ error: 'Cannot delete yourself' });
     }
 
-    // Check if user exists
-    const user = await pool.query('SELECT role FROM users WHERE id = $1', [userId]);
+    // Check if user exists and get username
+    const user = await pool.query('SELECT role, username FROM users WHERE id = $1', [userId]);
     if (user.rows.length === 0) {
       return res.status(404).json({ error: 'User not found' });
     }
+
+    const username = user.rows[0].username;
+
+    // Move user's data to _deleted folder before deleting from database
+    await moveUserDataToDeleted(username);
 
     await pool.query('DELETE FROM users WHERE id = $1', [userId]);
     res.json({ success: true });
@@ -478,10 +491,13 @@ app.get('/api/auth/account', authMiddleware, async (req, res) => {
 app.patch('/api/auth/account', authMiddleware, async (req, res) => {
   try {
     const { username } = req.body;
+    const oldUsername = req.user.username;
 
     if (!username || username.trim().length === 0) {
       return res.status(400).json({ error: 'Username is required' });
     }
+
+    const newUsername = username.trim();
 
     // Check if username changes are allowed for this user
     const userResult = await pool.query('SELECT can_change_username FROM users WHERE id = $1', [req.user.id]);
@@ -489,15 +505,23 @@ app.patch('/api/auth/account', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: 'Username changes are not allowed for your account' });
     }
 
+    // Check if username is actually changing
+    if (newUsername === oldUsername) {
+      return res.json({ success: true });
+    }
+
     // Check if username is already taken
-    const existing = await pool.query('SELECT id FROM users WHERE username = $1 AND id != $2', [username.trim(), req.user.id]);
+    const existing = await pool.query('SELECT id FROM users WHERE username = $1 AND id != $2', [newUsername, req.user.id]);
     if (existing.rows.length > 0) {
       return res.status(400).json({ error: 'Username is already taken' });
     }
 
+    // Rename user directories before updating database
+    await renameUserDirectories(oldUsername, newUsername);
+
     await pool.query(
       'UPDATE users SET username = $1, updated_at = NOW() WHERE id = $2',
-      [username.trim(), req.user.id]
+      [newUsername, req.user.id]
     );
 
     res.json({ success: true });
@@ -907,24 +931,115 @@ app.use('/api', (req, res, next) => {
   return authMiddleware(req, res, next);
 });
 
-// Ensure patterns and thumbnails directories exist
+// Base directories
 const patternsDir = path.join(__dirname, 'patterns');
-const thumbnailsDir = path.join(__dirname, 'patterns', 'thumbnails');
-if (!fs.existsSync(patternsDir)) {
-  fs.mkdirSync(patternsDir, { recursive: true });
-}
-if (!fs.existsSync(thumbnailsDir)) {
-  fs.mkdirSync(thumbnailsDir, { recursive: true });
+const archiveDir = path.join(__dirname, 'archive');
+const notesBaseDir = path.join(__dirname, 'notes');
+const backupsBaseDir = path.join(__dirname, 'backups');
+const deletedDir = path.join(__dirname, '_deleted');
+
+// Ensure base directories exist
+[patternsDir, archiveDir, notesBaseDir, backupsBaseDir].forEach(dir => {
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
+});
+
+// User-specific directory helpers
+function getUserPatternsDir(username) {
+  return path.join(patternsDir, username);
 }
 
-// Archive directories
-const archiveDir = path.join(__dirname, 'archive');
-const archiveThumbnailsDir = path.join(archiveDir, 'thumbnails');
-if (!fs.existsSync(archiveDir)) {
-  fs.mkdirSync(archiveDir, { recursive: true });
+function getUserThumbnailsDir(username) {
+  return path.join(patternsDir, username, 'thumbnails');
 }
-if (!fs.existsSync(archiveThumbnailsDir)) {
-  fs.mkdirSync(archiveThumbnailsDir, { recursive: true });
+
+function getUserImagesDir(username) {
+  return path.join(patternsDir, username, 'images');
+}
+
+function getUserArchiveDir(username) {
+  return path.join(archiveDir, username);
+}
+
+function getUserArchiveThumbnailsDir(username) {
+  return path.join(archiveDir, username, 'thumbnails');
+}
+
+function getUserNotesDir(username) {
+  return path.join(notesBaseDir, username);
+}
+
+function getUserBackupsDir(username) {
+  return path.join(backupsBaseDir, username);
+}
+
+// Ensure all directories exist for a user
+async function ensureUserDirectories(username) {
+  const dirs = [
+    getUserPatternsDir(username),
+    getUserThumbnailsDir(username),
+    getUserImagesDir(username),
+    getUserArchiveDir(username),
+    getUserArchiveThumbnailsDir(username),
+    getUserNotesDir(username),
+    getUserBackupsDir(username)
+  ];
+  for (const dir of dirs) {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+}
+
+// Rename user directories when username changes
+async function renameUserDirectories(oldUsername, newUsername) {
+  const renames = [
+    [path.join(patternsDir, oldUsername), path.join(patternsDir, newUsername)],
+    [path.join(archiveDir, oldUsername), path.join(archiveDir, newUsername)],
+    [path.join(notesBaseDir, oldUsername), path.join(notesBaseDir, newUsername)],
+    [path.join(backupsBaseDir, oldUsername), path.join(backupsBaseDir, newUsername)]
+  ];
+
+  for (const [oldPath, newPath] of renames) {
+    if (fs.existsSync(oldPath)) {
+      fs.renameSync(oldPath, newPath);
+    }
+  }
+}
+
+// Move user data to _deleted folder when user is deleted
+async function moveUserDataToDeleted(username) {
+  const userDeletedDir = path.join(deletedDir, username);
+  if (!fs.existsSync(userDeletedDir)) {
+    fs.mkdirSync(userDeletedDir, { recursive: true });
+  }
+
+  const moves = [
+    [path.join(patternsDir, username), path.join(userDeletedDir, 'patterns')],
+    [path.join(archiveDir, username), path.join(userDeletedDir, 'archive')],
+    [path.join(notesBaseDir, username), path.join(userDeletedDir, 'notes')],
+    [path.join(backupsBaseDir, username), path.join(userDeletedDir, 'backups')]
+  ];
+
+  for (const [src, dest] of moves) {
+    if (fs.existsSync(src)) {
+      fs.renameSync(src, dest);
+    }
+  }
+}
+
+// Default categories for new users
+const DEFAULT_CATEGORIES = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace', 'Colorwork', 'Freeform', 'Micro', 'Other'];
+
+// Create default categories for a new user
+async function createDefaultCategoriesForUser(userId) {
+  for (let i = 0; i < DEFAULT_CATEGORIES.length; i++) {
+    await pool.query(
+      'INSERT INTO categories (name, user_id, position) VALUES ($1, $2, $3) ON CONFLICT (user_id, name) DO NOTHING',
+      [DEFAULT_CATEGORIES[i], userId, i]
+    );
+  }
 }
 
 // Helper function to format local timestamp for filenames
@@ -948,14 +1063,14 @@ function categoryToFolderName(categoryName) {
     .replace(/^_|_$/g, '');         // trim leading/trailing underscores
 }
 
-// Helper function to get category folder path
-function getCategoryDir(categoryName) {
-  return path.join(patternsDir, categoryToFolderName(categoryName));
+// Helper function to get category folder path (now requires username)
+function getCategoryDir(username, categoryName) {
+  return path.join(getUserPatternsDir(username), categoryToFolderName(categoryName));
 }
 
 // Helper function to ensure category folder exists
-function ensureCategoryDir(categoryName) {
-  const categoryDir = getCategoryDir(categoryName);
+function ensureCategoryDir(username, categoryName) {
+  const categoryDir = getCategoryDir(username, categoryName);
   if (!fs.existsSync(categoryDir)) {
     fs.mkdirSync(categoryDir, { recursive: true });
   }
@@ -963,8 +1078,8 @@ function ensureCategoryDir(categoryName) {
 }
 
 // Helper function to remove category folder (only if empty)
-function removeCategoryDir(categoryName) {
-  const categoryDir = getCategoryDir(categoryName);
+function removeCategoryDir(username, categoryName) {
+  const categoryDir = getCategoryDir(username, categoryName);
   if (fs.existsSync(categoryDir)) {
     try {
       fs.rmdirSync(categoryDir);
@@ -976,42 +1091,55 @@ function removeCategoryDir(categoryName) {
 }
 
 // Helper function to rename category folder
-function renameCategoryDir(oldName, newName) {
-  const oldDir = getCategoryDir(oldName);
-  const newDir = getCategoryDir(newName);
+function renameCategoryDir(username, oldName, newName) {
+  const oldDir = getCategoryDir(username, oldName);
+  const newDir = getCategoryDir(username, newName);
   if (fs.existsSync(oldDir)) {
     fs.renameSync(oldDir, newDir);
   } else {
     // Old folder doesn't exist, just create the new one
-    ensureCategoryDir(newName);
+    ensureCategoryDir(username, newName);
   }
 }
 
-// Helper function to get archive category folder path
-function getArchiveCategoryDir(categoryName) {
-  return path.join(archiveDir, categoryToFolderName(categoryName));
+// Helper function to get archive category folder path (now requires username)
+function getArchiveCategoryDir(username, categoryName) {
+  return path.join(getUserArchiveDir(username), categoryToFolderName(categoryName));
 }
 
 // Helper function to ensure archive category folder exists
-function ensureArchiveCategoryDir(categoryName) {
-  const categoryDir = getArchiveCategoryDir(categoryName);
+function ensureArchiveCategoryDir(username, categoryName) {
+  const categoryDir = getArchiveCategoryDir(username, categoryName);
   if (!fs.existsSync(categoryDir)) {
     fs.mkdirSync(categoryDir, { recursive: true });
   }
   return categoryDir;
 }
 
-// Helper function to clean up empty archive category directories
+// Helper function to clean up empty archive category directories (per-user)
 function cleanupEmptyArchiveCategories() {
   try {
-    const entries = fs.readdirSync(archiveDir, { withFileTypes: true });
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      if (entry.name === 'thumbnails') continue;
-      const categoryPath = path.join(archiveDir, entry.name);
-      const files = fs.readdirSync(categoryPath);
-      if (files.length === 0) {
-        fs.rmdirSync(categoryPath);
+    // Iterate through user directories in archive
+    const userDirs = fs.readdirSync(archiveDir, { withFileTypes: true });
+    for (const userDir of userDirs) {
+      if (!userDir.isDirectory()) continue;
+      if (userDir.name.startsWith('.')) continue;
+
+      const userArchivePath = path.join(archiveDir, userDir.name);
+      const entries = fs.readdirSync(userArchivePath, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        if (entry.name === 'thumbnails') continue;
+        const categoryPath = path.join(userArchivePath, entry.name);
+        try {
+          const files = fs.readdirSync(categoryPath);
+          if (files.length === 0) {
+            fs.rmdirSync(categoryPath);
+          }
+        } catch (err) {
+          // Ignore errors reading category directory
+        }
       }
     }
   } catch (error) {
@@ -1019,53 +1147,10 @@ function cleanupEmptyArchiveCategories() {
   }
 }
 
-// Migrate old category folder names to new format (lowercase, underscores)
-async function migrateCategoryFolders() {
-  try {
-    const result = await pool.query('SELECT name FROM categories');
-    const categories = result.rows.map(r => r.name);
-
-    for (const category of categories) {
-      const newFolderName = categoryToFolderName(category);
-      const newPath = path.join(patternsDir, newFolderName);
-      const oldPath = path.join(patternsDir, category);
-
-      // Check if old-style folder exists (exact category name as folder)
-      if (category !== newFolderName && fs.existsSync(oldPath) && !fs.existsSync(newPath)) {
-        console.log(`Migrating category folder: "${category}" -> "${newFolderName}"`);
-        fs.renameSync(oldPath, newPath);
-      }
-
-      // Also check archive
-      const oldArchivePath = path.join(archiveDir, category);
-      const newArchivePath = path.join(archiveDir, newFolderName);
-      if (category !== newFolderName && fs.existsSync(oldArchivePath) && !fs.existsSync(newArchivePath)) {
-        console.log(`Migrating archive folder: "${category}" -> "${newFolderName}"`);
-        fs.renameSync(oldArchivePath, newArchivePath);
-      }
-    }
-  } catch (error) {
-    console.error('Error migrating category folders:', error);
-  }
-}
-
-// Sync category folders with database on startup
+// Note: Category folders are now per-user and created on-demand when patterns are uploaded
+// This function is kept for backward compatibility but is now a no-op
 async function syncCategoryFolders() {
-  try {
-    // First migrate any old-style folder names
-    await migrateCategoryFolders();
-
-    const result = await pool.query('SELECT name FROM categories');
-    const categories = result.rows.map(r => r.name);
-
-    // Create folders for all categories
-    for (const category of categories) {
-      ensureCategoryDir(category);
-    }
-    console.log('Category folders synced');
-  } catch (error) {
-    console.error('Error syncing category folders:', error);
-  }
+  console.log('Category folders are now per-user - created on-demand');
 }
 
 // Helper function to sanitize filename
@@ -1093,19 +1178,33 @@ function getUniqueFilename(directory, baseName, extension) {
 // Helper function to clean up empty category directories
 async function cleanupEmptyCategories() {
   try {
-    const entries = fs.readdirSync(patternsDir, { withFileTypes: true });
+    // Iterate through user directories in patterns
+    const userDirs = fs.readdirSync(patternsDir, { withFileTypes: true });
 
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      if (entry.name === 'thumbnails') continue; // Skip thumbnails directory
+    for (const userDir of userDirs) {
+      if (!userDir.isDirectory()) continue;
+      if (userDir.name.startsWith('.')) continue;
 
-      const categoryPath = path.join(patternsDir, entry.name);
-      const files = fs.readdirSync(categoryPath);
+      const userPatternsPath = path.join(patternsDir, userDir.name);
+      const entries = fs.readdirSync(userPatternsPath, { withFileTypes: true });
 
-      // If directory is empty, remove it
-      if (files.length === 0) {
-        fs.rmdirSync(categoryPath);
-        console.log(`Removed empty category directory: ${entry.name}`);
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+        if (entry.name === 'thumbnails') continue; // Skip thumbnails directory
+        if (entry.name === 'images') continue; // Skip images directory
+
+        const categoryPath = path.join(userPatternsPath, entry.name);
+        try {
+          const files = fs.readdirSync(categoryPath);
+
+          // If directory is empty, remove it
+          if (files.length === 0) {
+            fs.rmdirSync(categoryPath);
+            console.log(`Removed empty category directory: ${userDir.name}/${entry.name}`);
+          }
+        } catch (err) {
+          // Ignore errors reading category directory
+        }
       }
     }
   } catch (error) {
@@ -1156,8 +1255,31 @@ const imageUpload = multer({
   }
 });
 
-// Helper function to generate thumbnail from PDF
-async function generateThumbnail(pdfPath, outputFilename) {
+// Helper function to get pattern with owner's username
+async function getPatternWithOwner(patternId) {
+  const result = await pool.query(`
+    SELECT p.*, u.username as owner_username
+    FROM patterns p
+    LEFT JOIN users u ON p.user_id = u.id
+    WHERE p.id = $1
+  `, [patternId]);
+  return result.rows[0];
+}
+
+// Helper function to verify pattern ownership (returns pattern with owner or null if not authorized)
+async function verifyPatternOwnership(patternId, currentUserId, isAdmin = false) {
+  const pattern = await getPatternWithOwner(patternId);
+  if (!pattern) return null;
+
+  // Admins can access any pattern, or user owns the pattern
+  if (isAdmin || pattern.user_id === currentUserId) {
+    return pattern;
+  }
+  return null;
+}
+
+// Helper function to generate thumbnail from PDF (now requires username for path)
+async function generateThumbnail(pdfPath, outputFilename, username) {
   try {
     const tempDir = path.join(__dirname, 'temp');
     if (!fs.existsSync(tempDir)) {
@@ -1174,8 +1296,12 @@ async function generateThumbnail(pdfPath, outputFilename) {
       return null;
     }
 
-    // Resize to thumbnail size
-    const thumbnailPath = path.join(thumbnailsDir, outputFilename);
+    // Resize to thumbnail size - use user's thumbnail directory
+    const userThumbnailsDir = getUserThumbnailsDir(username);
+    if (!fs.existsSync(userThumbnailsDir)) {
+      fs.mkdirSync(userThumbnailsDir, { recursive: true });
+    }
+    const thumbnailPath = path.join(userThumbnailsDir, outputFilename);
     await sharp(tempFile)
       .resize(300, 400, {
         fit: 'cover',
@@ -1194,11 +1320,191 @@ async function generateThumbnail(pdfPath, outputFilename) {
   }
 }
 
+// Migrate categories to per-user: create default categories for users who don't have any
+async function migrateCategoriesToPerUser() {
+  try {
+    // Get all users
+    const usersResult = await pool.query('SELECT id, username FROM users');
+
+    for (const user of usersResult.rows) {
+      // Check if user has any categories
+      const catCount = await pool.query(
+        'SELECT COUNT(*) FROM categories WHERE user_id = $1',
+        [user.id]
+      );
+
+      if (parseInt(catCount.rows[0].count) === 0) {
+        console.log(`Creating default categories for user: ${user.username}`);
+        await createDefaultCategoriesForUser(user.id);
+      }
+
+      // Ensure user directories exist
+      await ensureUserDirectories(user.username);
+    }
+
+    console.log('Category migration complete');
+  } catch (error) {
+    console.error('Error migrating categories:', error);
+  }
+}
+
+// Migrate existing data from flat directories to admin user's directory
+async function migrateExistingDataToAdmin() {
+  try {
+    // Check if migration already done
+    const migrated = await pool.query("SELECT value FROM settings WHERE key = 'data_migrated_to_users'");
+    if (migrated.rows.length > 0) {
+      console.log('Data migration already complete');
+      return;
+    }
+
+    // Get admin user
+    const adminResult = await pool.query("SELECT id, username FROM users WHERE role = 'admin' LIMIT 1");
+    if (adminResult.rows.length === 0) {
+      console.log('No admin user found, skipping data migration');
+      return;
+    }
+
+    const admin = adminResult.rows[0];
+    console.log(`Migrating existing data to admin user: ${admin.username}`);
+
+    // Ensure admin directories exist
+    await ensureUserDirectories(admin.username);
+
+    // Helper to move directory contents
+    const moveContents = (src, dest) => {
+      if (!fs.existsSync(src)) return;
+      if (!fs.existsSync(dest)) {
+        fs.mkdirSync(dest, { recursive: true });
+      }
+
+      const entries = fs.readdirSync(src, { withFileTypes: true });
+      for (const entry of entries) {
+        const srcPath = path.join(src, entry.name);
+        const destPath = path.join(dest, entry.name);
+
+        // Skip if already moved (user folders)
+        if (fs.existsSync(destPath)) continue;
+
+        // Skip the admin's own folder to avoid recursion
+        if (srcPath === dest) continue;
+
+        if (entry.isDirectory()) {
+          // Skip user directories (folders that match usernames)
+          const isUserDir = fs.existsSync(path.join(srcPath, 'thumbnails')) ||
+                           fs.existsSync(path.join(srcPath, 'images'));
+          if (!isUserDir) {
+            // This is a category folder, move it
+            fs.renameSync(srcPath, destPath);
+            console.log(`Moved category: ${entry.name}`);
+          }
+        } else {
+          // Move files
+          fs.renameSync(srcPath, destPath);
+          console.log(`Moved file: ${entry.name}`);
+        }
+      }
+    };
+
+    // Move patterns (categories, thumbnails, images)
+    const oldThumbnailsDir = path.join(patternsDir, 'thumbnails');
+    const oldImagesDir = path.join(patternsDir, 'images');
+
+    if (fs.existsSync(oldThumbnailsDir)) {
+      moveContents(oldThumbnailsDir, getUserThumbnailsDir(admin.username));
+      fs.rmSync(oldThumbnailsDir, { recursive: true, force: true });
+      console.log('Moved thumbnails to admin');
+    }
+
+    if (fs.existsSync(oldImagesDir)) {
+      moveContents(oldImagesDir, getUserImagesDir(admin.username));
+      fs.rmSync(oldImagesDir, { recursive: true, force: true });
+      console.log('Moved images to admin');
+    }
+
+    // Move category folders to admin
+    const patternEntries = fs.readdirSync(patternsDir, { withFileTypes: true });
+    for (const entry of patternEntries) {
+      if (entry.isDirectory() && entry.name !== admin.username) {
+        const srcPath = path.join(patternsDir, entry.name);
+        const destPath = path.join(getUserPatternsDir(admin.username), entry.name);
+
+        // Check if it's a category folder (not a user folder)
+        const hasPatternFiles = fs.readdirSync(srcPath).some(f => f.endsWith('.pdf') || f.endsWith('.md'));
+        if (hasPatternFiles) {
+          fs.renameSync(srcPath, destPath);
+          console.log(`Moved category folder: ${entry.name}`);
+        }
+      }
+    }
+
+    // Move archive folders
+    if (fs.existsSync(archiveDir)) {
+      const oldArchiveThumbnails = path.join(archiveDir, 'thumbnails');
+      if (fs.existsSync(oldArchiveThumbnails)) {
+        moveContents(oldArchiveThumbnails, getUserArchiveThumbnailsDir(admin.username));
+        fs.rmSync(oldArchiveThumbnails, { recursive: true, force: true });
+      }
+
+      const archiveEntries = fs.readdirSync(archiveDir, { withFileTypes: true });
+      for (const entry of archiveEntries) {
+        if (entry.isDirectory() && entry.name !== admin.username) {
+          const srcPath = path.join(archiveDir, entry.name);
+          const destPath = path.join(getUserArchiveDir(admin.username), entry.name);
+
+          const hasFiles = fs.readdirSync(srcPath).length > 0;
+          if (hasFiles) {
+            fs.renameSync(srcPath, destPath);
+            console.log(`Moved archive folder: ${entry.name}`);
+          }
+        }
+      }
+    }
+
+    // Move notes
+    if (fs.existsSync(notesBaseDir)) {
+      const noteFiles = fs.readdirSync(notesBaseDir).filter(f => f.endsWith('.md'));
+      for (const file of noteFiles) {
+        const srcPath = path.join(notesBaseDir, file);
+        const destPath = path.join(getUserNotesDir(admin.username), file);
+        if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) {
+          fs.renameSync(srcPath, destPath);
+          console.log(`Moved note: ${file}`);
+        }
+      }
+    }
+
+    // Move backups
+    if (fs.existsSync(backupsBaseDir)) {
+      const backupFiles = fs.readdirSync(backupsBaseDir).filter(f => f.endsWith('.zip'));
+      for (const file of backupFiles) {
+        const srcPath = path.join(backupsBaseDir, file);
+        const destPath = path.join(getUserBackupsDir(admin.username), file);
+        if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) {
+          fs.renameSync(srcPath, destPath);
+          console.log(`Moved backup: ${file}`);
+        }
+      }
+    }
+
+    // Mark migration complete
+    await pool.query(
+      "INSERT INTO settings (key, value) VALUES ('data_migrated_to_users', 'true') ON CONFLICT (key) DO UPDATE SET value = 'true'"
+    );
+
+    console.log('Data migration to admin complete');
+  } catch (error) {
+    console.error('Error migrating existing data:', error);
+  }
+}
+
 // Database will be initialized on startup
 initDatabase()
   .then(() => syncCategoryFolders())
   .then(() => initializeAdmin())
   .then(() => migratePatternOwnership())
+  .then(() => migrateCategoriesToPerUser())
+  .then(() => migrateExistingDataToAdmin())
   .catch(err => {
     console.error('Failed to initialize database:', err);
     process.exit(1);
@@ -1271,8 +1577,12 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
     console.log('  - req.file.filename:', req.file.filename);
     console.log('  - req.file.originalname:', req.file.originalname);
 
+    // Ensure user directories exist
+    const username = req.user.username;
+    await ensureUserDirectories(username);
+
     // Now we have access to req.body! Determine the final filename
-    const categoryDir = getCategoryDir(category);
+    const categoryDir = getCategoryDir(username, category);
 
     let finalFilename;
     if (req.body.name) {
@@ -1299,9 +1609,9 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
     // Generate thumbnail from PDF
     const pdfPath = finalPath;
     const thumbnailFilename = `thumb-${category}-${finalFilename}.jpg`;
-    const thumbnail = await generateThumbnail(pdfPath, thumbnailFilename);
+    const thumbnail = await generateThumbnail(pdfPath, thumbnailFilename, username);
 
-    const userId = req.user?.id || null;
+    const userId = req.user.id;
     const result = await pool.query(
       `INSERT INTO patterns (name, filename, original_name, category, description, is_current, thumbnail, user_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
@@ -1333,8 +1643,12 @@ app.post('/api/patterns/markdown', async (req, res) => {
     const patternDescription = description || '';
     const patternIsCurrent = isCurrent === true || isCurrent === 'true';
 
+    // Ensure user directories exist
+    const username = req.user.username;
+    await ensureUserDirectories(username);
+
     // Create category directory if needed
-    const categoryDir = ensureCategoryDir(patternCategory);
+    const categoryDir = ensureCategoryDir(username, patternCategory);
 
     // Create a unique filename based on the pattern name
     const sanitizedName = sanitizeFilename(name);
@@ -1344,7 +1658,7 @@ app.post('/api/patterns/markdown', async (req, res) => {
     const filePath = path.join(categoryDir, filename);
     fs.writeFileSync(filePath, content, 'utf8');
 
-    const userId = req.user?.id || null;
+    const userId = req.user.id;
     const result = await pool.query(
       `INSERT INTO patterns (name, filename, original_name, category, description, is_current, pattern_type, user_id)
        VALUES ($1, $2, $3, $4, $5, $6, 'markdown', $7)
@@ -1489,21 +1803,19 @@ app.get('/api/patterns/:id/file', async (req, res) => {
 // Get a pattern thumbnail
 app.get('/api/patterns/:id/thumbnail', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE id = $1',
-      [req.params.id]
-    );
+    const pattern = await getPatternWithOwner(req.params.id);
 
-    if (result.rows.length === 0) {
+    if (!pattern) {
       return res.status(404).json({ error: 'Pattern not found' });
     }
 
-    const pattern = result.rows[0];
     if (!pattern.thumbnail) {
       return res.status(404).json({ error: 'Thumbnail not found' });
     }
 
-    const thumbnailPath = path.join(thumbnailsDir, pattern.thumbnail);
+    // Use owner's thumbnail directory (fallback to admin if no owner)
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+    const thumbnailPath = path.join(getUserThumbnailsDir(ownerUsername), pattern.thumbnail);
 
     if (!fs.existsSync(thumbnailPath)) {
       return res.status(404).json({ error: 'Thumbnail file not found' });
@@ -1589,22 +1901,28 @@ app.get('/api/patterns/archived', async (req, res) => {
 // Permanently delete all archived patterns (must come before /api/patterns/:id)
 app.delete('/api/patterns/archived/all', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE is_archived = true'
-    );
+    // Get archived patterns with owner info
+    const result = await pool.query(`
+      SELECT p.*, u.username as owner_username
+      FROM patterns p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.is_archived = true
+    `);
 
     let deletedCount = 0;
 
     for (const pattern of result.rows) {
+      const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+
       // Delete file from archive
-      const archiveFilePath = path.join(getArchiveCategoryDir(pattern.category), pattern.filename);
+      const archiveFilePath = path.join(getArchiveCategoryDir(ownerUsername, pattern.category), pattern.filename);
       if (fs.existsSync(archiveFilePath)) {
         fs.unlinkSync(archiveFilePath);
       }
 
       // Delete thumbnail from archive
       if (pattern.thumbnail) {
-        const thumbnailPath = path.join(archiveThumbnailsDir, pattern.thumbnail);
+        const thumbnailPath = path.join(getUserArchiveThumbnailsDir(ownerUsername), pattern.thumbnail);
         if (fs.existsSync(thumbnailPath)) {
           fs.unlinkSync(thumbnailPath);
         }
@@ -1728,30 +2046,28 @@ app.patch('/api/patterns/:id', async (req, res) => {
     const { name, description, category } = req.body;
     console.log('Extracted values:', { name, description, category });
 
-    // Get the current pattern data to check if we need to move the file
-    const currentPattern = await pool.query(
-      'SELECT * FROM patterns WHERE id = $1',
-      [req.params.id]
-    );
+    // Get the current pattern data with owner info
+    const pattern = await getPatternWithOwner(req.params.id);
 
-    if (currentPattern.rows.length === 0) {
+    if (!pattern) {
       return res.status(404).json({ error: 'Pattern not found' });
     }
 
-    const pattern = currentPattern.rows[0];
+    // Get owner username for paths
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
     let newFilename = pattern.filename;
 
     // Determine the working category (use new category if changing, otherwise current)
     const workingCategory = category !== undefined ? category : pattern.category;
-    const categoryDir = getCategoryDir(workingCategory);
+    const categoryDir = getCategoryDir(ownerUsername, workingCategory);
 
     // Find current file location (check category folder first, then root)
-    let oldFilePath = path.join(getCategoryDir(pattern.category), pattern.filename);
+    let oldFilePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
     console.log(`Checking for file at: ${oldFilePath}`);
 
     if (!fs.existsSync(oldFilePath)) {
-      oldFilePath = path.join(patternsDir, pattern.filename);
-      console.log(`Not found, checking root: ${oldFilePath}`);
+      oldFilePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
+      console.log(`Not found, checking user root: ${oldFilePath}`);
     }
 
     if (!fs.existsSync(oldFilePath)) {
@@ -1789,10 +2105,11 @@ app.patch('/api/patterns/:id', async (req, res) => {
 
         // Update thumbnail filename if it exists
         if (pattern.thumbnail && newFilename !== pattern.filename) {
-          const oldThumbnailPath = path.join(thumbnailsDir, pattern.thumbnail);
+          const userThumbnailsDir = getUserThumbnailsDir(ownerUsername);
+          const oldThumbnailPath = path.join(userThumbnailsDir, pattern.thumbnail);
           if (fs.existsSync(oldThumbnailPath)) {
             const newThumbnailFilename = `thumb-${workingCategory}-${newFilename}.jpg`;
-            const newThumbnailPath = path.join(thumbnailsDir, newThumbnailFilename);
+            const newThumbnailPath = path.join(userThumbnailsDir, newThumbnailFilename);
             fs.renameSync(oldThumbnailPath, newThumbnailPath);
             console.log(`Renamed thumbnail from ${pattern.thumbnail} to ${newThumbnailFilename}`);
 
@@ -1862,23 +2179,20 @@ app.patch('/api/patterns/:id', async (req, res) => {
 // Delete a pattern
 app.delete('/api/patterns/:id', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE id = $1',
-      [req.params.id]
-    );
+    const pattern = await getPatternWithOwner(req.params.id);
 
-    if (result.rows.length === 0) {
+    if (!pattern) {
       return res.status(404).json({ error: 'Pattern not found' });
     }
 
-    const pattern = result.rows[0];
-    let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+    let filePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
 
-    // Delete the file (check category folder first, then root for legacy files)
+    // Delete the file (check category folder first, then user root for legacy files)
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath);
     } else {
-      filePath = path.join(patternsDir, pattern.filename);
+      filePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
       if (fs.existsSync(filePath)) {
         fs.unlinkSync(filePath);
       }
@@ -1886,7 +2200,7 @@ app.delete('/api/patterns/:id', async (req, res) => {
 
     // Delete the thumbnail
     if (pattern.thumbnail) {
-      const thumbnailPath = path.join(thumbnailsDir, pattern.thumbnail);
+      const thumbnailPath = path.join(getUserThumbnailsDir(ownerUsername), pattern.thumbnail);
       if (fs.existsSync(thumbnailPath)) {
         fs.unlinkSync(thumbnailPath);
       }
@@ -1907,25 +2221,22 @@ app.delete('/api/patterns/:id', async (req, res) => {
 // Archive a pattern (move to archive instead of deleting)
 app.post('/api/patterns/:id/archive', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE id = $1',
-      [req.params.id]
-    );
+    const pattern = await getPatternWithOwner(req.params.id);
 
-    if (result.rows.length === 0) {
+    if (!pattern) {
       return res.status(404).json({ error: 'Pattern not found' });
     }
 
-    const pattern = result.rows[0];
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
 
     // Find current file location
-    let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
+    let filePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
     if (!fs.existsSync(filePath)) {
-      filePath = path.join(patternsDir, pattern.filename);
+      filePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
     }
 
     // Ensure archive category directory exists
-    const archiveCategoryDir = ensureArchiveCategoryDir(pattern.category);
+    const archiveCategoryDir = ensureArchiveCategoryDir(ownerUsername, pattern.category);
 
     // Move pattern file to archive (use copy+delete for cross-device support)
     if (fs.existsSync(filePath)) {
@@ -1936,9 +2247,12 @@ app.post('/api/patterns/:id/archive', async (req, res) => {
 
     // Move thumbnail to archive if exists
     if (pattern.thumbnail) {
-      const thumbnailPath = path.join(thumbnailsDir, pattern.thumbnail);
+      const thumbnailPath = path.join(getUserThumbnailsDir(ownerUsername), pattern.thumbnail);
       if (fs.existsSync(thumbnailPath)) {
-        const archiveThumbnailPath = path.join(archiveThumbnailsDir, pattern.thumbnail);
+        const archiveThumbnailPath = path.join(getUserArchiveThumbnailsDir(ownerUsername), pattern.thumbnail);
+        if (!fs.existsSync(getUserArchiveThumbnailsDir(ownerUsername))) {
+          fs.mkdirSync(getUserArchiveThumbnailsDir(ownerUsername), { recursive: true });
+        }
         fs.copyFileSync(thumbnailPath, archiveThumbnailPath);
         fs.unlinkSync(thumbnailPath);
       }
@@ -1965,22 +2279,19 @@ app.post('/api/patterns/:id/archive', async (req, res) => {
 // Restore a pattern from archive
 app.post('/api/patterns/:id/restore', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE id = $1 AND is_archived = true',
-      [req.params.id]
-    );
+    const pattern = await getPatternWithOwner(req.params.id);
 
-    if (result.rows.length === 0) {
+    if (!pattern || !pattern.is_archived) {
       return res.status(404).json({ error: 'Archived pattern not found' });
     }
 
-    const pattern = result.rows[0];
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
 
     // Ensure target category directory exists
-    const categoryDir = ensureCategoryDir(pattern.category);
+    const categoryDir = ensureCategoryDir(ownerUsername, pattern.category);
 
     // Move pattern file from archive back to patterns (use copy+delete for cross-device support)
-    const archiveFilePath = path.join(getArchiveCategoryDir(pattern.category), pattern.filename);
+    const archiveFilePath = path.join(getArchiveCategoryDir(ownerUsername, pattern.category), pattern.filename);
     if (fs.existsSync(archiveFilePath)) {
       const filePath = path.join(categoryDir, pattern.filename);
       fs.copyFileSync(archiveFilePath, filePath);
@@ -1989,9 +2300,9 @@ app.post('/api/patterns/:id/restore', async (req, res) => {
 
     // Move thumbnail from archive
     if (pattern.thumbnail) {
-      const archiveThumbnailPath = path.join(archiveThumbnailsDir, pattern.thumbnail);
+      const archiveThumbnailPath = path.join(getUserArchiveThumbnailsDir(ownerUsername), pattern.thumbnail);
       if (fs.existsSync(archiveThumbnailPath)) {
-        const thumbnailPath = path.join(thumbnailsDir, pattern.thumbnail);
+        const thumbnailPath = path.join(getUserThumbnailsDir(ownerUsername), pattern.thumbnail);
         fs.copyFileSync(archiveThumbnailPath, thumbnailPath);
         fs.unlinkSync(archiveThumbnailPath);
       }
@@ -2018,26 +2329,23 @@ app.post('/api/patterns/:id/restore', async (req, res) => {
 // Permanently delete an archived pattern
 app.delete('/api/patterns/:id/permanent', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE id = $1 AND is_archived = true',
-      [req.params.id]
-    );
+    const pattern = await getPatternWithOwner(req.params.id);
 
-    if (result.rows.length === 0) {
+    if (!pattern || !pattern.is_archived) {
       return res.status(404).json({ error: 'Archived pattern not found' });
     }
 
-    const pattern = result.rows[0];
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
 
     // Delete file from archive
-    const archiveFilePath = path.join(getArchiveCategoryDir(pattern.category), pattern.filename);
+    const archiveFilePath = path.join(getArchiveCategoryDir(ownerUsername, pattern.category), pattern.filename);
     if (fs.existsSync(archiveFilePath)) {
       fs.unlinkSync(archiveFilePath);
     }
 
     // Delete thumbnail from archive
     if (pattern.thumbnail) {
-      const thumbnailPath = path.join(archiveThumbnailsDir, pattern.thumbnail);
+      const thumbnailPath = path.join(getUserArchiveThumbnailsDir(ownerUsername), pattern.thumbnail);
       if (fs.existsSync(thumbnailPath)) {
         fs.unlinkSync(thumbnailPath);
       }
@@ -2056,10 +2364,18 @@ app.delete('/api/patterns/:id/permanent', async (req, res) => {
   }
 });
 
-// Get all available categories for editing/uploading (all possible categories)
+// Get all available categories for editing/uploading (current user's categories)
 app.get('/api/categories/all', async (req, res) => {
   try {
-    const result = await pool.query('SELECT name FROM categories ORDER BY position, name');
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const result = await pool.query(
+      'SELECT name FROM categories WHERE user_id = $1 ORDER BY position, name',
+      [userId]
+    );
     const categories = result.rows.map(row => row.name);
     res.json(categories);
   } catch (error) {
@@ -2071,12 +2387,19 @@ app.get('/api/categories/all', async (req, res) => {
 // Get populated categories (only those with patterns) with counts for filtering
 app.get('/api/categories', async (req, res) => {
   try {
-    // Query database for categories with pattern counts
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    // Query database for categories with pattern counts (for current user's patterns)
     const result = await pool.query(
       `SELECT category, COUNT(*) as count
        FROM patterns
+       WHERE user_id = $1
        GROUP BY category
-       ORDER BY category`
+       ORDER BY category`,
+      [userId]
     );
     const categoriesWithCounts = result.rows.map(row => ({
       name: row.category,
@@ -2092,22 +2415,27 @@ app.get('/api/categories', async (req, res) => {
 // Add a new category
 app.post('/api/categories', async (req, res) => {
   try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
     const { name } = req.body;
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Category name is required' });
     }
 
-    // Get the next position
-    const posResult = await pool.query('SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM categories');
+    // Get the next position for this user's categories
+    const posResult = await pool.query(
+      'SELECT COALESCE(MAX(position), -1) + 1 as next_pos FROM categories WHERE user_id = $1',
+      [userId]
+    );
     const nextPos = posResult.rows[0].next_pos;
 
     await pool.query(
-      'INSERT INTO categories (name, position) VALUES ($1, $2)',
-      [name.trim(), nextPos]
+      'INSERT INTO categories (name, user_id, position) VALUES ($1, $2, $3)',
+      [name.trim(), userId, nextPos]
     );
-
-    // Create the category folder
-    ensureCategoryDir(name.trim());
 
     res.status(201).json({ message: 'Category created', name: name.trim() });
   } catch (error) {
@@ -2122,6 +2450,12 @@ app.post('/api/categories', async (req, res) => {
 // Update a category name
 app.put('/api/categories/:name', async (req, res) => {
   try {
+    const userId = req.user?.id;
+    const username = req.user?.username;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
     const oldName = req.params.name;
     const { name: newName } = req.body;
 
@@ -2129,24 +2463,24 @@ app.put('/api/categories/:name', async (req, res) => {
       return res.status(400).json({ error: 'New category name is required' });
     }
 
-    // Update the category name
+    // Update the category name (only for this user)
     const result = await pool.query(
-      'UPDATE categories SET name = $1 WHERE name = $2 RETURNING *',
-      [newName.trim(), oldName]
+      'UPDATE categories SET name = $1 WHERE name = $2 AND user_id = $3 RETURNING *',
+      [newName.trim(), oldName, userId]
     );
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Category not found' });
     }
 
-    // Update all patterns with this category
+    // Update all of this user's patterns with this category
     await pool.query(
-      'UPDATE patterns SET category = $1 WHERE category = $2',
-      [newName.trim(), oldName]
+      'UPDATE patterns SET category = $1 WHERE category = $2 AND user_id = $3',
+      [newName.trim(), oldName, userId]
     );
 
-    // Rename the category folder
-    renameCategoryDir(oldName, newName.trim());
+    // Rename the category folder for this user only
+    renameCategoryDir(username, oldName, newName.trim());
 
     res.json({ message: 'Category updated', oldName, newName: newName.trim() });
   } catch (error) {
@@ -2161,26 +2495,35 @@ app.put('/api/categories/:name', async (req, res) => {
 // Delete a category
 app.delete('/api/categories/:name', async (req, res) => {
   try {
+    const userId = req.user?.id;
+    const username = req.user?.username;
+    if (!userId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
     const { name } = req.params;
 
-    // Check if any patterns use this category
+    // Check if any of this user's patterns use this category
     const patternCheck = await pool.query(
-      'SELECT COUNT(*) FROM patterns WHERE category = $1',
-      [name]
+      'SELECT COUNT(*) FROM patterns WHERE category = $1 AND user_id = $2',
+      [name, userId]
     );
 
     if (parseInt(patternCheck.rows[0].count) > 0) {
       return res.status(400).json({ error: 'Cannot delete category with existing patterns' });
     }
 
-    const result = await pool.query('DELETE FROM categories WHERE name = $1 RETURNING *', [name]);
+    const result = await pool.query(
+      'DELETE FROM categories WHERE name = $1 AND user_id = $2 RETURNING *',
+      [name, userId]
+    );
 
     if (result.rowCount === 0) {
       return res.status(404).json({ error: 'Category not found' });
     }
 
-    // Remove the category folder
-    removeCategoryDir(name);
+    // Remove the category folder for this user (if empty)
+    removeCategoryDir(username, name);
 
     res.json({ message: 'Category deleted', name });
   } catch (error) {
@@ -2329,12 +2672,6 @@ app.put('/api/patterns/:id/hashtags', async (req, res) => {
   }
 });
 
-// Notes directory
-const notesDir = path.join(__dirname, 'notes');
-if (!fs.existsSync(notesDir)) {
-  fs.mkdirSync(notesDir, { recursive: true });
-}
-
 // Helper to sanitize pattern name for filename
 function sanitizeNotesFilename(name) {
   return name
@@ -2347,17 +2684,16 @@ function sanitizeNotesFilename(name) {
 // Get notes for a pattern
 app.get('/api/patterns/:id/notes', async (req, res) => {
   try {
-    const result = await pool.query(
-      'SELECT name FROM patterns WHERE id = $1',
-      [req.params.id]
-    );
+    const pattern = await getPatternWithOwner(req.params.id);
 
-    if (result.rows.length === 0) {
+    if (!pattern) {
       return res.status(404).json({ error: 'Pattern not found' });
     }
 
-    const filename = sanitizeNotesFilename(result.rows[0].name) + '.md';
-    const notesPath = path.join(notesDir, filename);
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+    const userNotesDir = getUserNotesDir(ownerUsername);
+    const filename = sanitizeNotesFilename(pattern.name) + '.md';
+    const notesPath = path.join(userNotesDir, filename);
 
     let notes = '';
     if (fs.existsSync(notesPath)) {
@@ -2376,17 +2712,22 @@ app.put('/api/patterns/:id/notes', async (req, res) => {
   try {
     const { notes } = req.body;
 
-    const result = await pool.query(
-      'SELECT name FROM patterns WHERE id = $1',
-      [req.params.id]
-    );
+    const pattern = await getPatternWithOwner(req.params.id);
 
-    if (result.rows.length === 0) {
+    if (!pattern) {
       return res.status(404).json({ error: 'Pattern not found' });
     }
 
-    const filename = sanitizeNotesFilename(result.rows[0].name) + '.md';
-    const notesPath = path.join(notesDir, filename);
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+    const userNotesDir = getUserNotesDir(ownerUsername);
+
+    // Ensure user notes directory exists
+    if (!fs.existsSync(userNotesDir)) {
+      fs.mkdirSync(userNotesDir, { recursive: true });
+    }
+
+    const filename = sanitizeNotesFilename(pattern.name) + '.md';
+    const notesPath = path.join(userNotesDir, filename);
 
     if (notes && notes.trim()) {
       fs.writeFileSync(notesPath, notes, 'utf8');
@@ -2781,35 +3122,41 @@ app.delete('/api/counters/:id', async (req, res) => {
   }
 });
 
-// Get library stats
+// Get library stats (admin sees total, users see their own)
 app.get('/api/stats', async (req, res) => {
   try {
+    const userId = req.user?.id;
+    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const isAdmin = req.user?.role === 'admin';
+
     // Base condition to exclude archived patterns
     const notArchived = '(is_archived = false OR is_archived IS NULL)';
+    // User filter for non-admins
+    const userFilter = isAdmin ? '' : ` AND user_id = ${userId}`;
 
     // Get total patterns count (excluding archived)
-    const totalResult = await pool.query(`SELECT COUNT(*) as count FROM patterns WHERE ${notArchived}`);
+    const totalResult = await pool.query(`SELECT COUNT(*) as count FROM patterns WHERE ${notArchived}${userFilter}`);
     const totalPatterns = parseInt(totalResult.rows[0].count);
 
     // Get current patterns count (excluding archived)
-    const currentResult = await pool.query(`SELECT COUNT(*) as count FROM patterns WHERE is_current = true AND ${notArchived}`);
+    const currentResult = await pool.query(`SELECT COUNT(*) as count FROM patterns WHERE is_current = true AND ${notArchived}${userFilter}`);
     const currentPatterns = parseInt(currentResult.rows[0].count);
 
     // Get completed patterns count (excluding archived)
-    const completedResult = await pool.query(`SELECT COUNT(*) as count FROM patterns WHERE completed = true AND ${notArchived}`);
+    const completedResult = await pool.query(`SELECT COUNT(*) as count FROM patterns WHERE completed = true AND ${notArchived}${userFilter}`);
     const completedPatterns = parseInt(completedResult.rows[0].count);
 
     // Get total time spent (excluding archived)
-    const timeResult = await pool.query(`SELECT COALESCE(SUM(timer_seconds), 0) as total FROM patterns WHERE ${notArchived}`);
+    const timeResult = await pool.query(`SELECT COALESCE(SUM(timer_seconds), 0) as total FROM patterns WHERE ${notArchived}${userFilter}`);
     const totalTimeSeconds = parseInt(timeResult.rows[0].total);
 
     // Get count of patterns with time logged (excluding archived)
-    const patternsWithTimeResult = await pool.query(`SELECT COUNT(*) as count FROM patterns WHERE timer_seconds > 0 AND ${notArchived}`);
+    const patternsWithTimeResult = await pool.query(`SELECT COUNT(*) as count FROM patterns WHERE timer_seconds > 0 AND ${notArchived}${userFilter}`);
     const patternsWithTime = parseInt(patternsWithTimeResult.rows[0].count);
 
     // Get patterns by category (excluding archived)
     const categoriesResult = await pool.query(
-      `SELECT category, COUNT(*) as count FROM patterns WHERE ${notArchived} GROUP BY category ORDER BY count DESC`
+      `SELECT category, COUNT(*) as count FROM patterns WHERE ${notArchived}${userFilter} GROUP BY category ORDER BY count DESC`
     );
     const patternsByCategory = categoriesResult.rows.map(row => ({
       name: row.category,
@@ -2817,24 +3164,55 @@ app.get('/api/stats', async (req, res) => {
     }));
 
     // Get total rows counted (sum of all counter values from non-archived patterns)
+    const userPatternFilter = isAdmin ? '' : ` AND p.user_id = ${userId}`;
     const rowsCountedResult = await pool.query(
       `SELECT COALESCE(SUM(c.value), 0) as total FROM counters c
        JOIN patterns p ON c.pattern_id = p.id
-       WHERE ${notArchived.replace(/is_archived/g, 'p.is_archived')}`
+       WHERE ${notArchived.replace(/is_archived/g, 'p.is_archived')}${userPatternFilter}`
     );
     const totalRowsCounted = parseInt(rowsCountedResult.rows[0].total);
 
-    // Calculate total library size from files (exclude archived patterns)
+    // Calculate total library size from files
     let totalSize = 0;
-    const patterns = await pool.query('SELECT filename, category FROM patterns WHERE is_archived = false OR is_archived IS NULL');
-    for (const pattern of patterns.rows) {
-      let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
-      if (!fs.existsSync(filePath)) {
-        filePath = path.join(patternsDir, pattern.filename);
+    if (isAdmin) {
+      // Admin: calculate size across all users' patterns
+      const patterns = await pool.query(`
+        SELECT p.filename, p.category, u.username as owner_username
+        FROM patterns p
+        LEFT JOIN users u ON p.user_id = u.id
+        WHERE p.is_archived = false OR p.is_archived IS NULL
+      `);
+      for (const pattern of patterns.rows) {
+        const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+        let filePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
+        if (!fs.existsSync(filePath)) {
+          filePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
+        }
+        if (fs.existsSync(filePath)) {
+          const stats = fs.statSync(filePath);
+          totalSize += stats.size;
+        }
       }
-      if (fs.existsSync(filePath)) {
-        const stats = fs.statSync(filePath);
-        totalSize += stats.size;
+    } else {
+      // Regular user: calculate size of their patterns only
+      const userPatternsDir = getUserPatternsDir(username);
+      if (fs.existsSync(userPatternsDir)) {
+        const calculateDirSize = (dir) => {
+          let size = 0;
+          if (fs.existsSync(dir)) {
+            const entries = fs.readdirSync(dir, { withFileTypes: true });
+            for (const entry of entries) {
+              const fullPath = path.join(dir, entry.name);
+              if (entry.isDirectory()) {
+                size += calculateDirSize(fullPath);
+              } else {
+                size += fs.statSync(fullPath).size;
+              }
+            }
+          }
+          return size;
+        };
+        totalSize = calculateDirSize(userPatternsDir);
       }
     }
 
@@ -2848,7 +3226,7 @@ app.get('/api/stats', async (req, res) => {
       patternsByCategory,
       totalCategories: patternsByCategory.length,
       totalSize,
-      libraryPath: '/opt/yarnl/patterns',
+      libraryPath: isAdmin ? '/opt/yarnl/patterns' : `/opt/yarnl/patterns/${username}`,
       backupHostPath: process.env.BACKUP_HOST_PATH || './backups'
     });
   } catch (error) {
@@ -2864,21 +3242,24 @@ app.post('/api/patterns/:id/thumbnail', imageUpload.single('thumbnail'), async (
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Get current pattern to delete old thumbnail
-    const patternResult = await pool.query(
-      'SELECT * FROM patterns WHERE id = $1',
-      [req.params.id]
-    );
+    // Get current pattern with owner info
+    const pattern = await getPatternWithOwner(req.params.id);
 
-    if (patternResult.rows.length === 0) {
+    if (!pattern) {
       return res.status(404).json({ error: 'Pattern not found' });
     }
 
-    const pattern = patternResult.rows[0];
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+    const userThumbnailsDir = getUserThumbnailsDir(ownerUsername);
+
+    // Ensure thumbnail directory exists
+    if (!fs.existsSync(userThumbnailsDir)) {
+      fs.mkdirSync(userThumbnailsDir, { recursive: true });
+    }
 
     // Process uploaded image as thumbnail
     const thumbnailFilename = `thumb-custom-${Date.now()}.jpg`;
-    const thumbnailPath = path.join(thumbnailsDir, thumbnailFilename);
+    const thumbnailPath = path.join(userThumbnailsDir, thumbnailFilename);
 
     await sharp(req.file.path)
       .resize(300, 400, {
@@ -2893,7 +3274,7 @@ app.post('/api/patterns/:id/thumbnail', imageUpload.single('thumbnail'), async (
 
     // Delete old thumbnail if it exists
     if (pattern.thumbnail) {
-      const oldThumbnailPath = path.join(thumbnailsDir, pattern.thumbnail);
+      const oldThumbnailPath = path.join(userThumbnailsDir, pattern.thumbnail);
       if (fs.existsSync(oldThumbnailPath)) {
         fs.unlinkSync(oldThumbnailPath);
       }
@@ -2922,8 +3303,9 @@ app.post('/api/images', imageUpload.single('image'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Create images directory if it doesn't exist
-    const imagesDir = path.join(__dirname, 'patterns', 'images');
+    // Use current user's images directory
+    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const imagesDir = getUserImagesDir(username);
     if (!fs.existsSync(imagesDir)) {
       fs.mkdirSync(imagesDir, { recursive: true });
     }
@@ -2955,8 +3337,8 @@ app.post('/api/images', imageUpload.single('image'), async (req, res) => {
       fs.unlinkSync(req.file.path);
     }
 
-    // Return URL for markdown
-    const imageUrl = `/api/images/${filename}`;
+    // Return URL for markdown (include username in path)
+    const imageUrl = `/api/images/${username}/${filename}`;
     res.json({ url: imageUrl, filename });
   } catch (error) {
     console.error('Error uploading image:', error);
@@ -2964,31 +3346,35 @@ app.post('/api/images', imageUpload.single('image'), async (req, res) => {
   }
 });
 
-// Helper function to get all text content that might reference images
-async function getAllImageReferences() {
+// Helper function to get all text content that might reference images (for a specific user)
+async function getAllImageReferences(username) {
   let allContent = '';
 
-  // Get all notes from notes directory
-  if (fs.existsSync(notesDir)) {
-    const noteFiles = fs.readdirSync(notesDir).filter(f => f.endsWith('.md'));
+  // Get all notes from user's notes directory
+  const userNotesDir = getUserNotesDir(username);
+  if (fs.existsSync(userNotesDir)) {
+    const noteFiles = fs.readdirSync(userNotesDir).filter(f => f.endsWith('.md'));
     for (const file of noteFiles) {
-      const content = fs.readFileSync(path.join(notesDir, file), 'utf8');
+      const content = fs.readFileSync(path.join(userNotesDir, file), 'utf8');
       allContent += content + '\n';
     }
   }
 
-  // Get content from all markdown files in patterns directory
-  const categories = fs.readdirSync(patternsDir).filter(f => {
-    const fullPath = path.join(patternsDir, f);
-    return fs.statSync(fullPath).isDirectory() && f !== 'images' && f !== 'thumbnails';
-  });
+  // Get content from all markdown files in user's patterns directory
+  const userPatternsDir = getUserPatternsDir(username);
+  if (fs.existsSync(userPatternsDir)) {
+    const entries = fs.readdirSync(userPatternsDir).filter(f => {
+      const fullPath = path.join(userPatternsDir, f);
+      return fs.statSync(fullPath).isDirectory() && f !== 'images' && f !== 'thumbnails';
+    });
 
-  for (const category of categories) {
-    const categoryPath = path.join(patternsDir, category);
-    const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.md'));
-    for (const file of files) {
-      const filePath = path.join(categoryPath, file);
-      allContent += '\n' + fs.readFileSync(filePath, 'utf8');
+    for (const category of entries) {
+      const categoryPath = path.join(userPatternsDir, category);
+      const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.md'));
+      for (const file of files) {
+        const filePath = path.join(categoryPath, file);
+        allContent += '\n' + fs.readFileSync(filePath, 'utf8');
+      }
     }
   }
 
@@ -2998,7 +3384,8 @@ async function getAllImageReferences() {
 // Get orphaned images count (for UI display) - must be before :filename route
 app.get('/api/images/orphaned', async (req, res) => {
   try {
-    const imagesDir = path.join(__dirname, 'patterns', 'images');
+    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const imagesDir = getUserImagesDir(username);
 
     if (!fs.existsSync(imagesDir)) {
       return res.json({ count: 0, files: [] });
@@ -3008,7 +3395,7 @@ app.get('/api/images/orphaned', async (req, res) => {
     const files = fs.readdirSync(imagesDir).filter(f => f.endsWith('.jpg'));
 
     // Get all content that might reference images (notes + markdown files)
-    const allContent = await getAllImageReferences();
+    const allContent = await getAllImageReferences(username);
 
     // Find orphaned images and parse pattern name from filename
     const orphaned = files.filter(file => !allContent.includes(file)).map(file => {
@@ -3034,7 +3421,8 @@ app.get('/api/images/orphaned', async (req, res) => {
 // Get images directory size for backup estimates - must be before :filename route
 app.get('/api/images/stats', async (req, res) => {
   try {
-    const imagesDir = path.join(__dirname, 'patterns', 'images');
+    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const imagesDir = getUserImagesDir(username);
     let totalSize = 0;
     let count = 0;
 
@@ -3060,13 +3448,15 @@ app.get('/api/images/stats', async (req, res) => {
 // Get notes directory size for backup estimates
 app.get('/api/notes/stats', async (req, res) => {
   try {
+    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const userNotesDir = getUserNotesDir(username);
     let totalSize = 0;
     let count = 0;
 
-    if (fs.existsSync(notesDir)) {
-      const files = fs.readdirSync(notesDir);
+    if (fs.existsSync(userNotesDir)) {
+      const files = fs.readdirSync(userNotesDir);
       for (const file of files) {
-        const filePath = path.join(notesDir, file);
+        const filePath = path.join(userNotesDir, file);
         const stat = fs.statSync(filePath);
         if (stat.isFile()) {
           totalSize += stat.size;
@@ -3085,7 +3475,8 @@ app.get('/api/notes/stats', async (req, res) => {
 // Clean up orphaned images (images not referenced anywhere)
 app.post('/api/images/cleanup', async (req, res) => {
   try {
-    const imagesDir = path.join(__dirname, 'patterns', 'images');
+    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const imagesDir = getUserImagesDir(username);
 
     if (!fs.existsSync(imagesDir)) {
       return res.json({ deleted: [], count: 0 });
@@ -3095,7 +3486,7 @@ app.post('/api/images/cleanup', async (req, res) => {
     const files = fs.readdirSync(imagesDir).filter(f => f.endsWith('.jpg'));
 
     // Get all content that might reference images (notes + markdown files)
-    const allContent = await getAllImageReferences();
+    const allContent = await getAllImageReferences(username);
 
     // Find orphaned images (not referenced anywhere)
     const orphaned = files.filter(file => !allContent.includes(file));
@@ -3113,9 +3504,9 @@ app.post('/api/images/cleanup', async (req, res) => {
   }
 });
 
-// Serve uploaded images - must be LAST of /api/images routes (catches :filename)
-app.get('/api/images/:filename', (req, res) => {
-  const imagesDir = path.join(__dirname, 'patterns', 'images');
+// Serve uploaded images - must be LAST of /api/images routes (catches :username/:filename)
+app.get('/api/images/:username/:filename', (req, res) => {
+  const imagesDir = getUserImagesDir(req.params.username);
   const filePath = path.join(imagesDir, req.params.filename);
 
   if (fs.existsSync(filePath)) {
@@ -3152,10 +3543,7 @@ app.put('/api/patterns/:id/timer', async (req, res) => {
 // BACKUP & RESTORE ENDPOINTS
 // ============================================
 
-const backupsDir = path.join(__dirname, 'backups');
-if (!fs.existsSync(backupsDir)) {
-  fs.mkdirSync(backupsDir, { recursive: true });
-}
+// Note: Backups are now per-user using getUserBackupsDir(username)
 
 // Default backup settings
 const defaultBackupSettings = {
@@ -3329,13 +3717,18 @@ async function createScheduledBackup() {
   }
 }
 
-function runScheduledPrune(settings) {
+function runScheduledPrune(settings, username) {
   try {
-    const files = fs.readdirSync(backupsDir)
+    const targetUsername = username || process.env.ADMIN_USERNAME || 'admin';
+    const userBackupsDir = getUserBackupsDir(targetUsername);
+
+    if (!fs.existsSync(userBackupsDir)) return;
+
+    const files = fs.readdirSync(userBackupsDir)
       .filter(f => f.endsWith('.zip'))
       .map(f => ({
         filename: f,
-        created: fs.statSync(path.join(backupsDir, f)).mtime
+        created: fs.statSync(path.join(userBackupsDir, f)).mtime
       }))
       .sort((a, b) => new Date(b.created) - new Date(a.created));
 
@@ -3356,7 +3749,7 @@ function runScheduledPrune(settings) {
     }
 
     for (const f of toDelete) {
-      fs.unlinkSync(path.join(backupsDir, f.filename));
+      fs.unlinkSync(path.join(userBackupsDir, f.filename));
       console.log(`Pruned old backup: ${f.filename}`);
     }
   } catch (error) {
@@ -3520,13 +3913,20 @@ app.post('/api/notifications/test', async (req, res) => {
   }
 });
 
-// List all backups
+// List all backups for current user
 app.get('/api/backups', (req, res) => {
   try {
-    const files = fs.readdirSync(backupsDir)
+    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const userBackupsDir = getUserBackupsDir(username);
+
+    if (!fs.existsSync(userBackupsDir)) {
+      return res.json([]);
+    }
+
+    const files = fs.readdirSync(userBackupsDir)
       .filter(f => f.endsWith('.zip'))
       .map(f => {
-        const stats = fs.statSync(path.join(backupsDir, f));
+        const stats = fs.statSync(path.join(userBackupsDir, f));
         return {
           filename: f,
           size: stats.size,
@@ -3541,9 +3941,23 @@ app.get('/api/backups', (req, res) => {
   }
 });
 
-// Create a new backup
+// Create a new backup for current user
 app.post('/api/backups', async (req, res) => {
   try {
+    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const userId = req.user?.id;
+    const userBackupsDir = getUserBackupsDir(username);
+    const userPatternsDir = getUserPatternsDir(username);
+    const userArchiveDir = getUserArchiveDir(username);
+    const userNotesDir = getUserNotesDir(username);
+    const userImagesDir = getUserImagesDir(username);
+    const userThumbnailsDir = getUserThumbnailsDir(username);
+
+    // Ensure backup directory exists
+    if (!fs.existsSync(userBackupsDir)) {
+      fs.mkdirSync(userBackupsDir, { recursive: true });
+    }
+
     const {
       clientSettings,
       includePatterns = true,
@@ -3553,13 +3967,13 @@ app.post('/api/backups', async (req, res) => {
     } = req.body;
     const timestamp = getLocalTimestamp();
     const backupFilename = `yarnl-backup-${timestamp}.zip`;
-    const backupPath = path.join(backupsDir, backupFilename);
+    const backupPath = path.join(userBackupsDir, backupFilename);
 
-    // Export database tables to JSON
+    // Export database tables to JSON (only this user's data)
     const dbExport = {
       exportDate: new Date().toISOString(),
-      version: '1.0',
-      account: null, // For future user accounts
+      version: '2.0',
+      username: username,
       includePatterns,
       includeMarkdown,
       includeArchive,
@@ -3567,11 +3981,41 @@ app.post('/api/backups', async (req, res) => {
       tables: {}
     };
 
-    // Export all tables in proper order for restore
-    const tables = ['categories', 'hashtags', 'patterns', 'counters', 'pattern_hashtags'];
-    for (const table of tables) {
-      const result = await pool.query(`SELECT * FROM ${table}`);
-      dbExport.tables[table] = result.rows;
+    // Export user's categories
+    const categoriesResult = await pool.query(
+      'SELECT * FROM categories WHERE user_id = $1',
+      [userId]
+    );
+    dbExport.tables.categories = categoriesResult.rows;
+
+    // Export hashtags (shared for now)
+    const hashtagsResult = await pool.query('SELECT * FROM hashtags');
+    dbExport.tables.hashtags = hashtagsResult.rows;
+
+    // Export user's patterns
+    const patternsResult = await pool.query(
+      'SELECT * FROM patterns WHERE user_id = $1',
+      [userId]
+    );
+    dbExport.tables.patterns = patternsResult.rows;
+
+    // Export counters for user's patterns
+    const patternIds = patternsResult.rows.map(p => p.id);
+    if (patternIds.length > 0) {
+      const countersResult = await pool.query(
+        'SELECT * FROM counters WHERE pattern_id = ANY($1)',
+        [patternIds]
+      );
+      dbExport.tables.counters = countersResult.rows;
+
+      const patternHashtagsResult = await pool.query(
+        'SELECT * FROM pattern_hashtags WHERE pattern_id = ANY($1)',
+        [patternIds]
+      );
+      dbExport.tables.pattern_hashtags = patternHashtagsResult.rows;
+    } else {
+      dbExport.tables.counters = [];
+      dbExport.tables.pattern_hashtags = [];
     }
 
     // Create zip archive
@@ -3595,7 +4039,7 @@ app.post('/api/backups', async (req, res) => {
         if (scheduleResult.rows.length > 0) {
           const settings = scheduleResult.rows[0].value;
           if (settings.pruneEnabled) {
-            runScheduledPrune(settings);
+            runScheduledPrune(settings, username);
           }
         }
       } catch (pruneError) {
@@ -3618,34 +4062,33 @@ app.post('/api/backups', async (req, res) => {
     }
 
     // Add PDF patterns (and thumbnails) only if requested
-    if (includePatterns) {
-      // Add each category directory but only PDF files and thumbnails
-      const categories = fs.readdirSync(patternsDir).filter(f => {
-        const fullPath = path.join(patternsDir, f);
+    if (includePatterns && fs.existsSync(userPatternsDir)) {
+      // Add each category directory but only PDF files
+      const categories = fs.readdirSync(userPatternsDir).filter(f => {
+        const fullPath = path.join(userPatternsDir, f);
         return fs.statSync(fullPath).isDirectory() && f !== 'images' && f !== 'thumbnails';
       });
       for (const category of categories) {
-        const categoryPath = path.join(patternsDir, category);
+        const categoryPath = path.join(userPatternsDir, category);
         const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.pdf'));
         for (const file of files) {
           archive.file(path.join(categoryPath, file), { name: `patterns/${category}/${file}` });
         }
       }
       // Add thumbnails
-      const thumbsDir = path.join(patternsDir, 'thumbnails');
-      if (fs.existsSync(thumbsDir)) {
-        archive.directory(thumbsDir, 'patterns/thumbnails');
+      if (fs.existsSync(userThumbnailsDir)) {
+        archive.directory(userThumbnailsDir, 'patterns/thumbnails');
       }
     }
 
     // Add markdown patterns only if requested
-    if (includeMarkdown) {
-      const categories = fs.readdirSync(patternsDir).filter(f => {
-        const fullPath = path.join(patternsDir, f);
+    if (includeMarkdown && fs.existsSync(userPatternsDir)) {
+      const categories = fs.readdirSync(userPatternsDir).filter(f => {
+        const fullPath = path.join(userPatternsDir, f);
         return fs.statSync(fullPath).isDirectory() && f !== 'images' && f !== 'thumbnails';
       });
       for (const category of categories) {
-        const categoryPath = path.join(patternsDir, category);
+        const categoryPath = path.join(userPatternsDir, category);
         const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.md'));
         for (const file of files) {
           archive.file(path.join(categoryPath, file), { name: `patterns/${category}/${file}` });
@@ -3654,20 +4097,18 @@ app.post('/api/backups', async (req, res) => {
     }
 
     // Add images directory when markdown patterns are included
-    const imagesDir = path.join(__dirname, 'patterns', 'images');
-    if (includeMarkdown && fs.existsSync(imagesDir)) {
-      archive.directory(imagesDir, 'images');
+    if (includeMarkdown && fs.existsSync(userImagesDir)) {
+      archive.directory(userImagesDir, 'images');
     }
 
     // Add archive directory only if requested
-    const archiveDir = path.join(__dirname, 'archive');
-    if (includeArchive && fs.existsSync(archiveDir)) {
-      archive.directory(archiveDir, 'archive');
+    if (includeArchive && fs.existsSync(userArchiveDir)) {
+      archive.directory(userArchiveDir, 'archive');
     }
 
     // Add notes directory only if requested
-    if (includeNotes && fs.existsSync(notesDir)) {
-      archive.directory(notesDir, 'notes');
+    if (includeNotes && fs.existsSync(userNotesDir)) {
+      archive.directory(userNotesDir, 'notes');
     }
 
     await archive.finalize();
@@ -3677,15 +4118,22 @@ app.post('/api/backups', async (req, res) => {
   }
 });
 
-// Prune old backups
+// Prune old backups for current user
 app.post('/api/backups/prune', (req, res) => {
   try {
+    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const userBackupsDir = getUserBackupsDir(username);
+
+    if (!fs.existsSync(userBackupsDir)) {
+      return res.json({ success: true, deleted: 0 });
+    }
+
     const { mode, value } = req.body;
-    const files = fs.readdirSync(backupsDir)
+    const files = fs.readdirSync(userBackupsDir)
       .filter(f => f.endsWith('.zip'))
       .map(f => ({
         filename: f,
-        created: fs.statSync(path.join(backupsDir, f)).mtime
+        created: fs.statSync(path.join(userBackupsDir, f)).mtime
       }))
       .sort((a, b) => new Date(b.created) - new Date(a.created));
 
@@ -3696,7 +4144,7 @@ app.post('/api/backups/prune', (req, res) => {
       const keepCount = parseInt(value);
       const toDelete = files.slice(keepCount);
       toDelete.forEach(f => {
-        fs.unlinkSync(path.join(backupsDir, f.filename));
+        fs.unlinkSync(path.join(userBackupsDir, f.filename));
         deleted++;
       });
     } else if (mode === 'days') {
@@ -3706,7 +4154,7 @@ app.post('/api/backups/prune', (req, res) => {
       cutoff.setDate(cutoff.getDate() - days);
       files.forEach(f => {
         if (new Date(f.created) < cutoff) {
-          fs.unlinkSync(path.join(backupsDir, f.filename));
+          fs.unlinkSync(path.join(userBackupsDir, f.filename));
           deleted++;
         }
       });
@@ -3719,15 +4167,18 @@ app.post('/api/backups/prune', (req, res) => {
   }
 });
 
-// Delete a backup
+// Delete a backup for current user
 app.delete('/api/backups/:filename', (req, res) => {
   try {
+    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const userBackupsDir = getUserBackupsDir(username);
+
     const filename = req.params.filename;
     // Security: ensure filename is safe
     if (filename.includes('..') || !filename.endsWith('.zip')) {
       return res.status(400).json({ error: 'Invalid filename' });
     }
-    const backupPath = path.join(backupsDir, filename);
+    const backupPath = path.join(userBackupsDir, filename);
     if (!fs.existsSync(backupPath)) {
       return res.status(404).json({ error: 'Backup not found' });
     }
@@ -3739,16 +4190,24 @@ app.delete('/api/backups/:filename', (req, res) => {
   }
 });
 
-// Restore from backup
+// Restore from backup for current user
 app.post('/api/backups/:filename/restore', async (req, res) => {
   const client = await pool.connect();
   try {
+    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const userId = req.user?.id;
+    const userBackupsDir = getUserBackupsDir(username);
+    const userPatternsDir = getUserPatternsDir(username);
+    const userArchiveDir = getUserArchiveDir(username);
+    const userNotesDir = getUserNotesDir(username);
+    const userImagesDir = getUserImagesDir(username);
+
     const filename = req.params.filename;
     // Security: ensure filename is safe
     if (filename.includes('..') || !filename.endsWith('.zip')) {
       return res.status(400).json({ error: 'Invalid filename' });
     }
-    const backupPath = path.join(backupsDir, filename);
+    const backupPath = path.join(userBackupsDir, filename);
     if (!fs.existsSync(backupPath)) {
       return res.status(404).json({ error: 'Backup not found' });
     }
@@ -3779,117 +4238,116 @@ app.post('/api/backups/:filename/restore', async (req, res) => {
     // Begin transaction
     await client.query('BEGIN');
 
-    // Clear existing data (in reverse order of dependencies)
-    await client.query('DELETE FROM pattern_hashtags');
-    await client.query('DELETE FROM counters');
-    await client.query('DELETE FROM patterns');
-    await client.query('DELETE FROM hashtags');
-    await client.query('DELETE FROM categories');
+    // Clear existing user's data only
+    await client.query('DELETE FROM pattern_hashtags WHERE pattern_id IN (SELECT id FROM patterns WHERE user_id = $1)', [userId]);
+    await client.query('DELETE FROM counters WHERE pattern_id IN (SELECT id FROM patterns WHERE user_id = $1)', [userId]);
+    await client.query('DELETE FROM patterns WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM categories WHERE user_id = $1', [userId]);
 
-    // Reset sequences
-    await client.query('ALTER SEQUENCE categories_id_seq RESTART WITH 1');
-    await client.query('ALTER SEQUENCE hashtags_id_seq RESTART WITH 1');
-    await client.query('ALTER SEQUENCE patterns_id_seq RESTART WITH 1');
-    await client.query('ALTER SEQUENCE counters_id_seq RESTART WITH 1');
-
-    // Restore categories
+    // Restore user's categories (assign new IDs, associate with current user)
+    const categoryIdMap = {};
     for (const row of dbExport.tables.categories || []) {
-      await client.query(
-        'INSERT INTO categories (id, name, position, created_at) VALUES ($1, $2, $3, $4)',
-        [row.id, row.name, row.position, row.created_at]
+      const result = await client.query(
+        'INSERT INTO categories (name, user_id, position, created_at) VALUES ($1, $2, $3, $4) RETURNING id',
+        [row.name, userId, row.position, row.created_at]
       );
-    }
-    // Update sequence
-    const maxCatId = Math.max(0, ...(dbExport.tables.categories || []).map(r => r.id));
-    if (maxCatId > 0) {
-      await client.query(`ALTER SEQUENCE categories_id_seq RESTART WITH ${maxCatId + 1}`);
+      categoryIdMap[row.id] = result.rows[0].id;
     }
 
-    // Restore hashtags
-    for (const row of dbExport.tables.hashtags || []) {
-      await client.query(
-        'INSERT INTO hashtags (id, name, position, created_at) VALUES ($1, $2, $3, $4)',
-        [row.id, row.name, row.position, row.created_at]
-      );
-    }
-    const maxHashId = Math.max(0, ...(dbExport.tables.hashtags || []).map(r => r.id));
-    if (maxHashId > 0) {
-      await client.query(`ALTER SEQUENCE hashtags_id_seq RESTART WITH ${maxHashId + 1}`);
-    }
-
-    // Restore patterns
+    // Restore user's patterns (assign new IDs, associate with current user)
+    const patternIdMap = {};
     for (const row of dbExport.tables.patterns || []) {
-      await client.query(
-        `INSERT INTO patterns (id, name, filename, original_name, upload_date, category, description,
+      const result = await client.query(
+        `INSERT INTO patterns (name, filename, original_name, upload_date, category, description,
          is_current, stitch_count, row_count, created_at, updated_at, thumbnail, current_page,
-         completed, completed_date, notes, pattern_type, content, timer_seconds)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`,
-        [row.id, row.name, row.filename, row.original_name, row.upload_date, row.category, row.description,
+         completed, completed_date, notes, pattern_type, content, timer_seconds, user_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`,
+        [row.name, row.filename, row.original_name, row.upload_date, row.category, row.description,
          row.is_current, row.stitch_count, row.row_count, row.created_at, row.updated_at, row.thumbnail,
-         row.current_page, row.completed, row.completed_date, row.notes, row.pattern_type, row.content, row.timer_seconds]
+         row.current_page, row.completed, row.completed_date, row.notes, row.pattern_type, row.content, row.timer_seconds, userId]
       );
-    }
-    const maxPatId = Math.max(0, ...(dbExport.tables.patterns || []).map(r => r.id));
-    if (maxPatId > 0) {
-      await client.query(`ALTER SEQUENCE patterns_id_seq RESTART WITH ${maxPatId + 1}`);
+      patternIdMap[row.id] = result.rows[0].id;
     }
 
-    // Restore counters
+    // Restore counters (with mapped pattern IDs)
     for (const row of dbExport.tables.counters || []) {
-      await client.query(
-        'INSERT INTO counters (id, pattern_id, name, value, position, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6, $7)',
-        [row.id, row.pattern_id, row.name, row.value, row.position, row.created_at, row.updated_at]
-      );
-    }
-    const maxCntId = Math.max(0, ...(dbExport.tables.counters || []).map(r => r.id));
-    if (maxCntId > 0) {
-      await client.query(`ALTER SEQUENCE counters_id_seq RESTART WITH ${maxCntId + 1}`);
+      const newPatternId = patternIdMap[row.pattern_id];
+      if (newPatternId) {
+        await client.query(
+          'INSERT INTO counters (pattern_id, name, value, position, created_at, updated_at) VALUES ($1, $2, $3, $4, $5, $6)',
+          [newPatternId, row.name, row.value, row.position, row.created_at, row.updated_at]
+        );
+      }
     }
 
-    // Restore pattern_hashtags
+    // Restore pattern_hashtags (with mapped pattern IDs)
     for (const row of dbExport.tables.pattern_hashtags || []) {
-      await client.query(
-        'INSERT INTO pattern_hashtags (pattern_id, hashtag_id) VALUES ($1, $2)',
-        [row.pattern_id, row.hashtag_id]
-      );
+      const newPatternId = patternIdMap[row.pattern_id];
+      if (newPatternId) {
+        await client.query(
+          'INSERT INTO pattern_hashtags (pattern_id, hashtag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [newPatternId, row.hashtag_id]
+        );
+      }
     }
 
     await client.query('COMMIT');
 
-    // Restore pattern files
+    // Helper to recursively copy directories
+    const copyRecursive = (src, dest) => {
+      if (fs.statSync(src).isDirectory()) {
+        fs.mkdirSync(dest, { recursive: true });
+        for (const child of fs.readdirSync(src)) {
+          copyRecursive(path.join(src, child), path.join(dest, child));
+        }
+      } else {
+        fs.copyFileSync(src, dest);
+      }
+    };
+
+    // Clear and restore user's patterns directory
     const backupPatternsDir = path.join(tempDir, 'patterns');
     if (fs.existsSync(backupPatternsDir)) {
-      // Clear existing patterns directory (except .gitkeep if present)
-      const existingFiles = fs.readdirSync(patternsDir);
-      for (const file of existingFiles) {
-        const filePath = path.join(patternsDir, file);
-        if (file !== '.gitkeep') {
-          if (fs.statSync(filePath).isDirectory()) {
-            fs.rmSync(filePath, { recursive: true });
-          } else {
-            fs.unlinkSync(filePath);
-          }
-        }
+      // Clear existing user patterns directory
+      if (fs.existsSync(userPatternsDir)) {
+        fs.rmSync(userPatternsDir, { recursive: true });
       }
+      fs.mkdirSync(userPatternsDir, { recursive: true });
 
-      // Copy backup patterns to patterns directory
-      const copyRecursive = (src, dest) => {
-        if (fs.statSync(src).isDirectory()) {
-          fs.mkdirSync(dest, { recursive: true });
-          for (const child of fs.readdirSync(src)) {
-            copyRecursive(path.join(src, child), path.join(dest, child));
-          }
-        } else {
-          fs.copyFileSync(src, dest);
-        }
-      };
-
+      // Copy backup patterns to user's patterns directory
       for (const item of fs.readdirSync(backupPatternsDir)) {
         copyRecursive(
           path.join(backupPatternsDir, item),
-          path.join(patternsDir, item)
+          path.join(userPatternsDir, item)
         );
       }
+    }
+
+    // Clear and restore user's images directory
+    const backupImagesDir = path.join(tempDir, 'images');
+    if (fs.existsSync(backupImagesDir)) {
+      if (fs.existsSync(userImagesDir)) {
+        fs.rmSync(userImagesDir, { recursive: true });
+      }
+      copyRecursive(backupImagesDir, userImagesDir);
+    }
+
+    // Clear and restore user's archive directory
+    const backupArchiveDir = path.join(tempDir, 'archive');
+    if (fs.existsSync(backupArchiveDir)) {
+      if (fs.existsSync(userArchiveDir)) {
+        fs.rmSync(userArchiveDir, { recursive: true });
+      }
+      copyRecursive(backupArchiveDir, userArchiveDir);
+    }
+
+    // Clear and restore user's notes directory
+    const backupNotesDir = path.join(tempDir, 'notes');
+    if (fs.existsSync(backupNotesDir)) {
+      if (fs.existsSync(userNotesDir)) {
+        fs.rmSync(userNotesDir, { recursive: true });
+      }
+      copyRecursive(backupNotesDir, userNotesDir);
     }
 
     // Clean up temp directory
@@ -3909,14 +4367,17 @@ app.post('/api/backups/:filename/restore', async (req, res) => {
   }
 });
 
-// Download a backup file
+// Download a backup file for current user
 app.get('/api/backups/:filename/download', (req, res) => {
   try {
+    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const userBackupsDir = getUserBackupsDir(username);
+
     const filename = req.params.filename;
     if (filename.includes('..') || !filename.endsWith('.zip')) {
       return res.status(400).json({ error: 'Invalid filename' });
     }
-    const backupPath = path.join(backupsDir, filename);
+    const backupPath = path.join(userBackupsDir, filename);
     if (!fs.existsSync(backupPath)) {
       return res.status(404).json({ error: 'Backup not found' });
     }
@@ -4005,26 +4466,30 @@ async function autoDeleteOldArchived() {
     const daysAgo = new Date();
     daysAgo.setDate(daysAgo.getDate() - settings.autoDeleteDays);
 
-    // Find archived patterns older than the threshold
-    const result = await pool.query(
-      'SELECT * FROM patterns WHERE is_archived = true AND archived_at < $1',
-      [daysAgo]
-    );
+    // Find archived patterns older than the threshold with owner info
+    const result = await pool.query(`
+      SELECT p.*, u.username as owner_username
+      FROM patterns p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.is_archived = true AND p.archived_at < $1
+    `, [daysAgo]);
 
     if (result.rows.length === 0) return;
 
     console.log(`Auto-deleting ${result.rows.length} archived patterns older than ${settings.autoDeleteDays} days`);
 
     for (const pattern of result.rows) {
+      const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+
       // Delete file from archive
-      const archiveFilePath = path.join(getArchiveCategoryDir(pattern.category), pattern.filename);
+      const archiveFilePath = path.join(getArchiveCategoryDir(ownerUsername, pattern.category), pattern.filename);
       if (fs.existsSync(archiveFilePath)) {
         fs.unlinkSync(archiveFilePath);
       }
 
       // Delete thumbnail from archive
       if (pattern.thumbnail) {
-        const thumbnailPath = path.join(archiveThumbnailsDir, pattern.thumbnail);
+        const thumbnailPath = path.join(getUserArchiveThumbnailsDir(ownerUsername), pattern.thumbnail);
         if (fs.existsSync(thumbnailPath)) {
           fs.unlinkSync(thumbnailPath);
         }

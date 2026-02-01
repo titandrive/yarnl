@@ -43,27 +43,35 @@ async function initDatabase() {
       )
     `);
 
-    // Create categories table
+    // Create categories table (per-user categories)
     await client.query(`
       CREATE TABLE IF NOT EXISTS categories (
         id SERIAL PRIMARY KEY,
-        name VARCHAR(100) NOT NULL UNIQUE,
+        name VARCHAR(100) NOT NULL,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         position INTEGER DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, name)
       )
     `);
 
-    // Insert default categories if table is empty
-    const categoryCount = await client.query('SELECT COUNT(*) FROM categories');
-    if (parseInt(categoryCount.rows[0].count) === 0) {
-      const defaultCategories = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace', 'Colorwork', 'Freeform', 'Micro', 'Other'];
-      for (let i = 0; i < defaultCategories.length; i++) {
-        await client.query(
-          'INSERT INTO categories (name, position) VALUES ($1, $2) ON CONFLICT (name) DO NOTHING',
-          [defaultCategories[i], i]
-        );
-      }
-    }
+    // Add user_id column to categories if it doesn't exist (migration)
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='categories' AND column_name='user_id') THEN
+          ALTER TABLE categories ADD COLUMN user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+          -- Drop the old unique constraint on name only
+          ALTER TABLE categories DROP CONSTRAINT IF EXISTS categories_name_key;
+          -- Add new unique constraint on (user_id, name)
+          ALTER TABLE categories ADD CONSTRAINT categories_user_name_unique UNIQUE(user_id, name);
+        END IF;
+      END $$;
+    `);
+
+    // Note: Default categories are now created per-user when users are created
+    // See createDefaultCategoriesForUser() in server.js
 
     // Create hashtags table
     await client.query(`

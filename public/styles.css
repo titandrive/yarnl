@@ -5922,17 +5922,19 @@ input[type="number"].settings-input {
     margin-bottom: 2rem;
 }
 
-.login-mascot {
-    width: 80px;
-    height: 80px;
-    margin-bottom: 1rem;
-    border-radius: 12px;
+.login-header h1 {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3em;
+    margin: 0 0 0.5rem 0;
+    font-size: 2.5rem;
+    color: var(--text-color);
 }
 
-.login-header h1 {
-    margin: 0 0 0.5rem 0;
-    font-size: 2rem;
-    color: var(--text-color);
+.login-mascot {
+    height: 1.6em;
+    width: auto;
+    border-radius: 8px;
 }
 
 .login-subtitle {
@@ -5944,13 +5946,21 @@ input[type="number"].settings-input {
 .login-form {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
 }
 
-.login-form-group {
+.login-form .login-form-group {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.25rem;
+    margin-bottom: 1.25rem !important;
+}
+
+.login-form .login-form-group:last-of-type {
+    margin-bottom: 0 !important;
+}
+
+.login-form .login-btn {
+    margin-top: 0.5rem;
 }
 
 .login-form-group label {
@@ -5983,7 +5993,7 @@ input[type="number"].settings-input {
 
 .login-btn {
     margin-top: 0.5rem;
-    padding: 0.875rem;
+    padding: 0.75rem;
     font-size: 1rem;
     font-weight: 600;
     background: var(--primary-color);
@@ -6006,17 +6016,20 @@ input[type="number"].settings-input {
     color: var(--error-color, #ef4444);
     text-align: center;
     font-size: 0.9rem;
-    min-height: 1.5em;
+}
+
+.login-error:empty {
+    display: none;
 }
 
 .oidc-section {
-    margin-top: 1.5rem;
+    margin-top: 1rem;
 }
 
 .login-divider {
     display: flex;
     align-items: center;
-    margin: 1rem 0;
+    margin: 0.75rem 0;
     color: var(--text-muted);
     font-size: 0.85rem;
 }

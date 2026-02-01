@@ -4,6 +4,7 @@ const API_URL = '';
 // Auth state
 let currentUser = null;
 let authMode = 'single-user';
+let appInitialized = false;
 
 // Auth functions
 async function checkAuth() {
@@ -107,13 +108,39 @@ async function handleLogin(e) {
         if (response.ok) {
             const data = await response.json();
             currentUser = data.user;
+            // Clear hash and set default tab BEFORE showing app to prevent flash
+            window.location.hash = '';
+            const defaultPage = localStorage.getItem('defaultPage') || 'current';
+            sessionStorage.setItem('activeTab', defaultPage);
             showApp();
-            // Load data after login
+            // Only initialize UI components on first login
+            if (!appInitialized) {
+                initTabs();
+                initUpload();
+                initEditModal();
+                initPDFViewer();
+                initLibraryFilters();
+                initSettings();
+                initAddMenu();
+                initNewPatternPanel();
+                initThumbnailSelector();
+                initTimer();
+                initBackups();
+                initNavigation();
+                initGlobalDragDrop();
+                initServerEvents();
+                initHorizontalScroll();
+                initUserManagement();
+                appInitialized = true;
+            }
+            // Always refresh user-specific data and UI
+            await loadAccountInfo();
+            updateUIForUser();
             await loadPatterns();
             loadCurrentPatterns();
             loadCategories();
             loadHashtags();
-            await handleInitialNavigation();
+            switchToTab(defaultPage, false);
         } else {
             const error = await response.json();
             errorDiv.textContent = error.error || 'Login failed';
@@ -541,10 +568,13 @@ function initUserManagement() {
         userInfo.textContent = `${currentUser.displayName || currentUser.username} (${currentUser.role})`;
     }
 
-    // Show admin nav button if admin
+    // Show/hide admin nav button based on role
     const usersNavBtn = document.getElementById('admin-nav-btn');
-    if (usersNavBtn && currentUser?.role === 'admin') {
-        usersNavBtn.style.display = '';
+    const isAdmin = currentUser?.role === 'admin';
+    if (usersNavBtn) {
+        usersNavBtn.style.display = isAdmin ? '' : 'none';
+    }
+    if (isAdmin) {
         loadUsers();
         initOIDCSettings();
     }
@@ -614,7 +644,8 @@ function initUserManagement() {
 // Account password management
 async function loadAccountInfo() {
     try {
-        const response = await fetch(`${API_URL}/api/auth/account`);
+        // Add cache-busting to ensure fresh data
+        const response = await fetch(`${API_URL}/api/auth/account?_=${Date.now()}`);
         if (!response.ok) return;
 
         const account = await response.json();
@@ -1596,6 +1627,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initServerEvents();
     initHorizontalScroll();
     initUserManagement();
+    appInitialized = true;
     await loadPatterns();
     loadCurrentPatterns();
     loadCategories();

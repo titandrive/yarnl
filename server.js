@@ -390,7 +390,7 @@ app.delete('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
     const username = user.rows[0].username;
 
     // Move user's data to _deleted folder before deleting from database
-    await moveUserDataToDeleted(username);
+    await deleteUserData(username);
 
     await pool.query('DELETE FROM users WHERE id = $1', [userId]);
     res.json({ success: true });
@@ -933,7 +933,6 @@ app.use('/api', (req, res, next) => {
 
 // Base directory for all user data
 const usersDir = path.join(__dirname, 'users');
-const deletedDir = path.join(__dirname, '_deleted');
 
 // Ensure base directory exists
 if (!fs.existsSync(usersDir)) {
@@ -1001,13 +1000,12 @@ async function renameUserDirectories(oldUsername, newUsername) {
   }
 }
 
-// Move user data to _deleted folder when user is deleted
-async function moveUserDataToDeleted(username) {
+// Permanently delete user data when user is deleted
+async function deleteUserData(username) {
   const userDir = getUserBaseDir(username);
-  const userDeletedDir = path.join(deletedDir, username);
 
   if (fs.existsSync(userDir)) {
-    fs.renameSync(userDir, userDeletedDir);
+    fs.rmSync(userDir, { recursive: true, force: true });
   }
 }
 
@@ -4461,6 +4459,255 @@ app.get('/api/backups/:filename/download', (req, res) => {
     console.error('Error downloading backup:', error);
     res.status(500).json({ error: error.message });
   }
+});
+
+// =====================
+// ADMIN BACKUP ENDPOINTS
+// =====================
+
+// Download admin config backup (OIDC settings + user accounts)
+app.get('/api/admin/backup/config', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const backupFilename = `yarnl-admin-config-${timestamp}.json`;
+
+    // Get all users (including password hashes for full restore capability)
+    const usersResult = await pool.query(
+      `SELECT id, username, display_name, role, can_add_patterns, password_required,
+              oidc_allowed, oidc_subject, oidc_provider, can_change_username, can_change_password,
+              password_hash, created_at, updated_at
+       FROM users ORDER BY id`
+    );
+
+    // Get OIDC settings
+    const oidcResult = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
+
+    // Get other admin settings
+    const backupScheduleResult = await pool.query("SELECT value FROM settings WHERE key = 'backup_schedule'");
+    const notifySettingsResult = await pool.query("SELECT value FROM settings WHERE key = 'notify_settings'");
+    const archiveSettingsResult = await pool.query("SELECT value FROM settings WHERE key = 'archive_settings'");
+
+    const configBackup = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      users: usersResult.rows,
+      settings: {
+        oidc: oidcResult.rows[0]?.value || null,
+        backup_schedule: backupScheduleResult.rows[0]?.value || null,
+        notify_settings: notifySettingsResult.rows[0]?.value || null,
+        archive_settings: archiveSettingsResult.rows[0]?.value || null
+      }
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', `attachment; filename="${backupFilename}"`);
+    res.send(JSON.stringify(configBackup, null, 2));
+  } catch (error) {
+    console.error('Error creating admin config backup:', error);
+    res.status(500).json({ error: 'Failed to create config backup' });
+  }
+});
+
+// Restore admin config from backup
+app.post('/api/admin/backup/config/restore', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { config, restoreUsers, restoreSettings } = req.body;
+
+    if (!config || !config.version) {
+      return res.status(400).json({ error: 'Invalid config backup format' });
+    }
+
+    const results = { users: 0, settings: 0 };
+
+    // Restore users
+    if (restoreUsers && config.users) {
+      for (const user of config.users) {
+        // Skip admin user (don't overwrite current admin)
+        if (user.role === 'admin' && user.username === process.env.ADMIN_USERNAME) {
+          continue;
+        }
+
+        // Check if user exists
+        const existing = await pool.query('SELECT id FROM users WHERE username = $1', [user.username]);
+
+        if (existing.rows.length > 0) {
+          // Update existing user
+          await pool.query(
+            `UPDATE users SET
+              display_name = $1, role = $2, can_add_patterns = $3, password_required = $4,
+              oidc_allowed = $5, oidc_subject = $6, oidc_provider = $7,
+              can_change_username = $8, can_change_password = $9, password_hash = $10,
+              updated_at = NOW()
+             WHERE username = $11`,
+            [user.display_name, user.role, user.can_add_patterns, user.password_required,
+             user.oidc_allowed, user.oidc_subject, user.oidc_provider,
+             user.can_change_username, user.can_change_password, user.password_hash,
+             user.username]
+          );
+        } else {
+          // Insert new user
+          await pool.query(
+            `INSERT INTO users (username, display_name, role, can_add_patterns, password_required,
+              oidc_allowed, oidc_subject, oidc_provider, can_change_username, can_change_password, password_hash)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [user.username, user.display_name, user.role, user.can_add_patterns, user.password_required,
+             user.oidc_allowed, user.oidc_subject, user.oidc_provider,
+             user.can_change_username, user.can_change_password, user.password_hash]
+          );
+        }
+        results.users++;
+      }
+    }
+
+    // Restore settings
+    if (restoreSettings && config.settings) {
+      for (const [key, value] of Object.entries(config.settings)) {
+        if (value !== null) {
+          await pool.query(
+            `INSERT INTO settings (key, value, updated_at) VALUES ($1, $2, NOW())
+             ON CONFLICT (key) DO UPDATE SET value = $2, updated_at = NOW()`,
+            [key, value]
+          );
+          results.settings++;
+        }
+      }
+    }
+
+    res.json({ success: true, restored: results });
+  } catch (error) {
+    console.error('Error restoring admin config:', error);
+    res.status(500).json({ error: 'Failed to restore config backup' });
+  }
+});
+
+// Download all user data backup (files only, not database)
+app.get('/api/admin/backup/data', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+    const backupFilename = `yarnl-user-data-${timestamp}.zip`;
+
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${backupFilename}"`);
+
+    const archive = archiver('zip', { zlib: { level: 5 } });
+    archive.pipe(res);
+
+    // Add all user data directories
+    if (fs.existsSync(usersDir)) {
+      archive.directory(usersDir, 'users');
+    }
+
+    archive.finalize();
+  } catch (error) {
+    console.error('Error creating user data backup:', error);
+    res.status(500).json({ error: 'Failed to create data backup' });
+  }
+});
+
+// Restore all user data from backup
+app.post('/api/admin/backup/data/restore', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    // This endpoint expects a multipart form with a zip file
+    res.status(501).json({ error: 'Use the upload endpoint for data restore' });
+  } catch (error) {
+    console.error('Error restoring user data:', error);
+    res.status(500).json({ error: 'Failed to restore data backup' });
+  }
+});
+
+// Upload and restore user data backup
+const adminDataRestoreUpload = multer({
+  dest: path.join(__dirname, 'temp'),
+  limits: { fileSize: 500 * 1024 * 1024 } // 500MB limit
+}).single('backup');
+
+app.post('/api/admin/backup/data/upload', authMiddleware, adminOnly, (req, res) => {
+  adminDataRestoreUpload(req, res, async (err) => {
+    if (err) {
+      console.error('Upload error:', err);
+      return res.status(400).json({ error: 'Upload failed: ' + err.message });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const tempDir = path.join(__dirname, 'temp', `restore-${Date.now()}`);
+
+    try {
+      // Extract the zip file
+      fs.mkdirSync(tempDir, { recursive: true });
+
+      await fs.createReadStream(req.file.path)
+        .pipe(unzipper.Extract({ path: tempDir }))
+        .promise();
+
+      // Check for users directory in the backup
+      const backupUsersDir = path.join(tempDir, 'users');
+      if (!fs.existsSync(backupUsersDir)) {
+        throw new Error('Invalid backup: users directory not found');
+      }
+
+      // Get list of users in backup
+      const backupUsers = fs.readdirSync(backupUsersDir).filter(f =>
+        fs.statSync(path.join(backupUsersDir, f)).isDirectory()
+      );
+
+      let restoredCount = 0;
+
+      // Restore each user's data
+      for (const username of backupUsers) {
+        const srcUserDir = path.join(backupUsersDir, username);
+        const destUserDir = getUserBaseDir(username);
+
+        // Create user directory if it doesn't exist
+        if (!fs.existsSync(destUserDir)) {
+          fs.mkdirSync(destUserDir, { recursive: true });
+        }
+
+        // Copy all subdirectories (patterns, images, archive, notes, thumbnails, backups)
+        const subdirs = fs.readdirSync(srcUserDir).filter(f =>
+          fs.statSync(path.join(srcUserDir, f)).isDirectory()
+        );
+
+        for (const subdir of subdirs) {
+          const srcPath = path.join(srcUserDir, subdir);
+          const destPath = path.join(destUserDir, subdir);
+
+          // Ensure destination exists
+          if (!fs.existsSync(destPath)) {
+            fs.mkdirSync(destPath, { recursive: true });
+          }
+
+          // Copy files recursively
+          copyRecursive(srcPath, destPath);
+        }
+
+        restoredCount++;
+      }
+
+      // Cleanup
+      fs.unlinkSync(req.file.path);
+      fs.rmSync(tempDir, { recursive: true, force: true });
+
+      res.json({
+        success: true,
+        message: `Restored data for ${restoredCount} users`,
+        users: backupUsers
+      });
+    } catch (error) {
+      // Cleanup on error
+      if (req.file && fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      if (fs.existsSync(tempDir)) {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
+
+      console.error('Error restoring user data:', error);
+      res.status(500).json({ error: 'Failed to restore data: ' + error.message });
+    }
+  });
 });
 
 // Get available mascots

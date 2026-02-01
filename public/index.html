@@ -1414,6 +1414,40 @@ Inc in each st around (12)
                             </div>
                             <button id="save-oidc-btn" class="btn">Save OIDC Settings</button>
                         </div>
+
+                        <h4 class="settings-subheading">Admin Backup</h4>
+                        <p class="setting-description" style="margin-bottom: 1rem;">Backup and restore system configuration and user data</p>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Configuration Backup</label>
+                                <p class="setting-description">Export OIDC settings and user accounts (no user data)</p>
+                            </div>
+                            <button id="admin-backup-config-btn" class="btn btn-secondary">Download Config</button>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Restore Configuration</label>
+                                <p class="setting-description">Import OIDC settings and user accounts from backup</p>
+                            </div>
+                            <input type="file" id="admin-restore-config-input" accept=".json" style="display: none;">
+                            <button id="admin-restore-config-btn" class="btn btn-secondary">Restore Config</button>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>User Data Backup</label>
+                                <p class="setting-description">Export all user files (patterns, images, notes, etc.)</p>
+                            </div>
+                            <button id="admin-backup-data-btn" class="btn btn-secondary">Download Data</button>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Restore User Data</label>
+                                <p class="setting-description">Import user files from backup</p>
+                            </div>
+                            <input type="file" id="admin-restore-data-input" accept=".zip" style="display: none;">
+                            <button id="admin-restore-data-btn" class="btn btn-secondary">Restore Data</button>
+                        </div>
                     </section>
 
                     <!-- Account Section (All Users) -->

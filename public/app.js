@@ -225,7 +225,7 @@ function displayUsers() {
                         <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
                     </select>
                     ${user.has_password && !user.password_required ? `<button class="btn btn-secondary btn-small" onclick="removeUserPassword(${user.id})" title="Allow passwordless login">Remove PW</button>` : ''}
-                    <button class="btn btn-secondary btn-small" onclick="deleteUser(${user.id})">Delete</button>
+                    <button class="btn btn-secondary btn-small delete-user-btn" onclick="deleteUser(${user.id}, this)">Delete</button>
                 ` : '<span class="user-current-badge">You</span>'}
             </div>
         </div>
@@ -283,10 +283,17 @@ async function updateUserRole(userId, role) {
     }
 }
 
-async function deleteUser(userId) {
-    if (!confirm('Are you sure you want to delete this user? Their patterns will remain but become unowned.')) {
+async function deleteUser(userId, btn) {
+    // First click - show confirmation state
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.textContent = 'Confirm';
         return;
     }
+
+    // Second click - actually delete
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
 
     try {
         const response = await fetch(`${API_URL}/api/users/${userId}`, {
@@ -299,10 +306,16 @@ async function deleteUser(userId) {
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to delete user', 'error');
+            btn.disabled = false;
+            btn.classList.remove('confirm-delete');
+            btn.textContent = 'Delete';
         }
     } catch (error) {
         console.error('Failed to delete user:', error);
         showToast('Failed to delete user', 'error');
+        btn.disabled = false;
+        btn.classList.remove('confirm-delete');
+        btn.textContent = 'Delete';
     }
 }
 
@@ -972,6 +985,166 @@ function initOIDCSettings() {
     }
 
     loadOIDCSettings();
+
+    // Admin backup event listeners
+    const backupConfigBtn = document.getElementById('admin-backup-config-btn');
+    if (backupConfigBtn) {
+        backupConfigBtn.addEventListener('click', downloadAdminConfig);
+    }
+
+    const restoreConfigBtn = document.getElementById('admin-restore-config-btn');
+    const restoreConfigInput = document.getElementById('admin-restore-config-input');
+    if (restoreConfigBtn && restoreConfigInput) {
+        restoreConfigBtn.addEventListener('click', () => restoreConfigInput.click());
+        restoreConfigInput.addEventListener('change', handleAdminConfigRestore);
+    }
+
+    const backupDataBtn = document.getElementById('admin-backup-data-btn');
+    if (backupDataBtn) {
+        backupDataBtn.addEventListener('click', downloadAdminData);
+    }
+
+    const restoreDataBtn = document.getElementById('admin-restore-data-btn');
+    const restoreDataInput = document.getElementById('admin-restore-data-input');
+    if (restoreDataBtn && restoreDataInput) {
+        restoreDataBtn.addEventListener('click', () => restoreDataInput.click());
+        restoreDataInput.addEventListener('change', handleAdminDataRestore);
+    }
+}
+
+// Admin backup functions
+async function downloadAdminConfig() {
+    const btn = document.getElementById('admin-backup-config-btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Downloading...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`${API_URL}/api/admin/backup/config`);
+        if (!response.ok) throw new Error('Failed to download config');
+
+        const blob = await response.blob();
+        const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'yarnl-admin-config.json';
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showToast('Config backup downloaded');
+    } catch (error) {
+        console.error('Error downloading config:', error);
+        showToast('Failed to download config', 'error');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function handleAdminConfigRestore(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const btn = document.getElementById('admin-restore-config-btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Restoring...';
+    btn.disabled = true;
+
+    try {
+        const text = await file.text();
+        const config = JSON.parse(text);
+
+        const response = await fetch(`${API_URL}/api/admin/backup/config/restore`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ config, restoreUsers: true, restoreSettings: true })
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Failed to restore config');
+        }
+
+        const result = await response.json();
+        showToast(`Restored ${result.restored.users} users, ${result.restored.settings} settings`);
+
+        // Refresh user list if on admin tab
+        await loadUsers();
+    } catch (error) {
+        console.error('Error restoring config:', error);
+        showToast('Failed to restore config: ' + error.message, 'error');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        e.target.value = '';
+    }
+}
+
+async function downloadAdminData() {
+    const btn = document.getElementById('admin-backup-data-btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Downloading...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`${API_URL}/api/admin/backup/data`);
+        if (!response.ok) throw new Error('Failed to download data');
+
+        const blob = await response.blob();
+        const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'yarnl-user-data.zip';
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+
+        showToast('User data backup downloaded');
+    } catch (error) {
+        console.error('Error downloading data:', error);
+        showToast('Failed to download data', 'error');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function handleAdminDataRestore(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const btn = document.getElementById('admin-restore-data-btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Restoring...';
+    btn.disabled = true;
+
+    try {
+        const formData = new FormData();
+        formData.append('backup', file);
+
+        const response = await fetch(`${API_URL}/api/admin/backup/data/upload`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Failed to restore data');
+        }
+
+        const result = await response.json();
+        showToast(`Restored data for ${result.users.length} users`);
+    } catch (error) {
+        console.error('Error restoring data:', error);
+        showToast('Failed to restore data: ' + error.message, 'error');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+        e.target.value = '';
+    }
 }
 
 // Check if OIDC is enabled and show/hide login button
@@ -6748,6 +6921,13 @@ function resetCategoryDeleteButtons() {
     });
 }
 
+function resetUserDeleteButtons() {
+    document.querySelectorAll('.delete-user-btn.confirm-delete').forEach(btn => {
+        btn.classList.remove('confirm-delete');
+        btn.textContent = 'Delete';
+    });
+}
+
 function resetHashtagDeleteButtons() {
     document.querySelectorAll('.hashtag-actions .btn-danger.confirm-delete').forEach(btn => {
         btn.classList.remove('confirm-delete');
@@ -6784,6 +6964,9 @@ document.addEventListener('click', (e) => {
     }
     if (!e.target.closest('#clear-all-btn') && !e.target.closest('#clear-completed-btn')) {
         resetUploadClearButtons();
+    }
+    if (!e.target.closest('.delete-user-btn')) {
+        resetUserDeleteButtons();
     }
 });
 

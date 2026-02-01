@@ -3539,6 +3539,39 @@ body.global-drag-over #current::after {
     display: none;
 }
 
+.setting-item .inline-form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+    margin-top: 12px;
+}
+
+.setting-item .inline-form input {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 14px;
+}
+
+.setting-item .inline-form input:focus {
+    outline: none;
+    border-color: var(--accent-color);
+}
+
+.setting-item .inline-form-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.setting-item.expanded {
+    flex-direction: column;
+    align-items: flex-start;
+}
+
 .settings-subheading.search-hidden {
     display: none;
 }

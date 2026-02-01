@@ -505,15 +505,43 @@ function initUserManagement() {
         initOIDCSettings();
     }
 
-    // Setup password management
-    const removePasswordBtn = document.getElementById('remove-password-btn');
-    if (removePasswordBtn) {
-        removePasswordBtn.addEventListener('click', handleRemoveOwnPassword);
+    // Setup password management - inline forms
+    const changePasswordBtn = document.getElementById('change-password-btn');
+    const changePasswordForm = document.getElementById('change-password-form');
+    const changePasswordItem = document.getElementById('change-password-item');
+    if (changePasswordBtn && changePasswordForm) {
+        changePasswordBtn.addEventListener('click', () => {
+            changePasswordBtn.style.display = 'none';
+            changePasswordForm.style.display = 'flex';
+            changePasswordItem.classList.add('expanded');
+            document.getElementById('current-password-input').focus();
+        });
+        document.getElementById('cancel-password-btn').addEventListener('click', () => {
+            changePasswordForm.style.display = 'none';
+            changePasswordBtn.style.display = '';
+            changePasswordItem.classList.remove('expanded');
+            changePasswordForm.querySelectorAll('input').forEach(i => i.value = '');
+        });
+        document.getElementById('save-password-btn').addEventListener('click', handleChangePassword);
     }
 
-    const changePasswordBtn = document.getElementById('change-password-btn');
-    if (changePasswordBtn) {
-        changePasswordBtn.addEventListener('click', handleChangePassword);
+    const removePasswordBtn = document.getElementById('remove-password-btn');
+    const removePasswordForm = document.getElementById('remove-password-form');
+    const removePasswordItem = document.getElementById('remove-password-item');
+    if (removePasswordBtn && removePasswordForm) {
+        removePasswordBtn.addEventListener('click', () => {
+            removePasswordBtn.style.display = 'none';
+            removePasswordForm.style.display = 'flex';
+            removePasswordItem.classList.add('expanded');
+            document.getElementById('remove-password-input').focus();
+        });
+        document.getElementById('cancel-remove-password-btn').addEventListener('click', () => {
+            removePasswordForm.style.display = 'none';
+            removePasswordBtn.style.display = '';
+            removePasswordItem.classList.remove('expanded');
+            document.getElementById('remove-password-input').value = '';
+        });
+        document.getElementById('confirm-remove-password-btn').addEventListener('click', handleRemoveOwnPassword);
     }
 
     // Setup username change
@@ -584,6 +612,17 @@ async function loadAccountInfo() {
                 }
             }
 
+            // Update button text and description based on whether password is set
+            const changePasswordBtn = document.getElementById('change-password-btn');
+            const changePasswordDesc = changePasswordItem?.querySelector('.setting-description');
+            if (account.has_password) {
+                if (changePasswordBtn) changePasswordBtn.textContent = 'Change Password';
+                if (changePasswordDesc) changePasswordDesc.textContent = 'Set a new password for your account';
+            } else {
+                if (changePasswordBtn) changePasswordBtn.textContent = 'Set Password';
+                if (changePasswordDesc) changePasswordDesc.textContent = 'Set a password for your account';
+            }
+
             // Show remove password option only if user has password and it's not required
             if (removePasswordItem) {
                 removePasswordItem.style.display = (account.has_password && !account.password_required) ? '' : 'none';
@@ -631,8 +670,11 @@ async function loadAccountInfo() {
 }
 
 async function handleRemoveOwnPassword() {
-    const currentPassword = prompt('Enter your current password to confirm removal:');
-    if (!currentPassword) return;
+    const currentPassword = document.getElementById('remove-password-input').value;
+    if (!currentPassword) {
+        showToast('Please enter your current password', 'error');
+        return;
+    }
 
     try {
         const response = await fetch(`${API_URL}/api/auth/remove-password`, {
@@ -643,6 +685,11 @@ async function handleRemoveOwnPassword() {
 
         if (response.ok) {
             showToast('Password removed - you can now login with just your username');
+            // Reset and hide the form
+            document.getElementById('remove-password-input').value = '';
+            document.getElementById('remove-password-form').style.display = 'none';
+            document.getElementById('remove-password-btn').style.display = '';
+            document.getElementById('remove-password-item').classList.remove('expanded');
             loadAccountInfo();
         } else {
             const error = await response.json();
@@ -678,16 +725,15 @@ async function handleUnlinkSso() {
 }
 
 async function handleChangePassword() {
-    const currentPassword = prompt('Enter your current password (leave empty if you have none):');
-    if (currentPassword === null) return; // User cancelled
+    const currentPassword = document.getElementById('current-password-input').value;
+    const newPassword = document.getElementById('new-password-input').value;
+    const confirmPassword = document.getElementById('confirm-password-input').value;
 
-    const newPassword = prompt('Enter your new password:');
     if (!newPassword) {
         showToast('New password cannot be empty', 'error');
         return;
     }
 
-    const confirmPassword = prompt('Confirm your new password:');
     if (newPassword !== confirmPassword) {
         showToast('Passwords do not match', 'error');
         return;
@@ -702,6 +748,11 @@ async function handleChangePassword() {
 
         if (response.ok) {
             showToast('Password updated successfully');
+            // Reset and hide the form
+            document.getElementById('change-password-form').querySelectorAll('input').forEach(i => i.value = '');
+            document.getElementById('change-password-form').style.display = 'none';
+            document.getElementById('change-password-btn').style.display = '';
+            document.getElementById('change-password-item').classList.remove('expanded');
             loadAccountInfo();
         } else {
             const error = await response.json();

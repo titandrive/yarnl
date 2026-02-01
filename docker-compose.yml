@@ -29,11 +29,8 @@ services:
     # ports: #DO NOT UNCOMMENT PORTS
     #   - "3000:3000"
     volumes:
-      - ./patterns:/app/patterns
-      - ./archive:/app/archive
+      - ./users:/app/users
       - ./public:/app/public
-      - ./backups:/app/backups
-      - ./notes:/app/notes
     environment:
       - NODE_ENV=production
       - POSTGRES_HOST=postgres
@@ -41,7 +38,7 @@ services:
       - POSTGRES_DB=yarnl
       - POSTGRES_USER=yarnl
       - POSTGRES_PASSWORD=yarnl
-      - BACKUP_HOST_PATH=/opt/yarnl/backups
+      - BACKUP_HOST_PATH=/opt/yarnl/users
       - TZ=America/Los_Angeles
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=password

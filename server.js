@@ -931,47 +931,46 @@ app.use('/api', (req, res, next) => {
   return authMiddleware(req, res, next);
 });
 
-// Base directories
-const patternsDir = path.join(__dirname, 'patterns');
-const archiveDir = path.join(__dirname, 'archive');
-const notesBaseDir = path.join(__dirname, 'notes');
-const backupsBaseDir = path.join(__dirname, 'backups');
+// Base directory for all user data
+const usersDir = path.join(__dirname, 'users');
 const deletedDir = path.join(__dirname, '_deleted');
 
-// Ensure base directories exist
-[patternsDir, archiveDir, notesBaseDir, backupsBaseDir].forEach(dir => {
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-});
+// Ensure base directory exists
+if (!fs.existsSync(usersDir)) {
+  fs.mkdirSync(usersDir, { recursive: true });
+}
 
-// User-specific directory helpers
+// User-specific directory helpers - all under users/[username]/
+function getUserBaseDir(username) {
+  return path.join(usersDir, username);
+}
+
 function getUserPatternsDir(username) {
-  return path.join(patternsDir, username);
+  return path.join(usersDir, username, 'patterns');
 }
 
 function getUserThumbnailsDir(username) {
-  return path.join(patternsDir, username, 'thumbnails');
+  return path.join(usersDir, username, 'thumbnails');
 }
 
 function getUserImagesDir(username) {
-  return path.join(patternsDir, username, 'images');
+  return path.join(usersDir, username, 'images');
 }
 
 function getUserArchiveDir(username) {
-  return path.join(archiveDir, username);
+  return path.join(usersDir, username, 'archive');
 }
 
 function getUserArchiveThumbnailsDir(username) {
-  return path.join(archiveDir, username, 'thumbnails');
+  return path.join(usersDir, username, 'archive', 'thumbnails');
 }
 
 function getUserNotesDir(username) {
-  return path.join(notesBaseDir, username);
+  return path.join(usersDir, username, 'notes');
 }
 
 function getUserBackupsDir(username) {
-  return path.join(backupsBaseDir, username);
+  return path.join(usersDir, username, 'backups');
 }
 
 // Ensure all directories exist for a user
@@ -994,38 +993,21 @@ async function ensureUserDirectories(username) {
 
 // Rename user directories when username changes
 async function renameUserDirectories(oldUsername, newUsername) {
-  const renames = [
-    [path.join(patternsDir, oldUsername), path.join(patternsDir, newUsername)],
-    [path.join(archiveDir, oldUsername), path.join(archiveDir, newUsername)],
-    [path.join(notesBaseDir, oldUsername), path.join(notesBaseDir, newUsername)],
-    [path.join(backupsBaseDir, oldUsername), path.join(backupsBaseDir, newUsername)]
-  ];
+  const oldPath = getUserBaseDir(oldUsername);
+  const newPath = getUserBaseDir(newUsername);
 
-  for (const [oldPath, newPath] of renames) {
-    if (fs.existsSync(oldPath)) {
-      fs.renameSync(oldPath, newPath);
-    }
+  if (fs.existsSync(oldPath)) {
+    fs.renameSync(oldPath, newPath);
   }
 }
 
 // Move user data to _deleted folder when user is deleted
 async function moveUserDataToDeleted(username) {
+  const userDir = getUserBaseDir(username);
   const userDeletedDir = path.join(deletedDir, username);
-  if (!fs.existsSync(userDeletedDir)) {
-    fs.mkdirSync(userDeletedDir, { recursive: true });
-  }
 
-  const moves = [
-    [path.join(patternsDir, username), path.join(userDeletedDir, 'patterns')],
-    [path.join(archiveDir, username), path.join(userDeletedDir, 'archive')],
-    [path.join(notesBaseDir, username), path.join(userDeletedDir, 'notes')],
-    [path.join(backupsBaseDir, username), path.join(userDeletedDir, 'backups')]
-  ];
-
-  for (const [src, dest] of moves) {
-    if (fs.existsSync(src)) {
-      fs.renameSync(src, dest);
-    }
+  if (fs.existsSync(userDir)) {
+    fs.renameSync(userDir, userDeletedDir);
   }
 }
 
@@ -1119,13 +1101,15 @@ function ensureArchiveCategoryDir(username, categoryName) {
 // Helper function to clean up empty archive category directories (per-user)
 function cleanupEmptyArchiveCategories() {
   try {
-    // Iterate through user directories in archive
-    const userDirs = fs.readdirSync(archiveDir, { withFileTypes: true });
+    // Iterate through user directories in users/
+    const userDirs = fs.readdirSync(usersDir, { withFileTypes: true });
     for (const userDir of userDirs) {
       if (!userDir.isDirectory()) continue;
       if (userDir.name.startsWith('.')) continue;
 
-      const userArchivePath = path.join(archiveDir, userDir.name);
+      const userArchivePath = getUserArchiveDir(userDir.name);
+      if (!fs.existsSync(userArchivePath)) continue;
+
       const entries = fs.readdirSync(userArchivePath, { withFileTypes: true });
 
       for (const entry of entries) {
@@ -1178,20 +1162,20 @@ function getUniqueFilename(directory, baseName, extension) {
 // Helper function to clean up empty category directories
 async function cleanupEmptyCategories() {
   try {
-    // Iterate through user directories in patterns
-    const userDirs = fs.readdirSync(patternsDir, { withFileTypes: true });
+    // Iterate through user directories in users/
+    const userDirs = fs.readdirSync(usersDir, { withFileTypes: true });
 
     for (const userDir of userDirs) {
       if (!userDir.isDirectory()) continue;
       if (userDir.name.startsWith('.')) continue;
 
-      const userPatternsPath = path.join(patternsDir, userDir.name);
+      const userPatternsPath = getUserPatternsDir(userDir.name);
+      if (!fs.existsSync(userPatternsPath)) continue;
+
       const entries = fs.readdirSync(userPatternsPath, { withFileTypes: true });
 
       for (const entry of entries) {
         if (!entry.isDirectory()) continue;
-        if (entry.name === 'thumbnails') continue; // Skip thumbnails directory
-        if (entry.name === 'images') continue; // Skip images directory
 
         const categoryPath = path.join(userPatternsPath, entry.name);
         try {
@@ -1214,10 +1198,15 @@ async function cleanupEmptyCategories() {
 
 // Configure multer for PDF uploads
 // Note: req.body is NOT available in these callbacks, so we use temp filenames
+const uploadTempDir = path.join(__dirname, 'temp-uploads');
+if (!fs.existsSync(uploadTempDir)) {
+  fs.mkdirSync(uploadTempDir, { recursive: true });
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    // Use a temp directory - we'll move to category folder after upload
-    cb(null, patternsDir);
+    // Use a temp directory - we'll move to user's category folder after upload
+    cb(null, uploadTempDir);
   },
   filename: (req, file, cb) => {
     // Use temp filename - we'll rename based on req.body.name after upload completes
@@ -1409,6 +1398,12 @@ async function migrateExistingDataToAdmin() {
     // Ensure admin directories exist
     await ensureUserDirectories(admin.username);
 
+    // OLD directory paths (before the users/ restructure)
+    const oldPatternsDir = path.join(__dirname, 'patterns');
+    const oldArchiveDir = path.join(__dirname, 'archive');
+    const oldNotesDir = path.join(__dirname, 'notes');
+    const oldBackupsDir = path.join(__dirname, 'backups');
+
     // Helper to move directory contents
     const moveContents = (src, dest) => {
       if (!fs.existsSync(src)) return;
@@ -1444,9 +1439,9 @@ async function migrateExistingDataToAdmin() {
       }
     };
 
-    // Move patterns (categories, thumbnails, images)
-    const oldThumbnailsDir = path.join(patternsDir, 'thumbnails');
-    const oldImagesDir = path.join(patternsDir, 'images');
+    // Move patterns (categories, thumbnails, images) from old structure
+    const oldThumbnailsDir = path.join(oldPatternsDir, 'thumbnails');
+    const oldImagesDir = path.join(oldPatternsDir, 'images');
 
     if (fs.existsSync(oldThumbnailsDir)) {
       moveContents(oldThumbnailsDir, getUserThumbnailsDir(admin.username));
@@ -1461,33 +1456,35 @@ async function migrateExistingDataToAdmin() {
     }
 
     // Move category folders to admin
-    const patternEntries = fs.readdirSync(patternsDir, { withFileTypes: true });
-    for (const entry of patternEntries) {
-      if (entry.isDirectory() && entry.name !== admin.username) {
-        const srcPath = path.join(patternsDir, entry.name);
-        const destPath = path.join(getUserPatternsDir(admin.username), entry.name);
+    if (fs.existsSync(oldPatternsDir)) {
+      const patternEntries = fs.readdirSync(oldPatternsDir, { withFileTypes: true });
+      for (const entry of patternEntries) {
+        if (entry.isDirectory() && entry.name !== admin.username) {
+          const srcPath = path.join(oldPatternsDir, entry.name);
+          const destPath = path.join(getUserPatternsDir(admin.username), entry.name);
 
-        // Check if it's a category folder (not a user folder)
-        const hasPatternFiles = fs.readdirSync(srcPath).some(f => f.endsWith('.pdf') || f.endsWith('.md'));
-        if (hasPatternFiles) {
-          fs.renameSync(srcPath, destPath);
-          console.log(`Moved category folder: ${entry.name}`);
+          // Check if it's a category folder (not a user folder)
+          const hasPatternFiles = fs.readdirSync(srcPath).some(f => f.endsWith('.pdf') || f.endsWith('.md'));
+          if (hasPatternFiles) {
+            fs.renameSync(srcPath, destPath);
+            console.log(`Moved category folder: ${entry.name}`);
+          }
         }
       }
     }
 
     // Move archive folders
-    if (fs.existsSync(archiveDir)) {
-      const oldArchiveThumbnails = path.join(archiveDir, 'thumbnails');
+    if (fs.existsSync(oldArchiveDir)) {
+      const oldArchiveThumbnails = path.join(oldArchiveDir, 'thumbnails');
       if (fs.existsSync(oldArchiveThumbnails)) {
         moveContents(oldArchiveThumbnails, getUserArchiveThumbnailsDir(admin.username));
         fs.rmSync(oldArchiveThumbnails, { recursive: true, force: true });
       }
 
-      const archiveEntries = fs.readdirSync(archiveDir, { withFileTypes: true });
+      const archiveEntries = fs.readdirSync(oldArchiveDir, { withFileTypes: true });
       for (const entry of archiveEntries) {
         if (entry.isDirectory() && entry.name !== admin.username) {
-          const srcPath = path.join(archiveDir, entry.name);
+          const srcPath = path.join(oldArchiveDir, entry.name);
           const destPath = path.join(getUserArchiveDir(admin.username), entry.name);
 
           const hasFiles = fs.readdirSync(srcPath).length > 0;
@@ -1500,10 +1497,10 @@ async function migrateExistingDataToAdmin() {
     }
 
     // Move notes
-    if (fs.existsSync(notesBaseDir)) {
-      const noteFiles = fs.readdirSync(notesBaseDir).filter(f => f.endsWith('.md'));
+    if (fs.existsSync(oldNotesDir)) {
+      const noteFiles = fs.readdirSync(oldNotesDir).filter(f => f.endsWith('.md'));
       for (const file of noteFiles) {
-        const srcPath = path.join(notesBaseDir, file);
+        const srcPath = path.join(oldNotesDir, file);
         const destPath = path.join(getUserNotesDir(admin.username), file);
         if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) {
           fs.renameSync(srcPath, destPath);
@@ -1513,10 +1510,10 @@ async function migrateExistingDataToAdmin() {
     }
 
     // Move backups
-    if (fs.existsSync(backupsBaseDir)) {
-      const backupFiles = fs.readdirSync(backupsBaseDir).filter(f => f.endsWith('.zip'));
+    if (fs.existsSync(oldBackupsDir)) {
+      const backupFiles = fs.readdirSync(oldBackupsDir).filter(f => f.endsWith('.zip'));
       for (const file of backupFiles) {
-        const srcPath = path.join(backupsBaseDir, file);
+        const srcPath = path.join(oldBackupsDir, file);
         const destPath = path.join(getUserBackupsDir(admin.username), file);
         if (fs.existsSync(srcPath) && !fs.existsSync(destPath)) {
           fs.renameSync(srcPath, destPath);
@@ -1747,9 +1744,10 @@ app.get('/api/patterns/:id/content', async (req, res) => {
     }
 
     // Read content from file
-    let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+    let filePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
     if (!fs.existsSync(filePath)) {
-      filePath = path.join(patternsDir, pattern.filename);
+      filePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
     }
 
     if (!fs.existsSync(filePath)) {
@@ -1780,9 +1778,10 @@ app.put('/api/patterns/:id/content', async (req, res) => {
     }
 
     // Write content to file
-    let filePath = path.join(getCategoryDir(pattern.category), pattern.filename);
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+    let filePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
     if (!fs.existsSync(path.dirname(filePath))) {
-      filePath = path.join(patternsDir, pattern.filename);
+      filePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
     }
 
     fs.writeFileSync(filePath, content || '', 'utf8');
@@ -3326,7 +3325,7 @@ app.get('/api/stats', async (req, res) => {
       patternsByCategory,
       totalCategories: patternsByCategory.length,
       totalSize,
-      libraryPath: isAdmin ? '/opt/yarnl/patterns' : `/opt/yarnl/patterns/${username}`,
+      libraryPath: isAdmin ? '/opt/yarnl/users' : `/opt/yarnl/users/${username}`,
       backupHostPath: process.env.BACKUP_HOST_PATH || './backups'
     });
   } catch (error) {
@@ -3752,38 +3751,11 @@ async function createScheduledBackup() {
       archive.pipe(output);
       archive.append(JSON.stringify(dbExport, null, 2), { name: 'database.json' });
 
-      if (settings.includePatterns) {
-        archive.directory(patternsDir, 'patterns');
-      }
-
-      // Add markdown patterns and images when includeMarkdown is enabled
-      if (settings.includeMarkdown) {
-        const categories = fs.readdirSync(patternsDir).filter(f => {
-          const stat = fs.statSync(path.join(patternsDir, f));
-          return stat.isDirectory() && f !== 'thumbnails' && f !== 'images';
-        });
-        for (const category of categories) {
-          const categoryPath = path.join(patternsDir, category);
-          const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.md'));
-          for (const file of files) {
-            archive.file(path.join(categoryPath, file), { name: `patterns/${category}/${file}` });
-          }
+      // Backup entire users directory (includes patterns, archive, notes, etc. for all users)
+      if (settings.includePatterns || settings.includeMarkdown || settings.includeArchive || settings.includeNotes) {
+        if (fs.existsSync(usersDir)) {
+          archive.directory(usersDir, 'users');
         }
-        // Include images directory with markdown patterns
-        const imagesDir = path.join(__dirname, 'patterns', 'images');
-        if (fs.existsSync(imagesDir)) {
-          archive.directory(imagesDir, 'images');
-        }
-      }
-
-      const archiveDir = path.join(__dirname, 'archive');
-      if (settings.includeArchive && fs.existsSync(archiveDir)) {
-        archive.directory(archiveDir, 'archive');
-      }
-
-      // Add notes directory when includeNotes is enabled
-      if (settings.includeNotes && fs.existsSync(notesDir)) {
-        archive.directory(notesDir, 'notes');
       }
 
       archive.finalize();

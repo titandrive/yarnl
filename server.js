@@ -243,7 +243,8 @@ app.post('/api/auth/logout', authMiddleware, async (req, res) => {
 app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, username, display_name, role, can_add_patterns, password_required, oidc_provider, created_at, last_login,
+      `SELECT id, username, display_name, role, can_add_patterns, password_required, oidc_allowed, oidc_provider,
+              can_change_username, can_change_password, created_at, last_login,
               (password_hash IS NOT NULL) as has_password
        FROM users ORDER BY created_at`
     );
@@ -257,7 +258,7 @@ app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
 // Create user
 app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
   try {
-    const { username, password, displayName, role, canAddPatterns } = req.body;
+    const { username, password, role, canAddPatterns, passwordRequired, oidcAllowed, canChangeUsername, canChangePassword } = req.body;
 
     if (!username) {
       return res.status(400).json({ error: 'Username is required' });
@@ -272,10 +273,19 @@ app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
     const passwordHash = password ? await hashPassword(password) : null;
 
     const result = await pool.query(
-      `INSERT INTO users (username, password_hash, display_name, role, can_add_patterns)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, username, display_name, role, can_add_patterns, created_at`,
-      [username, passwordHash, displayName || username, role || 'user', canAddPatterns !== false]
+      `INSERT INTO users (username, password_hash, role, can_add_patterns, password_required, oidc_allowed, can_change_username, can_change_password)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, username, role, can_add_patterns, created_at`,
+      [
+        username,
+        passwordHash,
+        role || 'user',
+        canAddPatterns !== false,
+        passwordRequired === true,
+        oidcAllowed !== false,
+        canChangeUsername !== false,
+        canChangePassword !== false
+      ]
     );
 
     res.json(result.rows[0]);
@@ -289,7 +299,7 @@ app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
 app.patch('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    const { role, canAddPatterns, password, displayName, passwordRequired } = req.body;
+    const { role, canAddPatterns, password, displayName, passwordRequired, oidcAllowed } = req.body;
 
     const updates = [];
     const values = [];
@@ -316,6 +326,18 @@ app.patch('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
       updates.push(`password_required = $${paramCount++}`);
       values.push(passwordRequired);
     }
+    if (oidcAllowed !== undefined) {
+      updates.push(`oidc_allowed = $${paramCount++}`);
+      values.push(oidcAllowed);
+    }
+    if (req.body.canChangeUsername !== undefined) {
+      updates.push(`can_change_username = $${paramCount++}`);
+      values.push(req.body.canChangeUsername);
+    }
+    if (req.body.canChangePassword !== undefined) {
+      updates.push(`can_change_password = $${paramCount++}`);
+      values.push(req.body.canChangePassword);
+    }
 
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No updates provided' });
@@ -326,7 +348,7 @@ app.patch('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
 
     const result = await pool.query(
       `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount}
-       RETURNING id, username, display_name, role, can_add_patterns, password_required`,
+       RETURNING id, username, display_name, role, can_add_patterns, password_required, oidc_allowed`,
       values
     );
 
@@ -433,15 +455,97 @@ app.post('/api/auth/remove-password', authMiddleware, async (req, res) => {
 app.get('/api/auth/account', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, username, display_name, role, can_add_patterns, password_required, oidc_provider,
+      `SELECT id, username, role, can_add_patterns, password_required, oidc_allowed, oidc_provider,
+              can_change_username, can_change_password,
               (password_hash IS NOT NULL) as has_password
        FROM users WHERE id = $1`,
       [req.user.id]
     );
-    res.json(result.rows[0]);
+
+    const user = result.rows[0];
+    res.json({
+      ...user,
+      allow_username_change: user.can_change_username !== false,
+      allow_password_change: user.can_change_password !== false
+    });
   } catch (error) {
     console.error('Error getting account info:', error);
     res.status(500).json({ error: 'Failed to get account info' });
+  }
+});
+
+// Update current user's account info (username)
+app.patch('/api/auth/account', authMiddleware, async (req, res) => {
+  try {
+    const { username } = req.body;
+
+    if (!username || username.trim().length === 0) {
+      return res.status(400).json({ error: 'Username is required' });
+    }
+
+    // Check if username changes are allowed for this user
+    const userResult = await pool.query('SELECT can_change_username FROM users WHERE id = $1', [req.user.id]);
+    if (userResult.rows[0]?.can_change_username === false) {
+      return res.status(403).json({ error: 'Username changes are not allowed for your account' });
+    }
+
+    // Check if username is already taken
+    const existing = await pool.query('SELECT id FROM users WHERE username = $1 AND id != $2', [username.trim(), req.user.id]);
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'Username is already taken' });
+    }
+
+    await pool.query(
+      'UPDATE users SET username = $1, updated_at = NOW() WHERE id = $2',
+      [username.trim(), req.user.id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating account info:', error);
+    res.status(500).json({ error: 'Failed to update account info' });
+  }
+});
+
+// Change password
+app.post('/api/auth/change-password', authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    // Check if password changes are allowed for this user
+    const userCheck = await pool.query('SELECT can_change_password, password_hash FROM users WHERE id = $1', [req.user.id]);
+    const user = userCheck.rows[0];
+
+    if (user?.can_change_password === false) {
+      return res.status(403).json({ error: 'Password changes are not allowed for your account' });
+    }
+
+    if (!newPassword || newPassword.length < 1) {
+      return res.status(400).json({ error: 'New password is required' });
+    }
+
+    // If user has a password, verify current password
+    if (user?.password_hash) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: 'Current password is required' });
+      }
+      const valid = await bcrypt.compare(currentPassword, user.password_hash);
+      if (!valid) {
+        return res.status(401).json({ error: 'Current password is incorrect' });
+      }
+    }
+
+    // Hash and save new password
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.query(
+      'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+      [hash, req.user.id]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error changing password:', error);
+    res.status(500).json({ error: 'Failed to change password' });
   }
 });
 
@@ -722,8 +826,11 @@ app.get('/api/auth/oidc/link', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'OIDC not configured' });
     }
 
-    // Check if user already has OIDC linked
-    const user = await pool.query('SELECT oidc_subject FROM users WHERE id = $1', [req.user.id]);
+    // Check if user is allowed to use OIDC
+    const user = await pool.query('SELECT oidc_subject, oidc_allowed FROM users WHERE id = $1', [req.user.id]);
+    if (!user.rows[0]?.oidc_allowed) {
+      return res.redirect('/#settings?error=oidc-not-allowed');
+    }
     if (user.rows[0]?.oidc_subject) {
       return res.redirect('/#settings?error=already-linked');
     }

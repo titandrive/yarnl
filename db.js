@@ -122,6 +122,39 @@ async function initDatabase() {
       END $$;
     `);
 
+    // Add oidc_allowed column if it doesn't exist (migration)
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='users' AND column_name='oidc_allowed') THEN
+          ALTER TABLE users ADD COLUMN oidc_allowed BOOLEAN DEFAULT true;
+        END IF;
+      END $$;
+    `);
+
+    // Add can_change_username column if it doesn't exist (migration)
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='users' AND column_name='can_change_username') THEN
+          ALTER TABLE users ADD COLUMN can_change_username BOOLEAN DEFAULT true;
+        END IF;
+      END $$;
+    `);
+
+    // Add can_change_password column if it doesn't exist (migration)
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='users' AND column_name='can_change_password') THEN
+          ALTER TABLE users ADD COLUMN can_change_password BOOLEAN DEFAULT true;
+        END IF;
+      END $$;
+    `);
+
     // Create sessions table for auth sessions
     await client.query(`
       CREATE TABLE IF NOT EXISTS sessions (

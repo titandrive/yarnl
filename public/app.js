@@ -70,10 +70,16 @@ function updateUIForUser() {
         }
     }
 
-    // Show admin nav button if admin
+    // Show/hide admin nav button and section based on role
     const usersNavBtn = document.getElementById('admin-nav-btn');
+    const adminSection = document.getElementById('admin-section');
+    const isAdmin = currentUser?.role === 'admin';
+
     if (usersNavBtn) {
-        usersNavBtn.style.display = currentUser?.role === 'admin' ? '' : 'none';
+        usersNavBtn.style.display = isAdmin ? '' : 'none';
+    }
+    if (adminSection) {
+        adminSection.style.display = isAdmin ? '' : 'none';
     }
 
     // Update current user info
@@ -171,8 +177,7 @@ function displayUsers() {
     container.innerHTML = allUsers.map(user => `
         <div class="user-item" data-user-id="${user.id}">
             <div class="user-info">
-                <span class="user-name">${user.display_name || user.username}</span>
-                <span class="user-username">@${user.username}</span>
+                <span class="user-name">${user.username}</span>
                 ${user.oidc_provider ? `<span class="user-badge oidc-badge">${user.oidc_provider}</span>` : ''}
                 <span class="user-badge role-badge ${user.role}">${user.role}</span>
                 ${user.has_password ? '<span class="user-badge password-badge">password</span>' : '<span class="user-badge no-password-badge">no password</span>'}
@@ -180,14 +185,41 @@ function displayUsers() {
             </div>
             <div class="user-actions">
                 ${user.id !== currentUser.id ? `
-                    <label class="user-permission" title="Can add patterns">
-                        <input type="checkbox" ${user.can_add_patterns ? 'checked' : ''} onchange="toggleUserPermission(${user.id}, 'canAddPatterns', this.checked)">
-                        <span>Add patterns</span>
-                    </label>
-                    <label class="user-permission" title="Require password for login">
-                        <input type="checkbox" ${user.password_required ? 'checked' : ''} onchange="togglePasswordRequired(${user.id}, this.checked)">
-                        <span>Require PW</span>
-                    </label>
+                    <div class="user-toggle" title="Can add patterns">
+                        <span class="toggle-label">Add patterns</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${user.can_add_patterns !== false ? 'checked' : ''} onchange="toggleUserPermission(${user.id}, 'canAddPatterns', this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="user-toggle" title="Require password for login">
+                        <span class="toggle-label">Require PW</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${user.password_required ? 'checked' : ''} onchange="togglePasswordRequired(${user.id}, this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="user-toggle" title="Allow SSO/OIDC linking">
+                        <span class="toggle-label">Allow SSO</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${user.oidc_allowed !== false ? 'checked' : ''} onchange="toggleOidcAllowed(${user.id}, this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="user-toggle" title="Allow username changes">
+                        <span class="toggle-label">Change User</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${user.can_change_username !== false ? 'checked' : ''} onchange="toggleCanChangeUsername(${user.id}, this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="user-toggle" title="Allow password changes">
+                        <span class="toggle-label">Change PW</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" ${user.can_change_password !== false ? 'checked' : ''} onchange="toggleCanChangePassword(${user.id}, this.checked)">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
                     <select class="user-role-select" onchange="updateUserRole(${user.id}, this.value)">
                         <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
                         <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
@@ -321,11 +353,84 @@ async function togglePasswordRequired(userId, required) {
     }
 }
 
+async function toggleOidcAllowed(userId, allowed) {
+    try {
+        const response = await fetch(`${API_URL}/api/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ oidcAllowed: allowed })
+        });
+
+        if (response.ok) {
+            showToast(allowed ? 'SSO enabled for user' : 'SSO disabled for user');
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to update setting', 'error');
+            loadUsers();
+        }
+    } catch (error) {
+        console.error('Failed to update OIDC setting:', error);
+        showToast('Failed to update setting', 'error');
+        loadUsers();
+    }
+}
+
+async function toggleCanChangeUsername(userId, allowed) {
+    try {
+        const response = await fetch(`${API_URL}/api/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ canChangeUsername: allowed })
+        });
+
+        if (response.ok) {
+            showToast(allowed ? 'Username changes enabled' : 'Username changes disabled');
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to update setting', 'error');
+            loadUsers();
+        }
+    } catch (error) {
+        console.error('Failed to update setting:', error);
+        showToast('Failed to update setting', 'error');
+        loadUsers();
+    }
+}
+
+async function toggleCanChangePassword(userId, allowed) {
+    try {
+        const response = await fetch(`${API_URL}/api/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ canChangePassword: allowed })
+        });
+
+        if (response.ok) {
+            showToast(allowed ? 'Password changes enabled' : 'Password changes disabled');
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to update setting', 'error');
+            loadUsers();
+        }
+    } catch (error) {
+        console.error('Failed to update setting:', error);
+        showToast('Failed to update setting', 'error');
+        loadUsers();
+    }
+}
+
 async function addNewUser() {
     const username = document.getElementById('new-user-username').value.trim();
     const password = document.getElementById('new-user-password').value;
     const role = document.getElementById('new-user-role').value;
     const canAddPatterns = document.getElementById('new-user-can-add').checked;
+    const passwordRequired = document.getElementById('new-user-require-pw').checked;
+    const oidcAllowed = document.getElementById('new-user-allow-sso').checked;
+    const canChangeUsername = document.getElementById('new-user-change-username').checked;
+    const canChangePassword = document.getElementById('new-user-change-password').checked;
 
     if (!username) {
         showToast('Username is required', 'error');
@@ -340,16 +445,25 @@ async function addNewUser() {
                 username,
                 password: password || undefined,
                 role,
-                canAddPatterns
+                canAddPatterns,
+                passwordRequired,
+                oidcAllowed,
+                canChangeUsername,
+                canChangePassword
             })
         });
 
         if (response.ok) {
             showToast('User created');
+            // Reset form
             document.getElementById('new-user-username').value = '';
             document.getElementById('new-user-password').value = '';
             document.getElementById('new-user-role').value = 'user';
             document.getElementById('new-user-can-add').checked = true;
+            document.getElementById('new-user-require-pw').checked = false;
+            document.getElementById('new-user-allow-sso').checked = true;
+            document.getElementById('new-user-change-username').checked = true;
+            document.getElementById('new-user-change-password').checked = true;
             loadUsers();
         } else {
             const error = await response.json();
@@ -367,9 +481,14 @@ function initUserManagement() {
         addUserBtn.addEventListener('click', addNewUser);
     }
 
+    // Logout buttons (settings and header)
     const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
         logoutBtn.addEventListener('click', handleLogout);
+    }
+    const headerLogoutBtn = document.getElementById('header-logout-btn');
+    if (headerLogoutBtn) {
+        headerLogoutBtn.addEventListener('click', handleLogout);
     }
 
     // Update current user info
@@ -390,6 +509,17 @@ function initUserManagement() {
     const removePasswordBtn = document.getElementById('remove-password-btn');
     if (removePasswordBtn) {
         removePasswordBtn.addEventListener('click', handleRemoveOwnPassword);
+    }
+
+    const changePasswordBtn = document.getElementById('change-password-btn');
+    if (changePasswordBtn) {
+        changePasswordBtn.addEventListener('click', handleChangePassword);
+    }
+
+    // Setup username change
+    const saveUsernameBtn = document.getElementById('save-username-btn');
+    if (saveUsernameBtn) {
+        saveUsernameBtn.addEventListener('click', handleChangeUsername);
     }
 
     // Setup SSO linking
@@ -416,39 +546,70 @@ async function loadAccountInfo() {
         if (!response.ok) return;
 
         const account = await response.json();
-        const passwordItem = document.getElementById('password-setting-item');
+
+        // Setup username input placeholder
+        const usernameInput = document.getElementById('account-username');
+        if (usernameInput) {
+            usernameInput.placeholder = account.username;
+        }
+
+        // Show/hide username change based on admin setting
+        const changeUsernameItem = document.getElementById('change-username-item');
+        if (changeUsernameItem) {
+            changeUsernameItem.style.display = account.allow_username_change ? '' : 'none';
+        }
+
+        // Password section - hide entirely if user can't change password
+        const passwordHeading = document.getElementById('password-section-heading');
+        const passwordSettingItem = document.getElementById('password-setting-item');
         const passwordStatus = document.getElementById('password-status');
-        const removeBtn = document.getElementById('remove-password-btn');
+        const removePasswordItem = document.getElementById('remove-password-item');
+        const changePasswordItem = document.getElementById('change-password-item');
 
-        if (passwordItem) {
-            passwordItem.style.display = '';
+        if (account.allow_password_change) {
+            // Show password section
+            if (passwordHeading) passwordHeading.style.display = '';
+            if (passwordSettingItem) passwordSettingItem.style.display = '';
+            if (changePasswordItem) changePasswordItem.style.display = '';
 
-            if (account.has_password) {
-                passwordStatus.textContent = account.password_required
-                    ? 'Set (required by admin)'
-                    : 'Set';
-                // Only show remove button if has password and not required
-                removeBtn.style.display = account.password_required ? 'none' : '';
-            } else {
-                passwordStatus.textContent = account.password_required
-                    ? 'Not set (required by admin - contact admin)'
-                    : 'Not set (passwordless login)';
-                removeBtn.style.display = 'none';
+            if (passwordStatus) {
+                if (account.has_password) {
+                    passwordStatus.textContent = account.password_required
+                        ? 'Set (required by admin)'
+                        : 'Set';
+                } else {
+                    passwordStatus.textContent = account.password_required
+                        ? 'Not set (required by admin - contact admin)'
+                        : 'Not set (passwordless login)';
+                }
             }
+
+            // Show remove password option only if user has password and it's not required
+            if (removePasswordItem) {
+                removePasswordItem.style.display = (account.has_password && !account.password_required) ? '' : 'none';
+            }
+        } else {
+            // Hide entire password section
+            if (passwordHeading) passwordHeading.style.display = 'none';
+            if (passwordSettingItem) passwordSettingItem.style.display = 'none';
+            if (changePasswordItem) changePasswordItem.style.display = 'none';
+            if (removePasswordItem) removePasswordItem.style.display = 'none';
         }
 
         // Handle SSO linking section
+        const ssoHeading = document.getElementById('sso-section-heading');
         const ssoItem = document.getElementById('sso-link-setting-item');
         const ssoStatus = document.getElementById('sso-link-status');
         const linkBtn = document.getElementById('link-sso-btn');
         const unlinkBtn = document.getElementById('unlink-sso-btn');
 
-        // Check if OIDC is enabled
+        // Check if OIDC is enabled and allowed for this user
         const oidcResponse = await fetch(`${API_URL}/api/auth/oidc/enabled`);
         const oidcData = await oidcResponse.json();
 
-        if (ssoItem && oidcData.enabled) {
-            ssoItem.style.display = '';
+        if (oidcData.enabled && account.oidc_allowed) {
+            if (ssoHeading) ssoHeading.style.display = '';
+            if (ssoItem) ssoItem.style.display = '';
 
             if (account.oidc_provider) {
                 ssoStatus.textContent = `Linked to ${account.oidc_provider}`;
@@ -460,8 +621,9 @@ async function loadAccountInfo() {
                 linkBtn.style.display = '';
                 unlinkBtn.style.display = 'none';
             }
-        } else if (ssoItem) {
-            ssoItem.style.display = 'none';
+        } else {
+            if (ssoHeading) ssoHeading.style.display = 'none';
+            if (ssoItem) ssoItem.style.display = 'none';
         }
     } catch (error) {
         console.error('Failed to load account info:', error);
@@ -512,6 +674,85 @@ async function handleUnlinkSso() {
     } catch (error) {
         console.error('Failed to unlink SSO:', error);
         showToast('Failed to unlink SSO account', 'error');
+    }
+}
+
+async function handleChangePassword() {
+    const currentPassword = prompt('Enter your current password (leave empty if you have none):');
+    if (currentPassword === null) return; // User cancelled
+
+    const newPassword = prompt('Enter your new password:');
+    if (!newPassword) {
+        showToast('New password cannot be empty', 'error');
+        return;
+    }
+
+    const confirmPassword = prompt('Confirm your new password:');
+    if (newPassword !== confirmPassword) {
+        showToast('Passwords do not match', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/auth/change-password`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ currentPassword, newPassword })
+        });
+
+        if (response.ok) {
+            showToast('Password updated successfully');
+            loadAccountInfo();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to change password', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to change password:', error);
+        showToast('Failed to change password', 'error');
+    }
+}
+
+async function handleChangeUsername() {
+    const usernameInput = document.getElementById('account-username');
+    const newUsername = usernameInput?.value?.trim();
+
+    if (!newUsername) {
+        showToast('Username cannot be empty', 'error');
+        return;
+    }
+
+    if (newUsername === currentUser?.username) {
+        showToast('That is already your username', 'error');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/auth/account`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username: newUsername })
+        });
+
+        if (response.ok) {
+            showToast('Username updated');
+            // Update current user info display
+            if (currentUser) {
+                currentUser.username = newUsername;
+                const userInfo = document.getElementById('current-user-info');
+                if (userInfo) {
+                    userInfo.textContent = `${newUsername} (${currentUser.role})`;
+                }
+            }
+            usernameInput.value = '';
+            usernameInput.placeholder = newUsername;
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to change username', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to change username:', error);
+        showToast('Failed to change username', 'error');
     }
 }
 

@@ -6091,6 +6091,22 @@ input[type="number"].settings-input {
     cursor: pointer;
 }
 
+.user-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+}
+
+.user-toggle .toggle-label {
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.user-toggle .toggle-switch {
+    transform: scale(0.8);
+}
+
 .user-role-select {
     padding: 0.4rem 0.6rem;
     border: 1px solid var(--border-color);

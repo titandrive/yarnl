@@ -175,61 +175,98 @@ function displayUsers() {
     }
 
     container.innerHTML = allUsers.map(user => `
-        <div class="user-item" data-user-id="${user.id}">
-            <div class="user-info">
+        <div class="user-row" data-user-id="${user.id}">
+            <div class="user-row-info">
                 <span class="user-name">${user.username}</span>
-                ${user.oidc_provider ? `<span class="user-badge oidc-badge">${user.oidc_provider}</span>` : ''}
                 <span class="user-badge role-badge ${user.role}">${user.role}</span>
-                ${user.has_password ? '<span class="user-badge password-badge">password</span>' : '<span class="user-badge no-password-badge">no password</span>'}
-                ${user.password_required ? '<span class="user-badge required-badge">required</span>' : ''}
+                ${user.oidc_provider ? `<span class="user-badge oidc-badge">${user.oidc_provider}</span>` : ''}
+                ${user.has_password ? '<span class="user-badge password-badge">pw</span>' : ''}
             </div>
-            <div class="user-actions">
-                ${user.id !== currentUser.id ? `
-                    <div class="user-toggle" title="Can add patterns">
-                        <span class="toggle-label">Add patterns</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" ${user.can_add_patterns !== false ? 'checked' : ''} onchange="toggleUserPermission(${user.id}, 'canAddPatterns', this.checked)">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="user-toggle" title="Require password for login">
-                        <span class="toggle-label">Require PW</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" ${user.password_required ? 'checked' : ''} onchange="togglePasswordRequired(${user.id}, this.checked)">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="user-toggle" title="Allow SSO/OIDC linking">
-                        <span class="toggle-label">Allow SSO</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" ${user.oidc_allowed !== false ? 'checked' : ''} onchange="toggleOidcAllowed(${user.id}, this.checked)">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="user-toggle" title="Allow username changes">
-                        <span class="toggle-label">Change User</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" ${user.can_change_username !== false ? 'checked' : ''} onchange="toggleCanChangeUsername(${user.id}, this.checked)">
-                            <span class="toggle-slider"></span>
-                        </label>
-                    </div>
-                    <div class="user-toggle" title="Allow password changes">
-                        <span class="toggle-label">Change PW</span>
-                        <label class="toggle-switch">
-                            <input type="checkbox" ${user.can_change_password !== false ? 'checked' : ''} onchange="toggleCanChangePassword(${user.id}, this.checked)">
-                            <span class="toggle-slider"></span>
-                        </label>
+            ${user.id === currentUser.id ?
+                '<span class="user-current-badge">You</span>' :
+                `<div class="user-row-controls">
+                    <div class="user-inline-toggles">
+                        <div class="mini-toggle" title="Can add patterns">
+                            <span>Add</span>
+                            <label class="toggle-switch toggle-mini">
+                                <input type="checkbox" ${user.can_add_patterns !== false ? 'checked' : ''} onchange="toggleUserPermission(${user.id}, 'canAddPatterns', this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="mini-toggle" title="Require password">
+                            <span>Req PW</span>
+                            <label class="toggle-switch toggle-mini">
+                                <input type="checkbox" ${user.password_required ? 'checked' : ''} onchange="togglePasswordRequired(${user.id}, this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="mini-toggle" title="Allow SSO">
+                            <span>SSO</span>
+                            <label class="toggle-switch toggle-mini">
+                                <input type="checkbox" ${user.oidc_allowed !== false ? 'checked' : ''} onchange="toggleOidcAllowed(${user.id}, this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="mini-toggle" title="Can change username">
+                            <span>Chg User</span>
+                            <label class="toggle-switch toggle-mini">
+                                <input type="checkbox" ${user.can_change_username !== false ? 'checked' : ''} onchange="toggleCanChangeUsername(${user.id}, this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="mini-toggle" title="Can change password">
+                            <span>Chg PW</span>
+                            <label class="toggle-switch toggle-mini">
+                                <input type="checkbox" ${user.can_change_password !== false ? 'checked' : ''} onchange="toggleCanChangePassword(${user.id}, this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </div>
                     <select class="user-role-select" onchange="updateUserRole(${user.id}, this.value)">
                         <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
                         <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
                     </select>
-                    ${user.has_password && !user.password_required ? `<button class="btn btn-secondary btn-small" onclick="removeUserPassword(${user.id})" title="Allow passwordless login">Remove PW</button>` : ''}
-                    <button class="btn btn-secondary btn-small delete-user-btn" onclick="deleteUser(${user.id}, this)">Delete</button>
-                ` : '<span class="user-current-badge">You</span>'}
-            </div>
+                    <button class="btn-icon delete-user-btn" onclick="deleteUser(${user.id}, this)" title="Delete user">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                    </button>
+                </div>`
+            }
         </div>
     `).join('');
+}
+
+function openAddUserModal() {
+    const modal = document.getElementById('add-user-modal');
+    if (modal) {
+        modal.style.display = 'flex';
+        // Reset form
+        document.getElementById('new-user-username').value = '';
+        document.getElementById('new-user-password').value = '';
+        document.getElementById('new-user-role').value = 'user';
+        document.getElementById('new-user-can-add').checked = true;
+        document.getElementById('new-user-require-pw').checked = false;
+        document.getElementById('new-user-allow-sso').checked = true;
+        document.getElementById('new-user-change-username').checked = true;
+        document.getElementById('new-user-change-password').checked = true;
+        // Focus username field
+        setTimeout(() => document.getElementById('new-user-username').focus(), 100);
+        // Add escape key handler
+        document.addEventListener('keydown', handleAddUserModalEscape);
+    }
+}
+
+function closeAddUserModal() {
+    const modal = document.getElementById('add-user-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        document.removeEventListener('keydown', handleAddUserModalEscape);
+    }
+}
+
+function handleAddUserModalEscape(e) {
+    if (e.key === 'Escape') {
+        closeAddUserModal();
+    }
 }
 
 async function toggleUserPermission(userId, permission, value) {
@@ -284,16 +321,15 @@ async function updateUserRole(userId, role) {
 }
 
 async function deleteUser(userId, btn) {
-    // First click - show confirmation state
+    // First click - show confirmation state (red icon)
     if (!btn.classList.contains('confirm-delete')) {
         btn.classList.add('confirm-delete');
-        btn.textContent = 'Confirm';
+        btn.title = 'Click again to confirm';
         return;
     }
 
     // Second click - actually delete
     btn.disabled = true;
-    btn.textContent = 'Deleting...';
 
     try {
         const response = await fetch(`${API_URL}/api/users/${userId}`, {
@@ -308,14 +344,14 @@ async function deleteUser(userId, btn) {
             showToast(error.error || 'Failed to delete user', 'error');
             btn.disabled = false;
             btn.classList.remove('confirm-delete');
-            btn.textContent = 'Delete';
+            btn.title = 'Delete user';
         }
     } catch (error) {
         console.error('Failed to delete user:', error);
         showToast('Failed to delete user', 'error');
         btn.disabled = false;
         btn.classList.remove('confirm-delete');
-        btn.textContent = 'Delete';
+        btn.title = 'Delete user';
     }
 }
 
@@ -468,15 +504,7 @@ async function addNewUser() {
 
         if (response.ok) {
             showToast('User created');
-            // Reset form
-            document.getElementById('new-user-username').value = '';
-            document.getElementById('new-user-password').value = '';
-            document.getElementById('new-user-role').value = 'user';
-            document.getElementById('new-user-can-add').checked = true;
-            document.getElementById('new-user-require-pw').checked = false;
-            document.getElementById('new-user-allow-sso').checked = true;
-            document.getElementById('new-user-change-username').checked = true;
-            document.getElementById('new-user-change-password').checked = true;
+            closeAddUserModal();
             loadUsers();
         } else {
             const error = await response.json();
@@ -985,166 +1013,6 @@ function initOIDCSettings() {
     }
 
     loadOIDCSettings();
-
-    // Admin backup event listeners
-    const backupConfigBtn = document.getElementById('admin-backup-config-btn');
-    if (backupConfigBtn) {
-        backupConfigBtn.addEventListener('click', downloadAdminConfig);
-    }
-
-    const restoreConfigBtn = document.getElementById('admin-restore-config-btn');
-    const restoreConfigInput = document.getElementById('admin-restore-config-input');
-    if (restoreConfigBtn && restoreConfigInput) {
-        restoreConfigBtn.addEventListener('click', () => restoreConfigInput.click());
-        restoreConfigInput.addEventListener('change', handleAdminConfigRestore);
-    }
-
-    const backupDataBtn = document.getElementById('admin-backup-data-btn');
-    if (backupDataBtn) {
-        backupDataBtn.addEventListener('click', downloadAdminData);
-    }
-
-    const restoreDataBtn = document.getElementById('admin-restore-data-btn');
-    const restoreDataInput = document.getElementById('admin-restore-data-input');
-    if (restoreDataBtn && restoreDataInput) {
-        restoreDataBtn.addEventListener('click', () => restoreDataInput.click());
-        restoreDataInput.addEventListener('change', handleAdminDataRestore);
-    }
-}
-
-// Admin backup functions
-async function downloadAdminConfig() {
-    const btn = document.getElementById('admin-backup-config-btn');
-    const originalText = btn.textContent;
-    btn.textContent = 'Downloading...';
-    btn.disabled = true;
-
-    try {
-        const response = await fetch(`${API_URL}/api/admin/backup/config`);
-        if (!response.ok) throw new Error('Failed to download config');
-
-        const blob = await response.blob();
-        const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'yarnl-admin-config.json';
-
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-
-        showToast('Config backup downloaded');
-    } catch (error) {
-        console.error('Error downloading config:', error);
-        showToast('Failed to download config', 'error');
-    } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleAdminConfigRestore(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const btn = document.getElementById('admin-restore-config-btn');
-    const originalText = btn.textContent;
-    btn.textContent = 'Restoring...';
-    btn.disabled = true;
-
-    try {
-        const text = await file.text();
-        const config = JSON.parse(text);
-
-        const response = await fetch(`${API_URL}/api/admin/backup/config/restore`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ config, restoreUsers: true, restoreSettings: true })
-        });
-
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || 'Failed to restore config');
-        }
-
-        const result = await response.json();
-        showToast(`Restored ${result.restored.users} users, ${result.restored.settings} settings`);
-
-        // Refresh user list if on admin tab
-        await loadUsers();
-    } catch (error) {
-        console.error('Error restoring config:', error);
-        showToast('Failed to restore config: ' + error.message, 'error');
-    } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
-        e.target.value = '';
-    }
-}
-
-async function downloadAdminData() {
-    const btn = document.getElementById('admin-backup-data-btn');
-    const originalText = btn.textContent;
-    btn.textContent = 'Downloading...';
-    btn.disabled = true;
-
-    try {
-        const response = await fetch(`${API_URL}/api/admin/backup/data`);
-        if (!response.ok) throw new Error('Failed to download data');
-
-        const blob = await response.blob();
-        const filename = response.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'yarnl-user-data.zip';
-
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-
-        showToast('User data backup downloaded');
-    } catch (error) {
-        console.error('Error downloading data:', error);
-        showToast('Failed to download data', 'error');
-    } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
-    }
-}
-
-async function handleAdminDataRestore(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const btn = document.getElementById('admin-restore-data-btn');
-    const originalText = btn.textContent;
-    btn.textContent = 'Restoring...';
-    btn.disabled = true;
-
-    try {
-        const formData = new FormData();
-        formData.append('backup', file);
-
-        const response = await fetch(`${API_URL}/api/admin/backup/data/upload`, {
-            method: 'POST',
-            body: formData
-        });
-
-        if (!response.ok) {
-            const err = await response.json();
-            throw new Error(err.error || 'Failed to restore data');
-        }
-
-        const result = await response.json();
-        showToast(`Restored data for ${result.users.length} users`);
-    } catch (error) {
-        console.error('Error restoring data:', error);
-        showToast('Failed to restore data: ' + error.message, 'error');
-    } finally {
-        btn.textContent = originalText;
-        btn.disabled = false;
-        e.target.value = '';
-    }
 }
 
 // Check if OIDC is enabled and show/hide login button

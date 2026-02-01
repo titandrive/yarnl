@@ -1042,6 +1042,43 @@ Inc in each st around (12)
                             <p class="no-backups">Loading backups...</p>
                         </div>
                         <p class="backup-location">Backups are saved to <code id="backup-path-display">./backups</code></p>
+
+                        <!-- Admin Backup Section (Admin Only) -->
+                        <div id="admin-backup-section" style="display: none;">
+                            <h4 class="settings-subheading">Admin Backup</h4>
+                            <p class="setting-description" style="margin-bottom: 1rem;">Backup and restore system-wide configuration and all user data</p>
+
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>Configuration Backup</label>
+                                    <p class="setting-description">Export OIDC settings and user accounts (no user data)</p>
+                                </div>
+                                <button id="admin-backup-config-btn" class="btn btn-secondary">Download Config</button>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>Restore Configuration</label>
+                                    <p class="setting-description">Import OIDC settings and user accounts from backup</p>
+                                </div>
+                                <input type="file" id="admin-restore-config-input" accept=".json" style="display: none;">
+                                <button id="admin-restore-config-btn" class="btn btn-secondary">Restore Config</button>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>User Data Backup</label>
+                                    <p class="setting-description">Export all user files (patterns, images, notes, etc.)</p>
+                                </div>
+                                <button id="admin-backup-data-btn" class="btn btn-secondary">Download Data</button>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>Restore User Data</label>
+                                    <p class="setting-description">Import user files from backup</p>
+                                </div>
+                                <input type="file" id="admin-restore-data-input" accept=".zip" style="display: none;">
+                                <button id="admin-restore-data-btn" class="btn btn-secondary">Restore Data</button>
+                            </div>
+                        </div>
                     </section>
 
 
@@ -1229,77 +1266,13 @@ Inc in each st around (12)
                             <!-- Users will be populated here -->
                         </div>
 
-                        <div class="add-user-form" id="add-user-form">
-                            <h4 class="settings-subheading">Add New User</h4>
-                            <div class="setting-item">
-                                <div class="setting-info">
-                                    <label for="new-user-username">Username</label>
-                                </div>
-                                <input type="text" id="new-user-username" class="settings-input" placeholder="Enter username">
-                            </div>
-                            <div class="setting-item">
-                                <div class="setting-info">
-                                    <label for="new-user-password">Password (optional)</label>
-                                    <p class="setting-description">Leave blank for password-less login</p>
-                                </div>
-                                <input type="password" id="new-user-password" class="settings-input" placeholder="Enter password">
-                            </div>
-                            <div class="setting-item">
-                                <div class="setting-info">
-                                    <label for="new-user-role">Role</label>
-                                </div>
-                                <select id="new-user-role" class="settings-select">
-                                    <option value="user">User</option>
-                                    <option value="admin">Admin</option>
-                                </select>
-                            </div>
-                            <div class="setting-item">
-                                <div class="setting-info">
-                                    <label>Can Add Patterns</label>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="new-user-can-add" checked>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div class="setting-item">
-                                <div class="setting-info">
-                                    <label>Require Password</label>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="new-user-require-pw">
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div class="setting-item">
-                                <div class="setting-info">
-                                    <label>Allow SSO</label>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="new-user-allow-sso" checked>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div class="setting-item">
-                                <div class="setting-info">
-                                    <label>Can Change Username</label>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="new-user-change-username" checked>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <div class="setting-item">
-                                <div class="setting-info">
-                                    <label>Can Change Password</label>
-                                </div>
-                                <label class="toggle-switch">
-                                    <input type="checkbox" id="new-user-change-password" checked>
-                                    <span class="toggle-slider"></span>
-                                </label>
-                            </div>
-                            <button id="add-user-btn" class="btn">Add User</button>
-                        </div>
+                        <button class="btn btn-secondary" onclick="openAddUserModal()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Add User
+                        </button>
 
                         <h4 class="settings-subheading">OIDC / Single Sign-On</h4>
                         <p class="setting-description" style="margin-bottom: 1rem;">Configure authentication with PocketID or other OIDC providers</p>
@@ -1413,40 +1386,6 @@ Inc in each st around (12)
                                 </select>
                             </div>
                             <button id="save-oidc-btn" class="btn">Save OIDC Settings</button>
-                        </div>
-
-                        <h4 class="settings-subheading">Admin Backup</h4>
-                        <p class="setting-description" style="margin-bottom: 1rem;">Backup and restore system configuration and user data</p>
-
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label>Configuration Backup</label>
-                                <p class="setting-description">Export OIDC settings and user accounts (no user data)</p>
-                            </div>
-                            <button id="admin-backup-config-btn" class="btn btn-secondary">Download Config</button>
-                        </div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label>Restore Configuration</label>
-                                <p class="setting-description">Import OIDC settings and user accounts from backup</p>
-                            </div>
-                            <input type="file" id="admin-restore-config-input" accept=".json" style="display: none;">
-                            <button id="admin-restore-config-btn" class="btn btn-secondary">Restore Config</button>
-                        </div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label>User Data Backup</label>
-                                <p class="setting-description">Export all user files (patterns, images, notes, etc.)</p>
-                            </div>
-                            <button id="admin-backup-data-btn" class="btn btn-secondary">Download Data</button>
-                        </div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label>Restore User Data</label>
-                                <p class="setting-description">Import user files from backup</p>
-                            </div>
-                            <input type="file" id="admin-restore-data-input" accept=".zip" style="display: none;">
-                            <button id="admin-restore-data-btn" class="btn btn-secondary">Restore Data</button>
                         </div>
                     </section>
 
@@ -1950,6 +1889,88 @@ Inc in each st around (12)
             </div>
             <div id="mascot-grid" class="mascot-grid">
                 <p>Loading mascots...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div id="add-user-modal" class="modal" style="display: none;" onclick="closeAddUserModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Add New User</h3>
+                <button class="modal-close" onclick="closeAddUserModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label for="new-user-username">Username</label>
+                    </div>
+                    <input type="text" id="new-user-username" class="settings-input" placeholder="Enter username">
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label for="new-user-password">Password (optional)</label>
+                    </div>
+                    <input type="password" id="new-user-password" class="settings-input" placeholder="Leave blank for passwordless">
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label for="new-user-role">Role</label>
+                    </div>
+                    <select id="new-user-role" class="settings-select">
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Can Add Patterns</label>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="new-user-can-add" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Require Password</label>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="new-user-require-pw">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Allow SSO</label>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="new-user-allow-sso" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Can Change Username</label>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="new-user-change-username" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Can Change Password</label>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="new-user-change-password" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeAddUserModal()">Cancel</button>
+                <button id="add-user-btn" class="btn btn-primary">Create User</button>
             </div>
         </div>
     </div>

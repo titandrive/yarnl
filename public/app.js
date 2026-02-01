@@ -221,11 +221,14 @@ function displayUsers() {
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
+                        <div class="mini-toggle" title="Admin role">
+                            <span>Admin</span>
+                            <label class="toggle-switch toggle-mini">
+                                <input type="checkbox" ${user.role === 'admin' ? 'checked' : ''} onchange="updateUserRole(${user.id}, this.checked ? 'admin' : 'user')">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                     </div>
-                    <select class="user-role-select" onchange="updateUserRole(${user.id}, this.value)">
-                        <option value="user" ${user.role === 'user' ? 'selected' : ''}>User</option>
-                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>Admin</option>
-                    </select>
                     <button class="btn-icon delete-user-btn" onclick="deleteUser(${user.id}, this)" title="Delete user">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
                     </button>
@@ -242,7 +245,7 @@ function openAddUserModal() {
         // Reset form
         document.getElementById('new-user-username').value = '';
         document.getElementById('new-user-password').value = '';
-        document.getElementById('new-user-role').value = 'user';
+        document.getElementById('new-user-admin').checked = false;
         document.getElementById('new-user-can-add').checked = true;
         document.getElementById('new-user-require-pw').checked = false;
         document.getElementById('new-user-allow-sso').checked = true;
@@ -474,7 +477,7 @@ async function toggleCanChangePassword(userId, allowed) {
 async function addNewUser() {
     const username = document.getElementById('new-user-username').value.trim();
     const password = document.getElementById('new-user-password').value;
-    const role = document.getElementById('new-user-role').value;
+    const role = document.getElementById('new-user-admin').checked ? 'admin' : 'user';
     const canAddPatterns = document.getElementById('new-user-can-add').checked;
     const passwordRequired = document.getElementById('new-user-require-pw').checked;
     const oidcAllowed = document.getElementById('new-user-allow-sso').checked;

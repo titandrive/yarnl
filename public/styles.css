@@ -6134,6 +6134,26 @@ input[type="number"].settings-input {
     flex-wrap: wrap;
 }
 
+.user-card-expand-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.expand-hint-text {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    opacity: 0.7;
+}
+
+.user-card:hover .expand-hint-text {
+    opacity: 1;
+}
+
+.user-card.expanded .expand-hint-text {
+    display: none;
+}
+
 .user-card-chevron {
     color: var(--text-muted);
     transition: transform 0.2s ease;

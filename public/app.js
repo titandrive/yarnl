@@ -222,7 +222,10 @@ function displayUsers() {
                     ${user.has_password ? '<span class="user-badge password-badge">pw</span>' : ''}
                     ${user.id === currentUser.id ? '<span class="user-current-badge">You</span>' : ''}
                 </div>
-                <svg class="user-card-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                <div class="user-card-expand-hint">
+                    <span class="expand-hint-text">Click to manage</span>
+                    <svg class="user-card-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                </div>
             </div>
             <div class="user-card-body">
                 ${user.id === currentUser.id ?

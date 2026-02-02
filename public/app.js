@@ -1500,6 +1500,7 @@ let currentPatterns = [];
 let projects = []; // All projects
 let currentProjects = []; // Projects marked as current
 let currentProjectId = null; // Currently viewing project
+let projectReorderMode = false; // Reorder mode for project patterns
 let allCategories = []; // All possible categories for editing/uploading
 let populatedCategories = []; // Only categories with patterns (for filtering)
 let allHashtags = []; // All available hashtags
@@ -3180,6 +3181,11 @@ function getCurrentView() {
             return `pattern/${patternId}`;
         }
     }
+    // Check if in project detail view
+    const projectDetailView = document.getElementById('project-detail-view');
+    if (projectDetailView && projectDetailView.style.display !== 'none' && currentProjectId) {
+        return `project/${currentProjectId}`;
+    }
     // Check if in settings
     const settingsTab = document.getElementById('settings');
     if (settingsTab && settingsTab.classList.contains('active')) {
@@ -3193,12 +3199,12 @@ function getCurrentView() {
     return document.querySelector('.tab-btn.active')?.dataset.tab || 'current';
 }
 
-function navigateBack() {
+async function navigateBack() {
     if (navigationHistory.length > 0) {
         isNavigatingBack = true;
         const previousView = navigationHistory.pop();
         // Just update the view, don't call history.back() as it causes double navigation
-        navigateToView(previousView, false);
+        await navigateToView(previousView, false);
         // Update URL without triggering popstate
         history.replaceState({ view: previousView }, '', `#${previousView}`);
         isNavigatingBack = false;
@@ -3219,6 +3225,11 @@ async function navigateToView(view, pushHistory = true) {
         }
         if (pattern) {
             await openPDFViewer(pattern.id, pushHistory);
+        }
+    } else if (view.startsWith('project/')) {
+        const projectId = parseInt(view.split('/')[1]);
+        if (projectId) {
+            await openProjectView(projectId);
         }
     } else if (view.startsWith('settings/')) {
         const section = view.split('/')[1];
@@ -8383,7 +8394,7 @@ async function closePDFViewer() {
     await loadPatterns();
 
     // Navigate back using history (this will hide the viewer and show tabs)
-    navigateBack();
+    await navigateBack();
 }
 
 // PDF Edit Modal functionality
@@ -9595,7 +9606,7 @@ async function closeMarkdownViewer() {
     await loadPatterns();
 
     // Navigate back using history (this will hide the viewer and show tabs)
-    navigateBack();
+    await navigateBack();
 }
 
 // Markdown notes functionality
@@ -10254,6 +10265,12 @@ function initProjectPanel() {
         addPatternsBtn.addEventListener('click', showAddPatternsModal);
     }
 
+    // Reorder patterns button
+    const reorderPatternsBtn = document.getElementById('reorder-patterns-btn');
+    if (reorderPatternsBtn) {
+        reorderPatternsBtn.addEventListener('click', toggleProjectReorderMode);
+    }
+
     // Project notes modal
     const closeProjectNotesModal = document.getElementById('close-project-notes-modal');
     const cancelProjectNotes = document.getElementById('cancel-project-notes');
@@ -10401,13 +10418,17 @@ async function openProjectView(projectId) {
 
         const project = await response.json();
 
-        // Hide tabs and other content
+        // Hide tabs, viewers, and other content
         const tabsNav = document.querySelector('.tabs');
         const allTabs = document.querySelectorAll('.tab-content');
         const projectDetailView = document.getElementById('project-detail-view');
+        const pdfViewer = document.getElementById('pdf-viewer-container');
+        const markdownViewer = document.getElementById('markdown-viewer-container');
 
         if (tabsNav) tabsNav.style.display = 'none';
         allTabs.forEach(tab => tab.style.display = 'none');
+        if (pdfViewer) pdfViewer.style.display = 'none';
+        if (markdownViewer) markdownViewer.style.display = 'none';
         if (projectDetailView) projectDetailView.style.display = 'flex';
 
         // Populate project info
@@ -10445,6 +10466,23 @@ async function openProjectView(projectId) {
 function closeProjectView() {
     currentProjectId = null;
 
+    // Reset reorder mode if active
+    if (projectReorderMode) {
+        projectReorderMode = false;
+        const btn = document.getElementById('reorder-patterns-btn');
+        if (btn) {
+            btn.classList.remove('active');
+            btn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+                Reorder
+            `;
+        }
+    }
+
     const tabsNav = document.querySelector('.tabs');
     const projectDetailView = document.getElementById('project-detail-view');
 
@@ -10473,8 +10511,25 @@ function renderProjectPatterns(patterns) {
             : pattern.project_status === 'in_progress' ? 'status-in-progress'
             : 'status-pending';
 
+        const dragHandle = projectReorderMode ? `
+            <div class="project-pattern-drag-handle" title="Drag to reorder">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="8" y1="6" x2="16" y2="6"></line>
+                    <line x1="8" y1="12" x2="16" y2="12"></line>
+                    <line x1="8" y1="18" x2="16" y2="18"></line>
+                </svg>
+            </div>
+        ` : '';
+
         return `
-            <div class="project-pattern-item ${statusClass}" data-pattern-id="${pattern.id}">
+            <div class="project-pattern-item ${statusClass}${projectReorderMode ? ' reorder-mode' : ''}"
+                 data-pattern-id="${pattern.id}"
+                 draggable="${projectReorderMode}"
+                 ondragstart="handlePatternDragStart(event)"
+                 ondragover="handlePatternDragOver(event)"
+                 ondrop="handlePatternDrop(event)"
+                 ondragend="handlePatternDragEnd(event)">
+                ${dragHandle}
                 <div class="project-pattern-position">${index + 1}</div>
                 <div class="project-pattern-thumbnail">
                     ${pattern.thumbnail
@@ -10494,7 +10549,7 @@ function renderProjectPatterns(patterns) {
                 <div class="project-pattern-status">
                     <span class="status-icon ${statusClass}">${statusIcon}</span>
                 </div>
-                <div class="project-pattern-actions">
+                <div class="project-pattern-actions"${projectReorderMode ? ' style="display: none;"' : ''}>
                     <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); openPDFViewer(${pattern.id})" title="View pattern">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
@@ -10516,6 +10571,127 @@ function renderProjectPatterns(patterns) {
             </div>
         `;
     }).join('');
+}
+
+// Toggle project reorder mode
+let draggedPatternId = null;
+
+function toggleProjectReorderMode() {
+    projectReorderMode = !projectReorderMode;
+
+    const btn = document.getElementById('reorder-patterns-btn');
+    if (btn) {
+        if (projectReorderMode) {
+            btn.classList.add('active');
+            btn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                </svg>
+                Done
+            `;
+        } else {
+            btn.classList.remove('active');
+            btn.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+                Reorder
+            `;
+        }
+    }
+
+    // Re-render patterns with/without drag handles
+    if (currentProjectId) {
+        const project = projects.find(p => p.id === currentProjectId);
+        if (project?.patterns) {
+            renderProjectPatterns(project.patterns);
+        }
+    }
+}
+
+// Drag and drop handlers for pattern reordering
+function handlePatternDragStart(e) {
+    draggedPatternId = parseInt(e.target.closest('.project-pattern-item').dataset.patternId);
+    e.target.closest('.project-pattern-item').classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handlePatternDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+
+    const item = e.target.closest('.project-pattern-item');
+    if (!item || parseInt(item.dataset.patternId) === draggedPatternId) return;
+
+    const container = document.getElementById('project-patterns-list');
+    const draggingItem = container.querySelector('.dragging');
+    if (!draggingItem) return;
+
+    const items = [...container.querySelectorAll('.project-pattern-item:not(.dragging)')];
+    const targetIndex = items.indexOf(item);
+
+    // Determine if we should insert before or after
+    const rect = item.getBoundingClientRect();
+    const midY = rect.top + rect.height / 2;
+
+    if (e.clientY < midY) {
+        item.parentNode.insertBefore(draggingItem, item);
+    } else {
+        item.parentNode.insertBefore(draggingItem, item.nextSibling);
+    }
+
+    // Update position numbers
+    updatePositionNumbers();
+}
+
+function handlePatternDrop(e) {
+    e.preventDefault();
+}
+
+function handlePatternDragEnd(e) {
+    e.target.closest('.project-pattern-item')?.classList.remove('dragging');
+
+    // Get new order and save
+    const container = document.getElementById('project-patterns-list');
+    const items = container.querySelectorAll('.project-pattern-item');
+    const patternIds = [...items].map(item => parseInt(item.dataset.patternId));
+
+    saveProjectPatternOrder(patternIds);
+    draggedPatternId = null;
+}
+
+function updatePositionNumbers() {
+    const container = document.getElementById('project-patterns-list');
+    const items = container.querySelectorAll('.project-pattern-item');
+    items.forEach((item, index) => {
+        const posEl = item.querySelector('.project-pattern-position');
+        if (posEl) posEl.textContent = index + 1;
+    });
+}
+
+async function saveProjectPatternOrder(patternIds) {
+    if (!currentProjectId) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${currentProjectId}/patterns/reorder`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patternIds })
+        });
+
+        if (!response.ok) throw new Error('Failed to save order');
+
+        // Update local project data
+        const project = projects.find(p => p.id === currentProjectId);
+        if (project?.patterns) {
+            const patternMap = new Map(project.patterns.map(p => [p.id, p]));
+            project.patterns = patternIds.map(id => patternMap.get(id)).filter(Boolean);
+        }
+    } catch (error) {
+        console.error('Error saving pattern order:', error);
+    }
 }
 
 // Toggle project current status

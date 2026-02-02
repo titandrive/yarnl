@@ -7008,6 +7008,43 @@ input[type="number"].settings-input {
     border-left: 3px solid var(--warning-color);
 }
 
+/* Reorder mode styles */
+.project-pattern-item.reorder-mode {
+    cursor: grab;
+    user-select: none;
+}
+
+.project-pattern-item.reorder-mode:active {
+    cursor: grabbing;
+}
+
+.project-pattern-item.dragging {
+    opacity: 0.5;
+    background: var(--primary-color);
+    border: 2px dashed var(--primary-color);
+}
+
+.project-pattern-drag-handle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    color: var(--text-muted);
+    cursor: grab;
+    flex-shrink: 0;
+}
+
+.project-pattern-drag-handle:hover {
+    color: var(--primary-color);
+}
+
+#reorder-patterns-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
 /* Add Patterns Modal */
 .modal-large {
     max-width: 800px;

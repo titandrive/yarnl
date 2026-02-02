@@ -173,6 +173,47 @@ async function initDatabase() {
       )
     `);
 
+    // Create projects table for grouping patterns
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS projects (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        thumbnail VARCHAR(255),
+        is_current BOOLEAN DEFAULT false,
+        is_favorite BOOLEAN DEFAULT false,
+        completed BOOLEAN DEFAULT false,
+        completed_date TIMESTAMP,
+        is_archived BOOLEAN DEFAULT false,
+        archived_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create project_patterns junction table (patterns in a project with ordering and status)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS project_patterns (
+        id SERIAL PRIMARY KEY,
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        pattern_id INTEGER NOT NULL REFERENCES patterns(id) ON DELETE CASCADE,
+        position INTEGER DEFAULT 0,
+        status VARCHAR(20) DEFAULT 'pending',
+        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(project_id, pattern_id)
+      )
+    `);
+
+    // Create project_hashtags junction table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS project_hashtags (
+        project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+        hashtag_id INTEGER NOT NULL REFERENCES hashtags(id) ON DELETE CASCADE,
+        PRIMARY KEY (project_id, hashtag_id)
+      )
+    `);
+
     // Add columns to existing patterns table if they don't exist
     await client.query(`
       DO $$

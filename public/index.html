@@ -16,7 +16,7 @@
             document.write('<link rel="icon" type="image/png" sizes="128x128" href="mascots/default.png">');
         }
     </script>
-    <link rel="stylesheet" href="styles.css?v=158">
+    <link rel="stylesheet" href="styles.css?v=164">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -69,13 +69,6 @@
                     </svg>
                     <span>Settings</span>
                 </button>
-                <button id="header-logout-btn" class="header-btn" aria-label="Log out" title="Log out">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(180deg);">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                </button>
                 <button id="header-theme-toggle" class="header-btn header-theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
                     <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="5"></circle>
@@ -98,23 +91,32 @@
                 <p class="subtitle" id="header-tagline">Your self-hosted crochet companion</p>
             </div>
             <div class="header-btn-container header-right">
-                <button id="add-pattern-btn" class="header-btn header-btn-labeled" aria-label="Add pattern">
+                <button id="add-pattern-btn" class="header-btn header-btn-labeled" aria-label="Add">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
-                    <span>New Pattern</span>
+                    <span>Add</span>
                 </button>
                 <div id="add-menu" class="add-menu" style="display: none;">
                     <button class="add-menu-item" id="add-upload-pdf">PDF</button>
                     <button class="add-menu-item" id="add-new-pattern">Markdown</button>
+                    <button class="add-menu-item" id="add-new-project">Project</button>
                 </div>
+                <button id="header-logout-btn" class="header-btn" aria-label="Log out" title="Log out">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(180deg);">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                </button>
             </div>
         </header>
 
         <nav class="tabs">
             <button class="tab-btn active" data-tab="current">Current Patterns<span class="tab-count" id="current-tab-count"></span></button>
             <button class="tab-btn" data-tab="library">Library<span class="tab-count" id="library-tab-count"></span></button>
+            <button class="tab-btn" data-tab="projects" id="projects-tab-btn">Projects<span class="tab-count" id="projects-tab-count"></span></button>
         </nav>
 
         <!-- Current Patterns Tab -->
@@ -356,6 +358,205 @@ Inc in each st around (12)
                         <button type="button" id="cancel-new-pattern" class="btn btn-secondary">Cancel</button>
                         <button type="button" id="save-new-pattern" class="btn btn-primary">Create Pattern</button>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Projects Tab -->
+        <div id="projects" class="tab-content">
+            <div class="projects-container">
+                <div id="projects-grid" class="patterns-grid">
+                    <p class="empty-state">You haven't created any projects yet. Projects let you group multiple patterns together for larger works!</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- New Project Panel -->
+        <div id="new-project-panel" class="new-pattern-panel" style="display: none;">
+            <div class="new-pattern-header">
+                <button id="close-new-project-panel" class="btn btn-secondary">← Back</button>
+                <h3>Create New Project</h3>
+            </div>
+            <div class="new-pattern-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="new-project-name">Name <span class="required">required</span></label>
+                        <input type="text" id="new-project-name" placeholder="Enter project name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-project-description">Description <span class="required">optional</span></label>
+                        <input type="text" id="new-project-description" placeholder="Brief description">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Hashtags <span class="required">optional</span></label>
+                    <div id="new-project-hashtags-container">
+                        <!-- Hashtag selector will be populated dynamically -->
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Add Patterns <span class="required">optional</span></label>
+                    <div id="project-drop-zone" class="drop-zone project-drop-zone">
+                        <div class="drop-zone-content">
+                            <span class="drop-zone-icon">📁</span>
+                            <p class="drop-zone-text">Drag & drop PDF files here to add patterns</p>
+                            <p class="drop-zone-subtext">Or add patterns from your library after creating the project</p>
+                            <input type="file" id="project-file-input" accept=".pdf" multiple hidden>
+                            <button type="button" id="project-browse-btn" class="btn btn-secondary">Browse Files</button>
+                        </div>
+                    </div>
+                    <div id="project-staged-files" class="project-staged-files" style="display: none;">
+                        <div class="staged-header">
+                            <span>Patterns to add (<span id="project-staged-count">0</span>)</span>
+                            <button type="button" id="project-clear-staged" class="btn btn-secondary btn-sm">Clear</button>
+                        </div>
+                        <div id="project-staged-list" class="project-staged-list"></div>
+                    </div>
+                </div>
+                <div class="new-pattern-actions">
+                    <button type="button" id="cancel-new-project" class="btn btn-secondary">Cancel</button>
+                    <button type="button" id="save-new-project" class="btn btn-primary">Create Project</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Detail View -->
+        <div id="project-detail-view" class="project-detail-view" style="display: none;">
+            <div class="project-detail-header">
+                <button type="button" id="close-project-detail" class="btn btn-secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="19" y1="12" x2="5" y2="12"></line>
+                        <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                    Back
+                </button>
+                <div class="project-detail-title">
+                    <h2 id="project-detail-name">Project Name</h2>
+                    <p id="project-detail-description" class="project-detail-description"></p>
+                </div>
+                <div class="project-detail-actions">
+                    <button type="button" id="project-edit-btn" class="btn btn-secondary" title="Edit project">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                        </svg>
+                    </button>
+                    <button type="button" id="project-notes-btn" class="btn btn-secondary" title="Project notes">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="project-detail-progress">
+                <div class="progress-info">
+                    <span id="project-progress-text">0/0 complete</span>
+                    <span id="project-total-time">Total time: 0h 0m</span>
+                </div>
+                <div class="progress-bar">
+                    <div id="project-progress-fill" class="progress-fill" style="width: 0%;"></div>
+                </div>
+            </div>
+            <div class="project-detail-hashtags" id="project-detail-hashtags"></div>
+            <div class="project-patterns-list" id="project-patterns-list">
+                <!-- Patterns will be rendered here -->
+            </div>
+            <div class="project-detail-footer">
+                <button type="button" id="add-patterns-to-project-btn" class="btn btn-primary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    Add Patterns
+                </button>
+                <button type="button" id="reorder-patterns-btn" class="btn btn-secondary">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                    Reorder
+                </button>
+            </div>
+        </div>
+
+        <!-- Add Patterns to Project Modal -->
+        <div id="add-patterns-modal" class="modal" style="display: none;">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h3>Add Patterns to Project</h3>
+                    <button type="button" class="modal-close" id="close-add-patterns-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="add-patterns-search">
+                        <input type="text" id="add-patterns-search-input" placeholder="Search patterns...">
+                    </div>
+                    <div class="add-patterns-grid" id="add-patterns-grid">
+                        <!-- Available patterns will be rendered here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="cancel-add-patterns" class="btn btn-secondary">Cancel</button>
+                    <button type="button" id="confirm-add-patterns" class="btn btn-primary">Add Selected</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Project Notes Modal -->
+        <div id="project-notes-modal" class="modal" style="display: none;">
+            <div class="modal-content modal-large">
+                <div class="modal-header">
+                    <h3>Project Notes</h3>
+                    <button type="button" class="modal-close" id="close-project-notes-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <textarea id="project-notes-textarea" class="notes-textarea" placeholder="Add notes about this project..."></textarea>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="cancel-project-notes" class="btn btn-secondary">Cancel</button>
+                    <button type="button" id="save-project-notes" class="btn btn-primary">Save Notes</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Project Modal -->
+        <div id="edit-project-modal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Edit Project</h3>
+                    <button type="button" class="modal-close" id="close-edit-project-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="edit-project-name">Project Name</label>
+                        <input type="text" id="edit-project-name" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-project-description">Description</label>
+                        <textarea id="edit-project-description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Hashtags</label>
+                        <div id="edit-project-hashtag-selector" class="hashtag-selector"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Thumbnail</label>
+                        <div class="thumbnail-upload-area">
+                            <img id="edit-project-thumbnail-preview" class="thumbnail-preview" style="display: none;">
+                            <input type="file" id="edit-project-thumbnail-input" accept="image/*" style="display: none;">
+                            <button type="button" id="edit-project-thumbnail-btn" class="btn btn-secondary btn-sm">Upload Thumbnail</button>
+                            <button type="button" id="edit-project-thumbnail-remove" class="btn btn-danger btn-sm" style="display: none;">Remove</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" id="delete-project-btn" class="btn btn-danger">Delete Project</button>
+                    <button type="button" id="cancel-edit-project" class="btn btn-secondary">Cancel</button>
+                    <button type="button" id="save-edit-project" class="btn btn-primary">Save Changes</button>
                 </div>
             </div>
         </div>
@@ -2011,6 +2212,6 @@ Inc in each st around (12)
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script src="app.js?v=126"></script>
+    <script src="app.js?v=130"></script>
 </body>
 </html>

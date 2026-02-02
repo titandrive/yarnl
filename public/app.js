@@ -1495,12 +1495,16 @@ function getPatternSlug(pattern) {
 // State
 let patterns = [];
 let currentPatterns = [];
+let projects = []; // All projects
+let currentProjects = []; // Projects marked as current
+let currentProjectId = null; // Currently viewing project
 let allCategories = []; // All possible categories for editing/uploading
 let populatedCategories = []; // Only categories with patterns (for filtering)
 let allHashtags = []; // All available hashtags
 let selectedFile = null;
 let editingPatternId = null;
 let stagedFiles = []; // Array to hold staged files with metadata
+let projectStagedFiles = []; // Array to hold staged files for project creation
 let completedUploads = []; // Array to hold completed upload info for display
 let selectedCategoryFilter = localStorage.getItem('libraryCategoryFilter') || 'all';
 let selectedSort = localStorage.getItem('librarySort') || 'date-desc';
@@ -1969,6 +1973,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     showApp();
 
     initTabs();
+    // Show projects tab immediately if user had projects before (from cache)
+    if (localStorage.getItem('hasProjects') === 'true') {
+        const projectsTabBtn = document.getElementById('projects-tab-btn');
+        if (projectsTabBtn) projectsTabBtn.style.display = 'block';
+    }
     initUpload();
     initEditModal();
     initPDFViewer();
@@ -1985,10 +1994,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     initHorizontalScroll();
     initUserManagement();
     appInitialized = true;
-    await loadPatterns();
+    // Load patterns and projects in parallel for faster startup
+    await Promise.all([loadPatterns(), loadProjects()]);
     loadCurrentPatterns();
     loadCategories();
     loadHashtags();
+    await loadCurrentProjects();
+    initProjectPanel();
 
     // Handle initial URL hash or restore pattern viewer
     await handleInitialNavigation();
@@ -2070,6 +2082,14 @@ function initGlobalDragDrop() {
         e.stopPropagation();
         document.body.classList.remove('global-drag-over');
 
+        // Don't handle if dropping on project drop zone or new project panel is visible
+        const newProjectPanel = document.getElementById('new-project-panel');
+        const projectDropZone = document.getElementById('project-drop-zone');
+        if (newProjectPanel && newProjectPanel.style.display !== 'none') {
+            // Let the project drop zone handle it
+            return;
+        }
+
         const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
         if (files.length > 0) {
             showUploadPanel();
@@ -2080,8 +2100,12 @@ function initGlobalDragDrop() {
     const handleDragOver = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        // Don't show overlay if upload panel is already visible
+        // Don't show overlay if upload panel is already visible or new project panel is visible
         const uploadPanel = document.getElementById('upload-panel');
+        const newProjectPanel = document.getElementById('new-project-panel');
+        if (newProjectPanel && newProjectPanel.style.display !== 'none') {
+            return;
+        }
         if (!uploadPanel || uploadPanel.style.display === 'none') {
             document.body.classList.add('global-drag-over');
         }
@@ -3882,7 +3906,7 @@ function createCategoryDropdown(id, selectedCategory, disabled = false) {
                     </div>
                 `).join('')}
                 <div class="category-dropdown-add">
-                    <input type="text" placeholder="Add new..."
+                    <input type="text" placeholder="Add new"
                            onkeydown="handleNewCategoryKeydown(event, '${id}')"
                            onclick="event.stopPropagation()">
                 </div>
@@ -4741,6 +4765,14 @@ function initAddMenu() {
         });
     }
 
+    const newProjectBtn = document.getElementById('add-new-project');
+    if (newProjectBtn) {
+        newProjectBtn.addEventListener('click', () => {
+            addMenu.style.display = 'none';
+            showNewProjectPanel();
+        });
+    }
+
     if (closeUploadPanel) {
         closeUploadPanel.addEventListener('click', hideUploadPanel);
     }
@@ -5427,12 +5459,19 @@ async function saveNewPattern() {
 function updateTabCounts() {
     const currentCount = document.getElementById('current-tab-count');
     const libraryCount = document.getElementById('library-tab-count');
+    const projectsCount = document.getElementById('projects-tab-count');
+
+    // Current tab shows patterns + projects that are marked current
+    const totalCurrent = currentPatterns.length + currentProjects.length;
 
     if (currentCount) {
-        currentCount.textContent = showTabCounts ? ` (${currentPatterns.length})` : '';
+        currentCount.textContent = showTabCounts ? ` (${totalCurrent})` : '';
     }
     if (libraryCount) {
         libraryCount.textContent = showTabCounts ? ` (${patterns.length})` : '';
+    }
+    if (projectsCount) {
+        projectsCount.textContent = showTabCounts ? ` (${projects.length})` : '';
     }
 }
 
@@ -6677,7 +6716,7 @@ function createHashtagSelector(id, selectedHashtagIds = [], disabled = false) {
             <div class="hashtag-selector-tags" id="hashtag-tags-${id}">
                 ${!disabled ? `
                     <div class="hashtag-add-inline">
-                        <input type="text" placeholder="Add new..."
+                        <input type="text" placeholder="Add new"
                                onkeydown="handleNewHashtagInline(event, '${id}')"
                                onclick="event.stopPropagation()">
                     </div>
@@ -7009,12 +7048,19 @@ function renderPatternCard(pattern, options = {}) {
 function displayCurrentPatterns() {
     const grid = document.getElementById('current-patterns-grid');
 
-    if (currentPatterns.length === 0) {
-        grid.innerHTML = '<p class="empty-state">You don\'t have any active patterns. Time to start crocheting!</p>';
+    const hasPatterns = currentPatterns.length > 0;
+    const hasProjects = currentProjects.length > 0;
+
+    if (!hasPatterns && !hasProjects) {
+        grid.innerHTML = '<p class="empty-state">You don\'t have any active patterns or projects. Time to start crocheting!</p>';
         return;
     }
 
-    grid.innerHTML = currentPatterns.map(pattern => renderPatternCard(pattern)).join('');
+    // Render current projects first, then current patterns
+    const projectCards = currentProjects.map(project => renderProjectCard(project)).join('');
+    const patternCards = currentPatterns.map(pattern => renderPatternCard(pattern)).join('');
+
+    grid.innerHTML = projectCards + patternCards;
 }
 
 function displayPatterns() {
@@ -9831,6 +9877,1110 @@ async function saveMarkdownEdit() {
         alert('Error saving pattern: ' + error.message);
     }
 }
+
+// ============================================
+// Project Functions
+// ============================================
+
+// Load all projects
+async function loadProjects() {
+    try {
+        const response = await fetch(`${API_URL}/api/projects`);
+        if (!response.ok) throw new Error('Failed to fetch projects');
+        projects = await response.json();
+        displayProjects();
+        updateProjectsTabVisibility();
+        updateTabCounts();
+    } catch (error) {
+        console.error('Error loading projects:', error);
+    }
+}
+
+// Load current projects
+async function loadCurrentProjects() {
+    try {
+        const response = await fetch(`${API_URL}/api/projects/current`);
+        if (!response.ok) throw new Error('Failed to fetch current projects');
+        currentProjects = await response.json();
+    } catch (error) {
+        console.error('Error loading current projects:', error);
+    }
+}
+
+// Update projects tab visibility based on whether projects exist
+function updateProjectsTabVisibility() {
+    const projectsTabBtn = document.getElementById('projects-tab-btn');
+    if (projectsTabBtn) {
+        const hasProjects = projects.length > 0;
+        projectsTabBtn.style.display = hasProjects ? 'block' : 'none';
+        // Cache for instant display on next page load
+        localStorage.setItem('hasProjects', hasProjects ? 'true' : 'false');
+    }
+}
+
+// Display projects in the projects tab
+function displayProjects() {
+    const grid = document.getElementById('projects-grid');
+    if (!grid) return;
+
+    if (projects.length === 0) {
+        grid.innerHTML = '<p class="empty-state">You haven\'t created any projects yet. Projects let you group multiple patterns together for larger works!</p>';
+        return;
+    }
+
+    grid.innerHTML = projects.map(project => renderProjectCard(project)).join('');
+}
+
+// Render a single project card
+function renderProjectCard(project) {
+    const progress = project.pattern_count > 0
+        ? Math.round((project.completed_count / project.pattern_count) * 100)
+        : 0;
+
+    const totalTime = formatTimeHumanReadable(project.total_timer_seconds || 0);
+
+    const hashtagsHtml = project.hashtags?.map(h =>
+        `<span class="pattern-hashtag">#${escapeHtml(h.name)}</span>`
+    ).join('') || '';
+
+    return `
+        <div class="pattern-card project-card" onclick="openProjectView(${project.id})">
+            <span class="project-badge">PROJECT</span>
+            ${project.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
+            ${!project.completed && project.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
+            ${project.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
+
+            <div class="pattern-thumbnail project-thumbnail" style="background: var(--card-bg);">
+                ${project.thumbnail || project.pattern_count > 0
+                    ? `<img src="${API_URL}/api/projects/${project.id}/thumbnail" alt="${escapeHtml(project.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                       <div class="project-thumbnail-placeholder" style="display: none;">
+                           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                           </svg>
+                       </div>`
+                    : `<div class="project-thumbnail-placeholder">
+                           <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                               <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                           </svg>
+                       </div>`
+                }
+            </div>
+
+            <h3 title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</h3>
+
+            <div class="project-progress-mini">
+                <span>${project.completed_count}/${project.pattern_count} patterns</span>
+                <div class="progress-bar-mini">
+                    <div class="progress-fill" style="width: ${progress}%;"></div>
+                </div>
+            </div>
+
+            <p class="pattern-status elapsed">${totalTime ? `Time: ${totalTime}` : 'No time tracked'}</p>
+
+            <p class="pattern-description">${project.description ? escapeHtml(project.description) : ''}</p>
+
+            <div class="pattern-hashtags">${hashtagsHtml}</div>
+
+            <div class="pattern-actions" onclick="event.stopPropagation()">
+                <button class="action-btn ${project.is_current ? 'current' : ''}"
+                        onclick="toggleProjectCurrent(${project.id}, ${!project.is_current})"
+                        title="Make Current">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="${project.is_current ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                </button>
+                <button class="action-btn ${project.is_favorite ? 'active favorite' : ''}"
+                        onclick="toggleProjectFavorite(${project.id}, ${!project.is_favorite})"
+                        title="Favorite">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="${project.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                </button>
+                <button class="action-btn ${project.completed ? 'completed' : ''}"
+                        onclick="toggleProjectComplete(${project.id}, ${!project.completed})"
+                        title="${project.completed ? 'Mark Incomplete' : 'Mark Complete'}">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${project.completed ? '3' : '2'}" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </button>
+                <button class="action-btn" onclick="editProjectFromCard(${project.id})" title="Edit">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                    </svg>
+                </button>
+                <button class="action-btn ${enableDirectDelete ? 'delete' : 'archive'}" onclick="handleProjectCardDelete(this, ${project.id})" title="${enableDirectDelete ? 'Delete' : 'Archive'}">
+                    <svg class="trash-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                    </svg>
+                    <svg class="archive-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="21 8 21 21 3 21 3 8"></polyline>
+                        <rect x="1" y="3" width="22" height="5"></rect>
+                        <line x1="10" y1="12" x2="14" y2="12"></line>
+                    </svg>
+                    <svg class="confirm-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+// Show new project panel
+function showNewProjectPanel() {
+    const panel = document.getElementById('new-project-panel');
+    const tabsNav = document.querySelector('.tabs');
+    const allTabs = document.querySelectorAll('.tab-content');
+
+    if (panel) {
+        panel.style.display = 'flex';
+    }
+    if (tabsNav) {
+        tabsNav.style.display = 'none';
+    }
+    allTabs.forEach(tab => tab.style.display = 'none');
+
+    // Clear form
+    document.getElementById('new-project-name').value = '';
+    document.getElementById('new-project-description').value = '';
+
+    // Clear staged files for project
+    projectStagedFiles = [];
+    renderProjectStagedFiles();
+
+    // Render hashtag selector (use same one as pattern upload)
+    const hashtagContainer = document.getElementById('new-project-hashtags-container');
+    if (hashtagContainer) {
+        hashtagContainer.innerHTML = createHashtagSelector('new-project', [], false);
+    }
+}
+
+// Hide new project panel
+function hideNewProjectPanel() {
+    const panel = document.getElementById('new-project-panel');
+    const tabsNav = document.querySelector('.tabs');
+
+    if (panel) {
+        panel.style.display = 'none';
+    }
+    if (tabsNav) {
+        tabsNav.style.display = 'flex';
+    }
+
+    // Clear staged files
+    projectStagedFiles = [];
+
+    // Show active tab
+    const activeTab = document.querySelector('.tab-btn.active');
+    if (activeTab) {
+        const tabId = activeTab.dataset.tab;
+        const tabContent = document.getElementById(tabId);
+        if (tabContent) {
+            tabContent.style.display = 'block';
+        }
+    }
+}
+
+// Initialize project panel
+function initProjectPanel() {
+    // New project panel
+    const closeNewProjectPanel = document.getElementById('close-new-project-panel');
+    const cancelNewProject = document.getElementById('cancel-new-project');
+    const saveNewProject = document.getElementById('save-new-project');
+
+    if (closeNewProjectPanel) {
+        closeNewProjectPanel.addEventListener('click', hideNewProjectPanel);
+    }
+    if (cancelNewProject) {
+        cancelNewProject.addEventListener('click', hideNewProjectPanel);
+    }
+    if (saveNewProject) {
+        saveNewProject.addEventListener('click', createProject);
+    }
+
+    // Project drop zone for PDFs
+    const projectDropZone = document.getElementById('project-drop-zone');
+    const projectFileInput = document.getElementById('project-file-input');
+    const projectBrowseBtn = document.getElementById('project-browse-btn');
+    const projectClearStaged = document.getElementById('project-clear-staged');
+
+    if (projectDropZone) {
+        projectDropZone.addEventListener('click', (e) => {
+            // Don't trigger file input if clicking browse button
+            if (e.target !== projectBrowseBtn) {
+                projectFileInput.click();
+            }
+        });
+
+        projectDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            projectDropZone.classList.add('drag-over');
+        });
+
+        projectDropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            projectDropZone.classList.remove('drag-over');
+        });
+
+        projectDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            projectDropZone.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf');
+            if (files.length > 0) {
+                handleProjectFiles(files);
+            }
+        });
+    }
+
+    if (projectBrowseBtn) {
+        projectBrowseBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            projectFileInput.click();
+        });
+    }
+
+    if (projectFileInput) {
+        projectFileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleProjectFiles(Array.from(e.target.files));
+                projectFileInput.value = '';
+            }
+        });
+    }
+
+    if (projectClearStaged) {
+        projectClearStaged.addEventListener('click', () => {
+            projectStagedFiles = [];
+            renderProjectStagedFiles();
+        });
+    }
+
+    // Project detail view
+    const closeProjectDetail = document.getElementById('close-project-detail');
+    if (closeProjectDetail) {
+        closeProjectDetail.addEventListener('click', closeProjectView);
+    }
+
+    // Add patterns modal
+    const closeAddPatternsModal = document.getElementById('close-add-patterns-modal');
+    const cancelAddPatterns = document.getElementById('cancel-add-patterns');
+    const confirmAddPatterns = document.getElementById('confirm-add-patterns');
+
+    if (closeAddPatternsModal) {
+        closeAddPatternsModal.addEventListener('click', () => {
+            document.getElementById('add-patterns-modal').style.display = 'none';
+        });
+    }
+    if (cancelAddPatterns) {
+        cancelAddPatterns.addEventListener('click', () => {
+            document.getElementById('add-patterns-modal').style.display = 'none';
+        });
+    }
+    if (confirmAddPatterns) {
+        confirmAddPatterns.addEventListener('click', confirmAddPatternsToProject);
+    }
+
+    // Add patterns button
+    const addPatternsBtn = document.getElementById('add-patterns-to-project-btn');
+    if (addPatternsBtn) {
+        addPatternsBtn.addEventListener('click', showAddPatternsModal);
+    }
+
+    // Project notes modal
+    const closeProjectNotesModal = document.getElementById('close-project-notes-modal');
+    const cancelProjectNotes = document.getElementById('cancel-project-notes');
+    const saveProjectNotes = document.getElementById('save-project-notes');
+    const projectNotesBtn = document.getElementById('project-notes-btn');
+
+    if (closeProjectNotesModal) {
+        closeProjectNotesModal.addEventListener('click', () => {
+            document.getElementById('project-notes-modal').style.display = 'none';
+        });
+    }
+    if (cancelProjectNotes) {
+        cancelProjectNotes.addEventListener('click', () => {
+            document.getElementById('project-notes-modal').style.display = 'none';
+        });
+    }
+    if (saveProjectNotes) {
+        saveProjectNotes.addEventListener('click', saveCurrentProjectNotes);
+    }
+    if (projectNotesBtn) {
+        projectNotesBtn.addEventListener('click', showProjectNotesModal);
+    }
+
+    // Edit project modal
+    const closeEditProjectModal = document.getElementById('close-edit-project-modal');
+    const cancelEditProject = document.getElementById('cancel-edit-project');
+    const saveEditProject = document.getElementById('save-edit-project');
+    const deleteProjectBtn = document.getElementById('delete-project-btn');
+    const projectEditBtn = document.getElementById('project-edit-btn');
+
+    if (closeEditProjectModal) {
+        closeEditProjectModal.addEventListener('click', () => {
+            document.getElementById('edit-project-modal').style.display = 'none';
+        });
+    }
+    if (cancelEditProject) {
+        cancelEditProject.addEventListener('click', () => {
+            document.getElementById('edit-project-modal').style.display = 'none';
+        });
+    }
+    if (saveEditProject) {
+        saveEditProject.addEventListener('click', saveProjectEdits);
+    }
+    if (deleteProjectBtn) {
+        deleteProjectBtn.addEventListener('click', deleteCurrentProject);
+    }
+    if (projectEditBtn) {
+        projectEditBtn.addEventListener('click', showEditProjectModal);
+    }
+
+    // Search in add patterns modal
+    const addPatternsSearch = document.getElementById('add-patterns-search-input');
+    if (addPatternsSearch) {
+        addPatternsSearch.addEventListener('input', filterAddPatternsGrid);
+    }
+}
+
+// Create a new project
+async function createProject() {
+    const nameInput = document.getElementById('new-project-name');
+    const descInput = document.getElementById('new-project-description');
+    const name = nameInput.value.trim();
+    const description = descInput.value.trim();
+
+    if (!name) {
+        alert('Please enter a project name');
+        return;
+    }
+
+    // Get selected hashtags (using same selector format as pattern upload)
+    const hashtagIds = getSelectedHashtagIds('new-project');
+
+    try {
+        const response = await fetch(`${API_URL}/api/projects`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description, hashtagIds })
+        });
+
+        if (!response.ok) throw new Error('Failed to create project');
+
+        const project = await response.json();
+
+        // Upload staged files and add them to the project
+        if (projectStagedFiles.length > 0) {
+            const patternIds = [];
+
+            for (const staged of projectStagedFiles) {
+                const formData = new FormData();
+                formData.append('pattern', staged.file);
+                formData.append('name', staged.name);
+                formData.append('category', staged.category);
+
+                const uploadResponse = await fetch(`${API_URL}/api/patterns`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (uploadResponse.ok) {
+                    const pattern = await uploadResponse.json();
+                    patternIds.push(pattern.id);
+                }
+            }
+
+            // Add patterns to project
+            if (patternIds.length > 0) {
+                await fetch(`${API_URL}/api/projects/${project.id}/patterns`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ patternIds })
+                });
+            }
+        }
+
+        hideNewProjectPanel();
+        await loadPatterns();
+        await loadProjects();
+
+        // Open the newly created project
+        openProjectView(project.id);
+    } catch (error) {
+        console.error('Error creating project:', error);
+        alert('Error creating project: ' + error.message);
+    }
+}
+
+// Open project detail view
+async function openProjectView(projectId) {
+    currentProjectId = projectId;
+
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${projectId}`);
+        if (!response.ok) throw new Error('Failed to fetch project');
+
+        const project = await response.json();
+
+        // Hide tabs and other content
+        const tabsNav = document.querySelector('.tabs');
+        const allTabs = document.querySelectorAll('.tab-content');
+        const projectDetailView = document.getElementById('project-detail-view');
+
+        if (tabsNav) tabsNav.style.display = 'none';
+        allTabs.forEach(tab => tab.style.display = 'none');
+        if (projectDetailView) projectDetailView.style.display = 'flex';
+
+        // Populate project info
+        document.getElementById('project-detail-name').textContent = project.name;
+        document.getElementById('project-detail-description').textContent = project.description || '';
+
+        // Progress
+        const progress = project.pattern_count > 0
+            ? Math.round((project.completed_count / project.pattern_count) * 100)
+            : 0;
+        document.getElementById('project-progress-text').textContent =
+            `${project.completed_count}/${project.pattern_count} complete`;
+        document.getElementById('project-progress-fill').style.width = `${progress}%`;
+        document.getElementById('project-total-time').textContent =
+            `Total time: ${formatTimeHumanReadable(project.total_timer_seconds || 0)}`;
+
+        // Hashtags
+        const hashtagsContainer = document.getElementById('project-detail-hashtags');
+        if (hashtagsContainer) {
+            hashtagsContainer.innerHTML = project.hashtags?.map(h =>
+                `<span class="pattern-hashtag">#${escapeHtml(h.name)}</span>`
+            ).join('') || '';
+        }
+
+        // Render patterns list
+        renderProjectPatterns(project.patterns || []);
+
+    } catch (error) {
+        console.error('Error opening project:', error);
+        alert('Error opening project: ' + error.message);
+    }
+}
+
+// Close project detail view
+function closeProjectView() {
+    currentProjectId = null;
+
+    const tabsNav = document.querySelector('.tabs');
+    const projectDetailView = document.getElementById('project-detail-view');
+
+    if (projectDetailView) projectDetailView.style.display = 'none';
+    if (tabsNav) tabsNav.style.display = 'flex';
+
+    // Show projects tab
+    switchToTab('projects');
+}
+
+// Render patterns in project detail view
+function renderProjectPatterns(patterns) {
+    const container = document.getElementById('project-patterns-list');
+    if (!container) return;
+
+    if (patterns.length === 0) {
+        container.innerHTML = '<p class="empty-state">No patterns in this project yet. Click "Add Patterns" to get started!</p>';
+        return;
+    }
+
+    container.innerHTML = patterns.map((pattern, index) => {
+        const statusIcon = pattern.project_status === 'completed' ? '&#10003;'
+            : pattern.project_status === 'in_progress' ? '&#9654;'
+            : '&#9675;';
+        const statusClass = pattern.project_status === 'completed' ? 'status-completed'
+            : pattern.project_status === 'in_progress' ? 'status-in-progress'
+            : 'status-pending';
+
+        return `
+            <div class="project-pattern-item ${statusClass}" data-pattern-id="${pattern.id}">
+                <div class="project-pattern-position">${index + 1}</div>
+                <div class="project-pattern-thumbnail">
+                    ${pattern.thumbnail
+                        ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" alt="${escapeHtml(pattern.name)}">`
+                        : `<div class="thumbnail-placeholder-small">
+                               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                   <polyline points="14 2 14 8 20 8"></polyline>
+                               </svg>
+                           </div>`
+                    }
+                </div>
+                <div class="project-pattern-info">
+                    <h4>${escapeHtml(pattern.name)}</h4>
+                    <span class="project-pattern-time">${formatTimeHumanReadable(pattern.timer_seconds || 0)}</span>
+                </div>
+                <div class="project-pattern-status">
+                    <span class="status-icon ${statusClass}">${statusIcon}</span>
+                </div>
+                <div class="project-pattern-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); openPDFViewer(${pattern.id})" title="View pattern">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                            <circle cx="12" cy="12" r="3"></circle>
+                        </svg>
+                    </button>
+                    <select class="project-pattern-status-select" onchange="updatePatternStatusInProject(${pattern.id}, this.value)">
+                        <option value="pending" ${pattern.project_status === 'pending' ? 'selected' : ''}>Pending</option>
+                        <option value="in_progress" ${pattern.project_status === 'in_progress' ? 'selected' : ''}>In Progress</option>
+                        <option value="completed" ${pattern.project_status === 'completed' ? 'selected' : ''}>Completed</option>
+                    </select>
+                    <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); removePatternFromProject(${pattern.id})" title="Remove from project">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Toggle project current status
+async function toggleProjectCurrent(projectId, isCurrent) {
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${projectId}/current`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isCurrent })
+        });
+
+        if (!response.ok) throw new Error('Failed to update project');
+
+        await loadProjects();
+        await loadCurrentProjects();
+        displayCurrentPatterns();
+    } catch (error) {
+        console.error('Error toggling project current:', error);
+    }
+}
+
+// Toggle project favorite status
+async function toggleProjectFavorite(projectId, isFavorite) {
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${projectId}/favorite`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isFavorite })
+        });
+
+        if (!response.ok) throw new Error('Failed to update project');
+
+        await loadProjects();
+    } catch (error) {
+        console.error('Error toggling project favorite:', error);
+    }
+}
+
+// Toggle project complete status
+async function toggleProjectComplete(projectId, completed) {
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${projectId}/complete`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ completed })
+        });
+
+        if (!response.ok) throw new Error('Failed to update project');
+
+        await loadProjects();
+        await loadCurrentProjects();
+        displayCurrentPatterns();
+    } catch (error) {
+        console.error('Error toggling project complete:', error);
+    }
+}
+
+// Edit project from card (sets currentProjectId and opens edit modal)
+function editProjectFromCard(projectId) {
+    currentProjectId = projectId;
+    showEditProjectModal();
+}
+
+// Handle project card delete/archive button
+function handleProjectCardDelete(btn, projectId) {
+    // First click - show confirmation state
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.title = enableDirectDelete ? 'Click again to delete' : 'Click again to archive';
+        return;
+    }
+
+    // Second click - archive or delete based on setting
+    if (enableDirectDelete) {
+        deleteProject(projectId);
+    } else {
+        archiveProject(projectId);
+    }
+}
+
+async function archiveProject(projectId) {
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${projectId}/archive`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            showToast('Project archived');
+            await loadProjects();
+            await loadCurrentProjects();
+            displayCurrentPatterns();
+            displayProjects();
+        } else {
+            const error = await response.json();
+            console.error('Error archiving project:', error.error);
+            showToast('Error archiving project', 'error');
+        }
+    } catch (error) {
+        console.error('Error archiving project:', error);
+        showToast('Error archiving project', 'error');
+    }
+}
+
+async function deleteProject(projectId) {
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${projectId}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showToast('Project deleted');
+            await loadProjects();
+            await loadCurrentProjects();
+            displayCurrentPatterns();
+            displayProjects();
+        } else {
+            const error = await response.json();
+            console.error('Error deleting project:', error.error);
+            showToast('Error deleting project', 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        showToast('Error deleting project', 'error');
+    }
+}
+
+async function restoreProject(projectId) {
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${projectId}/restore`, {
+            method: 'POST'
+        });
+
+        if (response.ok) {
+            showToast('Project restored');
+            await loadProjects();
+            await loadCurrentProjects();
+            displayCurrentPatterns();
+        } else {
+            const error = await response.json();
+            console.error('Error restoring project:', error.error);
+            showToast('Error restoring project', 'error');
+        }
+    } catch (error) {
+        console.error('Error restoring project:', error);
+        showToast('Error restoring project', 'error');
+    }
+}
+
+// Show add patterns modal
+function showAddPatternsModal() {
+    const modal = document.getElementById('add-patterns-modal');
+    const grid = document.getElementById('add-patterns-grid');
+    const searchInput = document.getElementById('add-patterns-search-input');
+
+    if (modal) modal.style.display = 'flex';
+    if (searchInput) searchInput.value = '';
+
+    // Render available patterns (not already in project)
+    renderAddPatternsGrid();
+}
+
+// Render patterns available to add
+async function renderAddPatternsGrid() {
+    const grid = document.getElementById('add-patterns-grid');
+    if (!grid) return;
+
+    // Get current project's patterns
+    let projectPatternIds = [];
+    if (currentProjectId) {
+        try {
+            const response = await fetch(`${API_URL}/api/projects/${currentProjectId}/patterns`);
+            if (response.ok) {
+                const projectPatterns = await response.json();
+                projectPatternIds = projectPatterns.map(p => p.id);
+            }
+        } catch (error) {
+            console.error('Error fetching project patterns:', error);
+        }
+    }
+
+    // Filter out patterns already in project
+    const availablePatterns = patterns.filter(p => !projectPatternIds.includes(p.id));
+
+    if (availablePatterns.length === 0) {
+        grid.innerHTML = '<p class="empty-state">All patterns are already in this project!</p>';
+        return;
+    }
+
+    grid.innerHTML = availablePatterns.map(pattern => `
+        <div class="add-pattern-item" data-pattern-id="${pattern.id}" data-pattern-name="${escapeHtml(pattern.name.toLowerCase())}">
+            <input type="checkbox" id="add-pattern-${pattern.id}" class="add-pattern-checkbox">
+            <label for="add-pattern-${pattern.id}" class="add-pattern-label">
+                <div class="add-pattern-thumb">
+                    ${pattern.thumbnail
+                        ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" alt="${escapeHtml(pattern.name)}">`
+                        : `<div class="thumbnail-placeholder-small">
+                               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                   <polyline points="14 2 14 8 20 8"></polyline>
+                               </svg>
+                           </div>`
+                    }
+                </div>
+                <span class="add-pattern-name">${escapeHtml(pattern.name)}</span>
+            </label>
+        </div>
+    `).join('');
+}
+
+// Filter add patterns grid by search
+function filterAddPatternsGrid() {
+    const searchInput = document.getElementById('add-patterns-search-input');
+    const query = searchInput.value.toLowerCase();
+    const items = document.querySelectorAll('.add-pattern-item');
+
+    items.forEach(item => {
+        const name = item.dataset.patternName || '';
+        item.style.display = name.includes(query) ? 'flex' : 'none';
+    });
+}
+
+// Confirm adding selected patterns to project
+async function confirmAddPatternsToProject() {
+    const checkboxes = document.querySelectorAll('.add-pattern-checkbox:checked');
+    const patternIds = Array.from(checkboxes).map(cb => {
+        const id = cb.id.replace('add-pattern-', '');
+        return parseInt(id);
+    });
+
+    if (patternIds.length === 0) {
+        alert('Please select at least one pattern');
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${currentProjectId}/patterns`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patternIds })
+        });
+
+        if (!response.ok) throw new Error('Failed to add patterns');
+
+        document.getElementById('add-patterns-modal').style.display = 'none';
+
+        // Refresh project view
+        await openProjectView(currentProjectId);
+        await loadProjects();
+    } catch (error) {
+        console.error('Error adding patterns to project:', error);
+        alert('Error adding patterns: ' + error.message);
+    }
+}
+
+// Remove pattern from current project
+async function removePatternFromProject(patternId) {
+    if (!confirm('Remove this pattern from the project?')) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${currentProjectId}/patterns/${patternId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Failed to remove pattern');
+
+        // Refresh project view
+        await openProjectView(currentProjectId);
+        await loadProjects();
+    } catch (error) {
+        console.error('Error removing pattern from project:', error);
+        alert('Error removing pattern: ' + error.message);
+    }
+}
+
+// Update pattern status within project
+async function updatePatternStatusInProject(patternId, status) {
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${currentProjectId}/patterns/${patternId}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status })
+        });
+
+        if (!response.ok) throw new Error('Failed to update pattern status');
+
+        // Refresh project view
+        await openProjectView(currentProjectId);
+        await loadProjects();
+    } catch (error) {
+        console.error('Error updating pattern status:', error);
+        alert('Error updating status: ' + error.message);
+    }
+}
+
+// Show project notes modal
+async function showProjectNotesModal() {
+    const modal = document.getElementById('project-notes-modal');
+    const textarea = document.getElementById('project-notes-textarea');
+
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${currentProjectId}/notes`);
+        if (response.ok) {
+            const data = await response.json();
+            textarea.value = data.notes || '';
+        }
+    } catch (error) {
+        console.error('Error fetching project notes:', error);
+    }
+
+    if (modal) modal.style.display = 'flex';
+}
+
+// Save project notes
+async function saveCurrentProjectNotes() {
+    const textarea = document.getElementById('project-notes-textarea');
+    const notes = textarea.value;
+
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${currentProjectId}/notes`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ notes })
+        });
+
+        if (!response.ok) throw new Error('Failed to save notes');
+
+        document.getElementById('project-notes-modal').style.display = 'none';
+    } catch (error) {
+        console.error('Error saving project notes:', error);
+        alert('Error saving notes: ' + error.message);
+    }
+}
+
+// Show edit project modal
+async function showEditProjectModal() {
+    const modal = document.getElementById('edit-project-modal');
+
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${currentProjectId}`);
+        if (!response.ok) throw new Error('Failed to fetch project');
+
+        const project = await response.json();
+
+        document.getElementById('edit-project-name').value = project.name;
+        document.getElementById('edit-project-description').value = project.description || '';
+
+        // Render hashtag selector with current selections
+        const selectedHashtagIds = project.hashtags?.map(h => h.id) || [];
+        const hashtagContainer = document.getElementById('edit-project-hashtag-selector');
+        if (hashtagContainer) {
+            hashtagContainer.innerHTML = createHashtagSelector('edit-project', selectedHashtagIds, false);
+        }
+
+        // Thumbnail preview
+        const preview = document.getElementById('edit-project-thumbnail-preview');
+        const removeBtn = document.getElementById('edit-project-thumbnail-remove');
+
+        if (project.thumbnail || project.pattern_count > 0) {
+            preview.src = `${API_URL}/api/projects/${currentProjectId}/thumbnail`;
+            preview.style.display = 'block';
+            removeBtn.style.display = project.thumbnail ? 'inline-block' : 'none';
+        } else {
+            preview.style.display = 'none';
+            removeBtn.style.display = 'none';
+        }
+
+        // Thumbnail upload handlers
+        const uploadBtn = document.getElementById('edit-project-thumbnail-btn');
+        const fileInput = document.getElementById('edit-project-thumbnail-input');
+
+        uploadBtn.onclick = () => fileInput.click();
+        fileInput.onchange = async (e) => {
+            if (e.target.files.length > 0) {
+                const formData = new FormData();
+                formData.append('thumbnail', e.target.files[0]);
+
+                const uploadResponse = await fetch(`${API_URL}/api/projects/${currentProjectId}/thumbnail`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (uploadResponse.ok) {
+                    preview.src = `${API_URL}/api/projects/${currentProjectId}/thumbnail?t=${Date.now()}`;
+                    preview.style.display = 'block';
+                    removeBtn.style.display = 'inline-block';
+                    await loadProjects();
+                }
+            }
+        };
+
+        removeBtn.onclick = async () => {
+            const deleteResponse = await fetch(`${API_URL}/api/projects/${currentProjectId}/thumbnail`, {
+                method: 'DELETE'
+            });
+
+            if (deleteResponse.ok) {
+                preview.style.display = 'none';
+                removeBtn.style.display = 'none';
+                await loadProjects();
+            }
+        };
+
+        if (modal) modal.style.display = 'flex';
+    } catch (error) {
+        console.error('Error showing edit project modal:', error);
+    }
+}
+
+// Save project edits
+async function saveProjectEdits() {
+    const name = document.getElementById('edit-project-name').value.trim();
+    const description = document.getElementById('edit-project-description').value.trim();
+    const hashtagIds = getSelectedHashtagIds('edit-project');
+
+    if (!name) {
+        alert('Project name is required');
+        return;
+    }
+
+    try {
+        // Update project details
+        const response = await fetch(`${API_URL}/api/projects/${currentProjectId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description })
+        });
+
+        if (!response.ok) throw new Error('Failed to update project');
+
+        // Update hashtags
+        await fetch(`${API_URL}/api/projects/${currentProjectId}/hashtags`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ hashtagIds })
+        });
+
+        document.getElementById('edit-project-modal').style.display = 'none';
+
+        await loadProjects();
+        await openProjectView(currentProjectId);
+    } catch (error) {
+        console.error('Error saving project edits:', error);
+        alert('Error saving project: ' + error.message);
+    }
+}
+
+// Delete current project
+async function deleteCurrentProject() {
+    if (!confirm('Are you sure you want to delete this project? The patterns will remain in your library.')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${currentProjectId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Failed to delete project');
+
+        document.getElementById('edit-project-modal').style.display = 'none';
+        closeProjectView();
+        await loadProjects();
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        alert('Error deleting project: ' + error.message);
+    }
+}
+
+// Helper to format time in human readable format (Xh Xm)
+// Handle files dropped/selected for project creation
+function handleProjectFiles(files) {
+    const pdfFiles = files.filter(f => f.type === 'application/pdf');
+
+    for (const file of pdfFiles) {
+        // Check if already staged
+        const alreadyStaged = projectStagedFiles.some(f =>
+            f.file.name.toLowerCase() === file.name.toLowerCase()
+        );
+
+        if (alreadyStaged) {
+            showToast(`${file.name} is already staged`, 'warning');
+            continue;
+        }
+
+        const baseName = file.name.replace('.pdf', '');
+        projectStagedFiles.push({
+            id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+            file: file,
+            name: baseName,
+            category: 'Amigurumi'
+        });
+    }
+
+    renderProjectStagedFiles();
+}
+
+// Render staged files for project creation
+function renderProjectStagedFiles() {
+    const container = document.getElementById('project-staged-files');
+    const list = document.getElementById('project-staged-list');
+    const countEl = document.getElementById('project-staged-count');
+
+    if (!container || !list) return;
+
+    if (projectStagedFiles.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    countEl.textContent = projectStagedFiles.length;
+
+    list.innerHTML = projectStagedFiles.map(staged => `
+        <div class="project-staged-item" data-file-id="${staged.id}">
+            <span class="staged-item-name">${escapeHtml(staged.file.name)}</span>
+            <button class="staged-item-remove" onclick="removeProjectStagedFile('${staged.id}')" title="Remove">×</button>
+        </div>
+    `).join('');
+}
+
+// Remove a staged file from project
+function removeProjectStagedFile(fileId) {
+    projectStagedFiles = projectStagedFiles.filter(f => f.id !== fileId);
+    renderProjectStagedFiles();
+}
+
+function formatTimeHumanReadable(seconds) {
+    if (!seconds || seconds === 0) return '0h 0m';
+
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+
+    if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+}
+
+// ============================================
 
 // Utility functions
 function escapeHtml(text) {

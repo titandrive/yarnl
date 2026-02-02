@@ -1403,6 +1403,49 @@ async function verifyCounterOwnership(counterId, currentUserId, isAdmin = false)
   return null;
 }
 
+// Helper function to get project with owner's username
+async function getProjectWithOwner(projectId) {
+  const result = await pool.query(`
+    SELECT p.*, u.username as owner_username
+    FROM projects p
+    LEFT JOIN users u ON p.user_id = u.id
+    WHERE p.id = $1
+  `, [projectId]);
+  return result.rows[0];
+}
+
+// Helper function to verify project ownership for modifications
+async function verifyProjectOwnership(projectId, currentUserId, isAdmin = false) {
+  const project = await getProjectWithOwner(projectId);
+  if (!project) return null;
+
+  // Admins can access any project, or user owns the project
+  if (isAdmin || project.user_id === currentUserId) {
+    return project;
+  }
+  return null;
+}
+
+// Helper function to verify project read access
+async function verifyProjectReadAccess(projectId, currentUserId, isAdmin = false) {
+  const project = await getProjectWithOwner(projectId);
+  if (!project) return null;
+
+  // Admins can access any project
+  if (isAdmin) return project;
+
+  // Owner can access their own project
+  if (project.user_id === currentUserId) return project;
+
+  return null;
+}
+
+// Helper function to get user's project notes directory
+function getUserProjectNotesDir(username) {
+  // Project notes go in the same notes/ folder as pattern notes, with "project-" prefix
+  return path.join(usersDir, username, 'notes');
+}
+
 // Helper function to generate thumbnail from PDF (now requires username for path)
 async function generateThumbnail(pdfPath, outputFilename, username) {
   try {
@@ -2819,6 +2862,938 @@ app.put('/api/patterns/:id/hashtags', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// ============================================
+// Project endpoints
+// ============================================
+
+// Get all projects with pattern counts and cumulative time
+app.get('/api/projects', async (req, res) => {
+  try {
+    let result;
+    if (req.user?.role === 'admin') {
+      result = await pool.query(
+        'SELECT * FROM projects WHERE is_archived = false OR is_archived IS NULL ORDER BY created_at DESC'
+      );
+    } else if (req.user?.id) {
+      result = await pool.query(
+        `SELECT * FROM projects
+         WHERE (is_archived = false OR is_archived IS NULL)
+         AND user_id = $1
+         ORDER BY created_at DESC`,
+        [req.user.id]
+      );
+    } else {
+      return res.json([]);
+    }
+
+    // Fetch hashtags, pattern counts, and cumulative time for each project
+    const projects = await Promise.all(result.rows.map(async (project) => {
+      // Get hashtags
+      const hashtagsResult = await pool.query(
+        `SELECT h.* FROM hashtags h
+         JOIN project_hashtags ph ON h.id = ph.hashtag_id
+         WHERE ph.project_id = $1
+         ORDER BY h.name`,
+        [project.id]
+      );
+
+      // Get pattern count and cumulative time
+      const statsResult = await pool.query(
+        `SELECT
+           COUNT(pp.id) as pattern_count,
+           COUNT(CASE WHEN pp.status = 'completed' THEN 1 END) as completed_count,
+           COALESCE(SUM(p.timer_seconds), 0) as total_timer_seconds
+         FROM project_patterns pp
+         JOIN patterns p ON pp.pattern_id = p.id
+         WHERE pp.project_id = $1`,
+        [project.id]
+      );
+
+      const stats = statsResult.rows[0];
+
+      return {
+        ...project,
+        hashtags: hashtagsResult.rows,
+        pattern_count: parseInt(stats.pattern_count) || 0,
+        completed_count: parseInt(stats.completed_count) || 0,
+        total_timer_seconds: parseInt(stats.total_timer_seconds) || 0
+      };
+    }));
+
+    res.json(projects);
+  } catch (error) {
+    console.error('Error fetching projects:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get current projects (marked as current)
+app.get('/api/projects/current', async (req, res) => {
+  try {
+    let result;
+    if (req.user?.role === 'admin') {
+      result = await pool.query(
+        'SELECT * FROM projects WHERE is_current = true AND (is_archived = false OR is_archived IS NULL) ORDER BY updated_at DESC'
+      );
+    } else if (req.user?.id) {
+      result = await pool.query(
+        `SELECT * FROM projects
+         WHERE is_current = true
+         AND (is_archived = false OR is_archived IS NULL)
+         AND user_id = $1
+         ORDER BY updated_at DESC`,
+        [req.user.id]
+      );
+    } else {
+      return res.json([]);
+    }
+
+    // Fetch hashtags and stats for each project
+    const projects = await Promise.all(result.rows.map(async (project) => {
+      const hashtagsResult = await pool.query(
+        `SELECT h.* FROM hashtags h
+         JOIN project_hashtags ph ON h.id = ph.hashtag_id
+         WHERE ph.project_id = $1
+         ORDER BY h.name`,
+        [project.id]
+      );
+
+      const statsResult = await pool.query(
+        `SELECT
+           COUNT(pp.id) as pattern_count,
+           COUNT(CASE WHEN pp.status = 'completed' THEN 1 END) as completed_count,
+           COALESCE(SUM(p.timer_seconds), 0) as total_timer_seconds
+         FROM project_patterns pp
+         JOIN patterns p ON pp.pattern_id = p.id
+         WHERE pp.project_id = $1`,
+        [project.id]
+      );
+
+      const stats = statsResult.rows[0];
+
+      return {
+        ...project,
+        hashtags: hashtagsResult.rows,
+        pattern_count: parseInt(stats.pattern_count) || 0,
+        completed_count: parseInt(stats.completed_count) || 0,
+        total_timer_seconds: parseInt(stats.total_timer_seconds) || 0
+      };
+    }));
+
+    res.json(projects);
+  } catch (error) {
+    console.error('Error fetching current projects:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get single project with patterns
+app.get('/api/projects/:id', async (req, res) => {
+  try {
+    const project = await verifyProjectReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to access this project' });
+    }
+
+    // Get hashtags
+    const hashtagsResult = await pool.query(
+      `SELECT h.* FROM hashtags h
+       JOIN project_hashtags ph ON h.id = ph.hashtag_id
+       WHERE ph.project_id = $1
+       ORDER BY h.name`,
+      [project.id]
+    );
+
+    // Get patterns with their project-specific status
+    const patternsResult = await pool.query(
+      `SELECT p.*, pp.position, pp.status as project_status, pp.added_at
+       FROM patterns p
+       JOIN project_patterns pp ON p.id = pp.pattern_id
+       WHERE pp.project_id = $1
+       ORDER BY pp.position ASC`,
+      [project.id]
+    );
+
+    // Get cumulative stats
+    const statsResult = await pool.query(
+      `SELECT
+         COUNT(pp.id) as pattern_count,
+         COUNT(CASE WHEN pp.status = 'completed' THEN 1 END) as completed_count,
+         COALESCE(SUM(p.timer_seconds), 0) as total_timer_seconds
+       FROM project_patterns pp
+       JOIN patterns p ON pp.pattern_id = p.id
+       WHERE pp.project_id = $1`,
+      [project.id]
+    );
+
+    const stats = statsResult.rows[0];
+
+    res.json({
+      ...project,
+      hashtags: hashtagsResult.rows,
+      patterns: patternsResult.rows,
+      pattern_count: parseInt(stats.pattern_count) || 0,
+      completed_count: parseInt(stats.completed_count) || 0,
+      total_timer_seconds: parseInt(stats.total_timer_seconds) || 0
+    });
+  } catch (error) {
+    console.error('Error fetching project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Create a new project
+app.post('/api/projects', async (req, res) => {
+  try {
+    const { name, description, hashtagIds } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Project name is required' });
+    }
+
+    const userId = req.user.id;
+
+    const result = await pool.query(
+      `INSERT INTO projects (user_id, name, description)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [userId, name.trim(), description || '']
+    );
+
+    const project = result.rows[0];
+
+    // Save hashtags if provided
+    if (hashtagIds && hashtagIds.length > 0) {
+      for (const hashtagId of hashtagIds) {
+        await pool.query(
+          'INSERT INTO project_hashtags (project_id, hashtag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [project.id, hashtagId]
+        );
+      }
+    }
+
+    // Fetch hashtags to include in response
+    const hashtagsResult = await pool.query(
+      `SELECT h.* FROM hashtags h
+       JOIN project_hashtags ph ON h.id = ph.hashtag_id
+       WHERE ph.project_id = $1
+       ORDER BY h.name`,
+      [project.id]
+    );
+
+    res.json({
+      ...project,
+      hashtags: hashtagsResult.rows,
+      pattern_count: 0,
+      completed_count: 0,
+      total_timer_seconds: 0
+    });
+  } catch (error) {
+    console.error('Error creating project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update project details
+app.patch('/api/projects/:id', async (req, res) => {
+  try {
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to modify this project' });
+    }
+
+    const { name, description } = req.body;
+
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramCount}`);
+      values.push(name.trim());
+      paramCount++;
+    }
+
+    if (description !== undefined) {
+      updates.push(`description = $${paramCount}`);
+      values.push(description);
+      paramCount++;
+    }
+
+    if (updates.length === 0) {
+      return res.json(project);
+    }
+
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(req.params.id);
+
+    const result = await pool.query(
+      `UPDATE projects SET ${updates.join(', ')} WHERE id = $${paramCount} RETURNING *`,
+      values
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete a project (patterns remain in library)
+app.delete('/api/projects/:id', async (req, res) => {
+  try {
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to delete this project' });
+    }
+
+    // Delete project (cascade will remove project_patterns and project_hashtags)
+    await pool.query('DELETE FROM projects WHERE id = $1', [req.params.id]);
+
+    // Delete project thumbnail if exists
+    if (project.thumbnail) {
+      const ownerUsername = project.owner_username || req.user.username;
+      const thumbnailPath = path.join(getUserThumbnailsDir(ownerUsername), project.thumbnail);
+      if (fs.existsSync(thumbnailPath)) {
+        fs.unlinkSync(thumbnailPath);
+      }
+    }
+
+    // Delete project notes if exists
+    const ownerUsername = project.owner_username || req.user.username;
+    const notesDir = getUserProjectNotesDir(ownerUsername);
+    const notesFilename = 'project-' + sanitizeNotesFilename(project.name) + '.md';
+    const notesPath = path.join(notesDir, notesFilename);
+    if (fs.existsSync(notesPath)) {
+      fs.unlinkSync(notesPath);
+    }
+
+    res.json({ message: 'Project deleted' });
+  } catch (error) {
+    console.error('Error deleting project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle project current status
+app.patch('/api/projects/:id/current', async (req, res) => {
+  try {
+    const { isCurrent } = req.body;
+
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to modify this project' });
+    }
+
+    // When marking as current, un-complete it
+    const result = await pool.query(
+      `UPDATE projects
+       SET is_current = $1,
+           completed = CASE WHEN $1 = true THEN false ELSE completed END,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 RETURNING *`,
+      [isCurrent, req.params.id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error toggling project current:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle project favorite status
+app.patch('/api/projects/:id/favorite', async (req, res) => {
+  try {
+    const { isFavorite } = req.body;
+
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to modify this project' });
+    }
+
+    const result = await pool.query(
+      `UPDATE projects
+       SET is_favorite = $1, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 RETURNING *`,
+      [isFavorite, req.params.id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error toggling project favorite:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Toggle project complete status
+app.patch('/api/projects/:id/complete', async (req, res) => {
+  try {
+    const { completed } = req.body;
+
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to modify this project' });
+    }
+
+    const result = await pool.query(
+      `UPDATE projects
+       SET completed = $1,
+           completed_date = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE NULL END,
+           is_current = CASE WHEN $1 = true THEN false ELSE is_current END,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = $2 RETURNING *`,
+      [completed, req.params.id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error toggling project complete:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get patterns in a project (ordered)
+app.get('/api/projects/:id/patterns', async (req, res) => {
+  try {
+    const project = await verifyProjectReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to access this project' });
+    }
+
+    const result = await pool.query(
+      `SELECT p.*, pp.position, pp.status as project_status, pp.added_at
+       FROM patterns p
+       JOIN project_patterns pp ON p.id = pp.pattern_id
+       WHERE pp.project_id = $1
+       ORDER BY pp.position ASC`,
+      [req.params.id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching project patterns:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add pattern(s) to a project
+app.post('/api/projects/:id/patterns', async (req, res) => {
+  try {
+    const { patternIds } = req.body;
+
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to modify this project' });
+    }
+
+    if (!patternIds || !Array.isArray(patternIds) || patternIds.length === 0) {
+      return res.status(400).json({ error: 'Pattern IDs are required' });
+    }
+
+    // Get the max position for this project
+    const maxPosResult = await pool.query(
+      'SELECT COALESCE(MAX(position), -1) as max_pos FROM project_patterns WHERE project_id = $1',
+      [req.params.id]
+    );
+    let position = maxPosResult.rows[0].max_pos + 1;
+
+    // Add each pattern
+    for (const patternId of patternIds) {
+      // Verify user has access to this pattern
+      const pattern = await verifyPatternReadAccess(patternId, req.user?.id, req.user?.role === 'admin');
+      if (pattern) {
+        await pool.query(
+          `INSERT INTO project_patterns (project_id, pattern_id, position, status)
+           VALUES ($1, $2, $3, 'pending')
+           ON CONFLICT (project_id, pattern_id) DO NOTHING`,
+          [req.params.id, patternId, position]
+        );
+        position++;
+      }
+    }
+
+    // Return updated patterns list
+    const result = await pool.query(
+      `SELECT p.*, pp.position, pp.status as project_status, pp.added_at
+       FROM patterns p
+       JOIN project_patterns pp ON p.id = pp.pattern_id
+       WHERE pp.project_id = $1
+       ORDER BY pp.position ASC`,
+      [req.params.id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error adding patterns to project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove a pattern from a project
+app.delete('/api/projects/:id/patterns/:patternId', async (req, res) => {
+  try {
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to modify this project' });
+    }
+
+    await pool.query(
+      'DELETE FROM project_patterns WHERE project_id = $1 AND pattern_id = $2',
+      [req.params.id, req.params.patternId]
+    );
+
+    res.json({ message: 'Pattern removed from project' });
+  } catch (error) {
+    console.error('Error removing pattern from project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Reorder patterns in a project
+app.patch('/api/projects/:id/patterns/reorder', async (req, res) => {
+  try {
+    const { patternIds } = req.body;
+
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to modify this project' });
+    }
+
+    if (!patternIds || !Array.isArray(patternIds)) {
+      return res.status(400).json({ error: 'Pattern IDs array is required' });
+    }
+
+    // Update positions based on array order
+    for (let i = 0; i < patternIds.length; i++) {
+      await pool.query(
+        'UPDATE project_patterns SET position = $1 WHERE project_id = $2 AND pattern_id = $3',
+        [i, req.params.id, patternIds[i]]
+      );
+    }
+
+    // Return updated patterns list
+    const result = await pool.query(
+      `SELECT p.*, pp.position, pp.status as project_status, pp.added_at
+       FROM patterns p
+       JOIN project_patterns pp ON p.id = pp.pattern_id
+       WHERE pp.project_id = $1
+       ORDER BY pp.position ASC`,
+      [req.params.id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error reordering project patterns:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update pattern status within a project
+app.patch('/api/projects/:id/patterns/:patternId/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to modify this project' });
+    }
+
+    const validStatuses = ['pending', 'in_progress', 'completed'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Must be: pending, in_progress, or completed' });
+    }
+
+    await pool.query(
+      'UPDATE project_patterns SET status = $1 WHERE project_id = $2 AND pattern_id = $3',
+      [status, req.params.id, req.params.patternId]
+    );
+
+    // Return updated pattern info
+    const result = await pool.query(
+      `SELECT p.*, pp.position, pp.status as project_status, pp.added_at
+       FROM patterns p
+       JOIN project_patterns pp ON p.id = pp.pattern_id
+       WHERE pp.project_id = $1 AND pp.pattern_id = $2`,
+      [req.params.id, req.params.patternId]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating pattern status in project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get projects that contain a specific pattern
+app.get('/api/patterns/:id/projects', async (req, res) => {
+  try {
+    const pattern = await verifyPatternReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized to access this pattern' });
+    }
+
+    const result = await pool.query(
+      `SELECT p.*, pp.status as pattern_status, pp.position
+       FROM projects p
+       JOIN project_patterns pp ON p.id = pp.project_id
+       WHERE pp.pattern_id = $1
+       AND (p.is_archived = false OR p.is_archived IS NULL)
+       ORDER BY p.name`,
+      [req.params.id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching pattern projects:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get hashtags for a project
+app.get('/api/projects/:id/hashtags', async (req, res) => {
+  try {
+    const project = await verifyProjectReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to access this project' });
+    }
+
+    const result = await pool.query(
+      `SELECT h.* FROM hashtags h
+       JOIN project_hashtags ph ON h.id = ph.hashtag_id
+       WHERE ph.project_id = $1
+       ORDER BY h.name`,
+      [req.params.id]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching project hashtags:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Set hashtags for a project
+app.put('/api/projects/:id/hashtags', async (req, res) => {
+  try {
+    const { hashtagIds } = req.body;
+    const projectId = req.params.id;
+
+    const project = await verifyProjectOwnership(projectId, req.user?.id, req.user?.role === 'admin');
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to modify this project' });
+    }
+
+    // Delete existing associations
+    await pool.query('DELETE FROM project_hashtags WHERE project_id = $1', [projectId]);
+
+    // Insert new associations
+    if (hashtagIds && hashtagIds.length > 0) {
+      for (const hashtagId of hashtagIds) {
+        await pool.query(
+          'INSERT INTO project_hashtags (project_id, hashtag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [projectId, hashtagId]
+        );
+      }
+    }
+
+    // Return updated hashtags
+    const result = await pool.query(
+      `SELECT h.* FROM hashtags h
+       JOIN project_hashtags ph ON h.id = ph.hashtag_id
+       WHERE ph.project_id = $1
+       ORDER BY h.name`,
+      [projectId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error setting project hashtags:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get notes for a project
+app.get('/api/projects/:id/notes', async (req, res) => {
+  try {
+    const project = await verifyProjectReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to access this project' });
+    }
+
+    const ownerUsername = project.owner_username || req.user.username;
+    const notesDir = getUserProjectNotesDir(ownerUsername);
+    const filename = 'project-' + sanitizeNotesFilename(project.name) + '.md';
+    const notesPath = path.join(notesDir, filename);
+
+    let notes = '';
+    if (fs.existsSync(notesPath)) {
+      notes = fs.readFileSync(notesPath, 'utf8');
+    }
+
+    res.json({ notes });
+  } catch (error) {
+    console.error('Error fetching project notes:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update notes for a project
+app.put('/api/projects/:id/notes', async (req, res) => {
+  try {
+    const { notes } = req.body;
+
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to modify this project' });
+    }
+
+    const ownerUsername = project.owner_username || req.user.username;
+    const notesDir = getUserProjectNotesDir(ownerUsername);
+
+    // Ensure project notes directory exists
+    if (!fs.existsSync(notesDir)) {
+      fs.mkdirSync(notesDir, { recursive: true });
+    }
+
+    const filename = 'project-' + sanitizeNotesFilename(project.name) + '.md';
+    const notesPath = path.join(notesDir, filename);
+
+    if (notes && notes.trim()) {
+      fs.writeFileSync(notesPath, notes, 'utf8');
+    } else if (fs.existsSync(notesPath)) {
+      fs.unlinkSync(notesPath);
+    }
+
+    res.json({ notes: notes || '' });
+  } catch (error) {
+    console.error('Error updating project notes:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get project thumbnail (custom if exists, else first pattern's)
+app.get('/api/projects/:id/thumbnail', async (req, res) => {
+  try {
+    const project = await verifyProjectReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to access this project' });
+    }
+
+    const ownerUsername = project.owner_username || req.user.username;
+
+    // Check for custom thumbnail first
+    if (project.thumbnail) {
+      const thumbnailPath = path.join(getUserThumbnailsDir(ownerUsername), project.thumbnail);
+      if (fs.existsSync(thumbnailPath)) {
+        return res.sendFile(thumbnailPath);
+      }
+    }
+
+    // Fall back to first pattern's thumbnail
+    const firstPattern = await pool.query(
+      `SELECT p.thumbnail, p.user_id
+       FROM patterns p
+       JOIN project_patterns pp ON p.id = pp.pattern_id
+       WHERE pp.project_id = $1
+       ORDER BY pp.position ASC
+       LIMIT 1`,
+      [req.params.id]
+    );
+
+    if (firstPattern.rows.length > 0 && firstPattern.rows[0].thumbnail) {
+      // Get the pattern owner's username
+      const patternOwner = await pool.query('SELECT username FROM users WHERE id = $1', [firstPattern.rows[0].user_id]);
+      const patternOwnerUsername = patternOwner.rows[0]?.username || ownerUsername;
+      const thumbnailPath = path.join(getUserThumbnailsDir(patternOwnerUsername), firstPattern.rows[0].thumbnail);
+      if (fs.existsSync(thumbnailPath)) {
+        return res.sendFile(thumbnailPath);
+      }
+    }
+
+    return res.status(404).json({ error: 'Thumbnail not found' });
+  } catch (error) {
+    console.error('Error fetching project thumbnail:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Upload custom thumbnail for a project
+app.post('/api/projects/:id/thumbnail', upload.single('thumbnail'), async (req, res) => {
+  try {
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to modify this project' });
+    }
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const ownerUsername = project.owner_username || req.user.username;
+    const userThumbnailsDir = getUserThumbnailsDir(ownerUsername);
+
+    // Ensure thumbnail directory exists
+    if (!fs.existsSync(userThumbnailsDir)) {
+      fs.mkdirSync(userThumbnailsDir, { recursive: true });
+    }
+
+    // Delete old thumbnail if exists
+    if (project.thumbnail) {
+      const oldThumbnailPath = path.join(userThumbnailsDir, project.thumbnail);
+      if (fs.existsSync(oldThumbnailPath)) {
+        fs.unlinkSync(oldThumbnailPath);
+      }
+    }
+
+    // Process and save new thumbnail
+    const thumbnailFilename = `project-${project.id}-${Date.now()}.jpg`;
+    const thumbnailPath = path.join(userThumbnailsDir, thumbnailFilename);
+
+    await sharp(req.file.path)
+      .resize(300, 400, { fit: 'cover', position: 'top' })
+      .jpeg({ quality: 85 })
+      .toFile(thumbnailPath);
+
+    // Clean up temp file
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    // Update database
+    const result = await pool.query(
+      'UPDATE projects SET thumbnail = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [thumbnailFilename, req.params.id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error uploading project thumbnail:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Remove custom thumbnail from a project (reverts to auto)
+app.delete('/api/projects/:id/thumbnail', async (req, res) => {
+  try {
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to modify this project' });
+    }
+
+    // Delete thumbnail file if exists
+    if (project.thumbnail) {
+      const ownerUsername = project.owner_username || req.user.username;
+      const thumbnailPath = path.join(getUserThumbnailsDir(ownerUsername), project.thumbnail);
+      if (fs.existsSync(thumbnailPath)) {
+        fs.unlinkSync(thumbnailPath);
+      }
+    }
+
+    // Update database
+    const result = await pool.query(
+      'UPDATE projects SET thumbnail = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [req.params.id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error removing project thumbnail:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Archive a project
+app.post('/api/projects/:id/archive', async (req, res) => {
+  try {
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to archive this project' });
+    }
+
+    const result = await pool.query(
+      `UPDATE projects
+       SET is_archived = true, archived_at = CURRENT_TIMESTAMP, is_current = false, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+
+    // Delete project notes when archiving
+    const ownerUsername = project.owner_username || req.user.username;
+    const notesDir = getUserProjectNotesDir(ownerUsername);
+    const notesFilename = 'project-' + sanitizeNotesFilename(project.name) + '.md';
+    const notesPath = path.join(notesDir, notesFilename);
+    if (fs.existsSync(notesPath)) {
+      fs.unlinkSync(notesPath);
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error archiving project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Restore a project from archive
+app.post('/api/projects/:id/restore', async (req, res) => {
+  try {
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+
+    if (!project) {
+      return res.status(403).json({ error: 'Not authorized to restore this project' });
+    }
+
+    const result = await pool.query(
+      `UPDATE projects
+       SET is_archived = false, archived_at = NULL, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error restoring project:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get archived projects
+app.get('/api/projects/archived', async (req, res) => {
+  try {
+    let result;
+    if (req.user?.role === 'admin') {
+      result = await pool.query(
+        'SELECT * FROM projects WHERE is_archived = true ORDER BY archived_at DESC'
+      );
+    } else if (req.user?.id) {
+      result = await pool.query(
+        'SELECT * FROM projects WHERE is_archived = true AND user_id = $1 ORDER BY archived_at DESC',
+        [req.user.id]
+      );
+    } else {
+      return res.json([]);
+    }
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching archived projects:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 
 // Helper to sanitize pattern name for filename
 function sanitizeNotesFilename(name) {

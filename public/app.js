@@ -83,6 +83,16 @@ function updateUIForUser() {
         adminSection.style.display = isAdmin ? '' : 'none';
     }
 
+    // Show admin backup section and divider for admins
+    const adminBackupSection = document.getElementById('admin-backup-section');
+    const adminBackupDivider = document.getElementById('admin-backup-divider');
+    if (adminBackupSection) {
+        adminBackupSection.style.display = isAdmin ? '' : 'none';
+    }
+    if (adminBackupDivider) {
+        adminBackupDivider.style.display = isAdmin ? '' : 'none';
+    }
+
     // Update current user info
     const userInfo = document.getElementById('current-user-info');
     if (userInfo && currentUser) {
@@ -5689,6 +5699,101 @@ async function deleteBackup(filename) {
     }
 }
 
+// Admin Backup Functions
+async function downloadAdminConfig() {
+    try {
+        showToast('Downloading configuration...');
+        window.location.href = `${API_URL}/api/admin/backup/config`;
+    } catch (error) {
+        console.error('Error downloading admin config:', error);
+        showToast('Error downloading configuration', 'error');
+    }
+}
+
+async function restoreAdminConfig(file) {
+    try {
+        const text = await file.text();
+        const config = JSON.parse(text);
+
+        if (!config.version || !config.exportedAt) {
+            showToast('Invalid config backup file', 'error');
+            return;
+        }
+
+        // Show confirmation dialog
+        const userCount = config.users?.length || 0;
+        const hasOidc = config.settings?.oidc ? 'Yes' : 'No';
+
+        if (!confirm(`Restore configuration?\n\nUsers: ${userCount}\nOIDC settings: ${hasOidc}\n\nExisting users will be updated, new users will be created.`)) {
+            return;
+        }
+
+        showToast('Restoring configuration...');
+
+        const response = await fetch(`${API_URL}/api/admin/backup/config/restore`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                config,
+                restoreUsers: true,
+                restoreSettings: true
+            })
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            showToast(`Configuration restored: ${result.restored.usersCreated || 0} users created, ${result.restored.usersUpdated || 0} updated`);
+            loadUsers();
+            loadOIDCSettings();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to restore configuration', 'error');
+        }
+    } catch (error) {
+        console.error('Error restoring admin config:', error);
+        showToast('Error restoring configuration: ' + error.message, 'error');
+    }
+}
+
+async function downloadAdminData() {
+    try {
+        showToast('Preparing data download... This may take a while for large libraries.');
+        window.location.href = `${API_URL}/api/admin/backup/data`;
+    } catch (error) {
+        console.error('Error downloading admin data:', error);
+        showToast('Error downloading data', 'error');
+    }
+}
+
+async function restoreAdminData(file) {
+    try {
+        if (!confirm('Restore all user data from backup?\n\nThis will overwrite existing files for users found in the backup.')) {
+            return;
+        }
+
+        showToast('Uploading and restoring data... This may take a while.');
+
+        const formData = new FormData();
+        formData.append('backup', file);
+
+        const response = await fetch(`${API_URL}/api/admin/backup/data/upload`, {
+            method: 'POST',
+            body: formData
+        });
+
+        if (response.ok) {
+            const result = await response.json();
+            showToast(`Data restored: ${result.message}`);
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to restore data', 'error');
+        }
+    } catch (error) {
+        console.error('Error restoring admin data:', error);
+        showToast('Error restoring data: ' + error.message, 'error');
+    }
+}
+
 function initBackups() {
     const createBtn = document.getElementById('create-backup-btn');
     if (createBtn) {
@@ -5922,6 +6027,41 @@ function initBackups() {
         pruneAgeUnit.addEventListener('change', () => {
             runPruneIfEnabled();
             saveScheduleSettings(true, 'Prune setting updated');
+        });
+    }
+
+    // Admin backup handlers
+    const adminBackupConfigBtn = document.getElementById('admin-backup-config-btn');
+    if (adminBackupConfigBtn) {
+        adminBackupConfigBtn.addEventListener('click', downloadAdminConfig);
+    }
+
+    const adminRestoreConfigBtn = document.getElementById('admin-restore-config-btn');
+    const adminRestoreConfigInput = document.getElementById('admin-restore-config-input');
+    if (adminRestoreConfigBtn && adminRestoreConfigInput) {
+        adminRestoreConfigBtn.addEventListener('click', () => adminRestoreConfigInput.click());
+        adminRestoreConfigInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                restoreAdminConfig(e.target.files[0]);
+                e.target.value = '';
+            }
+        });
+    }
+
+    const adminBackupDataBtn = document.getElementById('admin-backup-data-btn');
+    if (adminBackupDataBtn) {
+        adminBackupDataBtn.addEventListener('click', downloadAdminData);
+    }
+
+    const adminRestoreDataBtn = document.getElementById('admin-restore-data-btn');
+    const adminRestoreDataInput = document.getElementById('admin-restore-data-input');
+    if (adminRestoreDataBtn && adminRestoreDataInput) {
+        adminRestoreDataBtn.addEventListener('click', () => adminRestoreDataInput.click());
+        adminRestoreDataInput.addEventListener('change', (e) => {
+            if (e.target.files[0]) {
+                restoreAdminData(e.target.files[0]);
+                e.target.value = '';
+            }
         });
     }
 

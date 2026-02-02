@@ -6661,3 +6661,53 @@ input[type="number"].settings-input {
         align-items: stretch;
     }
 }
+
+/* Settings divider */
+.settings-divider {
+    border: none;
+    border-top: 1px solid var(--border-color);
+    margin: 1.5rem 0;
+}
+
+/* Collapsible card without card styling */
+.collapsible-card.no-card-style {
+    border: none;
+    background: transparent;
+    margin: 0;
+}
+
+.collapsible-card.no-card-style .collapsible-card-header {
+    padding: 0.75rem 0;
+}
+
+.collapsible-card.no-card-style .collapsible-card-header:hover {
+    background: transparent;
+}
+
+.collapsible-card.no-card-style .collapsible-card-body {
+    padding: 1rem 0 0 0;
+}
+
+.collapsible-card.no-card-style .collapsible-card-body .btn {
+    width: 180px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-weight: 500;
+    transition: background 0.2s ease, transform 0.1s ease;
+}
+
+.collapsible-card.no-card-style .collapsible-card-body .btn:hover {
+    background: var(--primary-hover);
+    transform: translateY(-1px);
+}
+
+.collapsible-card.no-card-style .collapsible-card-body .btn:active {
+    transform: translateY(0);
+}

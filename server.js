@@ -4586,6 +4586,7 @@ app.get('/api/admin/backup/config', authMiddleware, adminOnly, async (req, res) 
     const backupScheduleResult = await pool.query("SELECT value FROM settings WHERE key = 'backup_schedule'");
     const notifySettingsResult = await pool.query("SELECT value FROM settings WHERE key = 'notify_settings'");
     const archiveSettingsResult = await pool.query("SELECT value FROM settings WHERE key = 'archive_settings'");
+    const defaultCategoriesResult = await pool.query("SELECT value FROM settings WHERE key = 'default_categories'");
 
     const configBackup = {
       version: 1,
@@ -4595,7 +4596,8 @@ app.get('/api/admin/backup/config', authMiddleware, adminOnly, async (req, res) 
         oidc: oidcResult.rows[0]?.value || null,
         backup_schedule: backupScheduleResult.rows[0]?.value || null,
         notify_settings: notifySettingsResult.rows[0]?.value || null,
-        archive_settings: archiveSettingsResult.rows[0]?.value || null
+        archive_settings: archiveSettingsResult.rows[0]?.value || null,
+        default_categories: defaultCategoriesResult.rows[0]?.value || null
       }
     };
 

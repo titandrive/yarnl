@@ -532,25 +532,25 @@ Inc in each st around (12)
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="edit-project-name">Project Name</label>
+                        <label for="edit-project-name">Name <span class="required">required</span></label>
                         <input type="text" id="edit-project-name" required>
                     </div>
                     <div class="form-group">
-                        <label for="edit-project-description">Description</label>
+                        <label for="edit-project-description">Description <span class="required">optional</span></label>
                         <textarea id="edit-project-description" rows="3"></textarea>
                     </div>
                     <div class="form-group">
-                        <label>Hashtags</label>
+                        <label>Hashtags <span class="required">optional</span></label>
                         <div id="edit-project-hashtag-selector" class="hashtag-selector"></div>
                     </div>
                     <div class="form-group">
-                        <label>Thumbnail</label>
-                        <div class="thumbnail-upload-area">
-                            <img id="edit-project-thumbnail-preview" class="thumbnail-preview" style="display: none;">
-                            <input type="file" id="edit-project-thumbnail-input" accept="image/*" style="display: none;">
-                            <button type="button" id="edit-project-thumbnail-btn" class="btn btn-secondary btn-sm">Upload Thumbnail</button>
-                            <button type="button" id="edit-project-thumbnail-remove" class="btn btn-danger btn-sm" style="display: none;">Remove</button>
+                        <label>Thumbnail <span class="required">optional</span></label>
+                        <div class="thumbnail-selector" id="edit-project-thumbnail-selector" data-target="edit-project">
+                            <div class="thumbnail-selector-preview" id="edit-project-thumbnail-preview">
+                                <span class="thumbnail-selector-placeholder">+</span>
+                            </div>
                         </div>
+                        <p class="help-text">Click to select or paste an image</p>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -1800,21 +1800,21 @@ Inc in each st around (12)
                     </div>
                     <div class="pdf-edit-form">
                         <div class="form-group">
-                            <label for="pdf-edit-name">Pattern Name *</label>
+                            <label for="pdf-edit-name">Pattern Name <span class="required">required</span></label>
                             <input type="text" id="pdf-edit-name" required>
                         </div>
                         <div class="form-group">
-                            <label>Category</label>
+                            <label>Category <span class="required">required</span></label>
                             <div id="pdf-edit-category-container">
                                 <!-- Category dropdown will be populated dynamically -->
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="pdf-edit-description">Description</label>
+                            <label for="pdf-edit-description">Description <span class="required">optional</span></label>
                             <textarea id="pdf-edit-description" rows="3" placeholder="Brief description..."></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Hashtags</label>
+                            <label>Hashtags <span class="required">optional</span></label>
                             <div id="pdf-edit-hashtags-container">
                                 <!-- Hashtag selector will be populated dynamically -->
                             </div>
@@ -1949,27 +1949,27 @@ Inc in each st around (12)
                 <div class="markdown-edit-wrapper">
                     <div class="markdown-edit-sidebar">
                         <div class="form-group">
-                            <label for="markdown-edit-name">Pattern Name *</label>
+                            <label for="markdown-edit-name">Pattern Name <span class="required">required</span></label>
                             <input type="text" id="markdown-edit-name" required>
                         </div>
                         <div class="form-group">
-                            <label>Category</label>
+                            <label>Category <span class="required">required</span></label>
                             <div id="markdown-edit-category-container">
                                 <!-- Category dropdown will be populated dynamically -->
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="markdown-edit-description">Description</label>
+                            <label for="markdown-edit-description">Description <span class="required">optional</span></label>
                             <textarea id="markdown-edit-description" rows="2" placeholder="Brief description..."></textarea>
                         </div>
                         <div class="form-group">
-                            <label>Hashtags</label>
+                            <label>Hashtags <span class="required">optional</span></label>
                             <div id="markdown-edit-hashtags-container">
                                 <!-- Hashtag selector will be populated dynamically -->
                             </div>
                         </div>
                         <div class="form-group">
-                            <label>Thumbnail</label>
+                            <label>Thumbnail <span class="required">optional</span></label>
                             <div class="thumbnail-selector" id="markdown-edit-thumbnail-selector" data-target="markdown-edit">
                                 <div class="thumbnail-selector-preview" id="markdown-edit-thumbnail-preview">
                                     <span class="thumbnail-selector-placeholder">+</span>
@@ -2012,27 +2012,27 @@ Inc in each st around (12)
             </div>
             <form id="edit-form">
                 <div class="form-group">
-                    <label for="edit-pattern-name">Pattern Name *</label>
+                    <label for="edit-pattern-name">Pattern Name <span class="required">required</span></label>
                     <input type="text" id="edit-pattern-name" required>
                 </div>
                 <div class="form-group">
-                    <label>Category</label>
+                    <label>Category <span class="required">required</span></label>
                     <div id="edit-pattern-category-container">
                         <!-- Category dropdown will be populated dynamically -->
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="edit-pattern-description">Description <span class="char-counter"><span id="edit-desc-count">0</span>/45</span></label>
+                    <label for="edit-pattern-description">Description <span class="required">optional</span> <span class="char-counter"><span id="edit-desc-count">0</span>/45</span></label>
                     <textarea id="edit-pattern-description" rows="2" maxlength="45" oninput="document.getElementById('edit-desc-count').textContent = this.value.length"></textarea>
                 </div>
                 <div class="form-group">
-                    <label>Hashtags</label>
+                    <label>Hashtags <span class="required">optional</span></label>
                     <div id="edit-pattern-hashtags-container">
                         <!-- Hashtag selector will be populated dynamically -->
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Custom Thumbnail (optional)</label>
+                    <label>Thumbnail <span class="required">optional</span></label>
                     <div class="thumbnail-selector" id="edit-thumbnail-selector" data-target="edit">
                         <div class="thumbnail-selector-preview" id="edit-thumbnail-preview">
                             <span class="thumbnail-selector-placeholder">+</span>
@@ -2212,6 +2212,6 @@ Inc in each st around (12)
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script src="app.js?v=132"></script>
+    <script src="app.js?v=137"></script>
 </body>
 </html>

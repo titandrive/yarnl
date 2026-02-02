@@ -146,8 +146,10 @@ async function handleLogin(e) {
             // Always refresh user-specific data and UI
             await loadAccountInfo();
             updateUIForUser();
-            await loadPatterns();
+            await Promise.all([loadPatterns(), loadProjects()]);
             loadCurrentPatterns();
+            await loadCurrentProjects();
+            updateTabCounts();
             loadCategories();
             loadHashtags();
             switchToTab(defaultPage, false);
@@ -2000,6 +2002,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadCategories();
     loadHashtags();
     await loadCurrentProjects();
+    updateTabCounts();
+    displayCurrentPatterns();
     initProjectPanel();
 
     // Handle initial URL hash or restore pattern viewer
@@ -10251,6 +10255,16 @@ function initProjectPanel() {
         projectEditBtn.addEventListener('click', showEditProjectModal);
     }
 
+    // Close edit project modal when clicking outside
+    const editProjectModal = document.getElementById('edit-project-modal');
+    if (editProjectModal) {
+        editProjectModal.addEventListener('click', (e) => {
+            if (e.target === editProjectModal) {
+                editProjectModal.style.display = 'none';
+            }
+        });
+    }
+
     // Search in add patterns modal
     const addPatternsSearch = document.getElementById('add-patterns-search-input');
     if (addPatternsSearch) {
@@ -10805,54 +10819,19 @@ async function showEditProjectModal() {
             hashtagContainer.innerHTML = createHashtagSelector('edit-project', selectedHashtagIds, false);
         }
 
-        // Thumbnail preview
-        const preview = document.getElementById('edit-project-thumbnail-preview');
-        const removeBtn = document.getElementById('edit-project-thumbnail-remove');
+        // Thumbnail preview - use same style as pattern edit
+        const previewContainer = document.getElementById('edit-project-thumbnail-preview');
+        const placeholder = previewContainer.querySelector('.thumbnail-selector-placeholder');
 
         if (project.thumbnail || project.pattern_count > 0) {
-            preview.src = `${API_URL}/api/projects/${currentProjectId}/thumbnail`;
-            preview.style.display = 'block';
-            removeBtn.style.display = project.thumbnail ? 'inline-block' : 'none';
+            previewContainer.style.backgroundImage = `url(${API_URL}/api/projects/${currentProjectId}/thumbnail?t=${Date.now()})`;
+            previewContainer.style.backgroundSize = 'cover';
+            previewContainer.style.backgroundPosition = 'center';
+            if (placeholder) placeholder.style.display = 'none';
         } else {
-            preview.style.display = 'none';
-            removeBtn.style.display = 'none';
+            previewContainer.style.backgroundImage = '';
+            if (placeholder) placeholder.style.display = 'block';
         }
-
-        // Thumbnail upload handlers
-        const uploadBtn = document.getElementById('edit-project-thumbnail-btn');
-        const fileInput = document.getElementById('edit-project-thumbnail-input');
-
-        uploadBtn.onclick = () => fileInput.click();
-        fileInput.onchange = async (e) => {
-            if (e.target.files.length > 0) {
-                const formData = new FormData();
-                formData.append('thumbnail', e.target.files[0]);
-
-                const uploadResponse = await fetch(`${API_URL}/api/projects/${currentProjectId}/thumbnail`, {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (uploadResponse.ok) {
-                    preview.src = `${API_URL}/api/projects/${currentProjectId}/thumbnail?t=${Date.now()}`;
-                    preview.style.display = 'block';
-                    removeBtn.style.display = 'inline-block';
-                    await loadProjects();
-                }
-            }
-        };
-
-        removeBtn.onclick = async () => {
-            const deleteResponse = await fetch(`${API_URL}/api/projects/${currentProjectId}/thumbnail`, {
-                method: 'DELETE'
-            });
-
-            if (deleteResponse.ok) {
-                preview.style.display = 'none';
-                removeBtn.style.display = 'none';
-                await loadProjects();
-            }
-        };
 
         if (modal) modal.style.display = 'flex';
     } catch (error) {
@@ -10887,6 +10866,28 @@ async function saveProjectEdits() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ hashtagIds })
         });
+
+        // Handle thumbnail upload/clear
+        const thumbnailPreview = document.getElementById('edit-project-thumbnail-preview');
+        if (thumbnailPreview) {
+            if (thumbnailPreview.dataset.thumbnailCleared === 'true') {
+                // Clear thumbnail
+                await fetch(`${API_URL}/api/projects/${currentProjectId}/thumbnail`, {
+                    method: 'DELETE'
+                });
+            } else if (thumbnailPreview.dataset.thumbnailBlob) {
+                // Upload new thumbnail
+                const dataUrl = thumbnailPreview.dataset.thumbnailBlob;
+                const blob = await (await fetch(dataUrl)).blob();
+                const formData = new FormData();
+                formData.append('thumbnail', blob, 'thumbnail.png');
+
+                await fetch(`${API_URL}/api/projects/${currentProjectId}/thumbnail`, {
+                    method: 'POST',
+                    body: formData
+                });
+            }
+        }
 
         document.getElementById('edit-project-modal').style.display = 'none';
 

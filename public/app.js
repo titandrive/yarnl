@@ -1507,6 +1507,7 @@ let selectedFile = null;
 let editingPatternId = null;
 let stagedFiles = []; // Array to hold staged files with metadata
 let projectStagedFiles = []; // Array to hold staged files for project creation
+let projectSelectedPatternIds = []; // IDs of existing patterns to add to new project
 let completedUploads = []; // Array to hold completed upload info for display
 let selectedCategoryFilter = localStorage.getItem('libraryCategoryFilter') || 'all';
 let selectedSort = localStorage.getItem('librarySort') || 'date-desc';
@@ -3956,6 +3957,12 @@ function selectCategory(id, value) {
     dropdown.querySelectorAll('.category-dropdown-item').forEach(item => {
         item.classList.toggle('selected', item.textContent.trim() === value);
     });
+
+    // Handle project staged file category updates
+    if (id.startsWith('project-staged-')) {
+        const fileId = id.replace('project-staged-', '');
+        updateProjectStagedFileCategory(fileId, value);
+    }
 
     // Trigger the callback
     const event = new CustomEvent('categorychange', { detail: { id, value } });
@@ -10060,9 +10067,47 @@ function showNewProjectPanel() {
     document.getElementById('new-project-name').value = '';
     document.getElementById('new-project-description').value = '';
 
-    // Clear staged files for project
+    // Clear staged files and selected patterns for project
     projectStagedFiles = [];
+    projectSelectedPatternIds = [];
     renderProjectStagedFiles();
+
+    // Reset to "Add Existing" tab
+    const tabBtns = document.querySelectorAll('.project-add-tab');
+    tabBtns.forEach(t => t.classList.toggle('active', t.dataset.tab === 'existing'));
+    const existingTab = document.getElementById('project-existing-tab');
+    const importTab = document.getElementById('project-import-tab');
+    if (existingTab) {
+        existingTab.style.display = 'block';
+        existingTab.classList.add('active');
+    }
+    if (importTab) {
+        importTab.style.display = 'none';
+        importTab.classList.remove('active');
+    }
+
+    // Reset filters to defaults
+    const searchInput = document.getElementById('project-existing-search-input');
+    const showFilter = document.getElementById('project-show-filter');
+    const categoryFilter = document.getElementById('project-category-filter');
+    const sortSelect = document.getElementById('project-sort-select');
+    const showCompleted = document.getElementById('project-show-completed');
+    const showCurrent = document.getElementById('project-show-current');
+    const showPdf = document.getElementById('project-show-pdf');
+    const showMarkdown = document.getElementById('project-show-markdown');
+
+    if (searchInput) searchInput.value = '';
+    if (showFilter) showFilter.value = 'all';
+    if (sortSelect) sortSelect.value = 'date-desc';
+    if (showCompleted) showCompleted.checked = true;
+    if (showCurrent) showCurrent.checked = true;
+    if (showPdf) showPdf.checked = true;
+    if (showMarkdown) showMarkdown.checked = true;
+
+    // Populate category filter and render patterns grid
+    populateProjectCategoryFilter();
+    if (categoryFilter) categoryFilter.value = 'all';
+    renderProjectExistingGrid();
 
     // Render hashtag selector (use same one as pattern upload)
     const hashtagContainer = document.getElementById('new-project-hashtags-container');
@@ -10083,8 +10128,9 @@ function hideNewProjectPanel() {
         tabsNav.style.display = 'flex';
     }
 
-    // Clear staged files
+    // Clear staged files and selected patterns
     projectStagedFiles = [];
+    projectSelectedPatternIds = [];
 
     // Show active tab
     const activeTab = document.querySelector('.tab-btn.active');
@@ -10113,6 +10159,9 @@ function initProjectPanel() {
     if (saveNewProject) {
         saveNewProject.addEventListener('click', createProject);
     }
+
+    // Initialize project panel tabs (Add Existing / Import New)
+    initProjectPanelTabs();
 
     // Project drop zone for PDFs
     const projectDropZone = document.getElementById('project-drop-zone');
@@ -10298,10 +10347,11 @@ async function createProject() {
 
         const project = await response.json();
 
-        // Upload staged files and add them to the project
-        if (projectStagedFiles.length > 0) {
-            const patternIds = [];
+        // Collect all pattern IDs to add (start with selected existing patterns)
+        const patternIds = [...projectSelectedPatternIds];
 
+        // Upload staged files and add their IDs
+        if (projectStagedFiles.length > 0) {
             for (const staged of projectStagedFiles) {
                 const formData = new FormData();
                 formData.append('pattern', staged.file);
@@ -10318,15 +10368,15 @@ async function createProject() {
                     patternIds.push(pattern.id);
                 }
             }
+        }
 
-            // Add patterns to project
-            if (patternIds.length > 0) {
-                await fetch(`${API_URL}/api/projects/${project.id}/patterns`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ patternIds })
-                });
-            }
+        // Add all patterns (existing + newly uploaded) to project
+        if (patternIds.length > 0) {
+            await fetch(`${API_URL}/api/projects/${project.id}/patterns`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ patternIds })
+            });
         }
 
         hideNewProjectPanel();
@@ -10949,7 +10999,7 @@ function handleProjectFiles(files) {
     renderProjectStagedFiles();
 }
 
-// Render staged files for project creation
+// Render staged files for project creation with category dropdowns
 function renderProjectStagedFiles() {
     const container = document.getElementById('project-staged-files');
     const list = document.getElementById('project-staged-list');
@@ -10967,8 +11017,14 @@ function renderProjectStagedFiles() {
 
     list.innerHTML = projectStagedFiles.map(staged => `
         <div class="project-staged-item" data-file-id="${staged.id}">
-            <span class="staged-item-name">${escapeHtml(staged.file.name)}</span>
-            <button class="staged-item-remove" onclick="removeProjectStagedFile('${staged.id}')" title="Remove">×</button>
+            <div class="project-staged-item-header">
+                <span class="staged-item-name">${escapeHtml(staged.file.name)}</span>
+                <button class="staged-item-remove" onclick="removeProjectStagedFile('${staged.id}')" title="Remove">×</button>
+            </div>
+            <div class="project-staged-item-category">
+                <label>Category:</label>
+                ${createCategoryDropdown('project-staged-' + staged.id, staged.category)}
+            </div>
         </div>
     `).join('');
 }
@@ -10977,6 +11033,210 @@ function renderProjectStagedFiles() {
 function removeProjectStagedFile(fileId) {
     projectStagedFiles = projectStagedFiles.filter(f => f.id !== fileId);
     renderProjectStagedFiles();
+}
+
+// Update staged file category
+function updateProjectStagedFileCategory(fileId, category) {
+    const staged = projectStagedFiles.find(f => f.id === fileId);
+    if (staged) {
+        staged.category = category;
+    }
+}
+
+// Initialize project panel tabs
+function initProjectPanelTabs() {
+    const tabs = document.querySelectorAll('.project-add-tab');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            // Update tab button states
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+
+            // Show/hide tab content
+            const tabId = tab.dataset.tab;
+            const existingTab = document.getElementById('project-existing-tab');
+            const importTab = document.getElementById('project-import-tab');
+
+            if (existingTab) {
+                existingTab.style.display = tabId === 'existing' ? 'block' : 'none';
+                existingTab.classList.toggle('active', tabId === 'existing');
+            }
+            if (importTab) {
+                importTab.style.display = tabId === 'import' ? 'block' : 'none';
+                importTab.classList.toggle('active', tabId === 'import');
+            }
+        });
+    });
+
+    // Filter event listeners
+    const searchInput = document.getElementById('project-existing-search-input');
+    const showFilter = document.getElementById('project-show-filter');
+    const categoryFilter = document.getElementById('project-category-filter');
+    const sortSelect = document.getElementById('project-sort-select');
+    const showCompleted = document.getElementById('project-show-completed');
+    const showCurrent = document.getElementById('project-show-current');
+    const showPdf = document.getElementById('project-show-pdf');
+    const showMarkdown = document.getElementById('project-show-markdown');
+
+    if (searchInput) searchInput.addEventListener('input', renderProjectExistingGrid);
+    if (showFilter) showFilter.addEventListener('change', renderProjectExistingGrid);
+    if (categoryFilter) categoryFilter.addEventListener('change', renderProjectExistingGrid);
+    if (sortSelect) sortSelect.addEventListener('change', renderProjectExistingGrid);
+    if (showCompleted) showCompleted.addEventListener('change', renderProjectExistingGrid);
+    if (showCurrent) showCurrent.addEventListener('change', renderProjectExistingGrid);
+    if (showPdf) showPdf.addEventListener('change', renderProjectExistingGrid);
+    if (showMarkdown) showMarkdown.addEventListener('change', renderProjectExistingGrid);
+}
+
+// Populate project category filter dropdown
+function populateProjectCategoryFilter() {
+    const categoryFilter = document.getElementById('project-category-filter');
+    if (!categoryFilter) return;
+
+    const currentValue = categoryFilter.value;
+    categoryFilter.innerHTML = '<option value="all">All Categories</option>';
+
+    allCategories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category;
+        option.textContent = category;
+        categoryFilter.appendChild(option);
+    });
+
+    categoryFilter.value = currentValue || 'all';
+}
+
+// Render existing patterns grid for project creation
+function renderProjectExistingGrid() {
+    const grid = document.getElementById('project-existing-grid');
+    if (!grid) return;
+
+    // Get filter values
+    const searchQuery = (document.getElementById('project-existing-search-input')?.value || '').toLowerCase();
+    const showFilter = document.getElementById('project-show-filter')?.value || 'all';
+    const categoryFilter = document.getElementById('project-category-filter')?.value || 'all';
+    const sortBy = document.getElementById('project-sort-select')?.value || 'date-desc';
+    const showCompleted = document.getElementById('project-show-completed')?.checked !== false;
+    const showCurrent = document.getElementById('project-show-current')?.checked !== false;
+    const showPdf = document.getElementById('project-show-pdf')?.checked !== false;
+    const showMarkdown = document.getElementById('project-show-markdown')?.checked !== false;
+
+    // Filter patterns
+    let filteredPatterns = patterns.filter(pattern => {
+        // Search filter
+        if (searchQuery) {
+            const nameMatch = pattern.name.toLowerCase().includes(searchQuery);
+            const descMatch = pattern.description?.toLowerCase().includes(searchQuery);
+            const hashtagMatch = pattern.hashtags?.some(h => h.name.toLowerCase().includes(searchQuery.replace('#', '')));
+            if (!nameMatch && !descMatch && !hashtagMatch) return false;
+        }
+
+        // Show filter
+        if (showFilter === 'favorites' && !pattern.is_favorite) return false;
+        if (showFilter === 'current' && !pattern.is_current) return false;
+        if (showFilter === 'new' && (pattern.completed || pattern.timer_seconds > 0)) return false;
+
+        // Category filter
+        if (categoryFilter !== 'all' && pattern.category !== categoryFilter) return false;
+
+        // Status filters
+        if (!showCompleted && pattern.completed) return false;
+        if (!showCurrent && pattern.is_current && !pattern.completed) return false;
+
+        // Type filters
+        const isPdf = pattern.pattern_type !== 'markdown';
+        if (!showPdf && isPdf) return false;
+        if (!showMarkdown && !isPdf) return false;
+
+        return true;
+    });
+
+    // Sort patterns
+    filteredPatterns.sort((a, b) => {
+        switch (sortBy) {
+            case 'date-asc':
+                return new Date(a.upload_date) - new Date(b.upload_date);
+            case 'name-asc':
+                return a.name.localeCompare(b.name);
+            case 'name-desc':
+                return b.name.localeCompare(a.name);
+            case 'date-desc':
+            default:
+                return new Date(b.upload_date) - new Date(a.upload_date);
+        }
+    });
+
+    // Render grid
+    if (filteredPatterns.length === 0) {
+        grid.innerHTML = '<p class="project-empty-state">No patterns match your filters</p>';
+    } else {
+        grid.innerHTML = filteredPatterns.map(pattern => {
+            const hashtags = pattern.hashtags || [];
+            const hashtagsHtml = hashtags.length > 0
+                ? `<div class="peg-hashtags">${hashtags.map(h => `<span class="peg-hashtag">#${escapeHtml(h.name)}</span>`).join('')}</div>`
+                : '';
+
+            const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';
+
+            return `
+                <div class="peg-card${projectSelectedPatternIds.includes(pattern.id) ? ' selected' : ''}"
+                     data-pattern-id="${pattern.id}"
+                     data-pattern-name="${escapeHtml(pattern.name.toLowerCase())}"
+                     onclick="toggleProjectExistingPattern(${pattern.id})">
+                    <div class="peg-thumb">
+                        ${pattern.completed ? '<span class="peg-badge peg-complete">COMPLETE</span>' : ''}
+                        ${!pattern.completed && pattern.is_current ? '<span class="peg-badge peg-current">IN PROGRESS</span>' : ''}
+                        ${pattern.category ? `<span class="peg-category">${escapeHtml(pattern.category)}</span>` : ''}
+                        ${pattern.is_favorite ? '<span class="peg-favorite"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
+                        <span class="peg-type">${typeLabel}</span>
+                        ${pattern.thumbnail
+                            ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" alt="">`
+                            : `<div class="peg-placeholder">
+                                   <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                       <polyline points="14 2 14 8 20 8"></polyline>
+                                   </svg>
+                               </div>`
+                        }
+                    </div>
+                    <div class="peg-info">
+                        <div class="peg-name">${escapeHtml(pattern.name)}</div>
+                        ${pattern.description ? `<div class="peg-desc">${escapeHtml(pattern.description)}</div>` : ''}
+                        ${hashtagsHtml}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    updateProjectSelectedCount();
+}
+
+// Toggle existing pattern selection
+function toggleProjectExistingPattern(patternId) {
+    const item = document.querySelector(`.peg-card[data-pattern-id="${patternId}"]`);
+    const isSelected = projectSelectedPatternIds.includes(patternId);
+
+    if (isSelected) {
+        projectSelectedPatternIds = projectSelectedPatternIds.filter(id => id !== patternId);
+        if (item) item.classList.remove('selected');
+    } else {
+        projectSelectedPatternIds.push(patternId);
+        if (item) item.classList.add('selected');
+    }
+    updateProjectSelectedCount();
+}
+
+// Update selected count display
+function updateProjectSelectedCount() {
+    const countEl = document.getElementById('project-selected-count');
+    const countText = document.getElementById('project-selected-count-text');
+
+    if (countEl && countText) {
+        const count = projectSelectedPatternIds.length;
+        countEl.style.display = count > 0 ? 'block' : 'none';
+        countText.textContent = `${count} pattern${count !== 1 ? 's' : ''} selected`;
+    }
 }
 
 function formatTimeHumanReadable(seconds) {

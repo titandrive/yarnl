@@ -396,21 +396,106 @@ Inc in each st around (12)
                 </div>
                 <div class="form-group">
                     <label>Add Patterns <span class="required">optional</span></label>
-                    <div id="project-drop-zone" class="drop-zone project-drop-zone">
-                        <div class="drop-zone-content">
-                            <span class="drop-zone-icon">📁</span>
-                            <p class="drop-zone-text">Drag & drop PDF files here to add patterns</p>
-                            <p class="drop-zone-subtext">Or add patterns from your library after creating the project</p>
-                            <input type="file" id="project-file-input" accept=".pdf" multiple hidden>
-                            <button type="button" id="project-browse-btn" class="btn btn-secondary">Browse Files</button>
+                    <div class="project-add-patterns-tabs">
+                        <button type="button" class="project-add-tab active" data-tab="existing">Add Existing</button>
+                        <button type="button" class="project-add-tab" data-tab="import">Import New</button>
+                    </div>
+
+                    <!-- Tab 1: Add Existing Patterns -->
+                    <div id="project-existing-tab" class="project-tab-content active">
+                        <div class="project-existing-layout">
+                            <aside class="project-existing-sidebar">
+                                <div class="sidebar-section">
+                                    <label>Search</label>
+                                    <input type="text" id="project-existing-search-input" placeholder="Search patterns...">
+                                </div>
+                                <div class="sidebar-section">
+                                    <label>Show</label>
+                                    <select id="project-show-filter">
+                                        <option value="all">All Patterns</option>
+                                        <option value="favorites">Favorites Only</option>
+                                        <option value="current">In Progress Only</option>
+                                        <option value="new">New Only</option>
+                                    </select>
+                                </div>
+                                <div class="sidebar-section">
+                                    <label>Category</label>
+                                    <select id="project-category-filter">
+                                        <option value="all">All Categories</option>
+                                    </select>
+                                </div>
+                                <div class="sidebar-section">
+                                    <label>Sort by</label>
+                                    <select id="project-sort-select">
+                                        <option value="date-desc">Date (Newest)</option>
+                                        <option value="date-asc">Date (Oldest)</option>
+                                        <option value="name-asc">Name (A-Z)</option>
+                                        <option value="name-desc">Name (Z-A)</option>
+                                    </select>
+                                </div>
+                                <div class="sidebar-section">
+                                    <label>Status</label>
+                                    <div class="sidebar-toggle-row">
+                                        <span>Completed</span>
+                                        <label class="toggle-switch small">
+                                            <input type="checkbox" id="project-show-completed" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="sidebar-toggle-row">
+                                        <span>In Progress</span>
+                                        <label class="toggle-switch small">
+                                            <input type="checkbox" id="project-show-current" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="sidebar-section">
+                                    <label>Type</label>
+                                    <div class="sidebar-toggle-row">
+                                        <span>PDF</span>
+                                        <label class="toggle-switch small">
+                                            <input type="checkbox" id="project-show-pdf" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="sidebar-toggle-row">
+                                        <span>Markdown</span>
+                                        <label class="toggle-switch small">
+                                            <input type="checkbox" id="project-show-markdown" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </aside>
+                            <div class="project-existing-main">
+                                <div class="project-existing-grid" id="project-existing-grid">
+                                    <!-- Patterns will be rendered here -->
+                                </div>
+                                <div class="project-selected-count" id="project-selected-count" style="display: none;">
+                                    <span id="project-selected-count-text">0 patterns selected</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div id="project-staged-files" class="project-staged-files" style="display: none;">
-                        <div class="staged-header">
-                            <span>Patterns to add (<span id="project-staged-count">0</span>)</span>
-                            <button type="button" id="project-clear-staged" class="btn btn-secondary btn-sm">Clear</button>
+
+                    <!-- Tab 2: Import New PDFs -->
+                    <div id="project-import-tab" class="project-tab-content" style="display: none;">
+                        <div id="project-drop-zone" class="drop-zone project-drop-zone">
+                            <div class="drop-zone-content">
+                                <span class="drop-zone-icon">📁</span>
+                                <p class="drop-zone-text">Drag & drop PDF files here to add patterns</p>
+                                <input type="file" id="project-file-input" accept=".pdf" multiple hidden>
+                                <button type="button" id="project-browse-btn" class="btn btn-secondary">Browse Files</button>
+                            </div>
                         </div>
-                        <div id="project-staged-list" class="project-staged-list"></div>
+                        <div id="project-staged-files" class="project-staged-files" style="display: none;">
+                            <div class="staged-header">
+                                <span>PDFs to import (<span id="project-staged-count">0</span>)</span>
+                                <button type="button" id="project-clear-staged" class="btn btn-secondary btn-sm">Clear</button>
+                            </div>
+                            <div id="project-staged-list" class="project-staged-list"></div>
+                        </div>
                     </div>
                 </div>
                 <div class="new-pattern-actions">

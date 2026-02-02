@@ -1085,6 +1085,13 @@ async function loadOIDCSettings() {
             document.getElementById('oidc-auto-create').checked = settings.autoCreateUsers !== false;
             document.getElementById('oidc-default-role').value = settings.defaultRole || 'user';
 
+            // Update disable local login description with provider name
+            const disableLocalDesc = document.getElementById('oidc-disable-local-desc');
+            if (disableLocalDesc) {
+                const providerName = settings.providerName || 'SSO';
+                disableLocalDesc.textContent = `Only allow login via ${providerName}`;
+            }
+
             // Show/hide config fields
             document.getElementById('oidc-config-fields').style.display = settings.enabled ? 'block' : 'none';
 

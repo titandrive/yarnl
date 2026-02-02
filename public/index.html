@@ -16,7 +16,7 @@
             document.write('<link rel="icon" type="image/png" sizes="128x128" href="mascots/default.png">');
         }
     </script>
-    <link rel="stylesheet" href="styles.css?v=150">
+    <link rel="stylesheet" href="styles.css?v=154">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -1283,7 +1283,9 @@ Inc in each st around (12)
                             Add User
                         </button>
 
-                        <details class="collapsible-card">
+                        <hr class="settings-divider">
+
+                        <details class="collapsible-card no-card-style">
                             <summary class="collapsible-card-header">
                                 <div class="collapsible-card-title">
                                     <span>Default Categories</span>
@@ -1303,7 +1305,7 @@ Inc in each st around (12)
                         </details>
 
                         <h4 class="settings-subheading">OIDC / Single Sign-On</h4>
-                        <p class="setting-description" style="margin-bottom: 1rem;">Configure authentication with PocketID or other OIDC providers</p>
+                        <p class="setting-description" style="margin-bottom: 1rem;">Configure authentication via your chosen OIDC provider such as PocketID or Authelia</p>
 
                         <div class="setting-item">
                             <div class="setting-info">
@@ -1377,13 +1379,13 @@ Inc in each st around (12)
                             <div class="setting-item">
                                 <div class="setting-info">
                                     <label for="oidc-provider-name">Provider Name</label>
-                                    <p class="setting-description">Shows on login button (e.g., "PocketID")</p>
+                                    <p class="setting-description">Name to show on login button (e.g., "PocketID")</p>
                                 </div>
-                                <input type="text" id="oidc-provider-name" class="settings-input" placeholder="SSO">
+                                <input type="text" id="oidc-provider-name" class="settings-input settings-input-wide" placeholder="SSO">
                             </div>
                             <div class="setting-item">
                                 <div class="setting-info">
-                                    <label for="oidc-icon-url">Icon URL</label>
+                                    <label for="oidc-icon-url">Provider Icon</label>
                                     <p class="setting-description"><a href="https://dashboardicons.com/" target="_blank">Icon</a> to show on login button (optional)</p>
                                 </div>
                                 <input type="text" id="oidc-icon-url" class="settings-input settings-input-wide" placeholder="https://example.com/icon.png">
@@ -1391,7 +1393,7 @@ Inc in each st around (12)
                             <div class="setting-item">
                                 <div class="setting-info">
                                     <label>Disable local login</label>
-                                    <p class="setting-description">Only allow SSO login</p>
+                                    <p class="setting-description" id="oidc-disable-local-desc">Only allow login via SSO</p>
                                 </div>
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="oidc-disable-local">
@@ -2009,6 +2011,6 @@ Inc in each st around (12)
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script src="app.js?v=124"></script>
+    <script src="app.js?v=125"></script>
 </body>
 </html>

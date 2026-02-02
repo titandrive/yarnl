@@ -6055,11 +6055,21 @@ input[type="number"].settings-input {
     font-size: 0.95rem;
     cursor: pointer;
     transition: background 0.2s, border-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
 }
 
 .oidc-btn:hover {
     background: var(--hover-bg);
     border-color: var(--primary-color);
+}
+
+.oidc-btn-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
 }
 
 #save-oidc-btn,

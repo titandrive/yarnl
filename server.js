@@ -613,7 +613,7 @@ app.get('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) =
 // Save OIDC settings (admin only)
 app.post('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) => {
   try {
-    const { enabled, issuer, clientId, clientSecret, disableLocalLogin, autoCreateUsers, defaultRole, providerName } = req.body;
+    const { enabled, issuer, clientId, clientSecret, disableLocalLogin, autoCreateUsers, defaultRole, providerName, iconUrl } = req.body;
 
     // Get existing settings to preserve client secret if not changed
     const existing = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
@@ -627,7 +627,8 @@ app.post('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) 
       disableLocalLogin: disableLocalLogin === true,
       autoCreateUsers: autoCreateUsers !== false,
       defaultRole: defaultRole || 'user',
-      providerName: providerName || existingSettings.providerName || ''
+      providerName: providerName || existingSettings.providerName || '',
+      iconUrl: iconUrl || existingSettings.iconUrl || ''
     };
 
     await pool.query(
@@ -662,7 +663,8 @@ app.post('/api/auth/oidc/discover', authMiddleware, adminOnly, async (req, res) 
     const settings = {
       ...existingSettings,
       issuer: discovered.issuer,
-      providerName: discovered.metadata?.service_documentation?.split('/')[2] ||
+      providerName: existingSettings.providerName ||
+                    discovered.metadata?.service_documentation?.split('/')[2] ||
                     new URL(discovered.issuer).hostname.split('.')[0] ||
                     'SSO',
       discoveredAt: new Date().toISOString()
@@ -845,10 +847,11 @@ app.get('/api/auth/oidc/enabled', async (req, res) => {
     res.json({
       enabled: settings?.enabled === true,
       disableLocalLogin: settings?.disableLocalLogin === true,
-      providerName: settings?.providerName || 'SSO'
+      providerName: settings?.providerName || 'SSO',
+      iconUrl: settings?.iconUrl || ''
     });
   } catch (error) {
-    res.json({ enabled: false, disableLocalLogin: false, providerName: 'SSO' });
+    res.json({ enabled: false, disableLocalLogin: false, providerName: 'SSO', iconUrl: '' });
   }
 });
 

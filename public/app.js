@@ -1040,6 +1040,7 @@ async function loadOIDCSettings() {
             document.getElementById('oidc-client-id').value = settings.clientId || '';
             document.getElementById('oidc-client-secret').value = settings.clientSecret || '';
             document.getElementById('oidc-provider-name').value = settings.providerName || '';
+            document.getElementById('oidc-icon-url').value = settings.iconUrl || '';
             document.getElementById('oidc-disable-local').checked = settings.disableLocalLogin || false;
             document.getElementById('oidc-auto-create').checked = settings.autoCreateUsers !== false;
             document.getElementById('oidc-default-role').value = settings.defaultRole || 'user';
@@ -1064,6 +1065,7 @@ async function saveOIDCSettings() {
         clientId: document.getElementById('oidc-client-id').value.trim(),
         clientSecret: document.getElementById('oidc-client-secret').value,
         providerName: document.getElementById('oidc-provider-name').value.trim(),
+        iconUrl: document.getElementById('oidc-icon-url').value.trim(),
         disableLocalLogin: document.getElementById('oidc-disable-local').checked,
         autoCreateUsers: document.getElementById('oidc-auto-create').checked,
         defaultRole: document.getElementById('oidc-default-role').value
@@ -1202,9 +1204,10 @@ async function checkOIDCEnabled() {
             oidcSection.style.display = data.enabled ? 'block' : 'none';
         }
 
-        // Update OIDC button text with provider name
+        // Update OIDC button with provider name and optional icon
         if (oidcLoginBtn && data.enabled) {
-            oidcLoginBtn.textContent = `Login with ${data.providerName || 'SSO'}`;
+            const iconHtml = data.iconUrl ? `<img src="${data.iconUrl}" alt="" class="oidc-btn-icon">` : '';
+            oidcLoginBtn.innerHTML = `${iconHtml}Login with ${data.providerName || 'SSO'}`;
         }
 
         // Hide local login form if OIDC is enabled and local login is disabled

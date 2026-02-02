@@ -16,7 +16,7 @@
             document.write('<link rel="icon" type="image/png" sizes="128x128" href="mascots/default.png">');
         }
     </script>
-    <link rel="stylesheet" href="styles.css?v=127">
+    <link rel="stylesheet" href="styles.css?v=128">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -30,7 +30,7 @@
     <div id="login-container" class="login-container" style="display: none;">
         <div class="login-card">
             <div class="login-header">
-                <h1><img id="login-mascot" src="mascots/jimmy.default.png?v=1" alt="Yarnl" class="login-mascot">Yarnl</h1>
+                <h1><img id="login-mascot" src="/mascots/jimmy.default.png?v=1" alt="Yarnl" class="login-mascot">Yarnl</h1>
                 <p class="login-subtitle">Your self-hosted crochet companion</p>
             </div>
 
@@ -1354,6 +1354,13 @@ Inc in each st around (12)
                             </div>
                             <div class="setting-item">
                                 <div class="setting-info">
+                                    <label for="oidc-icon-url">Icon URL</label>
+                                    <p class="setting-description"><a href="https://dashboardicons.com/" target="_blank">Icon</a> to show on login button (optional)</p>
+                                </div>
+                                <input type="text" id="oidc-icon-url" class="settings-input settings-input-wide" placeholder="https://example.com/icon.png">
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
                                     <label>Disable local login</label>
                                     <p class="setting-description">Only allow SSO login (admin can still use local)</p>
                                 </div>
@@ -1973,6 +1980,6 @@ Inc in each st around (12)
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script src="app.js?v=109"></script>
+    <script src="app.js?v=110"></script>
 </body>
 </html>

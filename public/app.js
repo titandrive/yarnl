@@ -196,73 +196,111 @@ function displayUsers() {
     const container = document.getElementById('users-list');
     if (!container) return;
 
+    // Remember which cards were expanded
+    const expandedIds = [...container.querySelectorAll('.user-card.expanded')].map(c => c.dataset.userId);
+
     if (allUsers.length === 0) {
         container.innerHTML = '<p class="empty-state">No users found</p>';
         return;
     }
 
     container.innerHTML = allUsers.map(user => `
-        <div class="user-row" data-user-id="${user.id}">
-            <div class="user-row-info">
-                <span class="user-name">${user.username}</span>
-                <span class="user-badge role-badge ${user.role}">${user.role}</span>
-                ${user.oidc_provider ? `<span class="user-badge oidc-badge">${user.oidc_provider}</span>` : ''}
-                ${user.has_password ? '<span class="user-badge password-badge">pw</span>' : ''}
+        <div class="user-card" data-user-id="${user.id}">
+            <div class="user-card-header" onclick="toggleUserCard(this)">
+                <div class="user-card-info">
+                    <span class="user-name">${user.username}</span>
+                    <span class="user-badge role-badge ${user.role}">${user.role}</span>
+                    ${user.oidc_provider ? `<span class="user-badge oidc-badge">${user.oidc_provider}</span>` : ''}
+                    ${user.has_password ? '<span class="user-badge password-badge">pw</span>' : ''}
+                    ${user.id === currentUser.id ? '<span class="user-current-badge">You</span>' : ''}
+                </div>
+                <svg class="user-card-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
             </div>
-            ${user.id === currentUser.id ?
-                '<span class="user-current-badge">You</span>' :
-                `<div class="user-row-controls">
-                    <div class="user-inline-toggles">
-                        <div class="mini-toggle" title="Can add patterns">
-                            <span>Add</span>
-                            <label class="toggle-switch toggle-mini">
-                                <input type="checkbox" ${user.can_add_patterns !== false ? 'checked' : ''} onchange="toggleUserPermission(${user.id}, 'canAddPatterns', this.checked)">
-                                <span class="toggle-slider"></span>
-                            </label>
+            <div class="user-card-body">
+                ${user.id === currentUser.id ?
+                    '<p class="user-card-note">You cannot modify your own account here. Use Account settings instead.</p>' :
+                    `<div class="user-account-actions">
+                        <button class="btn btn-secondary btn-sm btn-with-icon" onclick="showAdminInput(this, 'username', '${user.username}')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                            Username
+                        </button>
+                        <button class="btn btn-secondary btn-sm btn-with-icon" onclick="showAdminInput(this, 'password', '')">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                            ${user.has_password ? 'Password' : 'Set PW'}
+                        </button>
+                        ${user.has_password ? `<button class="btn btn-secondary btn-sm btn-with-icon" onclick="adminRemovePassword(${user.id}, this)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><line x1="9" y1="15" x2="15" y2="19"/><line x1="15" y1="15" x2="9" y2="19"/></svg>
+                            Remove PW
+                        </button>` : ''}
+                        <button class="btn btn-danger btn-sm btn-with-icon" onclick="deleteUser(${user.id}, this)">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                            Delete
+                        </button>
+                        <div class="user-admin-inline-input" style="display:none;">
+                            <input type="text" class="settings-input" data-user-id="${user.id}">
+                            <button class="btn btn-sm" onclick="submitAdminField(${user.id}, this.parentElement.dataset.field, this)">Save</button>
+                            <button class="btn btn-secondary btn-sm" onclick="hideAdminInput(this)">Cancel</button>
                         </div>
-                        <div class="mini-toggle" title="Require password">
-                            <span>Req PW</span>
-                            <label class="toggle-switch toggle-mini">
-                                <input type="checkbox" ${user.password_required ? 'checked' : ''} onchange="togglePasswordRequired(${user.id}, this.checked)">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="mini-toggle" title="Allow SSO">
-                            <span>SSO</span>
-                            <label class="toggle-switch toggle-mini">
-                                <input type="checkbox" ${user.oidc_allowed !== false ? 'checked' : ''} onchange="toggleOidcAllowed(${user.id}, this.checked)">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="mini-toggle" title="Can change username">
-                            <span>Chg User</span>
-                            <label class="toggle-switch toggle-mini">
-                                <input type="checkbox" ${user.can_change_username !== false ? 'checked' : ''} onchange="toggleCanChangeUsername(${user.id}, this.checked)">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="mini-toggle" title="Can change password">
-                            <span>Chg PW</span>
-                            <label class="toggle-switch toggle-mini">
-                                <input type="checkbox" ${user.can_change_password !== false ? 'checked' : ''} onchange="toggleCanChangePassword(${user.id}, this.checked)">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="mini-toggle" title="Admin role">
+                    </div>
+                    <div class="user-permissions-grid">
+                        <div class="user-perm-item">
                             <span>Admin</span>
-                            <label class="toggle-switch toggle-mini">
+                            <label class="toggle-switch toggle-sm">
                                 <input type="checkbox" ${user.role === 'admin' ? 'checked' : ''} onchange="updateUserRole(${user.id}, this.checked ? 'admin' : 'user')">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
-                    </div>
-                    <button class="btn-icon delete-user-btn" onclick="deleteUser(${user.id}, this)" title="Delete user">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                    </button>
-                </div>`
-            }
+                        <div class="user-perm-item">
+                            <span>Add patterns</span>
+                            <label class="toggle-switch toggle-sm">
+                                <input type="checkbox" ${user.can_add_patterns !== false ? 'checked' : ''} onchange="toggleUserPermission(${user.id}, 'canAddPatterns', this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="user-perm-item">
+                            <span>Require PW</span>
+                            <label class="toggle-switch toggle-sm">
+                                <input type="checkbox" ${user.password_required ? 'checked' : ''} onchange="togglePasswordRequired(${user.id}, this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="user-perm-item">
+                            <span>Allow SSO</span>
+                            <label class="toggle-switch toggle-sm">
+                                <input type="checkbox" ${user.oidc_allowed !== false ? 'checked' : ''} onchange="toggleOidcAllowed(${user.id}, this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="user-perm-item">
+                            <span>Change user</span>
+                            <label class="toggle-switch toggle-sm">
+                                <input type="checkbox" ${user.can_change_username !== false ? 'checked' : ''} onchange="toggleCanChangeUsername(${user.id}, this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="user-perm-item">
+                            <span>Change PW</span>
+                            <label class="toggle-switch toggle-sm">
+                                <input type="checkbox" ${user.can_change_password !== false ? 'checked' : ''} onchange="toggleCanChangePassword(${user.id}, this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                    </div>`
+                }
+            </div>
         </div>
     `).join('');
+
+    // Re-expand previously expanded cards
+    expandedIds.forEach(id => {
+        const card = container.querySelector(`.user-card[data-user-id="${id}"]`);
+        if (card) card.classList.add('expanded');
+    });
+}
+
+function toggleUserCard(header) {
+    const card = header.closest('.user-card');
+    card.classList.toggle('expanded');
 }
 
 function openAddUserModal() {
@@ -351,16 +389,14 @@ async function updateUserRole(userId, role) {
 }
 
 async function deleteUser(userId, btn) {
-    // First click - show confirmation state (red icon)
+    // First click - show confirmation state
     if (!btn.classList.contains('confirm-delete')) {
         btn.classList.add('confirm-delete');
-        btn.title = 'Click again to confirm';
+        btn.textContent = 'Confirm Delete';
         return;
     }
 
     // Second click - actually delete
-    btn.disabled = true;
-
     try {
         const response = await fetch(`${API_URL}/api/users/${userId}`, {
             method: 'DELETE'
@@ -372,16 +408,123 @@ async function deleteUser(userId, btn) {
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to delete user', 'error');
-            btn.disabled = false;
             btn.classList.remove('confirm-delete');
-            btn.title = 'Delete user';
+            btn.textContent = 'Delete User';
         }
     } catch (error) {
         console.error('Failed to delete user:', error);
         showToast('Failed to delete user', 'error');
-        btn.disabled = false;
         btn.classList.remove('confirm-delete');
-        btn.title = 'Delete user';
+        btn.textContent = 'Delete User';
+    }
+}
+
+function showAdminInput(btn, field, defaultValue) {
+    const container = btn.closest('.user-account-actions');
+    const inputDiv = container.querySelector('.user-admin-inline-input');
+    const input = inputDiv.querySelector('input');
+
+    // Hide all icon buttons
+    container.querySelectorAll('.btn-icon').forEach(b => b.style.display = 'none');
+
+    // Show and configure input
+    inputDiv.style.display = 'flex';
+    inputDiv.dataset.field = field;
+    input.type = field === 'password' ? 'password' : 'text';
+    input.placeholder = field === 'password' ? 'New password' : 'New username';
+    input.value = defaultValue;
+    setTimeout(() => input.focus(), 50);
+}
+
+function hideAdminInput(btn) {
+    const container = btn.closest('.user-account-actions');
+    const inputDiv = container.querySelector('.user-admin-inline-input');
+
+    // Show all icon buttons
+    container.querySelectorAll('.btn-icon').forEach(b => b.style.display = '');
+    inputDiv.style.display = 'none';
+}
+
+async function submitAdminField(userId, fieldOrBtn, btn) {
+    const container = btn.parentElement;
+    const field = container.dataset.field || fieldOrBtn;
+    const input = container.querySelector('input');
+    const value = input.value.trim();
+    if (!value) return;
+
+    const body = field === 'username' ? { username: value } : { password: value };
+
+    try {
+        const response = await fetch(`${API_URL}/api/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+
+        if (response.ok) {
+            showToast(field === 'username' ? 'Username changed' : 'Password set');
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || `Failed to change ${field}`, 'error');
+        }
+    } catch (error) {
+        console.error(`Failed to change ${field}:`, error);
+        showToast(`Failed to change ${field}`, 'error');
+    }
+}
+
+// Keep for backwards compatibility but no longer used
+async function submitAdminPassword(userId, btn) {
+    const input = btn.parentElement.querySelector('input');
+    const newPassword = input.value;
+    if (!newPassword) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password: newPassword })
+        });
+
+        if (response.ok) {
+            showToast('Password set');
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to set password', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to set password:', error);
+        showToast('Failed to set password', 'error');
+    }
+}
+
+async function adminRemovePassword(userId, btn) {
+    // First click - show confirmation state
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.textContent = 'Confirm';
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ removePassword: true })
+        });
+
+        if (response.ok) {
+            showToast('Password removed');
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to remove password', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to remove password:', error);
+        showToast('Failed to remove password', 'error');
     }
 }
 
@@ -887,7 +1030,7 @@ async function loadOIDCSettings() {
     try {
         // Set callback URL automatically
         const callbackUrl = `${window.location.origin}/api/auth/oidc/callback`;
-        document.getElementById('oidc-callback-url').value = callbackUrl;
+        document.getElementById('oidc-callback-url').textContent = callbackUrl;
 
         const response = await fetch(`${API_URL}/api/auth/oidc/settings`);
         if (response.ok) {
@@ -1015,15 +1158,12 @@ function hideDiscoveredEndpoints() {
 }
 
 function copyCallbackUrl() {
-    const input = document.getElementById('oidc-callback-url');
-    if (input) {
-        navigator.clipboard.writeText(input.value).then(() => {
+    const el = document.getElementById('oidc-callback-url');
+    if (el) {
+        navigator.clipboard.writeText(el.textContent).then(() => {
             showToast('Callback URL copied');
         }).catch(() => {
-            // Fallback
-            input.select();
-            document.execCommand('copy');
-            showToast('Callback URL copied');
+            showToast('Failed to copy', 'error');
         });
     }
 }

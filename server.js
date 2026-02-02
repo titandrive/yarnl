@@ -307,12 +307,21 @@ app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
 app.patch('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    const { role, canAddPatterns, password, displayName, passwordRequired, oidcAllowed } = req.body;
+    const { role, canAddPatterns, password, displayName, passwordRequired, oidcAllowed, username, removePassword } = req.body;
 
     const updates = [];
     const values = [];
     let paramCount = 1;
 
+    if (username !== undefined) {
+      // Check if username is already taken
+      const existing = await pool.query('SELECT id FROM users WHERE username = $1 AND id != $2', [username, userId]);
+      if (existing.rows.length > 0) {
+        return res.status(400).json({ error: 'Username already taken' });
+      }
+      updates.push(`username = $${paramCount++}`);
+      values.push(username);
+    }
     if (role !== undefined) {
       updates.push(`role = $${paramCount++}`);
       values.push(role);
@@ -325,7 +334,10 @@ app.patch('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
       updates.push(`display_name = $${paramCount++}`);
       values.push(displayName);
     }
-    if (password !== undefined) {
+    if (removePassword) {
+      updates.push(`password_hash = $${paramCount++}`);
+      values.push(null);
+    } else if (password !== undefined) {
       const hash = password ? await hashPassword(password) : null;
       updates.push(`password_hash = $${paramCount++}`);
       values.push(hash);

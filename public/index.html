@@ -16,7 +16,7 @@
             document.write('<link rel="icon" type="image/png" sizes="128x128" href="mascots/default.png">');
         }
     </script>
-    <link rel="stylesheet" href="styles.css?v=113">
+    <link rel="stylesheet" href="styles.css?v=127">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -1265,7 +1265,7 @@ Inc in each st around (12)
                             <!-- Users will be populated here -->
                         </div>
 
-                        <button class="btn btn-secondary" onclick="openAddUserModal()">
+                        <button id="add-user-open-btn" class="btn btn-secondary" onclick="openAddUserModal()">
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;">
                                 <line x1="12" y1="5" x2="12" y2="19"></line>
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -1291,12 +1291,9 @@ Inc in each st around (12)
                             <div class="setting-item">
                                 <div class="setting-info">
                                     <label>Callback URL</label>
-                                    <p class="setting-description">Add this to your OIDC provider</p>
+                                    <p class="setting-description">Click to copy</p>
                                 </div>
-                                <div class="copy-input-group">
-                                    <input type="text" id="oidc-callback-url" class="settings-input settings-input-wide" readonly>
-                                    <button type="button" class="btn btn-secondary btn-small" onclick="copyCallbackUrl()">Copy</button>
-                                </div>
+                                <span id="oidc-callback-url" class="copyable-url" onclick="copyCallbackUrl()"></span>
                             </div>
                             <div class="setting-item">
                                 <div class="setting-info">
@@ -1384,7 +1381,7 @@ Inc in each st around (12)
                                     <option value="admin">Admin</option>
                                 </select>
                             </div>
-                            <button id="save-oidc-btn" class="btn">Save OIDC Settings</button>
+                            <button id="save-oidc-btn" class="btn btn-primary">Save OIDC Settings</button>
                         </div>
                     </section>
 
@@ -1976,6 +1973,6 @@ Inc in each st around (12)
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script src="app.js?v=99"></script>
+    <script src="app.js?v=109"></script>
 </body>
 </html>

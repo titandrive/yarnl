@@ -6062,6 +6062,24 @@ input[type="number"].settings-input {
     border-color: var(--primary-color);
 }
 
+#save-oidc-btn,
+#add-user-open-btn,
+#oidc-discover-btn {
+    width: fit-content;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+}
+
+#save-oidc-btn {
+    margin-top: 0.5rem;
+}
+
+#add-user-open-btn {
+    display: inline-flex;
+    align-items: center;
+    margin-top: 0.75rem;
+}
+
 /* ============================================
    User Management Styles
    ============================================ */
@@ -6086,23 +6104,166 @@ input[type="number"].settings-input {
     border-color: var(--primary-color-dim);
 }
 
-/* User Row - Inline Design */
-.user-row {
+.user-card-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.6rem 0.875rem;
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    gap: 1rem;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    user-select: none;
 }
 
-.user-row-info {
+.user-card-header:hover {
+    background: var(--hover-bg);
+}
+
+.user-card-info {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.user-card-chevron {
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.user-card.expanded .user-card-chevron {
+    transform: rotate(180deg);
+}
+
+.user-card-body {
+    display: none;
+    padding: 0 1rem 1rem;
+    border-top: 1px solid var(--border-color);
+}
+
+.user-card.expanded .user-card-body {
+    display: block;
+}
+
+.user-card-note {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-style: italic;
+    margin: 0.75rem 0 0;
+}
+
+.user-account-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 0.75rem;
+}
+
+.user-account-actions .btn-icon {
+    padding: 0.4rem;
+    border-radius: 6px;
+    background: var(--bg-color);
+    color: var(--text-muted);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.user-account-actions .btn-icon:hover {
+    background: var(--hover-bg);
+    color: var(--text-color);
+}
+
+.user-account-actions .btn-icon-danger:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--error-color, #ef4444);
+}
+
+.user-account-actions .btn-icon.confirm-delete {
+    background: var(--error-color, #ef4444);
+    color: white;
+}
+
+.user-admin-inline-input {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+}
+
+.user-admin-inline-input input {
+    width: 160px;
+}
+
+.user-permissions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+}
+
+.user-perm-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.6rem;
+    background: var(--bg-color);
+    border-radius: 4px;
+    font-size: 0.8rem;
+    color: var(--text-color);
+    cursor: pointer;
+}
+
+.user-perm-item:hover {
+    background: var(--hover-bg);
+}
+
+.user-perm-item .toggle-switch {
+    flex-shrink: 0;
+}
+
+/* Small toggle switch for permission grid */
+.toggle-sm {
+    width: 36px !important;
+    height: 20px !important;
+}
+
+.toggle-sm .toggle-slider::before {
+    width: 14px !important;
+    height: 14px !important;
+    left: 3px !important;
+    bottom: 2px !important;
+}
+
+.toggle-sm input:checked + .toggle-slider::before {
+    transform: translateX(16px) !important;
+}
+
+/* Buttons with icon and text */
+.btn-with-icon {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.btn-with-icon svg {
+    flex-shrink: 0;
+}
+
+.btn-danger {
+    background: var(--error-color, #ef4444);
+    color: white;
+    border: none;
+}
+
+.btn-danger:hover {
+    background: #dc2626;
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8rem;
 }
 
 .user-name {
@@ -6288,6 +6449,22 @@ input[type="number"].settings-input {
     flex: 1;
 }
 
+.copyable-url {
+    font-family: monospace;
+    font-size: 0.85rem;
+    color: var(--primary-color);
+    cursor: pointer;
+    padding: 0.25rem 0.5rem;
+    background: var(--bg-color);
+    border-radius: 4px;
+    word-break: break-all;
+    transition: background 0.2s;
+}
+
+.copyable-url:hover {
+    background: var(--hover-bg);
+}
+
 .discovery-status {
     padding: 0.75rem;
     margin: 0.5rem 0 1rem 0;
@@ -6296,8 +6473,9 @@ input[type="number"].settings-input {
 }
 
 .discovery-status.success {
-    background: var(--success-color);
-    color: white;
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--success-color);
+    border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
 .discovery-status.error {

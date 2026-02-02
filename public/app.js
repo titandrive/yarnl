@@ -1500,6 +1500,7 @@ let currentPatterns = [];
 let projects = []; // All projects
 let currentProjects = []; // Projects marked as current
 let currentProjectId = null; // Currently viewing project
+let currentProjectPatterns = []; // Patterns in currently viewing project
 let projectReorderMode = false; // Reorder mode for project patterns
 let allCategories = []; // All possible categories for editing/uploading
 let populatedCategories = []; // Only categories with patterns (for filtering)
@@ -10265,12 +10266,6 @@ function initProjectPanel() {
         addPatternsBtn.addEventListener('click', showAddPatternsModal);
     }
 
-    // Reorder patterns button
-    const reorderPatternsBtn = document.getElementById('reorder-patterns-btn');
-    if (reorderPatternsBtn) {
-        reorderPatternsBtn.addEventListener('click', toggleProjectReorderMode);
-    }
-
     // Project notes modal
     const closeProjectNotesModal = document.getElementById('close-project-notes-modal');
     const cancelProjectNotes = document.getElementById('cancel-project-notes');
@@ -10453,8 +10448,9 @@ async function openProjectView(projectId) {
             ).join('') || '';
         }
 
-        // Render patterns list
-        renderProjectPatterns(project.patterns || []);
+        // Store and render patterns list
+        currentProjectPatterns = project.patterns || [];
+        renderProjectPatterns(currentProjectPatterns);
 
     } catch (error) {
         console.error('Error opening project:', error);
@@ -10465,6 +10461,7 @@ async function openProjectView(projectId) {
 // Close project detail view
 function closeProjectView() {
     currentProjectId = null;
+    currentProjectPatterns = [];
 
     // Reset reorder mode if active
     if (projectReorderMode) {
@@ -10504,9 +10501,6 @@ function renderProjectPatterns(patterns) {
     }
 
     container.innerHTML = patterns.map((pattern, index) => {
-        const statusIcon = pattern.project_status === 'completed' ? '&#10003;'
-            : pattern.project_status === 'in_progress' ? '&#9654;'
-            : '&#9675;';
         const statusClass = pattern.project_status === 'completed' ? 'status-completed'
             : pattern.project_status === 'in_progress' ? 'status-in-progress'
             : 'status-pending';
@@ -10525,6 +10519,7 @@ function renderProjectPatterns(patterns) {
             <div class="project-pattern-item ${statusClass}${projectReorderMode ? ' reorder-mode' : ''}"
                  data-pattern-id="${pattern.id}"
                  draggable="${projectReorderMode}"
+                 onclick="${projectReorderMode ? '' : `openPDFViewer(${pattern.id})`}"
                  ondragstart="handlePatternDragStart(event)"
                  ondragover="handlePatternDragOver(event)"
                  ondrop="handlePatternDrop(event)"
@@ -10546,22 +10541,13 @@ function renderProjectPatterns(patterns) {
                     <h4>${escapeHtml(pattern.name)}</h4>
                     <span class="project-pattern-time">${formatTimeHumanReadable(pattern.timer_seconds || 0)}</span>
                 </div>
-                <div class="project-pattern-status">
-                    <span class="status-icon ${statusClass}">${statusIcon}</span>
-                </div>
                 <div class="project-pattern-actions"${projectReorderMode ? ' style="display: none;"' : ''}>
-                    <button class="btn btn-sm btn-secondary" onclick="event.stopPropagation(); openPDFViewer(${pattern.id})" title="View pattern">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                            <circle cx="12" cy="12" r="3"></circle>
-                        </svg>
-                    </button>
-                    <select class="project-pattern-status-select" onchange="updatePatternStatusInProject(${pattern.id}, this.value)">
+                    <select class="project-pattern-status-select" onclick="event.stopPropagation()" onchange="event.stopPropagation(); updatePatternStatusInProject(${pattern.id}, this.value)">
                         <option value="pending" ${pattern.project_status === 'pending' ? 'selected' : ''}>Pending</option>
                         <option value="in_progress" ${pattern.project_status === 'in_progress' ? 'selected' : ''}>In Progress</option>
                         <option value="completed" ${pattern.project_status === 'completed' ? 'selected' : ''}>Completed</option>
                     </select>
-                    <button class="btn btn-sm btn-danger" onclick="event.stopPropagation(); removePatternFromProject(${pattern.id})" title="Remove from project">
+                    <button class="btn btn-sm btn-danger project-pattern-remove" onclick="event.stopPropagation(); removePatternFromProject(${pattern.id}, this)" title="Remove from project">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -10582,32 +10568,29 @@ function toggleProjectReorderMode() {
     const btn = document.getElementById('reorder-patterns-btn');
     if (btn) {
         if (projectReorderMode) {
-            btn.classList.add('active');
             btn.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polyline points="20 6 9 17 4 12"></polyline>
                 </svg>
                 Done
             `;
+            btn.classList.add('active');
         } else {
-            btn.classList.remove('active');
             btn.innerHTML = `
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <line x1="3" y1="12" x2="21" y2="12"></line>
                     <line x1="3" y1="6" x2="21" y2="6"></line>
                     <line x1="3" y1="18" x2="21" y2="18"></line>
                 </svg>
                 Reorder
             `;
+            btn.classList.remove('active');
         }
     }
 
     // Re-render patterns with/without drag handles
-    if (currentProjectId) {
-        const project = projects.find(p => p.id === currentProjectId);
-        if (project?.patterns) {
-            renderProjectPatterns(project.patterns);
-        }
+    if (currentProjectPatterns.length > 0) {
+        renderProjectPatterns(currentProjectPatterns);
     }
 }
 
@@ -10683,12 +10666,9 @@ async function saveProjectPatternOrder(patternIds) {
 
         if (!response.ok) throw new Error('Failed to save order');
 
-        // Update local project data
-        const project = projects.find(p => p.id === currentProjectId);
-        if (project?.patterns) {
-            const patternMap = new Map(project.patterns.map(p => [p.id, p]));
-            project.patterns = patternIds.map(id => patternMap.get(id)).filter(Boolean);
-        }
+        // Update local patterns order
+        const patternMap = new Map(currentProjectPatterns.map(p => [p.id, p]));
+        currentProjectPatterns = patternIds.map(id => patternMap.get(id)).filter(Boolean);
     } catch (error) {
         console.error('Error saving pattern order:', error);
     }
@@ -10947,9 +10927,30 @@ async function confirmAddPatternsToProject() {
 }
 
 // Remove pattern from current project
-async function removePatternFromProject(patternId) {
-    if (!confirm('Remove this pattern from the project?')) return;
+async function removePatternFromProject(patternId, btn) {
+    // First click - show confirm state
+    if (!btn.classList.contains('confirm')) {
+        btn.classList.add('confirm');
+        btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+        </svg>`;
+        btn.title = 'Click again to confirm';
 
+        // Reset after 3 seconds
+        setTimeout(() => {
+            if (btn.classList.contains('confirm')) {
+                btn.classList.remove('confirm');
+                btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>`;
+                btn.title = 'Remove from project';
+            }
+        }, 3000);
+        return;
+    }
+
+    // Second click - actually remove
     try {
         const response = await fetch(`${API_URL}/api/projects/${currentProjectId}/patterns/${patternId}`, {
             method: 'DELETE'
@@ -10962,7 +10963,6 @@ async function removePatternFromProject(patternId) {
         await loadProjects();
     } catch (error) {
         console.error('Error removing pattern from project:', error);
-        alert('Error removing pattern: ' + error.message);
     }
 }
 

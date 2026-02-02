@@ -6802,6 +6802,8 @@ input[type="number"].settings-input {
     max-width: 1200px;
     margin: 0 auto;
     width: 100%;
+    height: 100%;
+    overflow-y: auto;
 }
 
 .project-detail-header {
@@ -6882,6 +6884,11 @@ input[type="number"].settings-input {
     background: var(--bg-color);
     margin-bottom: 8px;
     transition: background 0.2s ease;
+    cursor: pointer;
+}
+
+.project-pattern-item.reorder-mode {
+    cursor: grab;
 }
 
 .project-pattern-item:hover {
@@ -6991,6 +6998,16 @@ input[type="number"].settings-input {
     color: var(--text-color);
     font-size: 0.8rem;
     cursor: pointer;
+    height: 32px;
+}
+
+.project-pattern-actions .btn-sm {
+    height: 32px;
+    width: 32px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .project-detail-footer {

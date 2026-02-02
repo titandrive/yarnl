@@ -114,7 +114,7 @@
         </header>
 
         <nav class="tabs">
-            <button class="tab-btn active" data-tab="current">Current Patterns<span class="tab-count" id="current-tab-count"></span></button>
+            <button class="tab-btn active" data-tab="current">In Progress<span class="tab-count" id="current-tab-count"></span></button>
             <button class="tab-btn" data-tab="library">Library<span class="tab-count" id="library-tab-count"></span></button>
             <button class="tab-btn" data-tab="projects" id="projects-tab-btn">Projects<span class="tab-count" id="projects-tab-count"></span></button>
         </nav>
@@ -150,7 +150,7 @@
                             <select id="show-filter-select">
                                 <option value="all">All Patterns</option>
                                 <option value="favorites">Favorites Only</option>
-                                <option value="current">Current Only</option>
+                                <option value="current">In Progress Only</option>
                                 <option value="new">New Only</option>
                             </select>
                         </div>
@@ -193,7 +193,7 @@
                                 </label>
                             </div>
                             <div class="sidebar-toggle-row">
-                                <span>Current</span>
+                                <span>In Progress</span>
                                 <label class="toggle-switch small">
                                     <input type="checkbox" id="show-current" checked>
                                     <span class="toggle-slider"></span>
@@ -222,7 +222,7 @@
                             <select id="highlight-select" class="sidebar-select">
                                 <option value="none">None</option>
                                 <option value="favorites">Favorites</option>
-                                <option value="current">Current</option>
+                                <option value="current">In Progress</option>
                                 <option value="new">New Patterns</option>
                             </select>
                         </div>
@@ -349,7 +349,7 @@ Inc in each st around (12)
                     </div>
                     <div class="new-pattern-actions">
                         <div class="mark-current-toggle">
-                            <span class="mark-current-label">Mark as current pattern</span>
+                            <span class="mark-current-label">Mark as in progress</span>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="new-pattern-is-current">
                                 <span class="toggle-slider"></span>
@@ -854,7 +854,7 @@ Inc in each st around (12)
                                 <p class="setting-description">Page shown on startup</p>
                             </div>
                             <select id="default-page-select" class="settings-select">
-                                <option value="current">Current</option>
+                                <option value="current">In Progress</option>
                                 <option value="library">Library</option>
                             </select>
                         </div>
@@ -870,8 +870,8 @@ Inc in each st around (12)
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Auto-Current on Timer</label>
-                                <p class="setting-description">Mark pattern as current when timer starts</p>
+                                <label>Auto In-Progress on Timer</label>
+                                <p class="setting-description">Mark pattern as in progress when timer starts</p>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="auto-current-timer-checkbox">
@@ -1829,7 +1829,7 @@ Inc in each st around (12)
                             <small class="form-hint">Click to select or paste an image</small>
                         </div>
                         <div class="form-group mark-current-toggle">
-                            <span class="mark-current-label">Mark as current pattern</span>
+                            <span class="mark-current-label">Mark as in progress</span>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="pdf-edit-is-current">
                                 <span class="toggle-slider"></span>
@@ -1978,7 +1978,7 @@ Inc in each st around (12)
                             <small class="form-hint">Click to select or paste an image</small>
                         </div>
                         <div class="form-group mark-current-toggle">
-                            <span class="mark-current-label">Mark as current pattern</span>
+                            <span class="mark-current-label">Mark as in progress</span>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="markdown-edit-is-current">
                                 <span class="toggle-slider"></span>
@@ -2041,7 +2041,7 @@ Inc in each st around (12)
                     <p class="help-text">Click to select or paste an image</p>
                 </div>
                 <div class="form-group mark-current-toggle">
-                    <span class="mark-current-label">Mark as current pattern</span>
+                    <span class="mark-current-label">Mark as in progress</span>
                     <label class="toggle-switch">
                         <input type="checkbox" id="edit-is-current">
                         <span class="toggle-slider"></span>
@@ -2212,6 +2212,6 @@ Inc in each st around (12)
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script src="app.js?v=137"></script>
+    <script src="app.js?v=139"></script>
 </body>
 </html>

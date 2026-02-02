@@ -3537,7 +3537,7 @@ function renderStagedFiles() {
                     <div class="staged-file-sidebar">
                         ${thumbnailHtml}
                         <div class="staged-file-current-toggle">
-                            <span class="mark-current-label">Current</span>
+                            <span class="mark-current-label">In Progress</span>
                             <label class="toggle-switch">
                                 <input type="checkbox"
                                        ${stagedFile.isCurrent ? 'checked' : ''}
@@ -4107,7 +4107,7 @@ function initSettings() {
         autoCurrentTimerCheckbox.addEventListener('change', () => {
             autoCurrentOnTimer = autoCurrentTimerCheckbox.checked;
             localStorage.setItem('autoCurrentOnTimer', autoCurrentOnTimer);
-            showToast(autoCurrentOnTimer ? 'Patterns will be marked current on timer start' : 'Auto-current disabled');
+            showToast(autoCurrentOnTimer ? 'Patterns will be marked in progress on timer start' : 'Auto in-progress disabled');
         });
     }
 
@@ -6990,7 +6990,7 @@ function renderPatternCard(pattern, options = {}) {
     return `
         <div class="pattern-card${highlightClass}" onclick="handlePatternClick(event, ${pattern.id})">
             ${showStatusBadge && pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
-            ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
+            ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge">IN PROGRESS</span>' : ''}
             ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
             ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
             ${showStarBadge && pattern.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
@@ -7015,7 +7015,7 @@ function renderPatternCard(pattern, options = {}) {
             <div class="pattern-actions" onclick="event.stopPropagation()">
                 <button class="action-btn ${pattern.is_current ? 'current' : ''}"
                         onclick="toggleCurrent('${pattern.id}', ${!pattern.is_current})"
-                        title="${pattern.is_current ? 'Remove from Current' : 'Make Current'}">
+                        title="${pattern.is_current ? 'Remove from In Progress' : 'Mark In Progress'}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_current ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
                     </svg>
@@ -8499,7 +8499,7 @@ async function openPatternInfoModal() {
             { label: 'Date Added', value: new Date(info.upload_date).toLocaleDateString() },
             { label: 'Time Elapsed', value: formatTime(info.timer_seconds || 0) },
             { label: 'Completed', value: info.completed ? `Yes ${info.completed_date ? '(' + new Date(info.completed_date).toLocaleDateString() + ')' : ''}` : 'No' },
-            { label: 'Marked Current', value: info.is_current ? 'Yes' : 'No' },
+            { label: 'In Progress', value: info.is_current ? 'Yes' : 'No' },
             { label: 'File Size', value: formatFileSize(info.file_size) },
             { label: 'Filename', value: `<code>${escapeHtml(info.filename)}</code>` },
             { label: 'File Path', value: `<code>${escapeHtml(info.file_path)}</code>` }
@@ -9961,7 +9961,7 @@ function renderProjectCard(project) {
         <div class="pattern-card project-card" onclick="openProjectView(${project.id})">
             <span class="project-badge">PROJECT</span>
             ${project.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
-            ${!project.completed && project.is_current ? '<span class="current-badge">CURRENT</span>' : ''}
+            ${!project.completed && project.is_current ? '<span class="current-badge">IN PROGRESS</span>' : ''}
             ${project.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
 
             <div class="pattern-thumbnail project-thumbnail" style="background: var(--card-bg);">
@@ -9998,7 +9998,7 @@ function renderProjectCard(project) {
             <div class="pattern-actions" onclick="event.stopPropagation()">
                 <button class="action-btn ${project.is_current ? 'current' : ''}"
                         onclick="toggleProjectCurrent(${project.id}, ${!project.is_current})"
-                        title="Make Current">
+                        title="${project.is_current ? 'Remove from In Progress' : 'Mark In Progress'}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="${project.is_current ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
                         <polygon points="5 3 19 12 5 21 5 3"></polygon>
                     </svg>

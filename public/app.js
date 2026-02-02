@@ -177,11 +177,19 @@ function initAuth() {
 
 // User management functions
 let allUsers = [];
+let oidcInfo = { enabled: false, providerName: 'SSO' };
 
 async function loadUsers() {
     if (!currentUser || currentUser.role !== 'admin') return;
 
     try {
+        // Load OIDC info for SSO toggle display
+        const oidcResponse = await fetch(`${API_URL}/api/auth/oidc/enabled`);
+        if (oidcResponse.ok) {
+            const data = await oidcResponse.json();
+            oidcInfo = { enabled: data.enabled, providerName: data.providerName || 'SSO' };
+        }
+
         const response = await fetch(`${API_URL}/api/users`);
         if (response.ok) {
             allUsers = await response.json();
@@ -222,11 +230,11 @@ function displayUsers() {
                     `<div class="user-account-actions">
                         <button class="btn btn-secondary btn-sm btn-with-icon" onclick="showAdminInput(this, 'username', '${user.username}')">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                            Username
+                            Change Username
                         </button>
                         <button class="btn btn-secondary btn-sm btn-with-icon" onclick="showAdminInput(this, 'password', '')">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                            ${user.has_password ? 'Password' : 'Set PW'}
+                            ${user.has_password ? 'Change Password' : 'Set Password'}
                         </button>
                         ${user.has_password ? `<button class="btn btn-secondary btn-sm btn-with-icon" onclick="adminRemovePassword(${user.id}, this)">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/><line x1="9" y1="15" x2="15" y2="19"/><line x1="15" y1="15" x2="9" y2="19"/></svg>
@@ -244,44 +252,62 @@ function displayUsers() {
                     </div>
                     <div class="user-permissions-grid">
                         <div class="user-perm-item">
-                            <span>Admin</span>
+                            <div class="user-perm-info">
+                                <span class="user-perm-title">User is admin</span>
+                                <span class="user-perm-desc">User has access to admin panel</span>
+                            </div>
                             <label class="toggle-switch toggle-sm">
                                 <input type="checkbox" ${user.role === 'admin' ? 'checked' : ''} onchange="updateUserRole(${user.id}, this.checked ? 'admin' : 'user')">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                         <div class="user-perm-item">
-                            <span>Add patterns</span>
+                            <div class="user-perm-info">
+                                <span class="user-perm-title">Can add patterns</span>
+                                <span class="user-perm-desc">User can upload or create new patterns</span>
+                            </div>
                             <label class="toggle-switch toggle-sm">
                                 <input type="checkbox" ${user.can_add_patterns !== false ? 'checked' : ''} onchange="toggleUserPermission(${user.id}, 'canAddPatterns', this.checked)">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                         <div class="user-perm-item">
-                            <span>Require PW</span>
+                            <div class="user-perm-info">
+                                <span class="user-perm-title">Password required</span>
+                                <span class="user-perm-desc">User can disable password</span>
+                            </div>
                             <label class="toggle-switch toggle-sm">
                                 <input type="checkbox" ${user.password_required ? 'checked' : ''} onchange="togglePasswordRequired(${user.id}, this.checked)">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                         <div class="user-perm-item">
-                            <span>Allow SSO</span>
-                            <label class="toggle-switch toggle-sm">
-                                <input type="checkbox" ${user.oidc_allowed !== false ? 'checked' : ''} onchange="toggleOidcAllowed(${user.id}, this.checked)">
-                                <span class="toggle-slider"></span>
-                            </label>
-                        </div>
-                        <div class="user-perm-item">
-                            <span>Change user</span>
+                            <div class="user-perm-info">
+                                <span class="user-perm-title">Can change username</span>
+                                <span class="user-perm-desc">User can change their username</span>
+                            </div>
                             <label class="toggle-switch toggle-sm">
                                 <input type="checkbox" ${user.can_change_username !== false ? 'checked' : ''} onchange="toggleCanChangeUsername(${user.id}, this.checked)">
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
                         <div class="user-perm-item">
-                            <span>Change PW</span>
+                            <div class="user-perm-info">
+                                <span class="user-perm-title">Can change password</span>
+                                <span class="user-perm-desc">User can change their password</span>
+                            </div>
                             <label class="toggle-switch toggle-sm">
                                 <input type="checkbox" ${user.can_change_password !== false ? 'checked' : ''} onchange="toggleCanChangePassword(${user.id}, this.checked)">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="user-perm-item ${!oidcInfo.enabled ? 'disabled' : ''}">
+                            <div class="user-perm-info">
+                                <span class="user-perm-title">Can use ${oidcInfo.providerName}</span>
+                                <span class="user-perm-desc">${oidcInfo.enabled ? `User can login with ${oidcInfo.providerName}` : 'SSO is not enabled'}</span>
+                            </div>
+                            <label class="toggle-switch toggle-sm">
+                                <input type="checkbox" ${user.oidc_allowed !== false ? 'checked' : ''} onchange="toggleOidcAllowed(${user.id}, this.checked)" ${!oidcInfo.enabled ? 'disabled' : ''}>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -720,6 +746,7 @@ function initUserManagement() {
     if (isAdmin) {
         loadUsers();
         initOIDCSettings();
+        initDefaultCategories();
     }
 
     // Setup password management - inline forms
@@ -1058,9 +1085,34 @@ async function loadOIDCSettings() {
     }
 }
 
+async function toggleOIDCEnabled(enabled) {
+    // Toggle just enables/disables - preserves all other settings on server
+    try {
+        const response = await fetch(`${API_URL}/api/auth/oidc/toggle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ enabled })
+        });
+
+        if (response.ok) {
+            showToast(enabled ? 'SSO enabled' : 'SSO disabled');
+            checkOIDCEnabled();
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to toggle OIDC', 'error');
+            // Revert toggle on failure
+            document.getElementById('oidc-enabled-toggle').checked = !enabled;
+        }
+    } catch (error) {
+        console.error('Failed to toggle OIDC:', error);
+        showToast('Failed to toggle OIDC', 'error');
+        document.getElementById('oidc-enabled-toggle').checked = !enabled;
+    }
+}
+
 async function saveOIDCSettings() {
     const settings = {
-        enabled: document.getElementById('oidc-enabled-toggle').checked,
         issuer: document.getElementById('oidc-issuer').value.trim(),
         clientId: document.getElementById('oidc-client-id').value.trim(),
         clientSecret: document.getElementById('oidc-client-secret').value,
@@ -1080,8 +1132,8 @@ async function saveOIDCSettings() {
 
         if (response.ok) {
             showToast('OIDC settings saved');
-            // Update login page OIDC button visibility
             checkOIDCEnabled();
+            loadUsers();
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to save OIDC settings', 'error');
@@ -1175,6 +1227,7 @@ function initOIDCSettings() {
     if (enabledToggle) {
         enabledToggle.addEventListener('change', () => {
             document.getElementById('oidc-config-fields').style.display = enabledToggle.checked ? 'block' : 'none';
+            toggleOIDCEnabled(enabledToggle.checked);
         });
     }
 
@@ -1217,6 +1270,147 @@ async function checkOIDCEnabled() {
     } catch (error) {
         console.error('Failed to check OIDC status:', error);
     }
+}
+
+// Default categories management (admin)
+let defaultCategories = [];
+
+async function loadDefaultCategories() {
+    try {
+        const response = await fetch(`${API_URL}/api/admin/default-categories`);
+        if (response.ok) {
+            defaultCategories = await response.json();
+            renderDefaultCategoriesList();
+        }
+    } catch (error) {
+        console.error('Failed to load default categories:', error);
+    }
+}
+
+function renderDefaultCategoriesList() {
+    const list = document.getElementById('default-categories-list');
+    if (!list) return;
+
+    if (defaultCategories.length === 0) {
+        list.innerHTML = '<p class="empty-state">No default categories configured</p>';
+        return;
+    }
+
+    list.innerHTML = defaultCategories.map((category, index) => `
+        <div class="category-item" data-category="${escapeHtml(category)}" data-index="${index}">
+            <div class="category-info">
+                <span class="category-name">${escapeHtml(category)}</span>
+            </div>
+            <div class="category-actions">
+                <button class="btn btn-small btn-secondary" onclick="startDefaultCategoryEdit(this.closest('.category-item'))">Edit</button>
+                <button class="btn btn-small btn-danger" onclick="deleteDefaultCategory('${escapeHtml(category)}')">Delete</button>
+            </div>
+        </div>
+    `).join('');
+}
+
+async function addDefaultCategory() {
+    const input = document.getElementById('new-default-category-input');
+    const name = input.value.trim();
+
+    if (!name) return;
+
+    if (defaultCategories.includes(name)) {
+        showToast('Category already exists', 'error');
+        return;
+    }
+
+    defaultCategories.push(name);
+    await saveDefaultCategories();
+    input.value = '';
+}
+
+async function deleteDefaultCategory(name) {
+    defaultCategories = defaultCategories.filter(c => c !== name);
+    await saveDefaultCategories();
+}
+
+function startDefaultCategoryEdit(item) {
+    const nameSpan = item.querySelector('.category-name');
+    const oldName = item.dataset.category;
+
+    if (nameSpan.isContentEditable) return;
+
+    nameSpan.contentEditable = true;
+    nameSpan.classList.add('editing');
+    nameSpan.focus();
+
+    const range = document.createRange();
+    range.selectNodeContents(nameSpan);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const saveEdit = async () => {
+        const newName = nameSpan.textContent.trim();
+        nameSpan.contentEditable = false;
+        nameSpan.classList.remove('editing');
+
+        if (newName && newName !== oldName) {
+            const index = defaultCategories.indexOf(oldName);
+            if (index !== -1) {
+                defaultCategories[index] = newName;
+                await saveDefaultCategories();
+            }
+        } else {
+            renderDefaultCategoriesList();
+        }
+    };
+
+    nameSpan.addEventListener('blur', saveEdit, { once: true });
+    nameSpan.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            nameSpan.blur();
+        } else if (e.key === 'Escape') {
+            nameSpan.textContent = oldName;
+            nameSpan.blur();
+        }
+    });
+}
+
+async function saveDefaultCategories() {
+    try {
+        const response = await fetch(`${API_URL}/api/admin/default-categories`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ categories: defaultCategories })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            defaultCategories = data.categories;
+            renderDefaultCategoriesList();
+            showToast('Default categories saved');
+        } else {
+            throw new Error('Failed to save');
+        }
+    } catch (error) {
+        console.error('Error saving default categories:', error);
+        showToast('Failed to save default categories', 'error');
+        loadDefaultCategories(); // Reload to revert
+    }
+}
+
+function initDefaultCategories() {
+    const addBtn = document.getElementById('add-default-category-btn');
+    const input = document.getElementById('new-default-category-input');
+
+    if (addBtn) {
+        addBtn.addEventListener('click', addDefaultCategory);
+    }
+    if (input) {
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addDefaultCategory();
+        });
+    }
+
+    loadDefaultCategories();
 }
 
 // Toast notification system

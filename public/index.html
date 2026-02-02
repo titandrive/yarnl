@@ -16,7 +16,7 @@
             document.write('<link rel="icon" type="image/png" sizes="128x128" href="mascots/default.png">');
         }
     </script>
-    <link rel="stylesheet" href="styles.css?v=128">
+    <link rel="stylesheet" href="styles.css?v=134">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -1273,6 +1273,25 @@ Inc in each st around (12)
                             Add User
                         </button>
 
+                        <details class="collapsible-card">
+                            <summary class="collapsible-card-header">
+                                <div class="collapsible-card-title">
+                                    <span>Default Categories</span>
+                                    <span class="collapsible-card-subtitle">Categories that new users will start with</span>
+                                </div>
+                                <svg class="collapsible-card-chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+                            </summary>
+                            <div class="collapsible-card-body">
+                                <div class="categories-list" id="default-categories-list">
+                                    <!-- Default categories will be populated here -->
+                                </div>
+                                <div class="add-category-form">
+                                    <input type="text" id="new-default-category-input" placeholder="New default category...">
+                                    <button id="add-default-category-btn" class="btn btn-primary">Add</button>
+                                </div>
+                            </div>
+                        </details>
+
                         <h4 class="settings-subheading">OIDC / Single Sign-On</h4>
                         <p class="setting-description" style="margin-bottom: 1rem;">Configure authentication with PocketID or other OIDC providers</p>
 
@@ -1362,7 +1381,7 @@ Inc in each st around (12)
                             <div class="setting-item">
                                 <div class="setting-info">
                                     <label>Disable local login</label>
-                                    <p class="setting-description">Only allow SSO login (admin can still use local)</p>
+                                    <p class="setting-description">Only allow SSO login</p>
                                 </div>
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="oidc-disable-local">
@@ -1980,6 +1999,6 @@ Inc in each st around (12)
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script src="app.js?v=110"></script>
+    <script src="app.js?v=120"></script>
 </body>
 </html>

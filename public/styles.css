@@ -6217,20 +6217,44 @@ input[type="number"].settings-input {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.4rem 0.6rem;
+    padding: 0.5rem 0.6rem;
     background: var(--bg-color);
     border-radius: 4px;
-    font-size: 0.8rem;
     color: var(--text-color);
-    cursor: pointer;
 }
 
 .user-perm-item:hover {
     background: var(--hover-bg);
 }
 
+.user-perm-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+    min-width: 0;
+}
+
+.user-perm-title {
+    font-size: 0.8rem;
+    font-weight: 500;
+}
+
+.user-perm-desc {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
 .user-perm-item .toggle-switch {
     flex-shrink: 0;
+}
+
+.user-perm-item.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.user-perm-item.disabled .toggle-switch {
+    pointer-events: none;
 }
 
 /* Small toggle switch for permission grid */
@@ -6517,6 +6541,63 @@ input[type="number"].settings-input {
 
 .discovered-endpoints summary:hover {
     color: var(--primary-color);
+}
+
+.collapsible-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin: 1rem 0;
+    overflow: hidden;
+}
+
+.collapsible-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+}
+
+.collapsible-card-header::-webkit-details-marker {
+    display: none;
+}
+
+.collapsible-card-header:hover {
+    background: var(--hover-bg);
+}
+
+.collapsible-card-title {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.collapsible-card-title span:first-child {
+    font-weight: 600;
+    color: var(--text-color);
+}
+
+.collapsible-card-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.collapsible-card-chevron {
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+    flex-shrink: 0;
+}
+
+.collapsible-card[open] .collapsible-card-chevron {
+    transform: rotate(180deg);
+}
+
+.collapsible-card-body {
+    padding: 0 1rem 1rem;
+    border-top: 1px solid var(--border-color);
 }
 
 .endpoints-list {

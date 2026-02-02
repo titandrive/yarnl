@@ -167,11 +167,12 @@ app.post('/api/auth/login', async (req, res) => {
 
     const user = result.rows[0];
 
-    // Check if local login is disabled (admin can still login locally)
-    if (user.role !== 'admin') {
+    // Check if local login is disabled (unless FORCE_LOCAL_LOGIN env is set)
+    const forceLocalLogin = process.env.FORCE_LOCAL_LOGIN === 'true';
+    if (!forceLocalLogin) {
       const oidcSettings = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
-      const settings = oidcSettings.rows[0]?.value;
-      if (settings?.enabled && settings?.disableLocalLogin) {
+      const oidc = oidcSettings.rows[0]?.value;
+      if (oidc?.enabled && oidc?.disableLocalLogin) {
         return res.status(403).json({ error: 'Local login is disabled - please use SSO' });
       }
     }
@@ -442,6 +443,41 @@ app.post('/api/users/:id/remove-password', authMiddleware, adminOnly, async (req
   }
 });
 
+// Get default categories for new users (admin only)
+app.get('/api/admin/default-categories', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const categories = await getDefaultCategories();
+    res.json(categories);
+  } catch (error) {
+    console.error('Error getting default categories:', error);
+    res.status(500).json({ error: 'Failed to get default categories' });
+  }
+});
+
+// Save default categories for new users (admin only)
+app.post('/api/admin/default-categories', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { categories } = req.body;
+    if (!Array.isArray(categories)) {
+      return res.status(400).json({ error: 'Categories must be an array' });
+    }
+
+    // Filter out empty strings and duplicates
+    const cleanCategories = [...new Set(categories.filter(c => c && c.trim()))].map(c => c.trim());
+
+    await pool.query(
+      `INSERT INTO settings (key, value, updated_at) VALUES ('default_categories', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [JSON.stringify(cleanCategories)]
+    );
+
+    res.json({ success: true, categories: cleanCategories });
+  } catch (error) {
+    console.error('Error saving default categories:', error);
+    res.status(500).json({ error: 'Failed to save default categories' });
+  }
+});
+
 // User removes their own password (requires current password verification)
 app.post('/api/auth/remove-password', authMiddleware, async (req, res) => {
   try {
@@ -613,6 +649,7 @@ app.get('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) =
 // Save OIDC settings (admin only)
 app.post('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) => {
   try {
+    console.log('OIDC settings save request:', JSON.stringify(req.body));
     const { enabled, issuer, clientId, clientSecret, disableLocalLogin, autoCreateUsers, defaultRole, providerName, iconUrl } = req.body;
 
     // Get existing settings to preserve client secret if not changed
@@ -637,10 +674,39 @@ app.post('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) 
       [JSON.stringify(settings)]
     );
 
+    console.log('OIDC settings saved successfully:', JSON.stringify(settings));
     res.json({ success: true });
   } catch (error) {
     console.error('Error saving OIDC settings:', error);
     res.status(500).json({ error: 'Failed to save OIDC settings' });
+  }
+});
+
+// Toggle OIDC enabled/disabled (admin only)
+app.post('/api/auth/oidc/toggle', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { enabled } = req.body;
+
+    // Get existing settings and just update enabled
+    const existing = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
+    const existingSettings = existing.rows[0]?.value || {};
+
+    const settings = {
+      ...existingSettings,
+      enabled: enabled === true
+    };
+
+    await pool.query(
+      `INSERT INTO settings (key, value, updated_at) VALUES ('oidc', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [JSON.stringify(settings)]
+    );
+
+    console.log('OIDC toggled:', enabled);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error toggling OIDC:', error);
+    res.status(500).json({ error: 'Failed to toggle OIDC' });
   }
 });
 
@@ -815,6 +881,9 @@ app.get('/api/auth/oidc/callback', async (req, res) => {
          RETURNING *`,
         [username, displayName, settings.defaultRole || 'user', claims.sub, settings.providerName || 'oidc']
       );
+
+      // Create default categories for new OIDC user
+      await createDefaultCategoriesForUser(user.rows[0].id);
     }
 
     const userData = user.rows[0];
@@ -844,9 +913,10 @@ app.get('/api/auth/oidc/enabled', async (req, res) => {
   try {
     const result = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
     const settings = result.rows[0]?.value;
+    const forceLocalLogin = process.env.FORCE_LOCAL_LOGIN === 'true';
     res.json({
       enabled: settings?.enabled === true,
-      disableLocalLogin: settings?.disableLocalLogin === true,
+      disableLocalLogin: settings?.disableLocalLogin === true && !forceLocalLogin,
       providerName: settings?.providerName || 'SSO',
       iconUrl: settings?.iconUrl || ''
     });
@@ -1024,15 +1094,30 @@ async function deleteUserData(username) {
   }
 }
 
-// Default categories for new users
-const DEFAULT_CATEGORIES = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace', 'Colorwork', 'Freeform', 'Micro', 'Other'];
+// Fallback default categories for new users (used if admin hasn't configured any)
+const FALLBACK_DEFAULT_CATEGORIES = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace', 'Colorwork', 'Freeform', 'Micro', 'Other'];
+
+// Get default categories from settings or use fallback
+async function getDefaultCategories() {
+  try {
+    const result = await pool.query("SELECT value FROM settings WHERE key = 'default_categories'");
+    const saved = result.rows[0]?.value;
+    if (saved && Array.isArray(saved) && saved.length > 0) {
+      return saved;
+    }
+  } catch (error) {
+    console.error('Error loading default categories:', error);
+  }
+  return FALLBACK_DEFAULT_CATEGORIES;
+}
 
 // Create default categories for a new user
 async function createDefaultCategoriesForUser(userId) {
-  for (let i = 0; i < DEFAULT_CATEGORIES.length; i++) {
+  const categories = await getDefaultCategories();
+  for (let i = 0; i < categories.length; i++) {
     await pool.query(
       'INSERT INTO categories (name, user_id, position) VALUES ($1, $2, $3) ON CONFLICT (user_id, name) DO NOTHING',
-      [DEFAULT_CATEGORIES[i], userId, i]
+      [categories[i], userId, i]
     );
   }
 }

@@ -42,6 +42,7 @@ services:
       - TZ=America/Los_Angeles
       - ADMIN_USERNAME=admin
       - ADMIN_PASSWORD=password
+      - FORCE_LOCAL_LOGIN=false  # Emergency override if OIDC is broken
     restart: unless-stopped
     depends_on:
       postgres:

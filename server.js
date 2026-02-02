@@ -3320,10 +3320,10 @@ app.delete('/api/counters/:id', async (req, res) => {
 });
 
 // Get library stats (admin sees total, users see their own)
-app.get('/api/stats', async (req, res) => {
+app.get('/api/stats', authMiddleware, async (req, res) => {
   try {
-    const userId = req.user?.id;
-    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const userId = req.user.id;
+    const username = req.user.username;
     const isAdmin = req.user?.role === 'admin';
 
     // Base condition to exclude archived patterns
@@ -4087,9 +4087,9 @@ app.post('/api/notifications/test', async (req, res) => {
 });
 
 // List all backups for current user
-app.get('/api/backups', (req, res) => {
+app.get('/api/backups', authMiddleware, (req, res) => {
   try {
-    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const username = req.user.username;
     const userBackupsDir = getUserBackupsDir(username);
 
     if (!fs.existsSync(userBackupsDir)) {
@@ -4115,10 +4115,10 @@ app.get('/api/backups', (req, res) => {
 });
 
 // Create a new backup for current user
-app.post('/api/backups', async (req, res) => {
+app.post('/api/backups', authMiddleware, async (req, res) => {
   try {
-    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
-    const userId = req.user?.id;
+    const username = req.user.username;
+    const userId = req.user.id;
     const userBackupsDir = getUserBackupsDir(username);
     const userPatternsDir = getUserPatternsDir(username);
     const userArchiveDir = getUserArchiveDir(username);
@@ -4292,9 +4292,9 @@ app.post('/api/backups', async (req, res) => {
 });
 
 // Prune old backups for current user
-app.post('/api/backups/prune', (req, res) => {
+app.post('/api/backups/prune', authMiddleware, (req, res) => {
   try {
-    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const username = req.user.username;
     const userBackupsDir = getUserBackupsDir(username);
 
     if (!fs.existsSync(userBackupsDir)) {
@@ -4341,9 +4341,9 @@ app.post('/api/backups/prune', (req, res) => {
 });
 
 // Delete a backup for current user
-app.delete('/api/backups/:filename', (req, res) => {
+app.delete('/api/backups/:filename', authMiddleware, (req, res) => {
   try {
-    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const username = req.user.username;
     const userBackupsDir = getUserBackupsDir(username);
 
     const filename = req.params.filename;
@@ -4364,11 +4364,11 @@ app.delete('/api/backups/:filename', (req, res) => {
 });
 
 // Restore from backup for current user
-app.post('/api/backups/:filename/restore', async (req, res) => {
+app.post('/api/backups/:filename/restore', authMiddleware, async (req, res) => {
   const client = await pool.connect();
   try {
-    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
-    const userId = req.user?.id;
+    const username = req.user.username;
+    const userId = req.user.id;
     const userBackupsDir = getUserBackupsDir(username);
     const userPatternsDir = getUserPatternsDir(username);
     const userArchiveDir = getUserArchiveDir(username);
@@ -4541,9 +4541,9 @@ app.post('/api/backups/:filename/restore', async (req, res) => {
 });
 
 // Download a backup file for current user
-app.get('/api/backups/:filename/download', (req, res) => {
+app.get('/api/backups/:filename/download', authMiddleware, (req, res) => {
   try {
-    const username = req.user?.username || process.env.ADMIN_USERNAME || 'admin';
+    const username = req.user.username;
     const userBackupsDir = getUserBackupsDir(username);
 
     const filename = req.params.filename;

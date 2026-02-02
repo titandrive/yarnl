@@ -228,7 +228,7 @@ function displayUsers() {
                 <div class="user-card-info">
                     <span class="user-name">${user.username}</span>
                     <span class="user-badge role-badge ${user.role}">${user.role}</span>
-                    ${user.oidc_provider ? `<span class="user-badge oidc-badge">${user.oidc_provider}</span>` : ''}
+                    ${user.oidc_provider ? `<span class="user-badge oidc-badge">${user.oidc_provider}</span>` : '<span class="user-badge local-badge">LOCAL</span>'}
                     ${user.has_password ? '<span class="user-badge password-badge">pw</span>' : ''}
                     ${user.id === currentUser.id ? '<span class="user-current-badge">You</span>' : ''}
                 </div>
@@ -2646,6 +2646,7 @@ function initTheme() {
     async function loadMascots() {
         try {
             const response = await fetch('/api/mascots');
+            if (!response.ok) return;
             mascotsList = await response.json();
 
             // Apply saved mascot on load (or theme mascot if enabled)
@@ -3009,7 +3010,7 @@ function initTheme() {
             if (themeMascotCheckbox) themeMascotCheckbox.checked = false;
             // Set mascot to default (first in list)
             fetch('/api/mascots')
-                .then(res => res.json())
+                .then(res => res.ok ? res.json() : Promise.reject('Failed to load mascots'))
                 .then(mascots => {
                     if (mascots.length > 0) {
                         const defaultMascot = mascots[0].url;
@@ -9142,20 +9143,24 @@ function initEditModal() {
     const deleteBtn = document.getElementById('delete-edit-pattern');
     const editForm = document.getElementById('edit-form');
 
-    closeBtn.addEventListener('click', closeEditModal);
-    cancelBtn.addEventListener('click', closeEditModal);
-    deleteBtn.addEventListener('click', deleteEditPattern);
+    if (closeBtn) closeBtn.addEventListener('click', closeEditModal);
+    if (cancelBtn) cancelBtn.addEventListener('click', closeEditModal);
+    if (deleteBtn) deleteBtn.addEventListener('click', deleteEditPattern);
 
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            closeEditModal();
-        }
-    });
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeEditModal();
+            }
+        });
+    }
 
-    editForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await savePatternEdits();
-    });
+    if (editForm) {
+        editForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await savePatternEdits();
+        });
+    }
 }
 
 async function deleteEditPattern() {

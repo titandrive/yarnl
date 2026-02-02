@@ -4416,6 +4416,7 @@ input[type="number"].settings-input {
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    -webkit-overflow-scrolling: touch;
 }
 
 .hashtag-selector::-webkit-scrollbar {
@@ -4436,7 +4437,6 @@ input[type="number"].settings-input {
     border: 1px dashed var(--border-color);
     border-radius: 20px;
     cursor: pointer;
-    transition: all 0.2s ease;
     font-size: 0.85rem;
     flex-shrink: 0;
     white-space: nowrap;
@@ -4532,7 +4532,6 @@ input[type="number"].settings-input {
     width: auto;
     min-width: 80px;
     max-width: 140px;
-    transition: all 0.2s ease;
     box-sizing: border-box;
     height: 33px;
 }

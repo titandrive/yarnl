@@ -2007,15 +2007,25 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 // Enable horizontal scrolling with mouse wheel for hashtag selectors
+let horizontalScrollInitialized = false;
 function initHorizontalScroll() {
+    if (horizontalScrollInitialized) return;
+    horizontalScrollInitialized = true;
+
     document.addEventListener('wheel', (e) => {
         const selector = e.target.closest('.hashtag-selector');
-        if (selector && !e.ctrlKey && !e.shiftKey) {
-            // Only handle if there's horizontal overflow
-            if (selector.scrollWidth > selector.clientWidth) {
-                e.preventDefault();
-                selector.scrollLeft += e.deltaY;
-            }
+        if (!selector || e.ctrlKey || e.shiftKey) return;
+
+        // Only handle if there's horizontal overflow
+        if (selector.scrollWidth <= selector.clientWidth) return;
+
+        // Detect mouse wheel vs trackpad: mouse wheels typically have larger, discrete deltas
+        // Trackpads have small, frequent deltas. Only intercept likely mouse wheel events.
+        const isLikelyMouseWheel = Math.abs(e.deltaY) >= 50 || e.deltaMode === 1;
+
+        if (isLikelyMouseWheel) {
+            e.preventDefault();
+            selector.scrollLeft += e.deltaY;
         }
     }, { passive: false });
 }

@@ -11222,7 +11222,7 @@ function showDuplicatePatternDialog(fileName, existingPattern) {
                     </div>
                     <p>What would you like to do?</p>
                 </div>
-                <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+                <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-start;">
                     <button class="btn btn-secondary btn-sm" data-choice="cancel">Skip</button>
                     <button class="btn btn-secondary btn-sm" data-choice="import">Import Anyway</button>
                     <button class="btn btn-primary btn-sm" data-choice="existing">Use Existing</button>

@@ -1510,6 +1510,7 @@ let editingPatternId = null;
 let stagedFiles = []; // Array to hold staged files with metadata
 let projectStagedFiles = []; // Array to hold staged files for project creation
 let projectSelectedPatternIds = []; // IDs of existing patterns to add to new project
+let addModalStagedFiles = []; // Array to hold staged files for add patterns modal
 let completedUploads = []; // Array to hold completed upload info for display
 let selectedCategoryFilter = localStorage.getItem('libraryCategoryFilter') || 'all';
 let selectedSort = localStorage.getItem('librarySort') || 'date-desc';
@@ -10331,6 +10332,63 @@ function initProjectPanel() {
     if (addPatternsSearch) {
         addPatternsSearch.addEventListener('input', filterAddPatternsGrid);
     }
+
+    // Add patterns modal tabs
+    const addModalExistingTabBtn = document.getElementById('add-modal-existing-tab-btn');
+    const addModalImportTabBtn = document.getElementById('add-modal-import-tab-btn');
+
+    if (addModalExistingTabBtn) {
+        addModalExistingTabBtn.addEventListener('click', () => {
+            addModalExistingTabBtn.classList.add('active');
+            addModalImportTabBtn.classList.remove('active');
+            document.getElementById('add-modal-existing-tab').style.display = 'block';
+            document.getElementById('add-modal-import-tab').style.display = 'none';
+        });
+    }
+    if (addModalImportTabBtn) {
+        addModalImportTabBtn.addEventListener('click', () => {
+            addModalImportTabBtn.classList.add('active');
+            addModalExistingTabBtn.classList.remove('active');
+            document.getElementById('add-modal-import-tab').style.display = 'block';
+            document.getElementById('add-modal-existing-tab').style.display = 'none';
+        });
+    }
+
+    // Add modal drop zone
+    const addModalDropZone = document.getElementById('add-modal-drop-zone');
+    const addModalFileInput = document.getElementById('add-modal-file-input');
+    const addModalBrowseBtn = document.getElementById('add-modal-browse-btn');
+    const addModalClearStaged = document.getElementById('add-modal-clear-staged');
+
+    if (addModalDropZone) {
+        addModalDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            addModalDropZone.classList.add('dragover');
+        });
+        addModalDropZone.addEventListener('dragleave', () => {
+            addModalDropZone.classList.remove('dragover');
+        });
+        addModalDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            addModalDropZone.classList.remove('dragover');
+            const files = Array.from(e.dataTransfer.files);
+            handleAddModalFiles(files);
+        });
+    }
+    if (addModalBrowseBtn && addModalFileInput) {
+        addModalBrowseBtn.addEventListener('click', () => addModalFileInput.click());
+        addModalFileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files);
+            handleAddModalFiles(files);
+            e.target.value = '';
+        });
+    }
+    if (addModalClearStaged) {
+        addModalClearStaged.addEventListener('click', () => {
+            addModalStagedFiles = [];
+            renderAddModalStagedFiles();
+        });
+    }
 }
 
 // Create a new project
@@ -10823,11 +10881,25 @@ async function restoreProject(projectId) {
 // Show add patterns modal
 function showAddPatternsModal() {
     const modal = document.getElementById('add-patterns-modal');
-    const grid = document.getElementById('add-patterns-grid');
     const searchInput = document.getElementById('add-patterns-search-input');
 
     if (modal) modal.style.display = 'flex';
     if (searchInput) searchInput.value = '';
+
+    // Reset to "Add Existing" tab
+    const existingTabBtn = document.getElementById('add-modal-existing-tab-btn');
+    const importTabBtn = document.getElementById('add-modal-import-tab-btn');
+    const existingTab = document.getElementById('add-modal-existing-tab');
+    const importTab = document.getElementById('add-modal-import-tab');
+
+    if (existingTabBtn) existingTabBtn.classList.add('active');
+    if (importTabBtn) importTabBtn.classList.remove('active');
+    if (existingTab) existingTab.style.display = 'block';
+    if (importTab) importTab.style.display = 'none';
+
+    // Clear staged files
+    addModalStagedFiles = [];
+    renderAddModalStagedFiles();
 
     // Render available patterns (not already in project)
     renderAddPatternsGrid();
@@ -10896,34 +10968,175 @@ function filterAddPatternsGrid() {
 // Confirm adding selected patterns to project
 async function confirmAddPatternsToProject() {
     const checkboxes = document.querySelectorAll('.add-pattern-checkbox:checked');
-    const patternIds = Array.from(checkboxes).map(cb => {
+    const existingPatternIds = Array.from(checkboxes).map(cb => {
         const id = cb.id.replace('add-pattern-', '');
         return parseInt(id);
     });
 
-    if (patternIds.length === 0) {
-        alert('Please select at least one pattern');
+    // Check if we have anything to add
+    if (existingPatternIds.length === 0 && addModalStagedFiles.length === 0) {
+        showToast('Please select patterns or import PDFs', 'warning');
         return;
     }
 
     try {
-        const response = await fetch(`${API_URL}/api/projects/${currentProjectId}/patterns`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ patternIds })
-        });
+        // Collect all pattern IDs to add
+        const patternIds = [...existingPatternIds];
 
-        if (!response.ok) throw new Error('Failed to add patterns');
+        // Upload any staged files first
+        for (const staged of addModalStagedFiles) {
+            const formData = new FormData();
+            formData.append('pdf', staged.file);
+            formData.append('category', staged.category);
+
+            const uploadResponse = await fetch(`${API_URL}/api/patterns`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (uploadResponse.ok) {
+                const newPattern = await uploadResponse.json();
+                patternIds.push(newPattern.id);
+            }
+        }
+
+        // Add all patterns to project
+        if (patternIds.length > 0) {
+            const response = await fetch(`${API_URL}/api/projects/${currentProjectId}/patterns`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ patternIds })
+            });
+
+            if (!response.ok) throw new Error('Failed to add patterns');
+        }
 
         document.getElementById('add-patterns-modal').style.display = 'none';
+        addModalStagedFiles = [];
 
-        // Refresh project view
+        // Refresh patterns and project view
+        await loadPatterns();
         await openProjectView(currentProjectId);
         await loadProjects();
+
+        const totalAdded = patternIds.length;
+        showToast(`Added ${totalAdded} pattern${totalAdded !== 1 ? 's' : ''} to project`, 'success');
     } catch (error) {
         console.error('Error adding patterns to project:', error);
-        alert('Error adding patterns: ' + error.message);
+        showToast('Error adding patterns: ' + error.message, 'error');
     }
+}
+
+// Handle files dropped/selected in add patterns modal
+async function handleAddModalFiles(files) {
+    const pdfFiles = files.filter(f => f.type === 'application/pdf');
+
+    for (const file of pdfFiles) {
+        // Check if already staged
+        if (addModalStagedFiles.some(s => s.file.name === file.name)) {
+            showToast(`"${file.name}" is already staged`, 'warning');
+            continue;
+        }
+
+        const baseName = file.name.replace('.pdf', '');
+
+        // Check for existing pattern in library
+        const existingPattern = patterns.find(p =>
+            p.name.toLowerCase() === baseName.toLowerCase() ||
+            p.name.toLowerCase().includes(baseName.toLowerCase()) ||
+            baseName.toLowerCase().includes(p.name.toLowerCase())
+        );
+
+        if (existingPattern) {
+            const choice = await showDuplicatePatternDialog(file.name, existingPattern);
+
+            if (choice === 'existing') {
+                // Check the checkbox for this pattern
+                const checkbox = document.getElementById(`add-pattern-${existingPattern.id}`);
+                if (checkbox && !checkbox.checked) {
+                    checkbox.checked = true;
+                    showToast(`Selected "${existingPattern.name}" from library`, 'success');
+                } else {
+                    showToast(`"${existingPattern.name}" already selected`, 'warning');
+                }
+                continue;
+            } else if (choice === 'cancel') {
+                continue;
+            }
+            // choice === 'import' falls through to stage the file
+        }
+
+        addModalStagedFiles.push({
+            id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+            file: file,
+            name: baseName,
+            category: getDefaultCategory()
+        });
+    }
+
+    renderAddModalStagedFiles();
+}
+
+// Render staged files in add patterns modal
+function renderAddModalStagedFiles() {
+    const container = document.getElementById('add-modal-staged-files');
+    const list = document.getElementById('add-modal-staged-list');
+    const countEl = document.getElementById('add-modal-staged-count');
+
+    if (!container || !list) return;
+
+    if (addModalStagedFiles.length === 0) {
+        container.style.display = 'none';
+        return;
+    }
+
+    container.style.display = 'block';
+    if (countEl) countEl.textContent = addModalStagedFiles.length;
+
+    const categoryOptions = allCategories.map(cat =>
+        `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`
+    ).join('');
+
+    list.innerHTML = addModalStagedFiles.map(staged => `
+        <div class="project-staged-item" data-staged-id="${staged.id}">
+            <div class="staged-item-info">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                <span class="staged-item-name">${escapeHtml(staged.name)}</span>
+            </div>
+            <div class="staged-item-controls">
+                <select class="staged-item-category" onchange="updateAddModalStagedCategory('${staged.id}', this.value)">
+                    ${categoryOptions}
+                </select>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="removeAddModalStagedFile('${staged.id}')">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    `).join('');
+
+    // Set selected categories
+    addModalStagedFiles.forEach(staged => {
+        const select = list.querySelector(`[data-staged-id="${staged.id}"] .staged-item-category`);
+        if (select) select.value = staged.category;
+    });
+}
+
+// Update category for staged file in add modal
+function updateAddModalStagedCategory(stagedId, category) {
+    const staged = addModalStagedFiles.find(s => s.id === stagedId);
+    if (staged) staged.category = category;
+}
+
+// Remove staged file from add modal
+function removeAddModalStagedFile(stagedId) {
+    addModalStagedFiles = addModalStagedFiles.filter(s => s.id !== stagedId);
+    renderAddModalStagedFiles();
 }
 
 // Remove pattern from current project

@@ -577,14 +577,41 @@ Inc in each st around (12)
                     <button type="button" class="modal-close" id="close-add-patterns-modal">&times;</button>
                 </div>
                 <div class="modal-body">
-                    <div class="add-patterns-search">
-                        <input type="text" id="add-patterns-search-input" placeholder="Search patterns...">
+                    <div class="project-add-patterns-tabs">
+                        <button type="button" class="project-add-tab active" data-tab="modal-existing" id="add-modal-existing-tab-btn">Add Existing</button>
+                        <button type="button" class="project-add-tab" data-tab="modal-import" id="add-modal-import-tab-btn">Import New</button>
                     </div>
-                    <div class="add-patterns-grid" id="add-patterns-grid">
-                        <!-- Available patterns will be rendered here -->
+
+                    <!-- Tab 1: Add Existing Patterns -->
+                    <div id="add-modal-existing-tab" class="project-tab-content active">
+                        <div class="add-patterns-search">
+                            <input type="text" id="add-patterns-search-input" placeholder="Search patterns...">
+                        </div>
+                        <div class="add-patterns-grid" id="add-patterns-grid">
+                            <!-- Available patterns will be rendered here -->
+                        </div>
+                    </div>
+
+                    <!-- Tab 2: Import New PDFs -->
+                    <div id="add-modal-import-tab" class="project-tab-content" style="display: none;">
+                        <div id="add-modal-drop-zone" class="drop-zone project-drop-zone">
+                            <div class="drop-zone-content">
+                                <span class="drop-zone-icon">📁</span>
+                                <p class="drop-zone-text">Drag & drop PDF files here to add patterns</p>
+                                <input type="file" id="add-modal-file-input" accept=".pdf" multiple hidden>
+                                <button type="button" id="add-modal-browse-btn" class="btn btn-secondary">Browse Files</button>
+                            </div>
+                        </div>
+                        <div id="add-modal-staged-files" class="project-staged-files" style="display: none;">
+                            <div class="staged-header">
+                                <span>PDFs to import (<span id="add-modal-staged-count">0</span>)</span>
+                                <button type="button" id="add-modal-clear-staged" class="btn btn-secondary btn-sm">Clear</button>
+                            </div>
+                            <div id="add-modal-staged-list" class="project-staged-list"></div>
+                        </div>
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer" style="justify-content: flex-start;">
                     <button type="button" id="cancel-add-patterns" class="btn btn-secondary">Cancel</button>
                     <button type="button" id="confirm-add-patterns" class="btn btn-primary">Add Selected</button>
                 </div>

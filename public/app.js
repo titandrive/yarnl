@@ -11149,7 +11149,7 @@ async function deleteCurrentProject() {
 
 // Helper to format time in human readable format (Xh Xm)
 // Handle files dropped/selected for project creation
-function handleProjectFiles(files) {
+async function handleProjectFiles(files) {
     const pdfFiles = files.filter(f => f.type === 'application/pdf');
 
     for (const file of pdfFiles) {
@@ -11164,15 +11164,85 @@ function handleProjectFiles(files) {
         }
 
         const baseName = file.name.replace('.pdf', '');
+
+        // Check if pattern with similar name exists in library
+        const existingPattern = patterns.find(p =>
+            p.name.toLowerCase() === baseName.toLowerCase() ||
+            p.name.toLowerCase().includes(baseName.toLowerCase()) ||
+            baseName.toLowerCase().includes(p.name.toLowerCase())
+        );
+
+        if (existingPattern) {
+            // Ask user what they want to do
+            const choice = await showDuplicatePatternDialog(file.name, existingPattern);
+
+            if (choice === 'existing') {
+                // Add existing pattern to selected list
+                if (!projectSelectedPatternIds.includes(existingPattern.id)) {
+                    projectSelectedPatternIds.push(existingPattern.id);
+                    updateProjectSelectedCount();
+                    showToast(`Added "${existingPattern.name}" from library`, 'success');
+                } else {
+                    showToast(`"${existingPattern.name}" already selected`, 'warning');
+                }
+                continue;
+            } else if (choice === 'cancel') {
+                continue;
+            }
+            // choice === 'import' falls through to stage the file
+        }
+
         projectStagedFiles.push({
             id: Date.now() + '-' + Math.random().toString(36).substr(2, 9),
             file: file,
             name: baseName,
-            category: 'Amigurumi'
+            category: getDefaultCategory()
         });
     }
 
     renderProjectStagedFiles();
+}
+
+// Show dialog when imported file matches existing pattern
+function showDuplicatePatternDialog(fileName, existingPattern) {
+    return new Promise((resolve) => {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 450px;">
+                <div class="modal-header">
+                    <h3>Pattern Already Exists</h3>
+                </div>
+                <div class="modal-body">
+                    <p style="margin-bottom: 12px;">A pattern similar to "<strong>${escapeHtml(fileName)}</strong>" already exists in your library:</p>
+                    <div style="background: var(--bg-color); padding: 10px; border-radius: 6px; margin-bottom: 16px;">
+                        <strong>${escapeHtml(existingPattern.name)}</strong>
+                        ${existingPattern.category ? `<span style="color: var(--text-muted); margin-left: 8px;">(${escapeHtml(existingPattern.category)})</span>` : ''}
+                    </div>
+                    <p>What would you like to do?</p>
+                </div>
+                <div class="modal-footer" style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button class="btn btn-secondary btn-sm" data-choice="cancel">Skip</button>
+                    <button class="btn btn-secondary btn-sm" data-choice="import">Import Anyway</button>
+                    <button class="btn btn-primary btn-sm" data-choice="existing">Use Existing</button>
+                </div>
+            </div>
+        `;
+
+        modal.addEventListener('click', (e) => {
+            const choice = e.target.dataset.choice;
+            if (choice) {
+                modal.remove();
+                resolve(choice);
+            } else if (e.target === modal) {
+                modal.remove();
+                resolve('cancel');
+            }
+        });
+
+        document.body.appendChild(modal);
+    });
 }
 
 // Render staged files for project creation with category dropdowns

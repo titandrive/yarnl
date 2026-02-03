@@ -6746,8 +6746,14 @@ input[type="number"].settings-input {
     right: 18px;
 }
 
+.project-card .pattern-description:empty,
+.project-card .pattern-hashtags:empty {
+    display: none;
+}
+
 .project-card .project-thumbnail {
     height: 150px;
+    flex-shrink: 0;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -6798,7 +6804,7 @@ input[type="number"].settings-input {
 .project-continue-action {
     display: flex;
     justify-content: center;
-    margin-top: 8px;
+    margin-top: 4px;
 }
 
 .project-continue-btn {

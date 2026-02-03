@@ -6794,6 +6794,29 @@ input[type="number"].settings-input {
     transition: width 0.3s ease;
 }
 
+/* Project Continue Button */
+.project-continue-action {
+    display: flex;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.project-continue-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+}
+
+.project-continue-btn svg {
+    flex-shrink: 0;
+}
+
+.project-continue-btn.inactive {
+    opacity: 0.4;
+}
+
 /* Project Detail View */
 .project-detail-view {
     display: flex;

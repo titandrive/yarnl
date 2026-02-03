@@ -2903,6 +2903,7 @@ app.get('/api/projects', async (req, res) => {
         `SELECT
            COUNT(pp.id) as pattern_count,
            COUNT(CASE WHEN pp.status = 'completed' THEN 1 END) as completed_count,
+           COUNT(CASE WHEN pp.status = 'in_progress' THEN 1 END) as in_progress_count,
            COALESCE(SUM(p.timer_seconds), 0) as total_timer_seconds
          FROM project_patterns pp
          JOIN patterns p ON pp.pattern_id = p.id
@@ -2917,6 +2918,7 @@ app.get('/api/projects', async (req, res) => {
         hashtags: hashtagsResult.rows,
         pattern_count: parseInt(stats.pattern_count) || 0,
         completed_count: parseInt(stats.completed_count) || 0,
+        in_progress_count: parseInt(stats.in_progress_count) || 0,
         total_timer_seconds: parseInt(stats.total_timer_seconds) || 0
       };
     }));
@@ -2963,6 +2965,7 @@ app.get('/api/projects/current', async (req, res) => {
         `SELECT
            COUNT(pp.id) as pattern_count,
            COUNT(CASE WHEN pp.status = 'completed' THEN 1 END) as completed_count,
+           COUNT(CASE WHEN pp.status = 'in_progress' THEN 1 END) as in_progress_count,
            COALESCE(SUM(p.timer_seconds), 0) as total_timer_seconds
          FROM project_patterns pp
          JOIN patterns p ON pp.pattern_id = p.id
@@ -2977,6 +2980,7 @@ app.get('/api/projects/current', async (req, res) => {
         hashtags: hashtagsResult.rows,
         pattern_count: parseInt(stats.pattern_count) || 0,
         completed_count: parseInt(stats.completed_count) || 0,
+        in_progress_count: parseInt(stats.in_progress_count) || 0,
         total_timer_seconds: parseInt(stats.total_timer_seconds) || 0
       };
     }));
@@ -3021,6 +3025,7 @@ app.get('/api/projects/:id', async (req, res) => {
       `SELECT
          COUNT(pp.id) as pattern_count,
          COUNT(CASE WHEN pp.status = 'completed' THEN 1 END) as completed_count,
+         COUNT(CASE WHEN pp.status = 'in_progress' THEN 1 END) as in_progress_count,
          COALESCE(SUM(p.timer_seconds), 0) as total_timer_seconds
        FROM project_patterns pp
        JOIN patterns p ON pp.pattern_id = p.id
@@ -3036,6 +3041,7 @@ app.get('/api/projects/:id', async (req, res) => {
       patterns: patternsResult.rows,
       pattern_count: parseInt(stats.pattern_count) || 0,
       completed_count: parseInt(stats.completed_count) || 0,
+      in_progress_count: parseInt(stats.in_progress_count) || 0,
       total_timer_seconds: parseInt(stats.total_timer_seconds) || 0
     });
   } catch (error) {

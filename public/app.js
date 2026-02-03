@@ -10058,6 +10058,14 @@ function renderProjectCard(project) {
                     </svg>
                 </button>
             </div>
+            <div class="project-continue-action" onclick="event.stopPropagation()">
+                <button class="btn btn-primary project-continue-btn${!project.in_progress_count ? ' inactive' : ''}" onclick="continueProject(${project.id})" title="${project.in_progress_count ? 'Continue working on this project' : 'No patterns in progress'}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                    Continue
+                </button>
+            </div>
         </div>
     `;
 }
@@ -10784,6 +10792,41 @@ async function toggleProjectComplete(projectId, completed) {
         displayCurrentPatterns();
     } catch (error) {
         console.error('Error toggling project complete:', error);
+    }
+}
+
+// Continue project - navigate to the current in-progress pattern
+async function continueProject(projectId) {
+    try {
+        // Fetch patterns for this project
+        const response = await fetch(`${API_URL}/api/projects/${projectId}/patterns`);
+        if (!response.ok) throw new Error('Failed to fetch project patterns');
+
+        const patterns = await response.json();
+        if (patterns.length === 0) {
+            showToast('No patterns in this project');
+            return;
+        }
+
+        // Find patterns marked as in_progress
+        const inProgressPatterns = patterns.filter(p => p.project_status === 'in_progress');
+
+        if (inProgressPatterns.length === 0) {
+            showToast('No patterns marked as in progress');
+            return;
+        }
+
+        // If one in_progress pattern, use that; if multiple, use first by position
+        const targetPattern = inProgressPatterns.length === 1
+            ? inProgressPatterns[0]
+            : inProgressPatterns.reduce((first, current) =>
+                current.position < first.position ? current : first
+            );
+
+        await openPDFViewer(targetPattern.id);
+    } catch (error) {
+        console.error('Error continuing project:', error);
+        showToast('Failed to continue project');
     }
 }
 

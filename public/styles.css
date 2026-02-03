@@ -7594,37 +7594,52 @@ input[type="number"].settings-input {
 }
 
 /* Enhanced staged file item with category dropdown */
+.project-staged-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
 .project-staged-list .project-staged-item {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
     gap: 8px;
-    padding: 10px;
-    width: 100%;
+    padding: 12px;
+    background: var(--bg-color);
+    border-radius: 8px;
 }
 
 .project-staged-item-header {
     display: flex;
     align-items: center;
     gap: 8px;
-    justify-content: space-between;
     width: 100%;
+}
+
+.project-staged-item-header .staged-item-name {
+    flex: 1;
+    font-weight: 500;
+    word-break: break-word;
+}
+
+.project-staged-item-header .staged-item-remove {
+    flex-shrink: 0;
 }
 
 .project-staged-item-category {
     display: flex;
     align-items: center;
     gap: 8px;
-    width: 100%;
 }
 
 .project-staged-item-category label {
     font-size: 0.8rem;
     color: var(--text-muted);
-    flex-shrink: 0;
 }
 
 .project-staged-item-category .category-dropdown {
-    flex: 1;
+    width: 180px;
 }
 
 /* Mobile responsive */

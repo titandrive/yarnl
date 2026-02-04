@@ -3509,6 +3509,12 @@ function renderStagedFiles() {
     if (header) header.style.display = hasActiveFiles ? 'flex' : 'none';
     if (footer) footer.style.display = pendingCount > 0 ? 'flex' : 'none';
 
+    // Update button text based on count
+    const uploadAllBtn = document.getElementById('upload-all-btn');
+    if (uploadAllBtn) {
+        uploadAllBtn.textContent = pendingCount === 1 ? 'Upload' : 'Upload All';
+    }
+
     container.innerHTML = stagedFiles.map(stagedFile => {
         const statusClass = stagedFile.status;
         const isUploading = stagedFile.status === 'uploading';

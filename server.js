@@ -1776,9 +1776,11 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
     }
 
     // Move file from temp location to category folder with final name
+    // Use copy+delete instead of rename to handle cross-device moves (Docker volumes)
     const tempPath = req.file.path;
     const finalPath = path.join(categoryDir, finalFilename);
-    fs.renameSync(tempPath, finalPath);
+    fs.copyFileSync(tempPath, finalPath);
+    fs.unlinkSync(tempPath);
 
     console.log(`Moved file from ${tempPath} to ${finalPath}`);
 

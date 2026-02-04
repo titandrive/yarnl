@@ -2951,6 +2951,7 @@ body.global-drag-over #current::after {
 
 .staged-file-current-toggle {
     display: flex;
+    flex-direction: column;
     align-items: center;
     gap: 4px;
     font-size: 0.7rem;
@@ -2962,19 +2963,25 @@ body.global-drag-over #current::after {
 }
 
 .staged-file-current-toggle .toggle-switch {
-    width: 32px;
-    height: 16px;
+    display: inline-block !important;
+    width: 40px !important;
+    height: 20px !important;
+}
+
+.staged-file-current-toggle .toggle-slider {
+    width: 40px !important;
+    height: 20px !important;
 }
 
 .staged-file-current-toggle .toggle-slider::before {
-    height: 12px;
-    width: 12px;
-    left: 2px;
-    bottom: 2px;
+    height: 14px !important;
+    width: 14px !important;
+    left: 3px !important;
+    bottom: 3px !important;
 }
 
-.staged-file-current-toggle .toggle-switch input:checked + .toggle-slider::before {
-    transform: translateX(16px);
+.staged-file-current-toggle input:checked + .toggle-slider::before {
+    transform: translateX(20px) !important;
 }
 
 .staged-file-content {

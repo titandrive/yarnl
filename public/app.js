@@ -8282,6 +8282,30 @@ async function renderPage(pageNum) {
 
         await page.render(renderContext).promise;
 
+        // Render annotation layer for clickable links
+        const annotationLayer = document.getElementById('pdf-annotation-layer');
+        annotationLayer.innerHTML = '';
+        annotationLayer.style.width = `${scaledViewport.width}px`;
+        annotationLayer.style.height = `${scaledViewport.height}px`;
+
+        const annotations = await page.getAnnotations();
+        for (const annotation of annotations) {
+            if (annotation.subtype === 'Link' && annotation.url) {
+                const rect = annotation.rect;
+                // Transform PDF coordinates (origin bottom-left) to CSS coordinates (origin top-left)
+                const [x1, y1, x2, y2] = pdfjsLib.Util.normalizeRect(rect);
+                const link = document.createElement('a');
+                link.href = annotation.url;
+                link.target = '_blank';
+                link.rel = 'noopener noreferrer';
+                link.style.left = `${x1 * scale}px`;
+                link.style.top = `${(viewport.height - y2) * scale}px`;
+                link.style.width = `${(x2 - x1) * scale}px`;
+                link.style.height = `${(y2 - y1) * scale}px`;
+                annotationLayer.appendChild(link);
+            }
+        }
+
         // Update page info
         document.getElementById('page-info').textContent = `${pageNum} of ${totalPages}`;
 

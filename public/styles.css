@@ -2451,19 +2451,41 @@ body.global-drag-over #current::after {
     touch-action: pan-x pan-y; /* Allow panning but not browser zoom */
 }
 
+.pdf-page-container {
+    position: relative;
+    margin-bottom: 100px; /* Space for counter overlay when scrolling */
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
 #pdf-canvas {
     max-width: none;
     height: auto;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
     background: white;
-    margin-bottom: 100px; /* Space for counter overlay when scrolling */
+    display: block;
+}
+
+.pdf-annotation-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    pointer-events: none;
+}
+
+.pdf-annotation-layer a {
+    position: absolute;
+    pointer-events: auto;
+    cursor: pointer;
+}
+
+.pdf-annotation-layer a:hover {
+    background: rgba(255, 255, 0, 0.2);
 }
 
 .pdf-viewer-wrapper.fit-mode {
     overflow: hidden;
 }
 
-.pdf-viewer-wrapper.fit-mode #pdf-canvas {
+.pdf-viewer-wrapper.fit-mode .pdf-page-container {
     margin-bottom: 0;
 }
 

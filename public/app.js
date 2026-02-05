@@ -7864,15 +7864,6 @@ function initPDFViewer() {
         }
     }, { passive: false });
 
-    // Prevent arrow key scrolling on the PDF wrapper - let the document handler use them for counters
-    // Unless the user has enabled the "Arrow keys scroll PDF" setting
-    pdfWrapper.addEventListener('keydown', (e) => {
-        const arrowKeysScroll = localStorage.getItem('arrowKeysScroll') === 'true';
-        if (!arrowKeysScroll && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
-            e.preventDefault();
-        }
-    });
-
     // Info button
     const infoBtn = document.getElementById('pdf-info-btn');
     if (infoBtn) {
@@ -7919,10 +7910,19 @@ function initPDFViewer() {
             return;
         }
 
-        // If arrow keys scroll setting is enabled, let arrow keys scroll instead of triggering shortcuts
+        // Handle arrow keys - either scroll PDF or use for shortcuts based on setting
         const arrowKeysScroll = localStorage.getItem('arrowKeysScroll') === 'true';
-        if (arrowKeysScroll && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
-            return;
+        const isArrowKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
+        const isPdfOpen = pdfViewerContainer.style.display === 'flex';
+
+        if (isArrowKey && isPdfOpen) {
+            if (arrowKeysScroll) {
+                // Let arrow keys scroll the PDF
+                return;
+            } else {
+                // Prevent scrolling - arrow keys will be used for shortcuts
+                e.preventDefault();
+            }
         }
 
         // Hidden screenshot mode toggle (q key) - cycles: off -> white -> green -> off

@@ -7865,8 +7865,10 @@ function initPDFViewer() {
     }, { passive: false });
 
     // Prevent arrow key scrolling on the PDF wrapper - let the document handler use them for counters
+    // Unless the user has enabled the "Arrow keys scroll PDF" setting
     pdfWrapper.addEventListener('keydown', (e) => {
-        if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const arrowKeysScroll = localStorage.getItem('arrowKeysScroll') === 'true';
+        if (!arrowKeysScroll && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
             e.preventDefault();
         }
     });
@@ -7914,6 +7916,12 @@ function initPDFViewer() {
     document.addEventListener('keydown', (e) => {
         // Don't trigger if user is typing in an input
         if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+            return;
+        }
+
+        // If arrow keys scroll setting is enabled, let arrow keys scroll instead of triggering shortcuts
+        const arrowKeysScroll = localStorage.getItem('arrowKeysScroll') === 'true';
+        if (arrowKeysScroll && ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
             return;
         }
 
@@ -8104,6 +8112,16 @@ function initPDFViewer() {
             remoteCheckbox.addEventListener('change', (e) => {
                 window.toggleMediaRemote(e.target.checked);
                 showToast(e.target.checked ? 'Media remote enabled' : 'Media remote disabled');
+            });
+        }
+
+        // Arrow keys scroll PDF setting
+        const arrowKeysScrollCheckbox = document.getElementById('arrow-keys-scroll');
+        if (arrowKeysScrollCheckbox) {
+            arrowKeysScrollCheckbox.checked = localStorage.getItem('arrowKeysScroll') === 'true';
+            arrowKeysScrollCheckbox.addEventListener('change', (e) => {
+                localStorage.setItem('arrowKeysScroll', e.target.checked);
+                showToast(e.target.checked ? 'Arrow keys will scroll PDF' : 'Arrow keys control counters/navigation');
             });
         }
     }

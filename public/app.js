@@ -7772,6 +7772,7 @@ function initPDFViewer() {
             initialPinchDistance = null;
             if (pinchRenderTimeout) clearTimeout(pinchRenderTimeout);
             renderPage(currentPageNum);
+            savePdfViewerState();
         }
     }, { passive: true });
 
@@ -7859,6 +7860,7 @@ function initPDFViewer() {
             const delta = e.deltaY > 0 ? -0.03 : 0.03;
             pdfZoomScale = Math.min(Math.max(pdfZoomScale + delta, 0.1), 4.0);
             renderPage(currentPageNum);
+            savePdfViewerState();
         }
     }, { passive: false });
 
@@ -8154,15 +8156,22 @@ async function openPDFViewer(patternId, pushHistory = true) {
         currentPattern = pattern;
         currentPageNum = pattern.current_page || 1;
 
-        // Apply default zoom setting
-        const defaultZoom = localStorage.getItem('defaultPdfZoom') || 'fit';
-        if (defaultZoom === 'fit') {
-            pdfZoomMode = 'fit';
-        } else if (defaultZoom === 'fit-width') {
-            pdfZoomMode = 'fit-width';
+        // Load saved viewer state for this pattern, or use default zoom
+        const savedState = loadPdfViewerState(pattern.id);
+        if (savedState) {
+            pdfZoomMode = savedState.zoomMode;
+            pdfZoomScale = savedState.zoomScale;
         } else {
-            pdfZoomMode = 'manual';
-            pdfZoomScale = parseInt(defaultZoom) / 100;
+            // Apply default zoom setting for new patterns
+            const defaultZoom = localStorage.getItem('defaultPdfZoom') || 'fit';
+            if (defaultZoom === 'fit') {
+                pdfZoomMode = 'fit';
+            } else if (defaultZoom === 'fit-width') {
+                pdfZoomMode = 'fit-width';
+            } else {
+                pdfZoomMode = 'manual';
+                pdfZoomScale = parseInt(defaultZoom) / 100;
+            }
         }
 
         // Load timer state
@@ -8212,6 +8221,15 @@ async function openPDFViewer(patternId, pushHistory = true) {
 
         // Render the current page
         await renderPage(currentPageNum);
+
+        // Restore saved scroll position if available
+        if (savedState && (savedState.scrollX || savedState.scrollY)) {
+            const wrapper = document.querySelector('.pdf-viewer-wrapper');
+            if (wrapper) {
+                wrapper.scrollLeft = savedState.scrollX;
+                wrapper.scrollTop = savedState.scrollY;
+            }
+        }
 
     } catch (error) {
         console.error('Error opening PDF viewer:', error);
@@ -8297,6 +8315,7 @@ function zoomIn() {
     pdfZoomMode = 'manual';
     pdfZoomScale = Math.min(pdfZoomScale + 0.1, 4.0);
     renderPage(currentPageNum);
+    savePdfViewerState();
 }
 
 function zoomOut() {
@@ -8309,23 +8328,27 @@ function zoomOut() {
     pdfZoomMode = 'manual';
     pdfZoomScale = Math.max(pdfZoomScale - 0.1, 0.1);
     renderPage(currentPageNum);
+    savePdfViewerState();
 }
 
 function zoomFitPage() {
     pdfZoomMode = 'fit';
     renderPage(currentPageNum);
+    savePdfViewerState();
 }
 
 function zoom100() {
     // 100% = fit width to screen
     pdfZoomMode = 'fit-width';
     renderPage(currentPageNum);
+    savePdfViewerState();
 }
 
 function setZoomLevel(level) {
     pdfZoomMode = 'manual';
     pdfZoomScale = Math.min(Math.max(level, 0.1), 4.0);
     renderPage(currentPageNum);
+    savePdfViewerState();
 }
 
 function getZoomDisplayString() {
@@ -8336,6 +8359,31 @@ function getZoomDisplayString() {
     } else {
         return `${Math.round(pdfZoomScale * 100)}%`;
     }
+}
+
+// Per-pattern PDF viewer state persistence
+function savePdfViewerState() {
+    if (!currentPattern) return;
+    const wrapper = document.querySelector('.pdf-viewer-wrapper');
+    const state = {
+        zoomMode: pdfZoomMode,
+        zoomScale: pdfZoomScale,
+        scrollX: wrapper ? wrapper.scrollLeft : 0,
+        scrollY: wrapper ? wrapper.scrollTop : 0
+    };
+    localStorage.setItem(`pdfViewerState_${currentPattern.id}`, JSON.stringify(state));
+}
+
+function loadPdfViewerState(patternId) {
+    const saved = localStorage.getItem(`pdfViewerState_${patternId}`);
+    if (saved) {
+        try {
+            return JSON.parse(saved);
+        } catch (e) {
+            return null;
+        }
+    }
+    return null;
 }
 
 async function changePage(delta) {
@@ -8363,6 +8411,9 @@ async function changePage(delta) {
 }
 
 async function closePDFViewer() {
+    // Save PDF viewer state (zoom and scroll position) before closing
+    savePdfViewerState();
+
     // Save timer before closing (immediate, not debounced)
     if (currentPattern && timerSeconds > 0) {
         if (timerRunning) {

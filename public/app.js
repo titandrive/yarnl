@@ -7864,6 +7864,13 @@ function initPDFViewer() {
         }
     }, { passive: false });
 
+    // Prevent arrow key scrolling on the PDF wrapper - let the document handler use them for counters
+    pdfWrapper.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+            e.preventDefault();
+        }
+    });
+
     // Info button
     const infoBtn = document.getElementById('pdf-info-btn');
     if (infoBtn) {

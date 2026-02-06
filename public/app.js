@@ -8507,27 +8507,50 @@ async function openPDFViewer(patternId, pushHistory = true) {
         const mobilePatternName = document.getElementById('mobile-pattern-name');
         if (mobilePatternName) mobilePatternName.textContent = pattern.name;
 
-        // Load PDF and counters in parallel
         const pdfUrl = `${API_URL}/api/patterns/${pattern.id}/file`;
-        const loadingTask = pdfjsLib.getDocument(pdfUrl);
+        const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
-        const [pdfDocResult] = await Promise.all([
-            loadingTask.promise,
-            loadCounters(pattern.id)
-        ]);
-
-        pdfDoc = pdfDocResult;
-        totalPages = pdfDoc.numPages;
-
-        // Render the current page
-        await renderPage(currentPageNum);
-
-        // Restore saved scroll position if available
-        if (savedState && (savedState.scrollX || savedState.scrollY)) {
+        if (!isMobile) {
+            // Desktop: use browser's native PDF viewer
             const wrapper = document.querySelector('.pdf-viewer-wrapper');
-            if (wrapper) {
-                wrapper.scrollLeft = savedState.scrollX;
-                wrapper.scrollTop = savedState.scrollY;
+            wrapper.querySelector('.pdf-page-container').style.display = 'none';
+            const spacer = wrapper.querySelector('.pdf-scroll-spacer');
+            if (spacer) spacer.style.display = 'none';
+            const zoomOverlay = wrapper.querySelector('.pdf-zoom-overlay');
+            if (zoomOverlay) zoomOverlay.style.display = 'none';
+            const navControls = document.querySelector('.pdf-nav-controls');
+            if (navControls) navControls.style.display = 'none';
+
+            let pdfObject = wrapper.querySelector('.native-pdf-viewer');
+            if (!pdfObject) {
+                pdfObject = document.createElement('object');
+                pdfObject.className = 'native-pdf-viewer';
+                pdfObject.type = 'application/pdf';
+                wrapper.prepend(pdfObject);
+            }
+            pdfObject.data = `${pdfUrl}#page=${currentPageNum}`;
+
+            await loadCounters(pattern.id);
+        } else {
+            // Mobile: use pdf.js canvas rendering (iOS doesn't support inline multi-page PDFs)
+            const loadingTask = pdfjsLib.getDocument(pdfUrl);
+
+            const [pdfDocResult] = await Promise.all([
+                loadingTask.promise,
+                loadCounters(pattern.id)
+            ]);
+
+            pdfDoc = pdfDocResult;
+            totalPages = pdfDoc.numPages;
+
+            await renderPage(currentPageNum);
+
+            if (savedState && (savedState.scrollX || savedState.scrollY)) {
+                const wrapper = document.querySelector('.pdf-viewer-wrapper');
+                if (wrapper) {
+                    wrapper.scrollLeft = savedState.scrollX;
+                    wrapper.scrollTop = savedState.scrollY;
+                }
             }
         }
 
@@ -8787,6 +8810,20 @@ async function closePDFViewer() {
         } catch (error) {
             console.error('Error saving page on close:', error);
         }
+    }
+
+    // Clean up native PDF viewer if present, restore canvas elements
+    const wrapper = document.querySelector('.pdf-viewer-wrapper');
+    const pdfObject = wrapper.querySelector('.native-pdf-viewer');
+    if (pdfObject) {
+        pdfObject.remove();
+        wrapper.querySelector('.pdf-page-container').style.display = '';
+        const spacer = wrapper.querySelector('.pdf-scroll-spacer');
+        if (spacer) spacer.style.display = '';
+        const zoomOverlay = wrapper.querySelector('.pdf-zoom-overlay');
+        if (zoomOverlay) zoomOverlay.style.display = '';
+        const navControls = document.querySelector('.pdf-nav-controls');
+        if (navControls) navControls.style.display = '';
     }
 
     // Clear viewing pattern from sessionStorage

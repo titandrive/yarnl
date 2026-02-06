@@ -795,10 +795,11 @@ body.screenshot-mode-green .container {
 header {
     background: var(--primary-color);
     color: var(--header-text-color, white);
-    padding: 30px 40px;
+    padding: 30px 40px 70px;
     display: flex;
     align-items: center;
     justify-content: space-between;
+    position: relative;
 }
 
 /* Gradient mode */
@@ -818,9 +819,14 @@ header {
 }
 
 .subtitle {
-    font-size: 1.2rem;
+    position: absolute;
+    bottom: 8px;
+    left: 0;
+    right: 0;
+    text-align: center;
+    font-size: 0.95rem;
     opacity: 0.95;
-    margin-top: 0;
+    margin: 0;
 }
 
 .header-btn-container {
@@ -6139,7 +6145,7 @@ input[type="number"].settings-input {
 
 @media (max-width: 768px) {
     header {
-        padding: 20px;
+        padding: 15px 20px 42px;
         flex-direction: row;
     }
 
@@ -6147,8 +6153,8 @@ input[type="number"].settings-input {
         font-size: 2rem;
     }
 
-    .subtitle {
-        font-size: 0.9rem;
+    #header-mascot-img {
+        height: 2em !important;
     }
 
     .new-pattern-form .form-row {
@@ -6597,6 +6603,7 @@ input[type="number"].settings-input {
     margin: 0;
     color: var(--text-muted);
     font-size: 0.9rem;
+    white-space: nowrap;
 }
 
 .login-form {

@@ -1980,6 +1980,28 @@ app.get('/api/patterns/:id/file', async (req, res) => {
   }
 });
 
+// Save annotated PDF (replaces file on disk)
+app.put('/api/patterns/:id/file', express.raw({ type: 'application/pdf', limit: '100mb' }), async (req, res) => {
+  try {
+    const pattern = await verifyPatternAccess(req.params.id, req.user.id, req.user.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+    let filePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
+    if (!fs.existsSync(filePath)) {
+      filePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
+    }
+
+    fs.writeFileSync(filePath, req.body);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving annotated PDF:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get a pattern thumbnail
 app.get('/api/patterns/:id/thumbnail', async (req, res) => {
   try {

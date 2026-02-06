@@ -8631,13 +8631,12 @@ async function openPDFViewer(patternId, pushHistory = true) {
                         const resp = await fetch(`${API_URL}/api/patterns/${patternId}/annotations`, { method: 'DELETE' });
                         const result = await resp.json();
                         if (result.reverted) {
-                            // Reload the viewer with the clean original PDF
+                            // Remove iframe and reopen viewer fresh with clean original
                             const iframe = wrapper.querySelector('.native-pdf-viewer');
-                            if (iframe) {
-                                iframe.contentWindow.location.reload();
-                            }
+                            if (iframe) iframe.remove();
                             revertBtn.textContent = 'Reverted!';
-                            setTimeout(() => { revertBtn.textContent = 'Revert'; annotationSaving = false; }, 2000);
+                            setTimeout(() => { revertBtn.textContent = 'Revert'; }, 1500);
+                            openPDFViewer(patternId, false);
                         } else {
                             annotationSaving = false;
                             revertBtn.textContent = 'No annotations';

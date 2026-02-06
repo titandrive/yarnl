@@ -1,25 +1,10 @@
-const CACHE_VERSION = 'v2';
+const CACHE_VERSION = 'v3';
 const CACHE_NAME = `yarnl-${CACHE_VERSION}`;
 
-// Install — pre-cache the app shell
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) =>
-      cache.addAll([
-        '/',
-        '/styles.css',
-        '/app.js',
-        '/manifest.json',
-        '/icon-192.png',
-        '/icon-512.png',
-        '/favicon.svg'
-      ])
-    )
-  );
-  self.skipWaiting();
-});
+// Install — take over immediately
+self.addEventListener('install', () => self.skipWaiting());
 
-// Activate — clean up old caches
+// Activate — clean up old caches, claim clients
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
@@ -40,7 +25,10 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Everything else — serve from cache, update in background
+  // Only cache GET requests
+  if (e.request.method !== 'GET') return;
+
+  // Serve from cache, update in background
   e.respondWith(
     caches.open(CACHE_NAME).then((cache) =>
       cache.match(e.request, { ignoreSearch: true }).then((cached) => {
@@ -49,7 +37,7 @@ self.addEventListener('fetch', (e) => {
             cache.put(e.request, response.clone());
           }
           return response;
-        });
+        }).catch(() => cached);
         return cached || fetched;
       })
     )

@@ -1,8 +1,10 @@
 const CACHE_NAME = 'yarnl-cache-v3';
 
 // Install — no pre-cache; cache builds from actual requests
-// Don't skipWaiting — let the new SW activate on next navigation/launch
-self.addEventListener('install', () => {});
+// skipWaiting ensures new SW activates immediately (no stuck "waiting" state)
+self.addEventListener('install', () => {
+  self.skipWaiting();
+});
 
 // Activate — clean up old caches and take control immediately
 self.addEventListener('activate', (e) => {

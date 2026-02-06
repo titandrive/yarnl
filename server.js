@@ -1973,6 +1973,8 @@ app.get('/api/patterns/:id/file', async (req, res) => {
       }
     }
 
+    // Prevent browser from serving stale cached PDFs (annotations would be lost)
+    res.set('Cache-Control', 'no-cache');
     res.sendFile(filePath);
   } catch (error) {
     console.error('Error fetching pattern file:', error);
@@ -1983,7 +1985,7 @@ app.get('/api/patterns/:id/file', async (req, res) => {
 // Save annotated PDF (replaces file on disk)
 app.put('/api/patterns/:id/file', express.raw({ type: 'application/pdf', limit: '100mb' }), async (req, res) => {
   try {
-    const pattern = await verifyPatternAccess(req.params.id, req.user.id, req.user.role === 'admin');
+    const pattern = await verifyPatternOwnership(req.params.id, req.user.id, req.user.role === 'admin');
     if (!pattern) {
       return res.status(403).json({ error: 'Not authorized' });
     }

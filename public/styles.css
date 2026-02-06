@@ -2718,6 +2718,207 @@ body.global-drag-over #current::after {
     white-space: nowrap;
 }
 
+/* Mobile Floating Counter */
+.mobile-counter {
+    position: fixed;
+    z-index: 2200;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.25);
+    touch-action: none;
+    user-select: none;
+    padding: 4px;
+}
+
+.mobile-counter-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mobile-counter-dec,
+.mobile-counter-inc,
+.mobile-counter-add {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    font-weight: bold;
+    color: white;
+    cursor: pointer;
+    flex-shrink: 0;
+    border: none;
+}
+
+.mobile-counter-dec:active,
+.mobile-counter-inc:active,
+.mobile-counter-add:active {
+    opacity: 0.7;
+}
+
+.mobile-counter-dec {
+    background: #6b7280;
+}
+
+.mobile-counter-inc {
+    background: var(--primary-color);
+}
+
+.mobile-counter-add {
+    background: var(--success-color);
+    width: 22px;
+    height: 22px;
+    font-size: 0.8rem;
+}
+
+.mobile-counter-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0 2px;
+    min-width: 32px;
+}
+
+.mobile-counter-name {
+    font-size: 0.55rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    max-width: 60px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1;
+    cursor: grab;
+}
+
+.mobile-counter-value {
+    font-size: 1.3rem;
+    font-weight: bold;
+    color: var(--primary-color);
+    font-variant-numeric: tabular-nums;
+    font-family: 'JetBrains Mono', monospace;
+    line-height: 1.2;
+    cursor: grab;
+}
+
+.mobile-counter-nav {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1rem;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 3px;
+    line-height: 1;
+}
+
+.mobile-counter-nav:active {
+    color: var(--primary-color);
+}
+
+.mobile-counter-info {
+    cursor: pointer;
+    font-size: 0.5rem;
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--text-muted);
+    line-height: 1;
+    text-transform: uppercase;
+}
+
+.mobile-counter-edit {
+    padding: 6px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.mobile-counter-edit-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.mobile-counter-edit-prev,
+.mobile-counter-edit-next {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+.mobile-counter-edit-prev:active,
+.mobile-counter-edit-next:active {
+    color: var(--primary-color);
+}
+
+.mobile-counter-edit-pos {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 600;
+}
+
+.mobile-counter-name-input {
+    width: 100%;
+    background: var(--upload-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-color);
+    font-size: 0.8rem;
+    padding: 5px 8px;
+    outline: none;
+    font-family: inherit;
+}
+
+.mobile-counter-name-input:focus {
+    border-color: var(--primary-color);
+}
+
+.mobile-counter-edit-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.mobile-counter-edit-btn {
+    flex: 1;
+    border: none;
+    border-radius: 6px;
+    padding: 5px 0;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: white;
+}
+
+.mobile-counter-add-btn {
+    background: var(--success-color);
+}
+
+.mobile-counter-delete-btn {
+    background: var(--danger-color);
+}
+
+.mobile-counter-done-btn {
+    background: var(--primary-color);
+}
+
+.mobile-counter.editing {
+    border-radius: 14px;
+}
+
+.mobile-counter-nav.hidden {
+    display: none;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
     .counter-header {
@@ -2755,24 +2956,13 @@ body.global-drag-over #current::after {
         font-size: 1.2rem;
     }
 
-    .counter-item {
-        flex-wrap: wrap;
+    .counter-overlay {
+        display: none !important;
     }
 
-    .counter-name {
-        flex-basis: 100%;
-        margin-bottom: 10px;
-    }
-
-    .counter-value {
-        font-size: 1.5rem;
-        min-width: 60px;
-    }
-
-    .counter-btn {
-        padding: 6px 12px;
-        font-size: 1rem;
-        min-width: 40px;
+    .mobile-counter {
+        bottom: 20px;
+        right: 16px;
     }
 }
 

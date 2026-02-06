@@ -8565,8 +8565,10 @@ async function openPDFViewer(patternId, pushHistory = true) {
                     annotationSaving = true;
                     try {
                         await commitAndSave();
+                        showToast('Annotations saved', 'success', 1500);
                     } catch (err) {
                         console.error('Error saving annotations:', err);
+                        showToast('Failed to save annotations', 'error');
                     } finally {
                         annotationSaving = false;
                     }
@@ -8580,9 +8582,6 @@ async function openPDFViewer(patternId, pushHistory = true) {
                 viewerApp.download = viewerApp.save.bind(viewerApp);
                 viewerApp.downloadOrSave = viewerApp.save.bind(viewerApp);
 
-                // Wire up the manual Save button
-                const saveBtn = document.getElementById('pdf-save-btn');
-                saveBtn.style.display = '';
                 // Commit active drawing session and save PDF with annotations
                 async function commitAndSave() {
                     const currentMode = viewerApp.pdfViewer.annotationEditorMode;
@@ -8600,22 +8599,6 @@ async function openPDFViewer(patternId, pushHistory = true) {
                         body: data
                     });
                 }
-
-                saveBtn.onclick = async () => {
-                    saveBtn.disabled = true;
-                    try {
-                        saveBtn.textContent = 'Saving…';
-                        await commitAndSave();
-                        saveBtn.textContent = 'Saved!';
-                        setTimeout(() => { saveBtn.textContent = 'Save'; }, 1500);
-                    } catch (e) {
-                        saveBtn.textContent = 'Error';
-                        console.error('Manual save failed:', e);
-                        setTimeout(() => { saveBtn.textContent = 'Save'; }, 2000);
-                    } finally {
-                        saveBtn.disabled = false;
-                    }
-                };
 
                 // Wire up the Revert button (inside Edit modal) — click-to-confirm pattern
                 const revertBtn = document.getElementById('pdf-revert-btn');
@@ -8690,7 +8673,7 @@ async function openPDFViewer(patternId, pushHistory = true) {
                             storage.onSetModified = () => {
                                 if (origOnSetModified) origOnSetModified();
                                 clearTimeout(annotationSaveTimer);
-                                annotationSaveTimer = setTimeout(saveAnnotations, 3000);
+                                annotationSaveTimer = setTimeout(saveAnnotations, 2000);
                             };
                         }
                     }, 500);
@@ -8700,7 +8683,7 @@ async function openPDFViewer(patternId, pushHistory = true) {
                 viewerApp.eventBus.on('annotationeditorstateschanged', (evt) => {
                     if (evt.details?.hasSomethingToUndo) {
                         clearTimeout(annotationSaveTimer);
-                        annotationSaveTimer = setTimeout(saveAnnotations, 3000);
+                        annotationSaveTimer = setTimeout(saveAnnotations, 2000);
                     }
                 });
 
@@ -9017,8 +9000,6 @@ async function closePDFViewer() {
             }
         } catch (e) { /* viewer may already be unloading */ }
         pdfObject.remove();
-        const saveBtn = document.getElementById('pdf-save-btn');
-        if (saveBtn) { saveBtn.style.display = 'none'; saveBtn.textContent = 'Save'; }
         wrapper.querySelector('.pdf-page-container').style.display = '';
         const spacer = wrapper.querySelector('.pdf-scroll-spacer');
         if (spacer) spacer.style.display = '';

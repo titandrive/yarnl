@@ -8611,6 +8611,24 @@ async function renderPage(pageNum) {
             }
         }
 
+        // Ensure scroll spacer exists for overlay clearance when zoomed
+        let spacer = wrapper.querySelector('.pdf-scroll-spacer');
+        if (!spacer) {
+            spacer = document.createElement('div');
+            spacer.className = 'pdf-scroll-spacer';
+            const zoomOverlay = wrapper.querySelector('.pdf-zoom-overlay');
+            wrapper.insertBefore(spacer, zoomOverlay);
+        }
+        if (pdfZoomMode === 'fit') {
+            spacer.style.height = '0';
+        } else {
+            const overlayH = counterOverlay ? counterOverlay.offsetHeight : 0;
+            const zoomOverlayEl = wrapper.querySelector('.pdf-zoom-overlay');
+            const zoomH = zoomOverlayEl && getComputedStyle(zoomOverlayEl).display !== 'none'
+                ? 100 + zoomOverlayEl.offsetHeight : 0;
+            spacer.style.height = (Math.max(overlayH, zoomH, 150) + 20) + 'px';
+        }
+
         // Update page info
         document.getElementById('page-info').textContent = `${pageNum} of ${totalPages}`;
 
@@ -9123,15 +9141,18 @@ const mobileBar = (() => {
         if (!bar || !isMobile()) return;
 
         const counterSection = bar.querySelector('.mobile-bar-counter');
+        const addBtn = bar.querySelector('.mobile-counter-add');
         const divider = bar.querySelector('.mobile-bar-divider');
 
         if (counters.length === 0) {
             if (counterSection) counterSection.style.display = 'none';
+            if (addBtn) addBtn.style.display = '';
             if (divider) divider.style.display = 'none';
             return;
         }
 
         if (counterSection) counterSection.style.display = '';
+        if (addBtn) addBtn.style.display = 'none';
         if (divider) divider.style.display = '';
 
         // Clamp index
@@ -9265,6 +9286,12 @@ const mobileBar = (() => {
             // Page navigation
             bar.querySelector('.mobile-page-prev').addEventListener('click', () => changePage(-1));
             bar.querySelector('.mobile-page-next').addEventListener('click', () => changePage(1));
+
+            // Add counter button (shown when no counters exist)
+            bar.querySelector('.mobile-counter-add').addEventListener('click', async () => {
+                await addCounter('Counter');
+                update();
+            });
 
             // Counter navigation
             bar.querySelector('.mobile-counter-prev').addEventListener('click', () => nav(-1));

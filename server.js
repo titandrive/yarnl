@@ -1963,15 +1963,18 @@ app.get('/api/patterns/:id/file', async (req, res) => {
     }
 
     const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
-    let filePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
-
-    // Check if file exists in category folder, otherwise check user's root patterns folder (for legacy files)
-    if (!fs.existsSync(filePath)) {
-      filePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
-      if (!fs.existsSync(filePath)) {
+    let dir = getCategoryDir(ownerUsername, pattern.category);
+    if (!fs.existsSync(path.join(dir, pattern.filename))) {
+      dir = getUserPatternsDir(ownerUsername);
+      if (!fs.existsSync(path.join(dir, pattern.filename))) {
         return res.status(404).json({ error: 'File not found' });
       }
     }
+
+    // Serve annotated version if it exists, otherwise the original
+    const annotatedName = pattern.filename.replace(/\.pdf$/i, '.annotated.pdf');
+    const annotatedPath = path.join(dir, annotatedName);
+    const filePath = fs.existsSync(annotatedPath) ? annotatedPath : path.join(dir, pattern.filename);
 
     // Prevent browser from serving stale cached PDFs (annotations would be lost)
     res.set('Cache-Control', 'no-cache');
@@ -1982,7 +1985,7 @@ app.get('/api/patterns/:id/file', async (req, res) => {
   }
 });
 
-// Save annotated PDF (replaces file on disk)
+// Save annotated PDF (writes to .annotated.pdf, original is never modified)
 app.put('/api/patterns/:id/file', express.raw({ type: 'application/pdf', limit: '100mb' }), async (req, res) => {
   try {
     const pattern = await verifyPatternOwnership(req.params.id, req.user.id, req.user.role === 'admin');
@@ -1991,15 +1994,43 @@ app.put('/api/patterns/:id/file', express.raw({ type: 'application/pdf', limit: 
     }
 
     const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
-    let filePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
-    if (!fs.existsSync(filePath)) {
-      filePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
+    let dir = getCategoryDir(ownerUsername, pattern.category);
+    if (!fs.existsSync(path.join(dir, pattern.filename))) {
+      dir = getUserPatternsDir(ownerUsername);
     }
 
-    fs.writeFileSync(filePath, req.body);
+    const annotatedName = pattern.filename.replace(/\.pdf$/i, '.annotated.pdf');
+    fs.writeFileSync(path.join(dir, annotatedName), req.body);
     res.json({ success: true });
   } catch (error) {
     console.error('Error saving annotated PDF:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Revert annotations (delete the .annotated.pdf, restoring original)
+app.delete('/api/patterns/:id/annotations', async (req, res) => {
+  try {
+    const pattern = await verifyPatternOwnership(req.params.id, req.user.id, req.user.role === 'admin');
+    if (!pattern) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+    let dir = getCategoryDir(ownerUsername, pattern.category);
+    if (!fs.existsSync(path.join(dir, pattern.filename))) {
+      dir = getUserPatternsDir(ownerUsername);
+    }
+
+    const annotatedName = pattern.filename.replace(/\.pdf$/i, '.annotated.pdf');
+    const annotatedPath = path.join(dir, annotatedName);
+    if (fs.existsSync(annotatedPath)) {
+      fs.unlinkSync(annotatedPath);
+      return res.json({ success: true, reverted: true });
+    }
+    res.json({ success: true, reverted: false });
+  } catch (error) {
+    console.error('Error reverting annotations:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -2399,6 +2430,12 @@ app.delete('/api/patterns/:id', async (req, res) => {
         fs.unlinkSync(filePath);
       }
     }
+    // Also delete the annotated version if it exists
+    const annotatedName = pattern.filename.replace(/\.pdf$/i, '.annotated.pdf');
+    const annotatedPath = path.join(path.dirname(filePath), annotatedName);
+    if (fs.existsSync(annotatedPath)) {
+      fs.unlinkSync(annotatedPath);
+    }
 
     // Delete the thumbnail
     if (pattern.thumbnail) {
@@ -2446,6 +2483,13 @@ app.post('/api/patterns/:id/archive', async (req, res) => {
       const archiveFilePath = path.join(archiveCategoryDir, pattern.filename);
       fs.copyFileSync(filePath, archiveFilePath);
       fs.unlinkSync(filePath);
+    }
+    // Also move annotated version if it exists
+    const annotatedName = pattern.filename.replace(/\.pdf$/i, '.annotated.pdf');
+    const annotatedPath = path.join(path.dirname(filePath), annotatedName);
+    if (fs.existsSync(annotatedPath)) {
+      fs.copyFileSync(annotatedPath, path.join(archiveCategoryDir, annotatedName));
+      fs.unlinkSync(annotatedPath);
     }
 
     // Move thumbnail to archive if exists
@@ -2505,6 +2549,13 @@ app.post('/api/patterns/:id/restore', async (req, res) => {
       fs.copyFileSync(archiveFilePath, filePath);
       fs.unlinkSync(archiveFilePath);
     }
+    // Also move annotated version if it exists
+    const annotatedName = pattern.filename.replace(/\.pdf$/i, '.annotated.pdf');
+    const annotatedArchivePath = path.join(getArchiveCategoryDir(ownerUsername, pattern.category), annotatedName);
+    if (fs.existsSync(annotatedArchivePath)) {
+      fs.copyFileSync(annotatedArchivePath, path.join(categoryDir, annotatedName));
+      fs.unlinkSync(annotatedArchivePath);
+    }
 
     // Move thumbnail from archive
     if (pattern.thumbnail) {
@@ -2554,6 +2605,12 @@ app.delete('/api/patterns/:id/permanent', async (req, res) => {
     const archiveFilePath = path.join(getArchiveCategoryDir(ownerUsername, pattern.category), pattern.filename);
     if (fs.existsSync(archiveFilePath)) {
       fs.unlinkSync(archiveFilePath);
+    }
+    // Also delete the annotated version if it exists
+    const annotatedName = pattern.filename.replace(/\.pdf$/i, '.annotated.pdf');
+    const annotatedArchivePath = path.join(path.dirname(archiveFilePath), annotatedName);
+    if (fs.existsSync(annotatedArchivePath)) {
+      fs.unlinkSync(annotatedArchivePath);
     }
 
     // Delete thumbnail from archive

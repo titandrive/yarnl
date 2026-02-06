@@ -8617,6 +8617,42 @@ async function openPDFViewer(patternId, pushHistory = true) {
                     }
                 };
 
+                // Wire up the Revert button
+                const revertBtn = document.getElementById('pdf-revert-btn');
+                revertBtn.style.display = '';
+                revertBtn.onclick = async () => {
+                    if (!confirm('Revert all annotations and restore the original PDF?')) return;
+                    revertBtn.disabled = true;
+                    try {
+                        revertBtn.textContent = 'Reverting…';
+                        // Stop any pending auto-saves and prevent new ones
+                        clearTimeout(annotationSaveTimer);
+                        annotationSaving = true;
+                        const resp = await fetch(`${API_URL}/api/patterns/${patternId}/annotations`, { method: 'DELETE' });
+                        const result = await resp.json();
+                        if (result.reverted) {
+                            // Reload the viewer with the clean original PDF
+                            const iframe = wrapper.querySelector('.native-pdf-viewer');
+                            if (iframe) {
+                                iframe.contentWindow.location.reload();
+                            }
+                            revertBtn.textContent = 'Reverted!';
+                            setTimeout(() => { revertBtn.textContent = 'Revert'; annotationSaving = false; }, 2000);
+                        } else {
+                            annotationSaving = false;
+                            revertBtn.textContent = 'No annotations';
+                            setTimeout(() => { revertBtn.textContent = 'Revert'; }, 1500);
+                        }
+                    } catch (e) {
+                        annotationSaving = false;
+                        revertBtn.textContent = 'Error';
+                        console.error('Revert failed:', e);
+                        setTimeout(() => { revertBtn.textContent = 'Revert'; }, 2000);
+                    } finally {
+                        revertBtn.disabled = false;
+                    }
+                };
+
                 viewerApp.eventBus.on('pagesloaded', () => {
                     totalPages = viewerApp.pagesCount;
                     mobileBar.updatePageInfo();
@@ -8990,6 +9026,8 @@ async function closePDFViewer() {
         pdfObject.remove();
         const saveBtn = document.getElementById('pdf-save-btn');
         if (saveBtn) { saveBtn.style.display = 'none'; saveBtn.textContent = 'Save'; }
+        const revertBtn = document.getElementById('pdf-revert-btn');
+        if (revertBtn) { revertBtn.style.display = 'none'; revertBtn.textContent = 'Revert'; }
         wrapper.querySelector('.pdf-page-container').style.display = '';
         const spacer = wrapper.querySelector('.pdf-scroll-spacer');
         if (spacer) spacer.style.display = '';

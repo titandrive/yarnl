@@ -1876,6 +1876,47 @@ Inc in each st around (12)
                 </div>
             </div>
 
+            <!-- Mobile Top Bar (visible only on mobile) -->
+            <div class="mobile-top-bar">
+                <button id="mobile-back-btn" class="mobile-top-btn" title="Back">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+                <span id="mobile-pattern-name" class="mobile-pattern-name"></span>
+                <span class="mobile-page-info">1 / 1</span>
+                <div class="mobile-top-right">
+                    <button id="mobile-timer-btn" class="mobile-top-btn mobile-timer-btn" title="Toggle timer">
+                        <svg class="timer-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <polyline points="12 6 12 12 16 14"></polyline>
+                        </svg>
+                        <span id="mobile-timer-display">0:00:00</span>
+                    </button>
+                    <div class="mobile-menu-wrapper">
+                    <button id="mobile-menu-btn" class="mobile-top-btn" title="Menu">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div id="mobile-menu" class="mobile-menu" style="display: none;">
+                        <button class="mobile-menu-item" id="mobile-notes-btn">Notes</button>
+                        <button class="mobile-menu-item" id="mobile-edit-btn">Edit</button>
+                        <button class="mobile-menu-item" id="mobile-info-btn">Info</button>
+                        <div class="mobile-menu-divider"></div>
+                        <label class="mobile-menu-item mobile-menu-toggle">
+                            <span>Auto Timer</span>
+                            <input type="checkbox" id="mobile-auto-timer-checkbox">
+                            <span class="auto-timer-slider"></span>
+                        </label>
+                        <button class="mobile-menu-item mobile-menu-danger" id="mobile-timer-reset-btn">Reset Timer</button>
+                    </div>
+                    </div>
+                </div>
+            </div>
+
             <div class="pdf-viewer-wrapper">
                 <div class="pdf-page-container">
                     <canvas id="pdf-canvas"></canvas>
@@ -1902,30 +1943,40 @@ Inc in each st around (12)
                 </div>
             </div>
 
-            <!-- Mobile Floating Counter -->
-            <div id="mobile-counter" class="mobile-counter" style="display: none;">
-                <div class="mobile-counter-row mobile-counter-normal">
-                    <button class="mobile-counter-nav mobile-counter-prev">‹</button>
-                    <div class="mobile-counter-dec">−</div>
-                    <div class="mobile-counter-label">
-                        <span class="mobile-counter-name"></span>
+            <!-- Mobile Bottom Bar (visible only on mobile) -->
+            <div id="mobile-bottom-bar" class="mobile-bottom-bar">
+                <button class="mobile-bar-btn mobile-page-prev" title="Previous page">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                </button>
+                <div class="mobile-bar-counter">
+                    <button class="mobile-bar-nav mobile-counter-prev">‹</button>
+                    <div class="mobile-bar-btn mobile-counter-dec">−</div>
+                    <div class="mobile-bar-counter-label">
+                        <span class="mobile-counter-name">Counter</span>
                         <span class="mobile-counter-value">0</span>
-                        <span class="mobile-counter-info">edit</span>
                     </div>
-                    <div class="mobile-counter-inc">+</div>
-                    <button class="mobile-counter-nav mobile-counter-next">›</button>
+                    <div class="mobile-bar-btn mobile-counter-inc">+</div>
+                    <button class="mobile-bar-nav mobile-counter-next">›</button>
                 </div>
-                <div class="mobile-counter-edit" style="display: none;">
-                    <div class="mobile-counter-edit-nav">
-                        <button class="mobile-counter-edit-prev">‹</button>
-                        <span class="mobile-counter-edit-pos">1 / 1</span>
-                        <button class="mobile-counter-edit-next">›</button>
+                <button class="mobile-bar-btn mobile-page-next" title="Next page">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 6 15 12 9 18"></polyline>
+                    </svg>
+                </button>
+                <!-- Counter Edit Panel (slides up) -->
+                <div class="mobile-bar-edit" style="display: none;">
+                    <div class="mobile-bar-edit-row">
+                        <button class="mobile-bar-edit-nav mobile-edit-prev">‹</button>
+                        <span class="mobile-edit-pos">1 / 1</span>
+                        <button class="mobile-bar-edit-nav mobile-edit-next">›</button>
                     </div>
-                    <input type="text" class="mobile-counter-name-input" placeholder="Counter name">
-                    <div class="mobile-counter-edit-actions">
-                        <button class="mobile-counter-edit-btn mobile-counter-add-btn">Add</button>
-                        <button class="mobile-counter-edit-btn mobile-counter-delete-btn">Delete</button>
-                        <button class="mobile-counter-edit-btn mobile-counter-done-btn">Done</button>
+                    <input type="text" class="mobile-edit-name" placeholder="Counter name">
+                    <div class="mobile-bar-edit-actions">
+                        <button class="mobile-bar-edit-btn mobile-edit-add">Add</button>
+                        <button class="mobile-bar-edit-btn mobile-edit-delete">Delete</button>
+                        <button class="mobile-bar-edit-btn mobile-edit-done">Done</button>
                     </div>
                 </div>
             </div>

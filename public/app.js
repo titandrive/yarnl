@@ -1976,13 +1976,22 @@ function cancelTimerResetConfirmation() {
 function updateResetButtonState() {
     const pdfResetBtn = document.getElementById('pdf-timer-reset-btn');
     const markdownResetBtn = document.getElementById('markdown-timer-reset-btn');
+    const mobileResetBtn = document.getElementById('mobile-timer-reset-btn');
 
     if (timerResetConfirming) {
         if (pdfResetBtn) pdfResetBtn.classList.add('confirming');
         if (markdownResetBtn) markdownResetBtn.classList.add('confirming');
+        if (mobileResetBtn) {
+            mobileResetBtn.classList.add('confirming');
+            mobileResetBtn.textContent = 'Confirm Reset?';
+        }
     } else {
         if (pdfResetBtn) pdfResetBtn.classList.remove('confirming');
         if (markdownResetBtn) markdownResetBtn.classList.remove('confirming');
+        if (mobileResetBtn) {
+            mobileResetBtn.classList.remove('confirming');
+            mobileResetBtn.textContent = 'Reset Timer';
+        }
     }
 }
 
@@ -9538,7 +9547,10 @@ const mobileBar = (() => {
                 autoTimerCheckbox.addEventListener('change', toggleAutoTimer);
             }
             if (timerResetBtn) timerResetBtn.addEventListener('click', () => {
-                menu.style.display = 'none';
+                if (timerResetConfirming) {
+                    // Second click - reset and close menu
+                    menu.style.display = 'none';
+                }
                 handleTimerReset();
             });
         }

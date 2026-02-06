@@ -7754,7 +7754,7 @@ function initPDFViewer() {
             );
             // Calculate zoom scale
             const rawScale = currentDistance / initialPinchDistance;
-            const newZoom = Math.min(Math.max(initialZoom * rawScale, 0.1), 4.0);
+            const newZoom = Math.min(Math.max(initialZoom * rawScale, 0.25), 4.0);
 
             // Only re-render if scale changed enough (reduces render calls)
             if (Math.abs(newZoom - lastPinchScale) > 0.02) {
@@ -7863,7 +7863,7 @@ function initPDFViewer() {
             pdfZoomMode = 'manual';
             // Smaller increments for smoother zoom
             const delta = e.deltaY > 0 ? -0.03 : 0.03;
-            pdfZoomScale = Math.min(Math.max(pdfZoomScale + delta, 0.1), 4.0);
+            pdfZoomScale = Math.min(Math.max(pdfZoomScale + delta, 0.25), 4.0);
             renderPage(currentPageNum);
             savePdfViewerState();
         }
@@ -8380,7 +8380,7 @@ function zoomOut() {
         pdfZoomScale = pdfFitWidthScale;
     }
     pdfZoomMode = 'manual';
-    pdfZoomScale = Math.max(pdfZoomScale - 0.1, 0.1);
+    pdfZoomScale = Math.max(pdfZoomScale - 0.1, 0.25);
     renderPage(currentPageNum);
     savePdfViewerState();
 }
@@ -8400,7 +8400,7 @@ function zoom100() {
 
 function setZoomLevel(level) {
     pdfZoomMode = 'manual';
-    pdfZoomScale = Math.min(Math.max(level, 0.1), 4.0);
+    pdfZoomScale = Math.min(Math.max(level, 0.25), 4.0);
     renderPage(currentPageNum);
     savePdfViewerState();
 }
@@ -8937,7 +8937,7 @@ const mobileCounter = (() => {
         document.addEventListener('touchend', onDragEnd);
     }
 
-    function toggleEdit(show) {
+    async function toggleEdit(show) {
         const el = getEl();
         if (!el) return;
         const normal = el.querySelector('.mobile-counter-normal');
@@ -8950,11 +8950,31 @@ const mobileCounter = (() => {
             normal.style.display = 'none';
             edit.style.display = '';
             el.classList.add('editing');
+            // Ensure edit panel stays on screen
+            requestAnimationFrame(() => {
+                const rect = el.getBoundingClientRect();
+                if (rect.bottom > window.innerHeight) {
+                    el.style.top = Math.max(0, window.innerHeight - rect.height - 10) + 'px';
+                    el.style.bottom = 'auto';
+                }
+                if (rect.right > window.innerWidth) {
+                    el.style.left = Math.max(0, window.innerWidth - rect.width - 10) + 'px';
+                    el.style.right = 'auto';
+                }
+            });
         } else {
+            // Save name if changed before closing
+            const nameInput = el.querySelector('.mobile-counter-name-input');
+            const counter = counters[currentIndex];
+            if (counter && nameInput.value !== counter.name) {
+                counter.name = nameInput.value; // Update locally first
+                updateCounterName(counter.id, nameInput.value); // Save to API in background
+            }
             normal.style.display = '';
             edit.style.display = 'none';
             el.classList.remove('editing');
             update();
+            displayCounters();
         }
     }
 

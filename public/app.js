@@ -1,6 +1,27 @@
 // API base URL
 const API_URL = '';
 
+// bfcache diagnostic — shows why page reloaded instead of restoring from cache
+window.addEventListener('pageshow', (e) => {
+    if (e.persisted) return; // restored from bfcache, all good
+    const nav = performance.getEntriesByType('navigation')[0];
+    if (nav && nav.notRestoredReasons) {
+        const reasons = nav.notRestoredReasons.reasons || [];
+        const children = (nav.notRestoredReasons.children || [])
+            .flatMap(c => c.reasons || []);
+        const all = [...reasons, ...children];
+        if (all.length) {
+            console.warn('bfcache blocked:', all);
+            // Show as temporary toast so user can report it
+            setTimeout(() => {
+                if (typeof showToast === 'function') {
+                    showToast('bfcache blocked: ' + all.join(', '), 'warning', 8000);
+                }
+            }, 3000);
+        }
+    }
+});
+
 // Auth state
 let currentUser = null;
 let authMode = 'single-user';
@@ -1496,6 +1517,7 @@ function getPatternSlug(pattern) {
 
 // State
 let patterns = [];
+let patternsLoaded = false;
 let currentPatterns = [];
 let projects = []; // All projects
 let currentProjects = []; // Projects marked as current
@@ -1667,15 +1689,25 @@ function initTimer() {
         document.addEventListener(event, resetInactivity, { passive: true });
     });
 
-    // Stop timer when window/tab becomes hidden or closes
+    // Save timer when page is hidden (bfcache-friendly, replaces beforeunload)
     document.addEventListener('visibilitychange', () => {
-        // Timer continues running when tab is not visible (background)
-        // Only stop on actual close (handled by beforeunload)
+        if (document.hidden && timerRunning) {
+            stopTimer(true);
+        }
     });
 
-    window.addEventListener('beforeunload', () => {
-        if (timerRunning) {
-            stopTimer(true); // Save synchronously before page unload
+    // Save current page position when page is hidden (survives OS process kill)
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden && currentPattern && currentPageNum) {
+            fetch(`${API_URL}/api/patterns/${currentPattern.id}/page`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPage: currentPageNum }),
+                keepalive: true
+            }).catch(() => {});
+            if (typeof savePdfViewerState === 'function') {
+                savePdfViewerState();
+            }
         }
     });
 }
@@ -1982,15 +2014,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     initAuth();
     initTheme();
 
+    // Show app container immediately if previously authenticated (skip auth API wait)
+    const wasAuthenticated = localStorage.getItem('authenticated') === 'true';
+    if (wasAuthenticated) {
+        document.getElementById('login-container').style.display = 'none';
+        document.querySelector('.container').style.display = 'block';
+    }
+
     // Check authentication
     const isAuthenticated = await checkAuth();
     if (!isAuthenticated) {
+        localStorage.removeItem('authenticated');
         showLogin();
         return;
     }
 
-    // User is authenticated, show app and initialize
-    showApp();
+    localStorage.setItem('authenticated', 'true');
+
+    // Show app if not already shown
+    if (!wasAuthenticated) {
+        showApp();
+    }
 
     // Global haptic feedback for buttons and toggles on mobile
     // Track touch movement to avoid vibrating on scrolls
@@ -2070,21 +2114,56 @@ function initHorizontalScroll() {
 }
 
 // Server-sent events for real-time notifications
+// Close when hidden to allow bfcache (prevents PWA reload on resume)
 function initServerEvents() {
-    const eventSource = new EventSource(`${API_URL}/api/events`);
+    let eventSource = null;
+    let connectTimeout = null;
 
-    eventSource.onmessage = (event) => {
-        try {
-            const data = JSON.parse(event.data);
-            handleServerEvent(data);
-        } catch (error) {
-            console.error('Error parsing server event:', error);
+    function connect() {
+        if (eventSource || document.hidden) return;
+        eventSource = new EventSource(`${API_URL}/api/events`);
+        eventSource.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                handleServerEvent(data);
+            } catch (error) {
+                console.error('Error parsing server event:', error);
+            }
+        };
+        eventSource.onerror = () => {
+            // Close on error to prevent auto-reconnect when hidden
+            if (document.hidden) disconnect();
+        };
+    }
+
+    function disconnect() {
+        if (connectTimeout) {
+            clearTimeout(connectTimeout);
+            connectTimeout = null;
         }
-    };
+        if (eventSource) {
+            eventSource.onmessage = null;
+            eventSource.onerror = null;
+            eventSource.close();
+            eventSource = null;
+        }
+    }
 
-    eventSource.onerror = (error) => {
-        console.log('SSE connection error, will reconnect automatically');
-    };
+    // Delay initial connect so page lifecycle can settle
+    connectTimeout = setTimeout(connect, 1000);
+
+    // Close on hide to enable bfcache, reconnect on show
+    document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+            disconnect();
+        } else {
+            // Small delay on reconnect to avoid racing with page resume
+            connectTimeout = setTimeout(connect, 500);
+        }
+    });
+
+    // Last-chance cleanup before page is frozen/discarded
+    window.addEventListener('pagehide', disconnect);
 }
 
 function handleServerEvent(event) {
@@ -2202,25 +2281,22 @@ async function handleInitialNavigation() {
         return;
     }
 
-    // No hash - check sessionStorage for refresh persistence (only on actual page reload)
-    const navEntries = performance.getEntriesByType('navigation');
-    const isPageReload = navEntries.length > 0 && navEntries[0].type === 'reload';
-
-    if (isPageReload) {
-        const viewingPatternId = sessionStorage.getItem('viewingPatternId');
-        if (viewingPatternId) {
-            const pattern = patterns.find(p => p.id === parseInt(viewingPatternId));
-            if (pattern) {
-                await openPDFViewer(parseInt(viewingPatternId), false);
-                const slug = getPatternSlug(pattern);
-                history.replaceState({ view: `pattern/${slug}` }, '', `#pattern/${slug}`);
-                return;
-            }
+    // No hash - restore last viewed pattern (survives PWA resume / Android process kill)
+    const viewingPatternId = localStorage.getItem('viewingPatternId');
+    if (viewingPatternId) {
+        const pattern = patterns.find(p => p.id === parseInt(viewingPatternId));
+        if (pattern) {
+            await openPDFViewer(parseInt(viewingPatternId), false);
+            const slug = getPatternSlug(pattern);
+            history.replaceState({ view: `pattern/${slug}` }, '', `#pattern/${slug}`);
+            return;
+        }
+        // Only clear if patterns actually loaded (pattern was deleted).
+        // If API failed, keep the ID so next launch can retry.
+        if (patternsLoaded) {
+            localStorage.removeItem('viewingPatternId');
         }
     }
-
-    // Clear stale viewingPatternId on fresh navigation
-    sessionStorage.removeItem('viewingPatternId');
 
     // Default: go to default page
     const defaultPage = localStorage.getItem('defaultPage') || 'current';
@@ -2453,6 +2529,10 @@ function initTheme() {
     const fullTheme = `${themeBase}-${effectiveMode}`;
     document.documentElement.setAttribute('data-theme', fullTheme);
     localStorage.setItem('theme', fullTheme);
+    requestAnimationFrame(() => {
+        const bg = getComputedStyle(document.body).backgroundColor;
+        if (bg) localStorage.setItem('themeBgColor', bg);
+    });
 
     // Gradient setting (default off)
     const useGradient = localStorage.getItem('useGradient') === 'true';
@@ -2479,6 +2559,12 @@ function initTheme() {
         }
     }
 
+    // Save bg color for instant splash-to-page transition on PWA resume
+    function saveThemeBgColor() {
+        const bg = getComputedStyle(document.body).backgroundColor;
+        if (bg) localStorage.setItem('themeBgColor', bg);
+    }
+
     // Apply theme helper
     function applyTheme() {
         const effectiveMode = getEffectiveMode();
@@ -2489,6 +2575,7 @@ function initTheme() {
         localStorage.setItem('themeMode', themeMode);
         localStorage.setItem('autoModeEnabled', autoEnabled);
         localStorage.setItem('autoType', autoType);
+        requestAnimationFrame(saveThemeBgColor);
         updateUI();
     }
 
@@ -3129,7 +3216,7 @@ function initTheme() {
 function initTabs() {
     // Check if we're restoring a pattern viewer - don't show tabs in that case
     // Check both sessionStorage (for refresh) and URL hash (for cmd+click new tab)
-    const viewingPatternId = sessionStorage.getItem('viewingPatternId');
+    const viewingPatternId = localStorage.getItem('viewingPatternId');
     const hash = window.location.hash.slice(1);
     const isOpeningPattern = viewingPatternId || hash.startsWith('pattern/');
 
@@ -3143,7 +3230,19 @@ function initTabs() {
         const currentTab = sessionStorage.getItem('activeTab');
         const defaultPage = localStorage.getItem('defaultPage') || 'current';
         const startTab = currentTab || defaultPage;
-        switchToTab(startTab, false); // Don't push to history during init
+
+        // If early-tab-style already set the correct tab, just sync button state
+        const earlyStyle = document.getElementById('early-tab-style');
+        const alreadyShowing = document.querySelector('.tab-content.active');
+        if (earlyStyle && alreadyShowing && alreadyShowing.id === startTab) {
+            tabBtns.forEach(b => b.classList.remove('active'));
+            const btn = document.querySelector(`[data-tab="${startTab}"]`);
+            if (btn) btn.classList.add('active');
+            earlyStyle.remove();
+        } else {
+            if (earlyStyle) earlyStyle.remove();
+            switchToTab(startTab, false);
+        }
     }
 
     tabBtns.forEach(btn => {
@@ -3963,6 +4062,7 @@ async function loadPatterns() {
     try {
         const response = await fetch(`${API_URL}/api/patterns`);
         patterns = await response.json();
+        patternsLoaded = true;
         displayPatterns();
         updateTabCounts();
     } catch (error) {
@@ -8338,8 +8438,8 @@ async function openPDFViewer(patternId, pushHistory = true) {
             history.pushState({ view: `pattern/${slug}` }, '', `#pattern/${slug}`);
         }
 
-        // Save viewing pattern to sessionStorage for refresh persistence
-        sessionStorage.setItem('viewingPatternId', id);
+        // Save viewing pattern for restore on PWA resume (localStorage survives process kill)
+        localStorage.setItem('viewingPatternId', id);
 
         // Route to appropriate viewer based on pattern type
         if (pattern.pattern_type === 'markdown') {
@@ -8672,7 +8772,7 @@ async function closePDFViewer() {
     }
 
     // Clear viewing pattern from sessionStorage
-    sessionStorage.removeItem('viewingPatternId');
+    localStorage.removeItem('viewingPatternId');
 
     // Reset state
     resetTimerState();
@@ -10119,7 +10219,7 @@ async function closeMarkdownViewer() {
     }
 
     // Clear viewing pattern from sessionStorage
-    sessionStorage.removeItem('viewingPatternId');
+    localStorage.removeItem('viewingPatternId');
 
     // Reset state
     resetTimerState();

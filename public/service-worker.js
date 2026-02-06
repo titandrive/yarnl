@@ -1,10 +1,21 @@
-const CACHE_VERSION = 'v3';
-const CACHE_NAME = `yarnl-${CACHE_VERSION}`;
+const CACHE_NAME = 'yarnl-cache';
 
-// Install — take over immediately
-self.addEventListener('install', () => self.skipWaiting());
+const SHELL_ASSETS = [
+  '/',
+  '/styles.css',
+  '/app.js',
+  '/manifest.json',
+];
 
-// Activate — clean up old caches, claim clients
+// Install — pre-cache app shell so reloads are instant from disk
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS))
+  );
+  // No skipWaiting — new SW waits for old one to release clients naturally
+});
+
+// Activate — clean up old caches
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
@@ -12,8 +23,8 @@ self.addEventListener('activate', (e) => {
         keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
       )
     )
+    // No clients.claim — avoids disrupting bfcache and running pages
   );
-  self.clients.claim();
 });
 
 // Fetch — stale-while-revalidate for static assets, network-only for API

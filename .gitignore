@@ -17,6 +17,7 @@ postgres-data/
 docker-compose.override.yml
 
 # User-generated content
+users/
 uploads/
 patterns/
 archive/

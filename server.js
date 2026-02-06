@@ -2009,6 +2009,25 @@ app.put('/api/patterns/:id/file', express.raw({ type: 'application/pdf', limit: 
 });
 
 // Revert annotations (delete the .annotated.pdf, restoring original)
+// Check if annotated version exists
+app.get('/api/patterns/:id/annotations', async (req, res) => {
+  try {
+    const pattern = await verifyPatternReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) return res.status(403).json({ error: 'Not authorized' });
+
+    const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+    let dir = getCategoryDir(ownerUsername, pattern.category);
+    if (!fs.existsSync(path.join(dir, pattern.filename))) {
+      dir = getUserPatternsDir(ownerUsername);
+    }
+
+    const annotatedName = pattern.filename.replace(/\.pdf$/i, '.annotated.pdf');
+    res.json({ hasAnnotations: fs.existsSync(path.join(dir, annotatedName)) });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.delete('/api/patterns/:id/annotations', async (req, res) => {
   try {
     const pattern = await verifyPatternOwnership(req.params.id, req.user.id, req.user.role === 'admin');

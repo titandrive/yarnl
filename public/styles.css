@@ -1164,6 +1164,11 @@ html[data-theme="nuked-dark"] .btn-primary {
     background: #4b5563;
 }
 
+.btn-secondary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
 .btn-danger {
     background: var(--danger-color);
     color: white;

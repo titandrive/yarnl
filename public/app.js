@@ -7728,21 +7728,20 @@ function initPDFViewer() {
         zoomInput.value = getZoomDisplayString();
     });
 
-    // Pinch to zoom on PDF viewer
+    // Pinch to zoom on PDF viewer — CSS transform for smooth live zoom,
+    // full hi-res re-render on release
     const pdfWrapper = document.querySelector('.pdf-viewer-wrapper');
     let initialPinchDistance = null;
     let initialZoom = 1.0;
-    let pinchRenderTimeout = null;
-    let lastPinchScale = 1.0;
+    let pinchRatio = 1.0;
 
     pdfWrapper.addEventListener('touchstart', (e) => {
         if (e.touches.length === 2) {
-            e.preventDefault(); // Prevent browser zoom
+            e.preventDefault();
             initialPinchDistance = Math.hypot(
                 e.touches[0].pageX - e.touches[1].pageX,
                 e.touches[0].pageY - e.touches[1].pageY
             );
-            // Convert fit mode to actual scale for pinch calculations
             if (pdfZoomMode === 'fit') {
                 initialZoom = pdfFitScale;
             } else if (pdfZoomMode === 'fit-width') {
@@ -7750,42 +7749,45 @@ function initPDFViewer() {
             } else {
                 initialZoom = pdfZoomScale;
             }
-            lastPinchScale = initialZoom;
+            pinchRatio = 1.0;
+
+            // Set transform origin on canvas to pinch midpoint
+            const rect = pdfCanvas.getBoundingClientRect();
+            const midX = (e.touches[0].clientX + e.touches[1].clientX) / 2 - rect.left;
+            const midY = (e.touches[0].clientY + e.touches[1].clientY) / 2 - rect.top;
+            pdfCanvas.style.transformOrigin = `${midX}px ${midY}px`;
         }
     }, { passive: false });
 
     pdfWrapper.addEventListener('touchmove', (e) => {
         if (e.touches.length === 2 && initialPinchDistance) {
-            e.preventDefault(); // Prevent browser zoom
+            e.preventDefault();
             const currentDistance = Math.hypot(
                 e.touches[0].pageX - e.touches[1].pageX,
                 e.touches[0].pageY - e.touches[1].pageY
             );
-            // Calculate zoom scale
-            const rawScale = currentDistance / initialPinchDistance;
-            const newZoom = Math.min(Math.max(initialZoom * rawScale, 0.25), 4.0);
+            pinchRatio = currentDistance / initialPinchDistance;
+            const newZoom = Math.min(Math.max(initialZoom * pinchRatio, 0.25), 4.0);
+            pinchRatio = newZoom / initialZoom;
 
-            // Only re-render if scale changed enough (reduces render calls)
-            if (Math.abs(newZoom - lastPinchScale) > 0.02) {
-                lastPinchScale = newZoom;
-                pdfZoomScale = newZoom;
-                pdfZoomMode = 'manual';
-                document.getElementById('zoom-level').value = `${Math.round(pdfZoomScale * 100)}%`;
-
-                // Debounce renders for performance
-                if (pinchRenderTimeout) clearTimeout(pinchRenderTimeout);
-                pinchRenderTimeout = setTimeout(() => {
-                    renderPage(currentPageNum);
-                }, 16); // ~60fps
-            }
+            // Smooth GPU-composited scale on the canvas — no re-render needed
+            pdfCanvas.style.transform = `scale(${pinchRatio})`;
+            document.getElementById('zoom-level').value = `${Math.round(newZoom * 100)}%`;
         }
     }, { passive: false });
 
-    pdfWrapper.addEventListener('touchend', (e) => {
+    pdfWrapper.addEventListener('touchend', async (e) => {
         if (initialPinchDistance && e.touches.length < 2) {
+            const finalZoom = Math.min(Math.max(initialZoom * pinchRatio, 0.25), 4.0);
             initialPinchDistance = null;
-            if (pinchRenderTimeout) clearTimeout(pinchRenderTimeout);
-            renderPage(currentPageNum);
+
+            // Re-render at full hi-res resolution
+            pdfZoomScale = finalZoom;
+            pdfZoomMode = 'manual';
+            pdfCanvas.style.transform = '';
+            pdfCanvas.style.transformOrigin = '';
+            await renderPage(currentPageNum);
+
             savePdfViewerState();
         }
     }, { passive: true });
@@ -8321,12 +8323,17 @@ async function renderPage(pageNum) {
 
         const scaledViewport = page.getViewport({ scale: scale });
 
-        canvas.height = scaledViewport.height;
-        canvas.width = scaledViewport.width;
+        // Render at 2x resolution for sharper zoom/pinch
+        const renderScale = 2;
+        canvas.width = Math.floor(scaledViewport.width * renderScale);
+        canvas.height = Math.floor(scaledViewport.height * renderScale);
+        canvas.style.width = Math.floor(scaledViewport.width) + 'px';
+        canvas.style.height = Math.floor(scaledViewport.height) + 'px';
 
+        const hiResViewport = page.getViewport({ scale: scale * renderScale });
         const renderContext = {
             canvasContext: context,
-            viewport: scaledViewport
+            viewport: hiResViewport
         };
 
         await page.render(renderContext).promise;
@@ -8334,8 +8341,8 @@ async function renderPage(pageNum) {
         // Render annotation layer for clickable links
         const annotationLayer = document.getElementById('pdf-annotation-layer');
         annotationLayer.innerHTML = '';
-        annotationLayer.style.width = `${scaledViewport.width}px`;
-        annotationLayer.style.height = `${scaledViewport.height}px`;
+        annotationLayer.style.width = Math.floor(scaledViewport.width) + 'px';
+        annotationLayer.style.height = Math.floor(scaledViewport.height) + 'px';
 
         const annotations = await page.getAnnotations();
         for (const annotation of annotations) {

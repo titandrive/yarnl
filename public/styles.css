@@ -2459,7 +2459,6 @@ body.global-drag-over #current::after {
 
 #pdf-canvas {
     max-width: none;
-    height: auto;
     background: white;
     display: block;
 }

@@ -8617,36 +8617,46 @@ async function openPDFViewer(patternId, pushHistory = true) {
                     }
                 };
 
-                // Wire up the Revert button
+                // Wire up the Revert button (inside Edit modal) — click-to-confirm pattern
                 const revertBtn = document.getElementById('pdf-revert-btn');
-                revertBtn.style.display = '';
+                let revertConfirmTimer = null;
                 revertBtn.onclick = async () => {
-                    if (!confirm('Revert all annotations and restore the original PDF?')) return;
+                    // First click: ask for confirmation
+                    if (!revertBtn.classList.contains('confirming')) {
+                        revertBtn.classList.add('confirming');
+                        revertBtn.textContent = 'Confirm Revert?';
+                        revertConfirmTimer = setTimeout(() => {
+                            revertBtn.classList.remove('confirming');
+                            revertBtn.textContent = 'Revert Annotations';
+                        }, 3000);
+                        return;
+                    }
+                    // Second click: do the revert
+                    clearTimeout(revertConfirmTimer);
+                    revertBtn.classList.remove('confirming');
                     revertBtn.disabled = true;
                     try {
                         revertBtn.textContent = 'Reverting…';
-                        // Stop any pending auto-saves and prevent new ones
                         clearTimeout(annotationSaveTimer);
                         annotationSaving = true;
                         const resp = await fetch(`${API_URL}/api/patterns/${patternId}/annotations`, { method: 'DELETE' });
                         const result = await resp.json();
                         if (result.reverted) {
-                            // Remove iframe and reopen viewer fresh with clean original
+                            document.getElementById('pdf-edit-modal').style.display = 'none';
                             const iframe = wrapper.querySelector('.native-pdf-viewer');
                             if (iframe) iframe.remove();
-                            revertBtn.textContent = 'Reverted!';
-                            setTimeout(() => { revertBtn.textContent = 'Revert'; }, 1500);
+                            revertBtn.textContent = 'Revert Annotations';
                             openPDFViewer(patternId, false);
                         } else {
                             annotationSaving = false;
-                            revertBtn.textContent = 'No annotations';
-                            setTimeout(() => { revertBtn.textContent = 'Revert'; }, 1500);
+                            revertBtn.textContent = 'No annotations to revert';
+                            setTimeout(() => { revertBtn.textContent = 'Revert Annotations'; }, 1500);
                         }
                     } catch (e) {
                         annotationSaving = false;
                         revertBtn.textContent = 'Error';
                         console.error('Revert failed:', e);
-                        setTimeout(() => { revertBtn.textContent = 'Revert'; }, 2000);
+                        setTimeout(() => { revertBtn.textContent = 'Revert Annotations'; }, 2000);
                     } finally {
                         revertBtn.disabled = false;
                     }
@@ -8974,59 +8984,41 @@ async function closePDFViewer() {
     // Save PDF viewer state (zoom and scroll position) before closing
     savePdfViewerState();
 
-    // Save timer before closing (immediate, not debounced)
-    if (currentPattern && timerSeconds > 0) {
-        if (timerRunning) {
-            timerRunning = false;
-            if (timerInterval) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-            }
-        }
-        await saveTimerImmediate();
-    }
+    // Capture state needed for background saves before clearing
+    const closingPattern = currentPattern;
+    const closingPage = currentPageNum;
+    const closingTimerSeconds = timerSeconds;
 
-    // Save current page before closing
-    if (currentPattern && currentPageNum) {
-        try {
-            await fetch(`${API_URL}/api/patterns/${currentPattern.id}/page`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ currentPage: currentPageNum })
-            });
-        } catch (error) {
-            console.error('Error saving page on close:', error);
+    // Stop timer
+    if (closingPattern && closingTimerSeconds > 0 && timerRunning) {
+        timerRunning = false;
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
         }
     }
 
-    // Save annotations on exit, then clean up native PDF viewer
+    // Collect annotation data from iframe before removing it
+    let annotationData = null;
     const wrapper = document.querySelector('.pdf-viewer-wrapper');
     const pdfObject = wrapper.querySelector('.native-pdf-viewer');
     if (pdfObject) {
         try {
             const viewerApp = pdfObject.contentWindow?.PDFViewerApplication;
             if (viewerApp?.pdfDocument) {
-                // Commit active drawing session, then save directly
                 const currentMode = viewerApp.pdfViewer?.annotationEditorMode;
                 if (currentMode && currentMode !== 0) {
                     viewerApp.pdfViewer.annotationEditorMode = { mode: 0 };
                     await new Promise(r => setTimeout(r, 100));
                 }
                 if (viewerApp.pdfDocument.annotationStorage?.size > 0) {
-                    const data = await viewerApp.pdfDocument.saveDocument();
-                    await fetch(`${API_URL}/api/patterns/${currentPattern.id}/file`, {
-                        method: 'PUT',
-                        headers: { 'Content-Type': 'application/pdf' },
-                        body: data
-                    });
+                    annotationData = await viewerApp.pdfDocument.saveDocument();
                 }
             }
         } catch (e) { /* viewer may already be unloading */ }
         pdfObject.remove();
         const saveBtn = document.getElementById('pdf-save-btn');
         if (saveBtn) { saveBtn.style.display = 'none'; saveBtn.textContent = 'Save'; }
-        const revertBtn = document.getElementById('pdf-revert-btn');
-        if (revertBtn) { revertBtn.style.display = 'none'; revertBtn.textContent = 'Revert'; }
         wrapper.querySelector('.pdf-page-container').style.display = '';
         const spacer = wrapper.querySelector('.pdf-scroll-spacer');
         if (spacer) spacer.style.display = '';
@@ -9045,12 +9037,31 @@ async function closePDFViewer() {
     pdfDoc = null;
     lastUsedCounterId = null;
 
-    // Reload patterns for when we return to list view
-    await loadCurrentPatterns();
-    await loadPatterns();
-
-    // Navigate back using history (this will hide the viewer and show tabs)
+    // Navigate back immediately (no white flash)
     await navigateBack();
+    loadCurrentPatterns();
+    loadPatterns();
+
+    // Save timer, page, and annotations in the background
+    if (closingPattern) {
+        if (closingTimerSeconds > 0) {
+            saveTimerImmediate().catch(() => {});
+        }
+        if (closingPage) {
+            fetch(`${API_URL}/api/patterns/${closingPattern.id}/page`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ currentPage: closingPage })
+            }).catch(() => {});
+        }
+        if (annotationData) {
+            fetch(`${API_URL}/api/patterns/${closingPattern.id}/file`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/pdf' },
+                body: annotationData
+            }).catch(() => {});
+        }
+    }
 }
 
 // PDF Edit Modal functionality
@@ -9083,6 +9094,15 @@ async function openPdfEditModal() {
     // Reset delete button state with appropriate label
     const deleteBtn = document.getElementById('delete-pdf-pattern');
     resetDeleteButton(deleteBtn, enableDirectDelete ? 'Delete Pattern' : 'Archive Pattern');
+
+    // Check if annotations exist and enable/disable revert button
+    const revertBtn = document.getElementById('pdf-revert-btn');
+    revertBtn.disabled = true;
+    revertBtn.textContent = 'Revert Annotations';
+    fetch(`${API_URL}/api/patterns/${currentPattern.id}/annotations`)
+        .then(r => r.json())
+        .then(data => { revertBtn.disabled = !data.hasAnnotations; })
+        .catch(() => { revertBtn.disabled = true; });
 
     modal.style.display = 'flex';
 }

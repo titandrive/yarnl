@@ -2035,12 +2035,11 @@ body.global-drag-over #current::after {
     position: absolute;
     top: 18px;
     right: 18px;
-    background: var(--warning-color);
+    background: var(--success-color);
     color: white;
-    padding: 3px 8px;
-    border-radius: 8px;
-    font-size: 0.65rem;
-    font-weight: 600;
+    padding: 5px;
+    border-radius: 50%;
+    line-height: 0;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     z-index: 10;
 }

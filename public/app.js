@@ -8562,15 +8562,9 @@ async function openPDFViewer(patternId, pushHistory = true) {
 
                 async function saveAnnotations() {
                     if (annotationSaving) return;
-                    if (!viewerApp.pdfDocument?.annotationStorage?.size) return;
                     annotationSaving = true;
                     try {
-                        const data = await viewerApp.pdfDocument.saveDocument();
-                        await fetch(`${API_URL}/api/patterns/${patternId}/file`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/pdf' },
-                            body: data
-                        });
+                        await commitAndSave();
                     } catch (err) {
                         console.error('Error saving annotations:', err);
                     } finally {
@@ -8585,6 +8579,43 @@ async function openPDFViewer(patternId, pushHistory = true) {
                 };
                 viewerApp.download = viewerApp.save.bind(viewerApp);
                 viewerApp.downloadOrSave = viewerApp.save.bind(viewerApp);
+
+                // Wire up the manual Save button
+                const saveBtn = document.getElementById('pdf-save-btn');
+                saveBtn.style.display = '';
+                // Commit active drawing session and save PDF with annotations
+                async function commitAndSave() {
+                    const currentMode = viewerApp.pdfViewer.annotationEditorMode;
+                    if (currentMode !== 0) {
+                        viewerApp.pdfViewer.annotationEditorMode = { mode: 0 };
+                        await new Promise(r => setTimeout(r, 100));
+                    }
+                    const data = await viewerApp.pdfDocument.saveDocument();
+                    if (currentMode !== 0) {
+                        viewerApp.pdfViewer.annotationEditorMode = { mode: currentMode };
+                    }
+                    await fetch(`${API_URL}/api/patterns/${patternId}/file`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/pdf' },
+                        body: data
+                    });
+                }
+
+                saveBtn.onclick = async () => {
+                    saveBtn.disabled = true;
+                    try {
+                        saveBtn.textContent = 'Saving…';
+                        await commitAndSave();
+                        saveBtn.textContent = 'Saved!';
+                        setTimeout(() => { saveBtn.textContent = 'Save'; }, 1500);
+                    } catch (e) {
+                        saveBtn.textContent = 'Error';
+                        console.error('Manual save failed:', e);
+                        setTimeout(() => { saveBtn.textContent = 'Save'; }, 2000);
+                    } finally {
+                        saveBtn.disabled = false;
+                    }
+                };
 
                 viewerApp.eventBus.on('pagesloaded', () => {
                     totalPages = viewerApp.pagesCount;
@@ -8939,11 +8970,26 @@ async function closePDFViewer() {
     if (pdfObject) {
         try {
             const viewerApp = pdfObject.contentWindow?.PDFViewerApplication;
-            if (viewerApp?.pdfDocument?.annotationStorage?.size > 0) {
-                await viewerApp.save();
+            if (viewerApp?.pdfDocument) {
+                // Commit active drawing session, then save directly
+                const currentMode = viewerApp.pdfViewer?.annotationEditorMode;
+                if (currentMode && currentMode !== 0) {
+                    viewerApp.pdfViewer.annotationEditorMode = { mode: 0 };
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                if (viewerApp.pdfDocument.annotationStorage?.size > 0) {
+                    const data = await viewerApp.pdfDocument.saveDocument();
+                    await fetch(`${API_URL}/api/patterns/${currentPattern.id}/file`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/pdf' },
+                        body: data
+                    });
+                }
             }
         } catch (e) { /* viewer may already be unloading */ }
         pdfObject.remove();
+        const saveBtn = document.getElementById('pdf-save-btn');
+        if (saveBtn) { saveBtn.style.display = 'none'; saveBtn.textContent = 'Save'; }
         wrapper.querySelector('.pdf-page-container').style.display = '';
         const spacer = wrapper.querySelector('.pdf-scroll-spacer');
         if (spacer) spacer.style.display = '';

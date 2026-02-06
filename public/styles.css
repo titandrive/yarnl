@@ -1753,6 +1753,19 @@ html[data-theme="nuked-dark"] .btn-primary {
         padding: 8px;
     }
 
+    /* ── Mobile Buttons ── */
+    .btn {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }
+
+    .upload-panel-header .btn,
+    .new-pattern-header .btn,
+    .project-detail-header .btn {
+        padding: 6px 12px;
+        font-size: 0.85rem;
+    }
+
     /* ── Mobile Tabs ── */
     .tab-btn {
         padding: 12px 8px;
@@ -1870,7 +1883,8 @@ html[data-theme="nuked-dark"] .btn-primary {
 
     /* ── Project Cards ── */
     .project-continue-btn {
-        width: 100%;
+        width: auto;
+        align-self: flex-start;
     }
 
     /* ── Counter Section ── */
@@ -3028,6 +3042,12 @@ body.global-drag-over #current::after {
 
 .mobile-menu-danger {
     color: #dc2626;
+}
+
+.mobile-menu-danger.confirming {
+    background: #dc2626;
+    color: white;
+    border-radius: 6px;
 }
 
 /* Mobile Bottom Bar (hidden on desktop) */
@@ -7955,26 +7975,69 @@ input[type="number"].settings-input {
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-    .project-detail-view {
-        padding: 15px;
+    /* --- Upload panel (Add PDF) --- */
+    .upload-panel-header,
+    .new-pattern-header {
+        padding: 12px 16px;
     }
 
-    .project-detail-header {
+    .upload-panel-header h3,
+    .new-pattern-header h3 {
+        font-size: 1.2rem;
+    }
+
+    .upload-panel .upload-container {
+        padding: 16px;
+    }
+
+    /* --- New Pattern panel (Add Markdown) --- */
+    .new-pattern-form {
+        padding: 16px;
+        gap: 14px;
+    }
+
+    .new-pattern-content-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .new-pattern-actions {
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .new-pattern-actions .btn {
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* project detail + add project mobile overrides are after base styles below */
+
+    /* --- Edit pattern modal --- */
+    #edit-modal .modal-content {
+        max-width: none;
+        width: 95%;
+    }
+
+    #edit-modal .modal-actions {
         flex-direction: column;
     }
 
-    .project-pattern-item {
-        flex-wrap: wrap;
+    #edit-modal .modal-actions .btn-danger {
+        order: 1;
+        margin-right: 0;
     }
 
-    .project-pattern-actions {
+    #edit-modal .modal-actions-right {
+        display: flex;
+        gap: 10px;
+        margin-left: 0;
         width: 100%;
-        justify-content: flex-end;
-        margin-top: 8px;
     }
 
-    .add-patterns-grid {
-        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    #edit-modal .modal-actions-right .btn {
+        flex: 1;
     }
 }
 
@@ -8373,7 +8436,78 @@ input[type="number"].settings-input {
     width: 180px;
 }
 
-/* Mobile responsive */
+/* Mobile responsive - must come after base styles above */
+@media (max-width: 768px) {
+    .project-existing-layout {
+        flex-direction: column;
+        height: auto;
+    }
+
+    .project-existing-sidebar {
+        width: 100%;
+        padding-right: 0;
+        overflow-y: visible;
+    }
+
+    .project-existing-grid {
+        max-height: 300px;
+    }
+
+    .project-staged-item-category .category-dropdown {
+        width: 100%;
+    }
+
+    .project-detail-view {
+        padding: 15px;
+    }
+
+    .project-detail-header {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+    }
+
+    .project-detail-title {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .project-detail-title h2 {
+        font-size: 1.3rem;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .project-detail-actions .btn {
+        padding: 6px 10px;
+    }
+
+    .project-detail-footer {
+        flex-wrap: wrap;
+    }
+
+    .project-detail-footer .btn {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .project-pattern-item {
+        flex-wrap: wrap;
+    }
+
+    .project-pattern-actions {
+        width: 100%;
+        justify-content: flex-end;
+        margin-top: 8px;
+    }
+
+    .add-patterns-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+}
+
 @media (max-width: 600px) {
     .project-existing-grid {
         grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));

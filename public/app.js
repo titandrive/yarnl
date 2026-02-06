@@ -3159,6 +3159,8 @@ function switchToTab(tabName, pushHistory = true) {
     const markdownViewer = document.getElementById('markdown-viewer-container');
     if (markdownViewer) markdownViewer.style.display = 'none';
     document.querySelector('.tabs').style.display = 'flex';
+    const mobileCounterEl = document.getElementById('mobile-counter');
+    if (mobileCounterEl) mobileCounterEl.style.display = 'none';
 
     // Update settings button to show back when in settings
     updateSettingsButton(tabName === 'settings');
@@ -4227,6 +4229,9 @@ function initSettings() {
 
     // Keyboard Shortcuts
     initKeyboardShortcuts();
+
+    // Mobile floating counter
+    mobileCounter.init();
 
     // Notifications Section
     initNotificationsSection();
@@ -8816,12 +8821,183 @@ function displayCounters() {
             </div>
         </div>
     `).join('');
+
+    mobileCounter.update();
 }
 
 function selectCounter(counterId) {
     lastUsedCounterId = counterId;
     displayCounters();
 }
+
+// Mobile Floating Counter
+const mobileCounter = (() => {
+    let currentIndex = 0;
+    let dragState = null;
+
+    function isMobile() {
+        return window.matchMedia('(max-width: 768px)').matches;
+    }
+
+    function getEl() {
+        return document.getElementById('mobile-counter');
+    }
+
+    function update() {
+        const el = getEl();
+        if (!el || !isMobile()) {
+            if (el) el.style.display = 'none';
+            return;
+        }
+
+        if (counters.length === 0) {
+            el.style.display = 'none';
+            return;
+        }
+
+        // Clamp index
+        if (currentIndex >= counters.length) currentIndex = counters.length - 1;
+        if (currentIndex < 0) currentIndex = 0;
+
+        // Sync with active counter
+        const activeIdx = counters.findIndex(c => c.id === lastUsedCounterId);
+        if (activeIdx >= 0) currentIndex = activeIdx;
+
+        const counter = counters[currentIndex];
+        el.style.display = '';
+
+        el.querySelector('.mobile-counter-name').textContent = counter.name || 'Counter';
+        el.querySelector('.mobile-counter-value').textContent = counter.value;
+
+        // Show/hide nav arrows
+        const prev = el.querySelector('.mobile-counter-prev');
+        const next = el.querySelector('.mobile-counter-next');
+        prev.classList.toggle('hidden', counters.length <= 1);
+        next.classList.toggle('hidden', counters.length <= 1);
+    }
+
+    function nav(delta) {
+        if (counters.length <= 1) return;
+        currentIndex = (currentIndex + delta + counters.length) % counters.length;
+        lastUsedCounterId = counters[currentIndex].id;
+        displayCounters();
+        update();
+    }
+
+    function init() {
+        const el = getEl();
+        if (!el) return;
+
+        el.querySelector('.mobile-counter-prev').addEventListener('click', () => nav(-1));
+        el.querySelector('.mobile-counter-next').addEventListener('click', () => nav(1));
+        el.querySelector('.mobile-counter-inc').addEventListener('click', () => {
+            if (counters[currentIndex]) incrementCounter(counters[currentIndex].id);
+        });
+        el.querySelector('.mobile-counter-dec').addEventListener('click', () => {
+            if (counters[currentIndex]) decrementCounter(counters[currentIndex].id);
+        });
+
+        // Edit mode
+        el.querySelector('.mobile-counter-info').addEventListener('click', () => toggleEdit(true));
+        el.querySelector('.mobile-counter-done-btn').addEventListener('click', () => toggleEdit(false));
+        el.querySelector('.mobile-counter-add-btn').addEventListener('click', async () => {
+            await addCounter('Counter');
+            toggleEdit(false);
+        });
+        el.querySelector('.mobile-counter-delete-btn').addEventListener('click', async () => {
+            const counter = counters[currentIndex];
+            if (!counter) return;
+            await deleteCounter(counter.id);
+            if (counters.length === 0) {
+                toggleEdit(false);
+            } else {
+                update();
+                toggleEdit(true); // refresh edit view with next counter
+            }
+        });
+        el.querySelector('.mobile-counter-name-input').addEventListener('change', (e) => {
+            const counter = counters[currentIndex];
+            if (counter) updateCounterName(counter.id, e.target.value);
+        });
+        el.querySelector('.mobile-counter-edit-prev').addEventListener('click', () => {
+            nav(-1);
+            toggleEdit(true);
+        });
+        el.querySelector('.mobile-counter-edit-next').addEventListener('click', () => {
+            nav(1);
+            toggleEdit(true);
+        });
+
+        // Drag to reposition (grab the name or value)
+        el.querySelector('.mobile-counter-name').addEventListener('touchstart', onDragStart, { passive: false });
+        el.querySelector('.mobile-counter-value').addEventListener('touchstart', onDragStart, { passive: false });
+        // Prevent edit button from triggering drag
+        el.querySelector('.mobile-counter-info').addEventListener('touchstart', (e) => e.stopPropagation());
+        document.addEventListener('touchmove', onDragMove, { passive: false });
+        document.addEventListener('touchend', onDragEnd);
+    }
+
+    function toggleEdit(show) {
+        const el = getEl();
+        if (!el) return;
+        const normal = el.querySelector('.mobile-counter-normal');
+        const edit = el.querySelector('.mobile-counter-edit');
+        if (show) {
+            const counter = counters[currentIndex];
+            if (!counter) return;
+            el.querySelector('.mobile-counter-name-input').value = counter.name || '';
+            el.querySelector('.mobile-counter-edit-pos').textContent = `${currentIndex + 1} / ${counters.length}`;
+            normal.style.display = 'none';
+            edit.style.display = '';
+            el.classList.add('editing');
+        } else {
+            normal.style.display = '';
+            edit.style.display = 'none';
+            el.classList.remove('editing');
+            update();
+        }
+    }
+
+    function onDragStart(e) {
+        const el = getEl();
+        const touch = e.touches[0];
+        const rect = el.getBoundingClientRect();
+        dragState = {
+            offsetX: touch.clientX - rect.left,
+            offsetY: touch.clientY - rect.top
+        };
+        el.style.transition = 'none';
+        e.preventDefault();
+    }
+
+    function onDragMove(e) {
+        if (!dragState) return;
+        const el = getEl();
+        const touch = e.touches[0];
+        let x = touch.clientX - dragState.offsetX;
+        let y = touch.clientY - dragState.offsetY;
+
+        // Clamp to viewport
+        const rect = el.getBoundingClientRect();
+        x = Math.max(0, Math.min(window.innerWidth - rect.width, x));
+        y = Math.max(0, Math.min(window.innerHeight - rect.height, y));
+
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+        e.preventDefault();
+    }
+
+    function onDragEnd() {
+        if (!dragState) return;
+        const el = getEl();
+        el.style.transition = '';
+        dragState = null;
+    }
+
+    return { init, update };
+})();
 
 async function addCounter(defaultName = 'New Counter') {
     if (!currentPattern) return;

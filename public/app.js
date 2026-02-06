@@ -4318,6 +4318,16 @@ function initSettings() {
         });
     }
 
+    // PDF scroll mode setting
+    const pdfScrollModeSelect = document.getElementById('pdf-scroll-mode-select');
+    if (pdfScrollModeSelect) {
+        pdfScrollModeSelect.value = localStorage.getItem('pdfScrollMode') || 'page';
+        pdfScrollModeSelect.addEventListener('change', () => {
+            localStorage.setItem('pdfScrollMode', pdfScrollModeSelect.value);
+            showToast(pdfScrollModeSelect.value === 'page' ? 'Paginated mode' : 'Scroll mode');
+        });
+    }
+
     // Default zoom setting
     const defaultZoomSelect = document.getElementById('default-zoom-select');
     if (defaultZoomSelect) {
@@ -8511,7 +8521,7 @@ async function openPDFViewer(patternId, pushHistory = true) {
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
         if (!isMobile) {
-            // Desktop: use browser's native PDF viewer
+            // Desktop: use PDF.js full viewer in iframe
             const wrapper = document.querySelector('.pdf-viewer-wrapper');
             wrapper.querySelector('.pdf-page-container').style.display = 'none';
             const spacer = wrapper.querySelector('.pdf-scroll-spacer');
@@ -8521,14 +8531,107 @@ async function openPDFViewer(patternId, pushHistory = true) {
             const navControls = document.querySelector('.pdf-nav-controls');
             if (navControls) navControls.style.display = 'none';
 
-            let pdfObject = wrapper.querySelector('.native-pdf-viewer');
-            if (!pdfObject) {
-                pdfObject = document.createElement('object');
-                pdfObject.className = 'native-pdf-viewer';
-                pdfObject.type = 'application/pdf';
-                wrapper.prepend(pdfObject);
+            let pdfIframe = wrapper.querySelector('.native-pdf-viewer');
+            if (!pdfIframe) {
+                pdfIframe = document.createElement('iframe');
+                pdfIframe.className = 'native-pdf-viewer';
+                wrapper.prepend(pdfIframe);
             }
-            pdfObject.data = `${pdfUrl}#page=${currentPageNum}`;
+            const encodedUrl = encodeURIComponent(pdfUrl);
+            pdfIframe.src = `/pdfjs/web/viewer.html?file=${encodedUrl}#page=${currentPageNum}&pagemode=none`;
+
+            // Configure viewer and track page changes via PDF.js API
+            pdfIframe.addEventListener('load', () => {
+                const viewerApp = pdfIframe.contentWindow?.PDFViewerApplication;
+                if (!viewerApp) return;
+                viewerApp.initializedPromise.then(() => {
+                    // Set scroll mode from user preference (page=3, scroll=0)
+                    const scrollPref = localStorage.getItem('pdfScrollMode') || 'page';
+                    viewerApp.pdfViewer.scrollMode = scrollPref === 'page' ? 3 : 0;
+                    viewerApp.eventBus.on('pagechanging', (evt) => {
+                        currentPageNum = evt.pageNumber;
+                    });
+                    // Auto-save annotations - set up after document loads
+                    const patternId = pattern.id;
+                    let annotationSaveTimer = null;
+                    let annotationSaving = false;
+
+                    async function saveAnnotations() {
+                        if (annotationSaving) return;
+                        if (!viewerApp.pdfDocument?.annotationStorage?.size) return;
+                        annotationSaving = true;
+                        try {
+                            const data = await viewerApp.pdfDocument.saveDocument();
+                            await fetch(`${API_URL}/api/patterns/${patternId}/file`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/pdf' },
+                                body: data
+                            });
+                        } catch (err) {
+                            console.error('Error saving annotations:', err);
+                        } finally {
+                            annotationSaving = false;
+                        }
+                    }
+
+                    // Override save/download immediately
+                    viewerApp.save = async function() {
+                        clearTimeout(annotationSaveTimer);
+                        await saveAnnotations();
+                    };
+                    viewerApp.download = viewerApp.save.bind(viewerApp);
+                    viewerApp.downloadOrSave = viewerApp.save.bind(viewerApp);
+
+                    viewerApp.eventBus.on('pagesloaded', () => {
+                        totalPages = viewerApp.pagesCount;
+
+                        // Restore saved zoom level and scroll position
+                        const saved = loadPdfViewerState(patternId);
+                        if (saved?.nativeZoom) {
+                            viewerApp.pdfViewer.currentScaleValue = saved.nativeZoom;
+                            // Restore scroll after zoom renders
+                            if (saved.scrollX || saved.scrollY) {
+                                setTimeout(() => {
+                                    const container = viewerApp.pdfViewer.container;
+                                    if (container) {
+                                        container.scrollLeft = saved.scrollX;
+                                        container.scrollTop = saved.scrollY;
+                                    }
+                                }, 200);
+                            }
+                        }
+
+                        // Defer hook so it runs AFTER viewer's own _initializeAnnotationStorageCallbacks
+                        setTimeout(() => {
+                            const storage = viewerApp.pdfDocument?.annotationStorage;
+                            if (storage) {
+                                const origOnSetModified = storage.onSetModified;
+                                storage.onSetModified = () => {
+                                    if (origOnSetModified) origOnSetModified();
+                                    clearTimeout(annotationSaveTimer);
+                                    annotationSaveTimer = setTimeout(saveAnnotations, 3000);
+                                };
+                            }
+                        }, 500);
+                    });
+
+                    // Also catch annotation changes via eventBus as a backup
+                    viewerApp.eventBus.on('annotationeditorstateschanged', (evt) => {
+                        if (evt.details?.hasSomethingToUndo) {
+                            clearTimeout(annotationSaveTimer);
+                            annotationSaveTimer = setTimeout(saveAnnotations, 3000);
+                        }
+                    });
+
+                    // Hide the download button - saving is automatic
+                    const iframeDoc = pdfIframe.contentDocument;
+                    if (iframeDoc) {
+                        const style = iframeDoc.createElement('style');
+                        style.textContent = '#download, #secondaryDownload, #openFile, #secondaryOpenFile { display: none !important; }';
+                        iframeDoc.head.appendChild(style);
+                    }
+                });
+            }, { once: true });
 
             await loadCounters(pattern.id);
         } else {
@@ -8738,13 +8841,28 @@ function getZoomDisplayString() {
 function savePdfViewerState() {
     if (!currentPattern) return;
     const wrapper = document.querySelector('.pdf-viewer-wrapper');
-    const state = {
-        zoomMode: pdfZoomMode,
-        zoomScale: pdfZoomScale,
-        scrollX: wrapper ? wrapper.scrollLeft : 0,
-        scrollY: wrapper ? wrapper.scrollTop : 0
-    };
-    localStorage.setItem(`pdfViewerState_${currentPattern.id}`, JSON.stringify(state));
+    const pdfIframe = wrapper?.querySelector('.native-pdf-viewer');
+
+    if (pdfIframe) {
+        // Native PDF.js viewer
+        const viewerApp = pdfIframe.contentWindow?.PDFViewerApplication;
+        const container = viewerApp?.pdfViewer?.container;
+        const state = {
+            nativeZoom: viewerApp?.pdfViewer?.currentScaleValue || 'auto',
+            scrollX: container?.scrollLeft || 0,
+            scrollY: container?.scrollTop || 0
+        };
+        localStorage.setItem(`pdfViewerState_${currentPattern.id}`, JSON.stringify(state));
+    } else {
+        // Canvas-based viewer (mobile)
+        const state = {
+            zoomMode: pdfZoomMode,
+            zoomScale: pdfZoomScale,
+            scrollX: wrapper ? wrapper.scrollLeft : 0,
+            scrollY: wrapper ? wrapper.scrollTop : 0
+        };
+        localStorage.setItem(`pdfViewerState_${currentPattern.id}`, JSON.stringify(state));
+    }
 }
 
 function loadPdfViewerState(patternId) {
@@ -8760,6 +8878,21 @@ function loadPdfViewerState(patternId) {
 }
 
 async function changePage(delta) {
+    // Native PDF.js viewer: navigate via API
+    const wrapper = document.querySelector('.pdf-viewer-wrapper');
+    const pdfIframe = wrapper?.querySelector('.native-pdf-viewer');
+    if (pdfIframe) {
+        const viewerApp = pdfIframe.contentWindow?.PDFViewerApplication;
+        if (viewerApp) {
+            const newPage = viewerApp.page + delta;
+            if (newPage >= 1 && newPage <= viewerApp.pagesCount) {
+                viewerApp.page = newPage;
+            }
+        }
+        return;
+    }
+
+    // Canvas-based viewer (mobile)
     const newPage = currentPageNum + delta;
 
     if (newPage < 1 || newPage > totalPages) {
@@ -8812,10 +8945,16 @@ async function closePDFViewer() {
         }
     }
 
-    // Clean up native PDF viewer if present, restore canvas elements
+    // Save annotations on exit, then clean up native PDF viewer
     const wrapper = document.querySelector('.pdf-viewer-wrapper');
     const pdfObject = wrapper.querySelector('.native-pdf-viewer');
     if (pdfObject) {
+        try {
+            const viewerApp = pdfObject.contentWindow?.PDFViewerApplication;
+            if (viewerApp?.pdfDocument?.annotationStorage?.size > 0) {
+                await viewerApp.save();
+            }
+        } catch (e) { /* viewer may already be unloading */ }
         pdfObject.remove();
         wrapper.querySelector('.pdf-page-container').style.display = '';
         const spacer = wrapper.querySelector('.pdf-scroll-spacer');

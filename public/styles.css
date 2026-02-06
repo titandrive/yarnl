@@ -2589,6 +2589,12 @@ body.global-drag-over #current::after {
     touch-action: pan-x pan-y; /* Allow panning but not browser zoom */
 }
 
+.native-pdf-viewer {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
 .pdf-page-container {
     position: relative;
     width: fit-content;

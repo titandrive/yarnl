@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `yarnl-${CACHE_VERSION}`;
 
 // Install — pre-cache the app shell
@@ -43,7 +43,7 @@ self.addEventListener('fetch', (e) => {
   // Everything else — serve from cache, update in background
   e.respondWith(
     caches.open(CACHE_NAME).then((cache) =>
-      cache.match(e.request).then((cached) => {
+      cache.match(e.request, { ignoreSearch: true }).then((cached) => {
         const fetched = fetch(e.request).then((response) => {
           if (response.ok) {
             cache.put(e.request, response.clone());

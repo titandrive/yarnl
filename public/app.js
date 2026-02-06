@@ -7015,6 +7015,36 @@ function initLibraryFilters() {
             displayPatterns();
         });
     }
+
+    // Mobile filter bar
+    const mobileFilterBtn = document.getElementById('mobile-filter-btn');
+    const mobileSearchInput = document.getElementById('mobile-search-input');
+
+    if (mobileFilterBtn) {
+        mobileFilterBtn.addEventListener('click', () => {
+            const sidebar = document.querySelector('.library-sidebar');
+            if (sidebar) {
+                sidebar.classList.toggle('mobile-visible');
+                mobileFilterBtn.classList.toggle('active', sidebar.classList.contains('mobile-visible'));
+            }
+        });
+    }
+
+    if (mobileSearchInput) {
+        mobileSearchInput.addEventListener('input', (e) => {
+            searchQuery = e.target.value.toLowerCase();
+            if (searchInput) searchInput.value = e.target.value;
+            displayPatterns();
+        });
+
+        // Sync desktop search → mobile search
+        if (searchInput) {
+            const origHandler = searchInput.oninput;
+            searchInput.addEventListener('input', () => {
+                mobileSearchInput.value = searchInput.value;
+            });
+        }
+    }
 }
 
 function renderPatternCard(pattern, options = {}) {
@@ -9040,6 +9070,12 @@ const mobileBar = (() => {
                 await addCounter('Counter');
                 toggleEdit(false);
             });
+            bar.querySelector('.mobile-edit-reset').addEventListener('click', async () => {
+                const counter = counters[currentIndex];
+                if (!counter) return;
+                await resetCounter(counter.id);
+                update();
+            });
             bar.querySelector('.mobile-edit-delete').addEventListener('click', async () => {
                 const counter = counters[currentIndex];
                 if (!counter) return;
@@ -9065,11 +9101,19 @@ const mobileBar = (() => {
             });
         }
 
+        // Prime vibration API on first user interaction
+        document.addEventListener('touchend', () => {
+            if (navigator.vibrate) navigator.vibrate(1);
+        }, { once: true, passive: true });
+
         // Visual feedback for bottom bar buttons via event delegation
         if (bar) {
             bar.addEventListener('touchstart', (e) => {
                 const btn = e.target.closest('.mobile-bar-btn, .mobile-bar-nav');
-                if (btn) btn.classList.add('pressed');
+                if (btn) {
+                    btn.classList.add('pressed');
+                    if (navigator.vibrate) navigator.vibrate(200);
+                }
             }, { passive: true });
             bar.addEventListener('touchend', () => {
                 bar.querySelectorAll('.pressed').forEach(el => el.classList.remove('pressed'));

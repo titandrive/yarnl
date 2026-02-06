@@ -2008,6 +2008,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Register service worker for PWA
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('service-worker.js');
+        // If a new SW takes over mid-session, do a clean reload
+        navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
     }
 
     // Initialize auth and login form
@@ -7995,6 +7997,8 @@ function initPDFViewer() {
     let pinchRatio = 1.0;
 
     pdfWrapper.addEventListener('touchstart', (e) => {
+        // Skip canvas pinch-zoom when PDF.js iframe viewer is active
+        if (pdfWrapper.querySelector('.native-pdf-viewer')) return;
         if (e.touches.length === 2) {
             e.preventDefault();
             initialPinchDistance = Math.hypot(
@@ -8520,142 +8524,126 @@ async function openPDFViewer(patternId, pushHistory = true) {
         const pdfUrl = `${API_URL}/api/patterns/${pattern.id}/file`;
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
-        if (!isMobile) {
-            // Desktop: use PDF.js full viewer in iframe
-            const wrapper = document.querySelector('.pdf-viewer-wrapper');
-            wrapper.querySelector('.pdf-page-container').style.display = 'none';
-            const spacer = wrapper.querySelector('.pdf-scroll-spacer');
-            if (spacer) spacer.style.display = 'none';
-            const zoomOverlay = wrapper.querySelector('.pdf-zoom-overlay');
-            if (zoomOverlay) zoomOverlay.style.display = 'none';
-            const navControls = document.querySelector('.pdf-nav-controls');
-            if (navControls) navControls.style.display = 'none';
+        // Use PDF.js full viewer in iframe for all devices
+        const wrapper = document.querySelector('.pdf-viewer-wrapper');
+        wrapper.querySelector('.pdf-page-container').style.display = 'none';
+        const spacer = wrapper.querySelector('.pdf-scroll-spacer');
+        if (spacer) spacer.style.display = 'none';
+        const zoomOverlay = wrapper.querySelector('.pdf-zoom-overlay');
+        if (zoomOverlay) zoomOverlay.style.display = 'none';
+        const navControls = document.querySelector('.pdf-nav-controls');
+        if (navControls) navControls.style.display = 'none';
 
-            let pdfIframe = wrapper.querySelector('.native-pdf-viewer');
-            if (!pdfIframe) {
-                pdfIframe = document.createElement('iframe');
-                pdfIframe.className = 'native-pdf-viewer';
-                wrapper.prepend(pdfIframe);
-            }
-            const encodedUrl = encodeURIComponent(pdfUrl);
-            pdfIframe.src = `/pdfjs/web/viewer.html?file=${encodedUrl}#page=${currentPageNum}&pagemode=none`;
+        let pdfIframe = wrapper.querySelector('.native-pdf-viewer');
+        if (!pdfIframe) {
+            pdfIframe = document.createElement('iframe');
+            pdfIframe.className = 'native-pdf-viewer';
+            wrapper.prepend(pdfIframe);
+        }
+        const encodedUrl = encodeURIComponent(pdfUrl);
+        pdfIframe.src = `/pdfjs/web/viewer.html?file=${encodedUrl}#page=${currentPageNum}&pagemode=none`;
 
-            // Configure viewer and track page changes via PDF.js API
-            pdfIframe.addEventListener('load', () => {
-                const viewerApp = pdfIframe.contentWindow?.PDFViewerApplication;
-                if (!viewerApp) return;
-                viewerApp.initializedPromise.then(() => {
-                    // Set scroll mode from user preference (page=3, scroll=0)
-                    const scrollPref = localStorage.getItem('pdfScrollMode') || 'page';
-                    viewerApp.pdfViewer.scrollMode = scrollPref === 'page' ? 3 : 0;
-                    viewerApp.eventBus.on('pagechanging', (evt) => {
-                        currentPageNum = evt.pageNumber;
-                    });
-                    // Auto-save annotations - set up after document loads
-                    const patternId = pattern.id;
-                    let annotationSaveTimer = null;
-                    let annotationSaving = false;
+        // Configure viewer and track page changes via PDF.js API
+        pdfIframe.addEventListener('load', () => {
+            const viewerApp = pdfIframe.contentWindow?.PDFViewerApplication;
+            if (!viewerApp) return;
+            viewerApp.initializedPromise.then(() => {
+                // Set scroll mode from user preference (page=3, scroll=0)
+                const scrollPref = localStorage.getItem('pdfScrollMode') || 'page';
+                viewerApp.pdfViewer.scrollMode = scrollPref === 'page' ? 3 : 0;
+                viewerApp.eventBus.on('pagechanging', (evt) => {
+                    currentPageNum = evt.pageNumber;
+                    mobileBar.updatePageInfo();
+                });
+                // Auto-save annotations - set up after document loads
+                const patternId = pattern.id;
+                let annotationSaveTimer = null;
+                let annotationSaving = false;
 
-                    async function saveAnnotations() {
-                        if (annotationSaving) return;
-                        if (!viewerApp.pdfDocument?.annotationStorage?.size) return;
-                        annotationSaving = true;
-                        try {
-                            const data = await viewerApp.pdfDocument.saveDocument();
-                            await fetch(`${API_URL}/api/patterns/${patternId}/file`, {
-                                method: 'PUT',
-                                headers: { 'Content-Type': 'application/pdf' },
-                                body: data
-                            });
-                        } catch (err) {
-                            console.error('Error saving annotations:', err);
-                        } finally {
-                            annotationSaving = false;
+                async function saveAnnotations() {
+                    if (annotationSaving) return;
+                    if (!viewerApp.pdfDocument?.annotationStorage?.size) return;
+                    annotationSaving = true;
+                    try {
+                        const data = await viewerApp.pdfDocument.saveDocument();
+                        await fetch(`${API_URL}/api/patterns/${patternId}/file`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/pdf' },
+                            body: data
+                        });
+                    } catch (err) {
+                        console.error('Error saving annotations:', err);
+                    } finally {
+                        annotationSaving = false;
+                    }
+                }
+
+                // Override save/download immediately
+                viewerApp.save = async function() {
+                    clearTimeout(annotationSaveTimer);
+                    await saveAnnotations();
+                };
+                viewerApp.download = viewerApp.save.bind(viewerApp);
+                viewerApp.downloadOrSave = viewerApp.save.bind(viewerApp);
+
+                viewerApp.eventBus.on('pagesloaded', () => {
+                    totalPages = viewerApp.pagesCount;
+                    mobileBar.updatePageInfo();
+
+                    // Restore saved zoom level and scroll position
+                    const saved = loadPdfViewerState(patternId);
+                    if (saved?.nativeZoom) {
+                        viewerApp.pdfViewer.currentScaleValue = saved.nativeZoom;
+                        // Restore scroll after zoom renders
+                        if (saved.scrollX || saved.scrollY) {
+                            setTimeout(() => {
+                                const container = viewerApp.pdfViewer.container;
+                                if (container) {
+                                    container.scrollLeft = saved.scrollX;
+                                    container.scrollTop = saved.scrollY;
+                                }
+                            }, 200);
                         }
                     }
 
-                    // Override save/download immediately
-                    viewerApp.save = async function() {
+                    // Defer hook so it runs AFTER viewer's own _initializeAnnotationStorageCallbacks
+                    setTimeout(() => {
+                        const storage = viewerApp.pdfDocument?.annotationStorage;
+                        if (storage) {
+                            const origOnSetModified = storage.onSetModified;
+                            storage.onSetModified = () => {
+                                if (origOnSetModified) origOnSetModified();
+                                clearTimeout(annotationSaveTimer);
+                                annotationSaveTimer = setTimeout(saveAnnotations, 3000);
+                            };
+                        }
+                    }, 500);
+                });
+
+                // Also catch annotation changes via eventBus as a backup
+                viewerApp.eventBus.on('annotationeditorstateschanged', (evt) => {
+                    if (evt.details?.hasSomethingToUndo) {
                         clearTimeout(annotationSaveTimer);
-                        await saveAnnotations();
-                    };
-                    viewerApp.download = viewerApp.save.bind(viewerApp);
-                    viewerApp.downloadOrSave = viewerApp.save.bind(viewerApp);
-
-                    viewerApp.eventBus.on('pagesloaded', () => {
-                        totalPages = viewerApp.pagesCount;
-
-                        // Restore saved zoom level and scroll position
-                        const saved = loadPdfViewerState(patternId);
-                        if (saved?.nativeZoom) {
-                            viewerApp.pdfViewer.currentScaleValue = saved.nativeZoom;
-                            // Restore scroll after zoom renders
-                            if (saved.scrollX || saved.scrollY) {
-                                setTimeout(() => {
-                                    const container = viewerApp.pdfViewer.container;
-                                    if (container) {
-                                        container.scrollLeft = saved.scrollX;
-                                        container.scrollTop = saved.scrollY;
-                                    }
-                                }, 200);
-                            }
-                        }
-
-                        // Defer hook so it runs AFTER viewer's own _initializeAnnotationStorageCallbacks
-                        setTimeout(() => {
-                            const storage = viewerApp.pdfDocument?.annotationStorage;
-                            if (storage) {
-                                const origOnSetModified = storage.onSetModified;
-                                storage.onSetModified = () => {
-                                    if (origOnSetModified) origOnSetModified();
-                                    clearTimeout(annotationSaveTimer);
-                                    annotationSaveTimer = setTimeout(saveAnnotations, 3000);
-                                };
-                            }
-                        }, 500);
-                    });
-
-                    // Also catch annotation changes via eventBus as a backup
-                    viewerApp.eventBus.on('annotationeditorstateschanged', (evt) => {
-                        if (evt.details?.hasSomethingToUndo) {
-                            clearTimeout(annotationSaveTimer);
-                            annotationSaveTimer = setTimeout(saveAnnotations, 3000);
-                        }
-                    });
-
-                    // Hide the download button - saving is automatic
-                    const iframeDoc = pdfIframe.contentDocument;
-                    if (iframeDoc) {
-                        const style = iframeDoc.createElement('style');
-                        style.textContent = '#download, #secondaryDownload, #openFile, #secondaryOpenFile { display: none !important; }';
-                        iframeDoc.head.appendChild(style);
+                        annotationSaveTimer = setTimeout(saveAnnotations, 3000);
                     }
                 });
-            }, { once: true });
 
-            await loadCounters(pattern.id);
-        } else {
-            // Mobile: use pdf.js canvas rendering (iOS doesn't support inline multi-page PDFs)
-            const loadingTask = pdfjsLib.getDocument(pdfUrl);
-
-            const [pdfDocResult] = await Promise.all([
-                loadingTask.promise,
-                loadCounters(pattern.id)
-            ]);
-
-            pdfDoc = pdfDocResult;
-            totalPages = pdfDoc.numPages;
-
-            await renderPage(currentPageNum);
-
-            if (savedState && (savedState.scrollX || savedState.scrollY)) {
-                const wrapper = document.querySelector('.pdf-viewer-wrapper');
-                if (wrapper) {
-                    wrapper.scrollLeft = savedState.scrollX;
-                    wrapper.scrollTop = savedState.scrollY;
+                // Hide the download button - saving is automatic
+                const iframeDoc = pdfIframe.contentDocument;
+                if (iframeDoc) {
+                    const style = iframeDoc.createElement('style');
+                    let cssText = '#download, #secondaryDownload, #openFile, #secondaryOpenFile { display: none !important; }';
+                    // On mobile, hide the PDF.js toolbar to maximize viewing space
+                    if (isMobile) {
+                        cssText += ' #toolbarContainer { display: none !important; } #viewerContainer { top: 0 !important; }';
+                    }
+                    style.textContent = cssText;
+                    iframeDoc.head.appendChild(style);
                 }
-            }
-        }
+            });
+        }, { once: true });
+
+        await loadCounters(pattern.id);
 
     } catch (error) {
         console.error('Error opening PDF viewer:', error);

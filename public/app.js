@@ -3224,6 +3224,8 @@ function initTabs() {
 
     if (isOpeningPattern) {
         // Hide tabs, content will be shown when pattern viewer opens
+        const earlyStyle = document.getElementById('early-tab-style');
+        if (earlyStyle) earlyStyle.remove();
         document.querySelector('.tabs').style.display = 'none';
         tabContents.forEach(c => c.style.display = 'none');
     } else {
@@ -8995,10 +8997,14 @@ async function closePDFViewer() {
                     await new Promise(r => setTimeout(r, 100));
                 }
                 if (viewerApp.pdfDocument.annotationStorage?.size > 0) {
-                    annotationData = await viewerApp.pdfDocument.saveDocument();
+                    // Timeout to prevent saveDocument from blocking close
+                    annotationData = await Promise.race([
+                        viewerApp.pdfDocument.saveDocument(),
+                        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+                    ]);
                 }
             }
-        } catch (e) { /* viewer may already be unloading */ }
+        } catch (e) { /* viewer may already be unloading or timed out */ }
         pdfObject.remove();
         wrapper.querySelector('.pdf-page-container').style.display = '';
         const spacer = wrapper.querySelector('.pdf-scroll-spacer');

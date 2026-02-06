@@ -795,7 +795,7 @@ body.screenshot-mode-green .container {
 header {
     background: var(--primary-color);
     color: var(--header-text-color, white);
-    padding: 30px 40px 70px;
+    padding: 30px 40px 50px;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -824,7 +824,7 @@ header {
     left: 0;
     right: 0;
     text-align: center;
-    font-size: 0.95rem;
+    font-size: 1.35rem;
     opacity: 0.95;
     margin: 0;
 }
@@ -6179,6 +6179,10 @@ input[type="number"].settings-input {
 
     #header-mascot-img {
         height: 2em !important;
+    }
+
+    .subtitle {
+        font-size: 0.9rem;
     }
 
     .new-pattern-form .form-row {

@@ -9226,6 +9226,14 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// Close edit modal when clicking outside
+document.addEventListener('click', (e) => {
+    const modal = document.getElementById('pdf-edit-modal');
+    if (e.target === modal) {
+        closePdfEditModal();
+    }
+});
+
 async function savePdfEdit() {
     const name = document.getElementById('pdf-edit-name').value;
     const category = getCategoryDropdownValue('pdf-edit-category');

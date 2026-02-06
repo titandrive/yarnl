@@ -1973,6 +1973,11 @@ const pdfCanvas = document.getElementById('pdf-canvas');
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js');
+    }
+
     // Initialize auth and login form
     initAuth();
     initTheme();
@@ -1987,11 +1992,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     // User is authenticated, show app and initialize
     showApp();
 
-    // Global haptic feedback for all interactive elements on mobile
-    // Uses touchend — Chrome Android requires a completed gesture before vibrate works
+    // Global haptic feedback for buttons and toggles on mobile
+    // Track touch movement to avoid vibrating on scrolls
+    let hapticStartX = 0, hapticStartY = 0;
+    document.addEventListener('touchstart', (e) => {
+        hapticStartX = e.touches[0].clientX;
+        hapticStartY = e.touches[0].clientY;
+    }, { passive: true });
     document.addEventListener('touchend', (e) => {
         if (!navigator.vibrate || localStorage.getItem('hapticFeedback') === 'false') return;
-        const interactive = e.target.closest('button, .toggle-switch, .tab-btn, .settings-nav-btn, .mobile-bar-btn, .mobile-bar-nav, .action-btn, .pattern-card, select, .day-night-toggle .mode-btn');
+        const dx = e.changedTouches[0].clientX - hapticStartX;
+        const dy = e.changedTouches[0].clientY - hapticStartY;
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) return; // was a scroll, not a tap
+        const interactive = e.target.closest('button, .toggle-switch, .tab-btn, .settings-nav-btn, .mobile-bar-btn, .mobile-bar-nav, .day-night-toggle .mode-btn');
         if (interactive) navigator.vibrate(200);
     }, { passive: true });
 
@@ -2001,6 +2014,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         const projectsTabBtn = document.getElementById('projects-tab-btn');
         if (projectsTabBtn) projectsTabBtn.style.display = 'block';
     }
+    initSwipeNavigation();
     initUpload();
     initEditModal();
     initPDFViewer();
@@ -3140,6 +3154,62 @@ function initTabs() {
             sessionStorage.setItem('activeTab', tabName);
         });
     });
+}
+
+function initSwipeNavigation() {
+    if (!window.matchMedia('(max-width: 768px)').matches) return;
+
+    const tabOrder = ['current', 'library', 'projects'];
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+
+    function getVisibleTabs() {
+        return tabOrder.filter(tab => {
+            const btn = document.querySelector(`[data-tab="${tab}"]`);
+            return btn && btn.style.display !== 'none';
+        });
+    }
+
+    document.addEventListener('touchstart', (e) => {
+        // Don't swipe inside PDF viewer or modals
+        if (e.target.closest('#pdf-viewer-container, .modal, .settings-content')) return;
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+        tracking = true;
+    }, { passive: true });
+
+    document.addEventListener('touchend', (e) => {
+        if (!tracking) return;
+        tracking = false;
+
+        const endX = e.changedTouches[0].clientX;
+        const endY = e.changedTouches[0].clientY;
+        const diffX = endX - startX;
+        const diffY = endY - startY;
+
+        // Require minimum 80px horizontal swipe, and more horizontal than vertical
+        if (Math.abs(diffX) < 80 || Math.abs(diffY) > Math.abs(diffX)) return;
+
+        const visible = getVisibleTabs();
+        const activeTab = document.querySelector('.tab-btn.active')?.dataset.tab;
+        const currentIdx = visible.indexOf(activeTab);
+        if (currentIdx === -1) return;
+
+        let nextIdx;
+        if (diffX < 0) {
+            // Swipe left → next tab
+            nextIdx = currentIdx + 1;
+        } else {
+            // Swipe right → previous tab
+            nextIdx = currentIdx - 1;
+        }
+
+        if (nextIdx >= 0 && nextIdx < visible.length) {
+            switchToTab(visible[nextIdx]);
+            sessionStorage.setItem('activeTab', visible[nextIdx]);
+        }
+    }, { passive: true });
 }
 
 function switchToTab(tabName, pushHistory = true) {

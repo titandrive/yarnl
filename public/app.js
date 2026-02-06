@@ -7279,7 +7279,7 @@ function renderPatternCard(pattern, options = {}) {
     return `
         <div class="pattern-card${highlightClass}" onclick="handlePatternClick(event, ${pattern.id})">
             ${showStatusBadge && pattern.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
-            ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge">IN PROGRESS</span>' : ''}
+            ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>' : ''}
             ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
             ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
             ${showStarBadge && pattern.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
@@ -10631,7 +10631,7 @@ function renderProjectCard(project) {
         <div class="pattern-card project-card" onclick="openProjectView(${project.id})">
             <span class="project-badge">PROJECT</span>
             ${project.completed ? '<span class="completed-badge">COMPLETE</span>' : ''}
-            ${!project.completed && project.is_current ? '<span class="current-badge">IN PROGRESS</span>' : ''}
+            ${!project.completed && project.is_current ? '<span class="current-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>' : ''}
             ${project.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
 
             <div class="pattern-thumbnail project-thumbnail" style="background: var(--card-bg);">
@@ -12337,7 +12337,7 @@ function renderProjectExistingGrid() {
                      onclick="toggleProjectExistingPattern(${pattern.id})">
                     <div class="peg-thumb">
                         ${pattern.completed ? '<span class="peg-badge peg-complete">COMPLETE</span>' : ''}
-                        ${!pattern.completed && pattern.is_current ? '<span class="peg-badge peg-current">IN PROGRESS</span>' : ''}
+                        ${!pattern.completed && pattern.is_current ? '<span class="peg-badge peg-current"><svg width="10" height="10" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>' : ''}
                         ${pattern.category ? `<span class="peg-category">${escapeHtml(pattern.category)}</span>` : ''}
                         ${pattern.is_favorite ? '<span class="peg-favorite"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
                         <span class="peg-type">${typeLabel}</span>

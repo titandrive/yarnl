@@ -2582,10 +2582,8 @@ body.global-drag-over #current::after {
 
 .pdf-viewer-wrapper {
     flex: 1;
+    min-height: 0;
     overflow: auto;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
     padding: 0;
     background: var(--card-bg);
     position: relative;
@@ -2595,8 +2593,18 @@ body.global-drag-over #current::after {
 
 .pdf-page-container {
     position: relative;
-    margin-bottom: 100px; /* Space for counter overlay when scrolling */
+    width: fit-content;
+    margin: 0 auto;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.pdf-scroll-spacer {
+    height: 150px;
+    pointer-events: none;
+}
+
+.pdf-viewer-wrapper.fit-mode .pdf-scroll-spacer {
+    display: none;
 }
 
 #pdf-canvas {
@@ -2626,9 +2634,6 @@ body.global-drag-over #current::after {
     overflow: hidden;
 }
 
-.pdf-viewer-wrapper.fit-mode .pdf-page-container {
-    margin-bottom: 0;
-}
 
 /* Floating Zoom Controls */
 .pdf-zoom-overlay {
@@ -3058,6 +3063,12 @@ body.global-drag-over #current::after {
     pointer-events: none;
 }
 
+.mobile-counter-add {
+    flex: 1;
+    font-size: 1.3rem;
+    opacity: 0.6;
+}
+
 .mobile-bar-counter {
     display: flex;
     align-items: center;
@@ -3295,6 +3306,10 @@ body.global-drag-over #current::after {
     /* Hide zoom overlay on mobile (pinch-to-zoom available) */
     .pdf-zoom-overlay {
         display: none !important;
+    }
+
+    .pdf-scroll-spacer {
+        display: none;
     }
 }
 

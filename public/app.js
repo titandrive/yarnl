@@ -1690,22 +1690,27 @@ function formatTime(seconds) {
 function updateTimerDisplay() {
     const pdfDisplay = document.getElementById('pdf-timer-display');
     const markdownDisplay = document.getElementById('markdown-timer-display');
+    const mobileDisplay = document.getElementById('mobile-timer-display');
     const timeString = formatTime(timerSeconds);
 
     if (pdfDisplay) pdfDisplay.textContent = timeString;
     if (markdownDisplay) markdownDisplay.textContent = timeString;
+    if (mobileDisplay) mobileDisplay.textContent = timeString;
 }
 
 function updateTimerButtonState() {
     const pdfBtn = document.getElementById('pdf-timer-btn');
     const markdownBtn = document.getElementById('markdown-timer-btn');
+    const mobileBtn = document.getElementById('mobile-timer-btn');
 
     if (timerRunning) {
         if (pdfBtn) pdfBtn.classList.add('timer-running');
         if (markdownBtn) markdownBtn.classList.add('timer-running');
+        if (mobileBtn) mobileBtn.classList.add('timer-running');
     } else {
         if (pdfBtn) pdfBtn.classList.remove('timer-running');
         if (markdownBtn) markdownBtn.classList.remove('timer-running');
+        if (mobileBtn) mobileBtn.classList.remove('timer-running');
     }
 }
 
@@ -1721,12 +1726,14 @@ function toggleAutoTimer(e) {
     // If called from checkbox change event, use checkbox state; otherwise toggle
     if (e && e.target && e.target.type === 'checkbox') {
         autoTimerEnabled = e.target.checked;
-        // Sync the other checkbox
-        const otherId = e.target.id === 'pdf-auto-timer-checkbox'
-            ? 'markdown-auto-timer-checkbox'
-            : 'pdf-auto-timer-checkbox';
-        const otherCheckbox = document.getElementById(otherId);
-        if (otherCheckbox) otherCheckbox.checked = autoTimerEnabled;
+        // Sync all other auto-timer checkboxes
+        const allIds = ['pdf-auto-timer-checkbox', 'markdown-auto-timer-checkbox', 'mobile-auto-timer-checkbox'];
+        allIds.forEach(id => {
+            if (id !== e.target.id) {
+                const cb = document.getElementById(id);
+                if (cb) cb.checked = autoTimerEnabled;
+            }
+        });
     } else {
         autoTimerEnabled = !autoTimerEnabled;
     }
@@ -1761,15 +1768,17 @@ function toggleAutoTimer(e) {
 function updateAutoTimerButtonState() {
     const pdfCheckbox = document.getElementById('pdf-auto-timer-checkbox');
     const markdownCheckbox = document.getElementById('markdown-auto-timer-checkbox');
+    const mobileCheckbox = document.getElementById('mobile-auto-timer-checkbox');
     const pdfToggle = pdfCheckbox?.closest('.auto-timer-toggle');
     const markdownToggle = markdownCheckbox?.closest('.auto-timer-toggle');
+    const mobileToggle = mobileCheckbox?.closest('.mobile-menu-toggle');
 
-    [pdfCheckbox, markdownCheckbox].forEach(checkbox => {
+    [pdfCheckbox, markdownCheckbox, mobileCheckbox].forEach(checkbox => {
         if (!checkbox) return;
         checkbox.checked = autoTimerEnabled;
     });
 
-    [pdfToggle, markdownToggle].forEach(toggle => {
+    [pdfToggle, markdownToggle, mobileToggle].forEach(toggle => {
         if (!toggle) return;
         toggle.classList.remove('paused-inactive');
         if (autoTimerPausedInactive) {
@@ -3159,8 +3168,8 @@ function switchToTab(tabName, pushHistory = true) {
     const markdownViewer = document.getElementById('markdown-viewer-container');
     if (markdownViewer) markdownViewer.style.display = 'none';
     document.querySelector('.tabs').style.display = 'flex';
-    const mobileCounterEl = document.getElementById('mobile-counter');
-    if (mobileCounterEl) mobileCounterEl.style.display = 'none';
+    const mobileBottomBar = document.getElementById('mobile-bottom-bar');
+    if (mobileBottomBar) mobileBottomBar.style.display = 'none';
 
     // Update settings button to show back when in settings
     updateSettingsButton(tabName === 'settings');
@@ -4230,8 +4239,8 @@ function initSettings() {
     // Keyboard Shortcuts
     initKeyboardShortcuts();
 
-    // Mobile floating counter
-    mobileCounter.init();
+    // Mobile bar (top + bottom bars for PDF viewer)
+    mobileBar.init();
 
     // Notifications Section
     initNotificationsSection();
@@ -7781,14 +7790,16 @@ function initPDFViewer() {
         }
     }, { passive: true });
 
-    // Swipe gestures for page navigation and counter control
+    // Swipe gestures for page navigation and counter control (desktop only — mobile uses bottom bar)
     let swipeStartX = null;
     let swipeStartY = null;
     let swipeStartTime = null;
     const SWIPE_THRESHOLD = 50; // Minimum distance for a swipe
     const SWIPE_TIME_LIMIT = 300; // Maximum time in ms for a swipe
+    const isMobileViewport = () => window.matchMedia('(max-width: 768px)').matches;
 
     pdfWrapper.addEventListener('touchstart', (e) => {
+        if (isMobileViewport()) return;
         if (e.touches.length === 1) {
             swipeStartX = e.touches[0].pageX;
             swipeStartY = e.touches[0].pageY;
@@ -7798,6 +7809,7 @@ function initPDFViewer() {
 
     // Prevent pull-to-refresh when swiping down at top of page
     pdfWrapper.addEventListener('touchmove', (e) => {
+        if (isMobileViewport()) return;
         if (e.touches.length === 1 && pdfWrapper.scrollTop === 0) {
             const deltaY = e.touches[0].pageY - swipeStartY;
             if (deltaY > 0) {
@@ -7807,6 +7819,7 @@ function initPDFViewer() {
     }, { passive: false });
 
     pdfWrapper.addEventListener('touchend', (e) => {
+        if (isMobileViewport()) return;
         if (swipeStartX === null || swipeStartY === null) return;
         if (e.touches.length > 0) return; // Still touching with another finger
 
@@ -8234,8 +8247,14 @@ async function openPDFViewer(patternId, pushHistory = true) {
         tabContents.forEach(c => c.style.display = 'none');
         pdfViewerContainer.style.display = 'flex';
 
+        // Re-show mobile bottom bar (cleared by tab switch)
+        const mobileBottomBar = document.getElementById('mobile-bottom-bar');
+        if (mobileBottomBar) mobileBottomBar.style.display = '';
+
         // Update header
         document.getElementById('pdf-pattern-name').textContent = pattern.name;
+        const mobilePatternName = document.getElementById('mobile-pattern-name');
+        if (mobilePatternName) mobilePatternName.textContent = pattern.name;
 
         // Load PDF and counters in parallel
         const pdfUrl = `${API_URL}/api/patterns/${pattern.id}/file`;
@@ -8353,6 +8372,9 @@ async function renderPage(pageNum) {
         // Update button states
         document.getElementById('prev-page-btn').disabled = pageNum <= 1;
         document.getElementById('next-page-btn').disabled = pageNum >= totalPages;
+
+        // Update mobile bottom bar page info
+        mobileBar.updatePageInfo();
 
     } catch (error) {
         console.error('Error rendering page:', error);
@@ -8751,6 +8773,8 @@ async function savePdfEdit() {
 
         // Update the viewer header
         document.getElementById('pdf-pattern-name').textContent = name;
+        const mobilePatternName = document.getElementById('mobile-pattern-name');
+        if (mobilePatternName) mobilePatternName.textContent = name;
 
         closePdfEditModal();
 
@@ -8822,7 +8846,7 @@ function displayCounters() {
         </div>
     `).join('');
 
-    mobileCounter.update();
+    mobileBar.update();
 }
 
 function selectCounter(counterId) {
@@ -8830,30 +8854,29 @@ function selectCounter(counterId) {
     displayCounters();
 }
 
-// Mobile Floating Counter
-const mobileCounter = (() => {
+// Mobile Bar (top bar + bottom bar for mobile PDF viewer)
+const mobileBar = (() => {
     let currentIndex = 0;
-    let dragState = null;
 
     function isMobile() {
         return window.matchMedia('(max-width: 768px)').matches;
     }
 
-    function getEl() {
-        return document.getElementById('mobile-counter');
-    }
-
     function update() {
-        const el = getEl();
-        if (!el || !isMobile()) {
-            if (el) el.style.display = 'none';
-            return;
-        }
+        const bar = document.getElementById('mobile-bottom-bar');
+        if (!bar || !isMobile()) return;
+
+        const counterSection = bar.querySelector('.mobile-bar-counter');
+        const divider = bar.querySelector('.mobile-bar-divider');
 
         if (counters.length === 0) {
-            el.style.display = 'none';
+            if (counterSection) counterSection.style.display = 'none';
+            if (divider) divider.style.display = 'none';
             return;
         }
+
+        if (counterSection) counterSection.style.display = '';
+        if (divider) divider.style.display = '';
 
         // Clamp index
         if (currentIndex >= counters.length) currentIndex = counters.length - 1;
@@ -8864,16 +8887,32 @@ const mobileCounter = (() => {
         if (activeIdx >= 0) currentIndex = activeIdx;
 
         const counter = counters[currentIndex];
-        el.style.display = '';
 
-        el.querySelector('.mobile-counter-name').textContent = counter.name || 'Counter';
-        el.querySelector('.mobile-counter-value').textContent = counter.value;
+        bar.querySelector('.mobile-counter-name').textContent = counter.name || 'Counter';
+        bar.querySelector('.mobile-counter-value').textContent = counter.value;
 
         // Show/hide nav arrows
-        const prev = el.querySelector('.mobile-counter-prev');
-        const next = el.querySelector('.mobile-counter-next');
-        prev.classList.toggle('hidden', counters.length <= 1);
-        next.classList.toggle('hidden', counters.length <= 1);
+        const prev = bar.querySelector('.mobile-counter-prev');
+        const next = bar.querySelector('.mobile-counter-next');
+        if (prev) prev.classList.toggle('hidden', counters.length <= 1);
+        if (next) next.classList.toggle('hidden', counters.length <= 1);
+
+        // Update page info
+        updatePageInfo();
+    }
+
+    function updatePageInfo() {
+        // Update page info in top bar
+        document.querySelectorAll('.mobile-page-info').forEach(el => {
+            el.textContent = `${currentPageNum} / ${totalPages}`;
+        });
+        // Update page button states in bottom bar
+        const bar = document.getElementById('mobile-bottom-bar');
+        if (!bar) return;
+        const prevBtn = bar.querySelector('.mobile-page-prev');
+        const nextBtn = bar.querySelector('.mobile-page-next');
+        if (prevBtn) prevBtn.disabled = currentPageNum <= 1;
+        if (nextBtn) nextBtn.disabled = currentPageNum >= totalPages;
     }
 
     function nav(delta) {
@@ -8884,139 +8923,157 @@ const mobileCounter = (() => {
         update();
     }
 
-    function init() {
-        const el = getEl();
-        if (!el) return;
-
-        el.querySelector('.mobile-counter-prev').addEventListener('click', () => nav(-1));
-        el.querySelector('.mobile-counter-next').addEventListener('click', () => nav(1));
-        el.querySelector('.mobile-counter-inc').addEventListener('click', () => {
-            if (counters[currentIndex]) incrementCounter(counters[currentIndex].id);
-        });
-        el.querySelector('.mobile-counter-dec').addEventListener('click', () => {
-            if (counters[currentIndex]) decrementCounter(counters[currentIndex].id);
-        });
-
-        // Edit mode
-        el.querySelector('.mobile-counter-info').addEventListener('click', () => toggleEdit(true));
-        el.querySelector('.mobile-counter-done-btn').addEventListener('click', () => toggleEdit(false));
-        el.querySelector('.mobile-counter-add-btn').addEventListener('click', async () => {
-            await addCounter('Counter');
-            toggleEdit(false);
-        });
-        el.querySelector('.mobile-counter-delete-btn').addEventListener('click', async () => {
-            const counter = counters[currentIndex];
-            if (!counter) return;
-            await deleteCounter(counter.id);
-            if (counters.length === 0) {
-                toggleEdit(false);
-            } else {
-                update();
-                toggleEdit(true); // refresh edit view with next counter
-            }
-        });
-        el.querySelector('.mobile-counter-name-input').addEventListener('change', (e) => {
-            const counter = counters[currentIndex];
-            if (counter) updateCounterName(counter.id, e.target.value);
-        });
-        el.querySelector('.mobile-counter-edit-prev').addEventListener('click', () => {
-            nav(-1);
-            toggleEdit(true);
-        });
-        el.querySelector('.mobile-counter-edit-next').addEventListener('click', () => {
-            nav(1);
-            toggleEdit(true);
-        });
-
-        // Drag to reposition (grab the name or value)
-        el.querySelector('.mobile-counter-name').addEventListener('touchstart', onDragStart, { passive: false });
-        el.querySelector('.mobile-counter-value').addEventListener('touchstart', onDragStart, { passive: false });
-        // Prevent edit button from triggering drag
-        el.querySelector('.mobile-counter-info').addEventListener('touchstart', (e) => e.stopPropagation());
-        document.addEventListener('touchmove', onDragMove, { passive: false });
-        document.addEventListener('touchend', onDragEnd);
-    }
-
-    async function toggleEdit(show) {
-        const el = getEl();
-        if (!el) return;
-        const normal = el.querySelector('.mobile-counter-normal');
-        const edit = el.querySelector('.mobile-counter-edit');
+    function toggleEdit(show) {
+        const bar = document.getElementById('mobile-bottom-bar');
+        if (!bar) return;
+        const editPanel = bar.querySelector('.mobile-bar-edit');
         if (show) {
             const counter = counters[currentIndex];
             if (!counter) return;
-            el.querySelector('.mobile-counter-name-input').value = counter.name || '';
-            el.querySelector('.mobile-counter-edit-pos').textContent = `${currentIndex + 1} / ${counters.length}`;
-            normal.style.display = 'none';
-            edit.style.display = '';
-            el.classList.add('editing');
-            // Ensure edit panel stays on screen
-            requestAnimationFrame(() => {
-                const rect = el.getBoundingClientRect();
-                if (rect.bottom > window.innerHeight) {
-                    el.style.top = Math.max(0, window.innerHeight - rect.height - 10) + 'px';
-                    el.style.bottom = 'auto';
-                }
-                if (rect.right > window.innerWidth) {
-                    el.style.left = Math.max(0, window.innerWidth - rect.width - 10) + 'px';
-                    el.style.right = 'auto';
-                }
-            });
+            bar.querySelector('.mobile-edit-name').value = counter.name || '';
+            bar.querySelector('.mobile-edit-pos').textContent = `${currentIndex + 1} / ${counters.length}`;
+            editPanel.style.display = '';
         } else {
             // Save name if changed before closing
-            const nameInput = el.querySelector('.mobile-counter-name-input');
+            const nameInput = bar.querySelector('.mobile-edit-name');
             const counter = counters[currentIndex];
             if (counter && nameInput.value !== counter.name) {
-                counter.name = nameInput.value; // Update locally first
-                updateCounterName(counter.id, nameInput.value); // Save to API in background
+                counter.name = nameInput.value;
+                updateCounterName(counter.id, nameInput.value);
             }
-            normal.style.display = '';
-            edit.style.display = 'none';
-            el.classList.remove('editing');
+            editPanel.style.display = 'none';
             update();
             displayCounters();
         }
     }
 
-    function onDragStart(e) {
-        const el = getEl();
-        const touch = e.touches[0];
-        const rect = el.getBoundingClientRect();
-        dragState = {
-            offsetX: touch.clientX - rect.left,
-            offsetY: touch.clientY - rect.top
-        };
-        el.style.transition = 'none';
-        e.preventDefault();
+    function init() {
+        const bar = document.getElementById('mobile-bottom-bar');
+        const topBar = document.querySelector('.mobile-top-bar');
+        if (!bar && !topBar) return;
+
+        // --- Top bar ---
+        if (topBar) {
+            const backBtn = document.getElementById('mobile-back-btn');
+            const timerBtn = document.getElementById('mobile-timer-btn');
+            const menuBtn = document.getElementById('mobile-menu-btn');
+            const menu = document.getElementById('mobile-menu');
+
+            if (backBtn) backBtn.addEventListener('click', closePDFViewer);
+            if (timerBtn) timerBtn.addEventListener('click', toggleTimer);
+
+            // Hamburger menu toggle
+            if (menuBtn && menu) {
+                menuBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    menu.style.display = menu.style.display === 'none' ? 'block' : 'none';
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!menuBtn.contains(e.target) && !menu.contains(e.target)) {
+                        menu.style.display = 'none';
+                    }
+                });
+            }
+
+            // Menu items
+            const notesBtn = document.getElementById('mobile-notes-btn');
+            const editBtn = document.getElementById('mobile-edit-btn');
+            const infoBtn = document.getElementById('mobile-info-btn');
+            const autoTimerCheckbox = document.getElementById('mobile-auto-timer-checkbox');
+            const timerResetBtn = document.getElementById('mobile-timer-reset-btn');
+
+            if (notesBtn) notesBtn.addEventListener('click', () => {
+                menu.style.display = 'none';
+                toggleNotesPopover();
+            });
+            if (editBtn) editBtn.addEventListener('click', () => {
+                menu.style.display = 'none';
+                openPdfEditModal();
+            });
+            if (infoBtn) infoBtn.addEventListener('click', () => {
+                menu.style.display = 'none';
+                openPatternInfoModal();
+            });
+            if (autoTimerCheckbox) {
+                autoTimerCheckbox.addEventListener('change', toggleAutoTimer);
+            }
+            if (timerResetBtn) timerResetBtn.addEventListener('click', () => {
+                menu.style.display = 'none';
+                handleTimerReset();
+            });
+        }
+
+        // --- Bottom bar ---
+        if (bar) {
+            // Page navigation
+            bar.querySelector('.mobile-page-prev').addEventListener('click', () => changePage(-1));
+            bar.querySelector('.mobile-page-next').addEventListener('click', () => changePage(1));
+
+            // Counter navigation
+            bar.querySelector('.mobile-counter-prev').addEventListener('click', () => nav(-1));
+            bar.querySelector('.mobile-counter-next').addEventListener('click', () => nav(1));
+
+            // Counter increment/decrement
+            bar.querySelector('.mobile-counter-inc').addEventListener('click', () => {
+                if (counters[currentIndex]) incrementCounter(counters[currentIndex].id);
+            });
+            bar.querySelector('.mobile-counter-dec').addEventListener('click', () => {
+                if (counters[currentIndex]) decrementCounter(counters[currentIndex].id);
+            });
+
+            // Counter label tap → edit
+            bar.querySelector('.mobile-bar-counter-label').addEventListener('click', () => {
+                if (counters.length > 0) toggleEdit(true);
+            });
+
+            // Edit panel
+            bar.querySelector('.mobile-edit-done').addEventListener('click', () => toggleEdit(false));
+            bar.querySelector('.mobile-edit-add').addEventListener('click', async () => {
+                await addCounter('Counter');
+                toggleEdit(false);
+            });
+            bar.querySelector('.mobile-edit-delete').addEventListener('click', async () => {
+                const counter = counters[currentIndex];
+                if (!counter) return;
+                await deleteCounter(counter.id);
+                if (counters.length === 0) {
+                    toggleEdit(false);
+                } else {
+                    update();
+                    toggleEdit(true);
+                }
+            });
+            bar.querySelector('.mobile-edit-name').addEventListener('change', (e) => {
+                const counter = counters[currentIndex];
+                if (counter) updateCounterName(counter.id, e.target.value);
+            });
+            bar.querySelector('.mobile-edit-prev').addEventListener('click', () => {
+                nav(-1);
+                toggleEdit(true);
+            });
+            bar.querySelector('.mobile-edit-next').addEventListener('click', () => {
+                nav(1);
+                toggleEdit(true);
+            });
+        }
+
+        // Visual feedback for bottom bar buttons via event delegation
+        if (bar) {
+            bar.addEventListener('touchstart', (e) => {
+                const btn = e.target.closest('.mobile-bar-btn, .mobile-bar-nav');
+                if (btn) btn.classList.add('pressed');
+            }, { passive: true });
+            bar.addEventListener('touchend', () => {
+                bar.querySelectorAll('.pressed').forEach(el => el.classList.remove('pressed'));
+            });
+            bar.addEventListener('touchcancel', () => {
+                bar.querySelectorAll('.pressed').forEach(el => el.classList.remove('pressed'));
+            });
+        }
     }
 
-    function onDragMove(e) {
-        if (!dragState) return;
-        const el = getEl();
-        const touch = e.touches[0];
-        let x = touch.clientX - dragState.offsetX;
-        let y = touch.clientY - dragState.offsetY;
-
-        // Clamp to viewport
-        const rect = el.getBoundingClientRect();
-        x = Math.max(0, Math.min(window.innerWidth - rect.width, x));
-        y = Math.max(0, Math.min(window.innerHeight - rect.height, y));
-
-        el.style.left = x + 'px';
-        el.style.top = y + 'px';
-        el.style.right = 'auto';
-        el.style.bottom = 'auto';
-        e.preventDefault();
-    }
-
-    function onDragEnd() {
-        if (!dragState) return;
-        const el = getEl();
-        el.style.transition = '';
-        dragState = null;
-    }
-
-    return { init, update };
+    return { init, update, updatePageInfo };
 })();
 
 async function addCounter(defaultName = 'New Counter') {

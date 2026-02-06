@@ -1987,6 +1987,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // User is authenticated, show app and initialize
     showApp();
 
+    // Global haptic feedback for all interactive elements on mobile
+    // Uses touchend — Chrome Android requires a completed gesture before vibrate works
+    document.addEventListener('touchend', (e) => {
+        if (!navigator.vibrate || localStorage.getItem('hapticFeedback') === 'false') return;
+        const interactive = e.target.closest('button, .toggle-switch, .tab-btn, .settings-nav-btn, .mobile-bar-btn, .mobile-bar-nav, .action-btn, .pattern-card, select, .day-night-toggle .mode-btn');
+        if (interactive) navigator.vibrate(200);
+    }, { passive: true });
+
     initTabs();
     // Show projects tab immediately if user had projects before (from cache)
     if (localStorage.getItem('hasProjects') === 'true') {
@@ -2862,6 +2870,20 @@ function initTheme() {
                 taglineInputContainer.style.display = show ? 'flex' : 'none';
             }
             showToast(show ? 'Tagline shown' : 'Tagline hidden');
+        });
+    }
+
+    // Haptic feedback toggle
+    const hapticCheckbox = document.getElementById('haptic-checkbox');
+    const hapticEnabled = localStorage.getItem('hapticFeedback') !== 'false';
+
+    if (hapticCheckbox) {
+        hapticCheckbox.checked = hapticEnabled;
+
+        hapticCheckbox.addEventListener('change', () => {
+            const enabled = hapticCheckbox.checked;
+            localStorage.setItem('hapticFeedback', enabled);
+            showToast(enabled ? 'Haptic feedback enabled' : 'Haptic feedback disabled');
         });
     }
 
@@ -9128,18 +9150,12 @@ const mobileBar = (() => {
             });
         }
 
-        // Prime vibration API on first user interaction
-        document.addEventListener('touchend', () => {
-            if (navigator.vibrate) navigator.vibrate(1);
-        }, { once: true, passive: true });
-
         // Visual feedback for bottom bar buttons via event delegation
         if (bar) {
             bar.addEventListener('touchstart', (e) => {
                 const btn = e.target.closest('.mobile-bar-btn, .mobile-bar-nav');
                 if (btn) {
                     btn.classList.add('pressed');
-                    if (navigator.vibrate) navigator.vibrate(200);
                 }
             }, { passive: true });
             bar.addEventListener('touchend', () => {

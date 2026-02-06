@@ -1,23 +1,22 @@
 // API base URL
 const API_URL = '';
 
-// bfcache diagnostic — shows why page reloaded instead of restoring from cache
+// PWA lifecycle diagnostic
 window.addEventListener('pageshow', (e) => {
-    if (e.persisted) return; // restored from bfcache, all good
+    if (e.persisted) {
+        console.log('[PWA] Restored from bfcache');
+        return;
+    }
     const nav = performance.getEntriesByType('navigation')[0];
+    const type = nav ? nav.type : 'unknown';
+    console.log(`[PWA] Fresh load (type: ${type})`);
     if (nav && nav.notRestoredReasons) {
         const reasons = nav.notRestoredReasons.reasons || [];
         const children = (nav.notRestoredReasons.children || [])
             .flatMap(c => c.reasons || []);
         const all = [...reasons, ...children];
         if (all.length) {
-            console.warn('bfcache blocked:', all);
-            // Show as temporary toast so user can report it
-            setTimeout(() => {
-                if (typeof showToast === 'function') {
-                    showToast('bfcache blocked: ' + all.join(', '), 'warning', 8000);
-                }
-            }, 3000);
+            console.warn('[PWA] bfcache blocked:', all);
         }
     }
 });

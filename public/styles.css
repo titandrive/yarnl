@@ -4053,14 +4053,100 @@ body.global-drag-over #current::after {
     .settings-sidebar {
         width: 100%;
         flex-direction: row;
-        flex-wrap: wrap;
-        overflow-x: auto;
+        flex-wrap: nowrap;
         padding-bottom: 8px;
+        gap: 4px;
+        align-items: center;
     }
 
+    .settings-nav-scroll {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        gap: 4px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    /* Collapsed: icon-only search button */
     .settings-search-wrapper {
+        width: auto;
+        margin-bottom: 0;
+        flex-shrink: 0;
+        position: relative;
+        background: var(--hover-bg);
+        border-radius: 8px;
+        padding: 10px 14px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .settings-search-wrapper:active {
+        background: var(--primary-color);
+    }
+
+    .settings-search-wrapper .settings-search-icon {
+        position: static;
+        left: auto;
+        pointer-events: none;
+        color: var(--text-color);
+        width: 20px;
+        height: 20px;
+        display: block;
+    }
+
+    .settings-search-wrapper input {
+        width: 0;
+        padding: 0;
+        border: none;
+        opacity: 0;
+        position: absolute;
+        pointer-events: none;
+    }
+
+    .settings-search-clear {
+        display: none !important;
+    }
+
+    /* Expanded: full-width search bar (siblings hidden via ~ selector) */
+    .settings-search-wrapper.expanded {
         width: 100%;
-        margin-bottom: 8px;
+        padding: 0;
+        background: transparent;
+        cursor: default;
+        position: relative;
+    }
+
+    .settings-search-wrapper.expanded .settings-search-icon {
+        position: absolute;
+        left: 10px;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-muted);
+        width: 16px;
+        height: 16px;
+        pointer-events: none;
+    }
+
+    .settings-search-wrapper.expanded input {
+        width: 100%;
+        padding: 10px 36px 10px 36px;
+        border: 1px solid var(--primary-color);
+        opacity: 1;
+        position: static;
+        pointer-events: auto;
+    }
+
+    .settings-search-wrapper.expanded .settings-search-clear {
+        display: flex !important;
+    }
+
+    .settings-search-wrapper.expanded ~ .settings-nav-scroll {
+        display: none;
     }
 
     .settings-nav-btn {
@@ -4075,6 +4161,77 @@ body.global-drag-over #current::after {
     .settings-nav-btn svg {
         width: 20px;
         height: 20px;
+    }
+
+    .settings-section {
+        padding: 14px;
+    }
+
+    /* Stack setting items vertically */
+    .setting-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+    }
+
+    .setting-item .toggle-switch {
+        align-self: flex-start;
+        flex-shrink: 0;
+    }
+
+    .setting-item .day-night-toggle,
+    .setting-item .settings-select,
+    .setting-item .schedule-times {
+        width: 100%;
+    }
+
+    .day-night-toggle {
+        justify-content: center;
+    }
+
+    .day-night-toggle .mode-btn {
+        flex: 1;
+        padding: 10px;
+    }
+
+    .schedule-times {
+        justify-content: center;
+    }
+
+    .schedule-times input[type="time"] {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .category-item {
+        flex-wrap: wrap;
+    }
+
+    .category-actions {
+        width: 100%;
+    }
+
+    .category-actions button {
+        flex: 1;
+    }
+
+    .add-category-form {
+        flex-direction: column;
+    }
+
+    /* Keyboard shortcuts: stack and full-width keys */
+    .shortcut-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .shortcut-keys {
+        width: 100%;
+    }
+
+    .shortcut-key-btn {
+        flex: 1;
     }
 }
 
@@ -4618,58 +4775,6 @@ input[type="number"].settings-input {
     color: var(--text-muted);
 }
 
-@media (max-width: 480px) {
-    .setting-item {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 12px;
-    }
-
-    .setting-item .toggle-switch {
-        align-self: flex-start;
-        flex-shrink: 0;
-    }
-
-    .setting-item .day-night-toggle,
-    .setting-item .settings-select,
-    .setting-item .schedule-times {
-        width: 100%;
-    }
-
-    .day-night-toggle {
-        justify-content: center;
-    }
-
-    .day-night-toggle .mode-btn {
-        flex: 1;
-        padding: 10px;
-    }
-
-    .schedule-times {
-        justify-content: center;
-    }
-
-    .schedule-times input[type="time"] {
-        flex: 1;
-        min-width: 0;
-    }
-
-    .category-item {
-        flex-wrap: wrap;
-    }
-
-    .category-actions {
-        width: 100%;
-    }
-
-    .category-actions button {
-        flex: 1;
-    }
-
-    .add-category-form {
-        flex-direction: column;
-    }
-}
 
 /* Custom Category Dropdown */
 .category-dropdown {

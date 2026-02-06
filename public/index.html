@@ -26,7 +26,7 @@
                 // Resuming into pattern viewer — hide everything to prevent tab flash
                 document.write('<style id="early-tab-style">#login-container{display:none!important}.tabs{display:none!important}.tab-content{display:none!important}</style>');
             } else {
-                var startTab = sessionStorage.getItem('activeTab') || localStorage.getItem('defaultPage') || 'current';
+                var startTab = localStorage.getItem('activeTab') || localStorage.getItem('defaultPage') || 'current';
                 document.write('<style id="early-tab-style">#login-container{display:none!important}.tab-content{display:none!important}.tab-content#' + startTab + '{display:block!important}</style>');
             }
         }

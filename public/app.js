@@ -142,7 +142,7 @@ async function handleLogin(e) {
             // Clear hash and set default tab BEFORE showing app to prevent flash
             window.location.hash = '';
             const defaultPage = localStorage.getItem('defaultPage') || 'current';
-            sessionStorage.setItem('activeTab', defaultPage);
+            localStorage.setItem('activeTab', defaultPage);
             showApp();
             // Only initialize UI components on first login
             if (!appInitialized) {
@@ -2017,8 +2017,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Register service worker for PWA
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('service-worker.js');
-        // If a new SW takes over mid-session, do a clean reload
-        navigator.serviceWorker.addEventListener('controllerchange', () => window.location.reload());
     }
 
     // Initialize auth and login form
@@ -3238,9 +3236,8 @@ function initTabs() {
         document.querySelector('.tabs').style.display = 'none';
         tabContents.forEach(c => c.style.display = 'none');
     } else {
-        // Use sessionStorage for current tab (survives refresh, clears on new tab)
-        // Use localStorage defaultPage only for fresh visits
-        const currentTab = sessionStorage.getItem('activeTab');
+        // Use localStorage for current tab (survives PWA process kill)
+        const currentTab = localStorage.getItem('activeTab');
         const defaultPage = localStorage.getItem('defaultPage') || 'current';
         const startTab = currentTab || defaultPage;
 
@@ -3262,8 +3259,7 @@ function initTabs() {
         btn.addEventListener('click', () => {
             const tabName = btn.dataset.tab;
             switchToTab(tabName);
-            // Save to sessionStorage so refresh stays on same page
-            sessionStorage.setItem('activeTab', tabName);
+            localStorage.setItem('activeTab', tabName);
         });
     });
 }
@@ -3319,7 +3315,7 @@ function initSwipeNavigation() {
 
         if (nextIdx >= 0 && nextIdx < visible.length) {
             switchToTab(visible[nextIdx]);
-            sessionStorage.setItem('activeTab', visible[nextIdx]);
+            localStorage.setItem('activeTab', visible[nextIdx]);
         }
     }, { passive: true });
 }

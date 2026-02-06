@@ -1,17 +1,7 @@
 const CACHE_NAME = 'yarnl-cache';
 
-const SHELL_ASSETS = [
-  '/',
-  '/styles.css',
-  '/app.js',
-  '/manifest.json',
-];
-
-// Install — pre-cache app shell so reloads are instant from disk
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_ASSETS))
-  );
+// Install — no pre-cache; stale-while-revalidate builds cache from actual requests
+self.addEventListener('install', () => {
   // No skipWaiting — new SW waits for old one to release clients naturally
 });
 

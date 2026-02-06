@@ -2012,41 +2012,8 @@ const tabContents = document.querySelectorAll('.tab-content');
 const pdfViewerContainer = document.getElementById('pdf-viewer-container');
 const pdfCanvas = document.getElementById('pdf-canvas');
 
-// Initialize app
-document.addEventListener('DOMContentLoaded', async () => {
-    // Register service worker for PWA
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('service-worker.js');
-    }
-
-    // Initialize auth and login form
-    initAuth();
-    initTheme();
-
-    // Show app container immediately if previously authenticated (skip auth API wait)
-    const wasAuthenticated = localStorage.getItem('authenticated') === 'true';
-    if (wasAuthenticated) {
-        document.getElementById('login-container').style.display = 'none';
-        document.querySelector('.container').style.display = 'block';
-    }
-
-    // Check authentication
-    const isAuthenticated = await checkAuth();
-    if (!isAuthenticated) {
-        localStorage.removeItem('authenticated');
-        showLogin();
-        return;
-    }
-
-    localStorage.setItem('authenticated', 'true');
-
-    // Show app if not already shown
-    if (!wasAuthenticated) {
-        showApp();
-    }
-
+function initAppUI() {
     // Global haptic feedback for buttons and toggles on mobile
-    // Track touch movement to avoid vibrating on scrolls
     let hapticStartX = 0, hapticStartY = 0;
     document.addEventListener('touchstart', (e) => {
         hapticStartX = e.touches[0].clientX;
@@ -2056,13 +2023,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!navigator.vibrate || localStorage.getItem('hapticFeedback') === 'false') return;
         const dx = e.changedTouches[0].clientX - hapticStartX;
         const dy = e.changedTouches[0].clientY - hapticStartY;
-        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) return; // was a scroll, not a tap
+        if (Math.abs(dx) > 10 || Math.abs(dy) > 10) return;
         const interactive = e.target.closest('button, .toggle-switch, .tab-btn, .settings-nav-btn, .mobile-bar-btn, .mobile-bar-nav, .day-night-toggle .mode-btn');
         if (interactive) navigator.vibrate(200);
     }, { passive: true });
 
     initTabs();
-    // Show projects tab immediately if user had projects before (from cache)
     if (localStorage.getItem('hasProjects') === 'true') {
         const projectsTabBtn = document.getElementById('projects-tab-btn');
         if (projectsTabBtn) projectsTabBtn.style.display = 'block';
@@ -2083,19 +2049,91 @@ document.addEventListener('DOMContentLoaded', async () => {
     initServerEvents();
     initHorizontalScroll();
     initUserManagement();
-    appInitialized = true;
-    // Load patterns and projects in parallel for faster startup
-    await Promise.all([loadPatterns(), loadProjects()]);
-    loadCurrentPatterns();
-    loadCategories();
-    loadHashtags();
-    await loadCurrentProjects();
-    updateTabCounts();
-    displayCurrentPatterns();
-    initProjectPanel();
+}
 
-    // Handle initial URL hash or restore pattern viewer
-    await handleInitialNavigation();
+// Initialize app
+document.addEventListener('DOMContentLoaded', async () => {
+    // Register service worker for PWA
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('service-worker.js');
+    }
+
+    // Initialize auth and login form
+    initAuth();
+    initTheme();
+
+    // Show app container immediately if previously authenticated (skip auth API wait)
+    const wasAuthenticated = localStorage.getItem('authenticated') === 'true';
+    if (wasAuthenticated) {
+        document.getElementById('login-container').style.display = 'none';
+        document.querySelector('.container').style.display = 'block';
+    }
+
+    // For returning users: use cached data for instant restore, verify auth in background
+    if (wasAuthenticated) {
+        // Restore cached patterns immediately (no network wait)
+        const cachedPatterns = localStorage.getItem('cachedPatterns');
+        if (cachedPatterns) {
+            try {
+                patterns = JSON.parse(cachedPatterns);
+                patternsLoaded = true;
+            } catch (e) { /* ignore bad cache */ }
+        }
+
+        // Init all UI components immediately
+        initAppUI();
+        appInitialized = true;
+
+        // Restore view from cached data (instant — no API wait)
+        if (patterns.length) {
+            displayPatterns();
+            displayCurrentPatterns();
+            updateTabCounts();
+        }
+        await handleInitialNavigation();
+
+        // Now verify auth and refresh data in background
+        checkAuth().then(async (isAuthenticated) => {
+            if (!isAuthenticated) {
+                localStorage.removeItem('authenticated');
+                localStorage.removeItem('cachedPatterns');
+                showLogin();
+                return;
+            }
+            localStorage.setItem('authenticated', 'true');
+            // Refresh data from server (updates in place, no visible reload)
+            await Promise.all([loadPatterns(), loadProjects()]);
+            loadCurrentPatterns();
+            loadCategories();
+            loadHashtags();
+            await loadCurrentProjects();
+            updateTabCounts();
+            displayCurrentPatterns();
+            initProjectPanel();
+        });
+    } else {
+        // First visit or logged out: must await auth before proceeding
+        const isAuthenticated = await checkAuth();
+        if (!isAuthenticated) {
+            localStorage.removeItem('authenticated');
+            showLogin();
+            return;
+        }
+        localStorage.setItem('authenticated', 'true');
+        showApp();
+
+        initAppUI();
+        appInitialized = true;
+        await Promise.all([loadPatterns(), loadProjects()]);
+        loadCurrentPatterns();
+        loadCategories();
+        loadHashtags();
+        await loadCurrentProjects();
+        updateTabCounts();
+        displayCurrentPatterns();
+        initProjectPanel();
+        await handleInitialNavigation();
+    }
 });
 
 // Enable horizontal scrolling with mouse wheel for hashtag selectors
@@ -4072,6 +4110,8 @@ async function loadPatterns() {
         const response = await fetch(`${API_URL}/api/patterns`);
         patterns = await response.json();
         patternsLoaded = true;
+        // Cache for instant PWA restore on next launch
+        try { localStorage.setItem('cachedPatterns', JSON.stringify(patterns)); } catch (e) { /* quota */ }
         displayPatterns();
         updateTabCounts();
     } catch (error) {

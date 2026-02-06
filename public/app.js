@@ -1577,15 +1577,15 @@ let timerResetTimeout = null;
 
 // Keyboard Shortcuts
 const defaultShortcuts = {
-    counterIncrease: ['ArrowUp', ''],
-    counterDecrease: ['ArrowDown', ''],
-    prevPage: ['ArrowLeft', ''],
-    nextPage: ['ArrowRight', ''],
-    toggleTimer: [' ', ''], // Space
-    nextCounter: ['Tab', ''],
-    zoomIn: ['=', '+'], // = is unshifted + on most keyboards
-    zoomOut: ['-', ''],
-    exitViewer: ['Escape', '']
+    counterIncrease: ['ArrowUp', '', ''],
+    counterDecrease: ['ArrowDown', '', ''],
+    prevPage: ['ArrowLeft', '', ''],
+    nextPage: ['ArrowRight', '', ''],
+    toggleTimer: [' ', '', ''], // Space
+    nextCounter: ['Tab', '', ''],
+    zoomIn: ['=', '+', ''], // = is unshifted + on most keyboards
+    zoomOut: ['-', '', ''],
+    exitViewer: ['Escape', '', '']
 };
 // Merge saved shortcuts with defaults (so new shortcuts get added)
 let keyboardShortcuts = (() => {

@@ -53,6 +53,8 @@ async function checkAuth() {
 }
 
 function showLogin() {
+    const earlyStyle = document.getElementById('early-tab-style');
+    if (earlyStyle) earlyStyle.remove();
     document.getElementById('login-container').style.display = 'flex';
     document.querySelector('.container').style.display = 'none';
     // Set mascot in login - ensure proper path
@@ -69,6 +71,8 @@ function showLogin() {
 }
 
 function showApp() {
+    const earlyStyle = document.getElementById('early-tab-style');
+    if (earlyStyle) earlyStyle.remove();
     document.getElementById('login-container').style.display = 'none';
     document.querySelector('.container').style.display = 'block';
     updateUIForUser();

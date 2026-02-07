@@ -3155,10 +3155,10 @@ body.global-drag-over #current::after {
     background: none;
     border: none;
     color: var(--text-muted);
-    font-size: 1.1rem;
+    font-size: 1.5rem;
     font-weight: bold;
     cursor: pointer;
-    padding: 0 2px;
+    padding: 4px 8px;
     line-height: 1;
 }
 

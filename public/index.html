@@ -24,11 +24,14 @@
         if (localStorage.getItem('authenticated') === 'true') {
             if (localStorage.getItem('viewingPatternId')) {
                 // Resuming into pattern viewer — hide everything to prevent tab flash
-                document.write('<style id="early-tab-style">#login-container{display:none!important}.tabs{display:none!important}.tab-content{display:none!important}</style>');
+                document.write('<style id="early-tab-style">#login-container{display:none!important}.container{display:block!important}.tabs{display:none!important}.tab-content{display:none!important}</style>');
             } else {
                 var startTab = localStorage.getItem('activeTab') || localStorage.getItem('defaultPage') || 'current';
-                document.write('<style id="early-tab-style">#login-container{display:none!important}.tab-content{display:none!important}.tab-content#' + startTab + '{display:block!important}</style>');
+                document.write('<style id="early-tab-style">#login-container{display:none!important}.container{display:block!important}.tab-content{display:none!important}.tab-content#' + startTab + '{display:block!important}</style>');
             }
+        } else {
+            // Not authenticated — hide app container, show login
+            document.write('<style id="early-tab-style">.container{display:none!important}</style>');
         }
     </script>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
@@ -43,7 +46,7 @@
 </head>
 <body>
     <!-- Login Container -->
-    <div id="login-container" class="login-container" style="display: none;">
+    <div id="login-container" class="login-container">
         <div class="login-card">
             <div class="login-header">
                 <h1><img id="login-mascot" src="/mascots/jimmy.default.png?v=1" alt="Yarnl" class="login-mascot">Yarnl</h1>

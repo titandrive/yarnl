@@ -1290,6 +1290,46 @@ async function saveOIDCSettings() {
     }
 }
 
+async function resetOIDCSettings() {
+    if (!confirm('Reset all OIDC settings and unlink all SSO users?')) return;
+    const btn = document.getElementById('reset-oidc-btn');
+    btn.disabled = true;
+    btn.textContent = 'Resetting...';
+    try {
+        const response = await fetch(`${API_URL}/api/auth/oidc/reset`, {
+            method: 'POST'
+        });
+        if (response.ok) {
+            showToast('OIDC settings reset');
+            // Clear form
+            document.getElementById('oidc-enabled-toggle').checked = false;
+            document.getElementById('oidc-issuer').value = '';
+            document.getElementById('oidc-client-id').value = '';
+            document.getElementById('oidc-client-secret').value = '';
+            document.getElementById('oidc-provider-name').value = '';
+            document.getElementById('oidc-icon-url').value = '';
+            document.getElementById('oidc-disable-local').checked = false;
+            document.getElementById('oidc-auto-create').checked = true;
+            document.getElementById('oidc-default-role').value = 'user';
+            // Hide config fields, discovery status, and endpoints
+            document.getElementById('oidc-config-fields').style.display = 'none';
+            hideDiscoveredEndpoints();
+            const status = document.getElementById('oidc-discovery-status');
+            if (status) status.style.display = 'none';
+            checkOIDCEnabled();
+            loadUsers();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to reset OIDC', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to reset OIDC:', error);
+        showToast('Failed to reset OIDC', 'error');
+    }
+    btn.disabled = false;
+    btn.textContent = 'Reset OIDC';
+}
+
 function showDiscoveryStatus(type, message) {
     const status = document.getElementById('oidc-discovery-status');
     if (status) {
@@ -1385,6 +1425,11 @@ function initOIDCSettings() {
     const discoverBtn = document.getElementById('oidc-discover-btn');
     if (discoverBtn) {
         discoverBtn.addEventListener('click', discoverOIDCIssuer);
+    }
+
+    const resetBtn = document.getElementById('reset-oidc-btn');
+    if (resetBtn) {
+        resetBtn.addEventListener('click', resetOIDCSettings);
     }
 
     loadOIDCSettings();
@@ -2156,9 +2201,11 @@ function initAppUI() {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
-    // Register service worker for PWA
+    // Unregister any existing service worker
     if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('service-worker.js');
+        navigator.serviceWorker.getRegistrations().then((regs) => {
+            regs.forEach((reg) => reg.unregister());
+        });
     }
 
     // Initialize auth and login form

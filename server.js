@@ -54,6 +54,7 @@ app.get('/', (req, res) => {
   res.setHeader('Cache-Control', 'no-cache');
   res.sendFile('index.html', { root: 'public' });
 });
+
 app.use(express.static('public'));
 app.use('/mascots', express.static('mascots'));
 
@@ -727,6 +728,24 @@ app.post('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) 
   } catch (error) {
     console.error('Error saving OIDC settings:', error);
     res.status(500).json({ error: 'Failed to save OIDC settings' });
+  }
+});
+
+// Reset OIDC configuration (admin only)
+app.post('/api/auth/oidc/reset', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    // Delete OIDC settings
+    await pool.query("DELETE FROM settings WHERE key = 'oidc'");
+
+    // Unlink all OIDC-linked users
+    await pool.query(
+      "UPDATE users SET oidc_subject = NULL, oidc_provider = NULL, updated_at = NOW() WHERE oidc_subject IS NOT NULL"
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error resetting OIDC:', error);
+    res.status(500).json({ error: 'Failed to reset OIDC settings' });
   }
 });
 

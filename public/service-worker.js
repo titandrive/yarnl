@@ -1,12 +1,11 @@
-const CACHE_NAME = 'yarnl-cache-v4';
+const CACHE_NAME = 'yarnl-cache-v6';
 
-// Install — pre-cache critical assets for instant PWA loads
+// Install — pre-cache static assets only (not HTML)
 // skipWaiting ensures new SW activates immediately (no stuck "waiting" state)
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) =>
       Promise.allSettled([
-        cache.add('/'),
         cache.add('/app.js'),
         cache.add('/styles.css'),
         cache.add('/manifest.json'),
@@ -16,20 +15,20 @@ self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
 
-// Activate — clean up old caches
-// Note: no clients.claim() — new SW only controls pages opened after activation.
-// This avoids disrupting the current session and improves bfcache eligibility.
+// Activate — clean up old caches and take control of all tabs immediately
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
         keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
       )
-    )
+    ).then(() => self.clients.claim())
   );
 });
 
-// Fetch — stale-while-revalidate for all cacheable requests
+// Fetch strategy:
+// - HTML navigation requests: network-first (always fresh, fall back to cache offline)
+// - Static assets: stale-while-revalidate (fast loads, updated in background)
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
 
@@ -41,7 +40,20 @@ self.addEventListener('fetch', (e) => {
   // Only cache GET requests
   if (e.request.method !== 'GET') return;
 
-  // Stale-while-revalidate: serve cached immediately, update in background
+  // HTML navigation requests — network-first
+  if (e.request.mode === 'navigate') {
+    e.respondWith(
+      fetch(e.request).then((response) => {
+        if (response.ok) {
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, response.clone()));
+        }
+        return response;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Static assets — stale-while-revalidate
   e.respondWith(
     caches.open(CACHE_NAME).then((cache) =>
       cache.match(e.request, { ignoreSearch: true }).then((cached) => {

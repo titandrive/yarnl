@@ -85,6 +85,9 @@ function updateUIForUser() {
         }
     }
 
+    // Load user list for admin panel
+    loadUsers();
+
     // Show/hide admin nav button and section based on role
     const usersNavBtn = document.getElementById('admin-nav-btn');
     const adminSection = document.getElementById('admin-section');
@@ -2101,6 +2104,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             localStorage.setItem('authenticated', 'true');
+            updateUIForUser();
+            // Fresh server data replaces cached view
+            window.__cachedViewRestored = false;
             // Refresh data from server (updates in place, no visible reload)
             await Promise.all([loadPatterns(), loadProjects()]);
             loadCurrentPatterns();
@@ -2108,11 +2114,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadHashtags();
             await loadCurrentProjects();
             updateTabCounts();
-            // Skip re-render if cached view is showing — data is updated in memory,
-            // view refreshes on next tab switch or interaction
-            if (!window.__cachedViewRestored) {
-                displayCurrentPatterns();
-            }
+            displayCurrentPatterns();
             initProjectPanel();
         });
     } else {

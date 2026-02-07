@@ -1,20 +1,6 @@
 // API base URL
 const API_URL = '';
 
-// PWA bfcache restore — refresh data when page is restored from memory
-window.addEventListener('pageshow', (e) => {
-    if (!e.persisted) return;
-    // Page was restored from bfcache — SSE will reconnect via visibilitychange
-    // Refresh stale data in background
-    if (typeof loadPatterns === 'function' && appInitialized) {
-        Promise.all([loadPatterns(), loadProjects()]).then(() => {
-            loadCurrentPatterns();
-            updateTabCounts();
-            displayCurrentPatterns();
-        }).catch(() => {});
-    }
-});
-
 // Auth state
 let currentUser = null;
 let authMode = 'single-user';
@@ -23,7 +9,7 @@ let appInitialized = false;
 // All localStorage keys that should sync across devices
 const SYNCED_SETTING_KEYS = [
     // Theme
-    'theme', 'themeBase', 'themeMode', 'themeBgColor',
+    'theme', 'themeBase', 'themeMode',
     'autoModeEnabled', 'autoType', 'dayStartTime', 'nightStartTime',
     'useGradient', 'tagline', 'showTagline', 'showLogo',
     'showHeaderThemeToggle', 'fontFamily', 'customFontName',
@@ -203,6 +189,10 @@ function updateUIForUser() {
     }
     if (adminSection) {
         adminSection.style.display = isAdmin ? '' : 'none';
+    }
+    if (isAdmin) {
+        initOIDCSettings();
+        initDefaultCategories();
     }
 
     // Show admin backup section and divider for admins
@@ -1290,9 +1280,15 @@ async function saveOIDCSettings() {
     }
 }
 
-async function resetOIDCSettings() {
-    if (!confirm('Reset all OIDC settings and unlink all SSO users?')) return;
-    const btn = document.getElementById('reset-oidc-btn');
+async function resetOIDCSettings(btn) {
+    // First click - show confirmation state
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.textContent = 'Confirm Reset';
+        return;
+    }
+
+    // Second click - actually reset
     btn.disabled = true;
     btn.textContent = 'Resetting...';
     try {
@@ -1311,8 +1307,7 @@ async function resetOIDCSettings() {
             document.getElementById('oidc-disable-local').checked = false;
             document.getElementById('oidc-auto-create').checked = true;
             document.getElementById('oidc-default-role').value = 'user';
-            // Hide config fields, discovery status, and endpoints
-            document.getElementById('oidc-config-fields').style.display = 'none';
+            // Clear discovery status and endpoints but keep config fields visible
             hideDiscoveredEndpoints();
             const status = document.getElementById('oidc-discovery-status');
             if (status) status.style.display = 'none';
@@ -1327,6 +1322,7 @@ async function resetOIDCSettings() {
         showToast('Failed to reset OIDC', 'error');
     }
     btn.disabled = false;
+    btn.classList.remove('confirm-delete');
     btn.textContent = 'Reset OIDC';
 }
 
@@ -1408,28 +1404,33 @@ function copyCallbackUrl() {
     }
 }
 
+let oidcSettingsInitialized = false;
 function initOIDCSettings() {
-    const enabledToggle = document.getElementById('oidc-enabled-toggle');
-    if (enabledToggle) {
-        enabledToggle.addEventListener('change', () => {
-            document.getElementById('oidc-config-fields').style.display = enabledToggle.checked ? 'block' : 'none';
-            toggleOIDCEnabled(enabledToggle.checked);
-        });
-    }
+    if (!oidcSettingsInitialized) {
+        const enabledToggle = document.getElementById('oidc-enabled-toggle');
+        if (enabledToggle) {
+            enabledToggle.addEventListener('change', () => {
+                document.getElementById('oidc-config-fields').style.display = enabledToggle.checked ? 'block' : 'none';
+                toggleOIDCEnabled(enabledToggle.checked);
+            });
+        }
 
-    const saveBtn = document.getElementById('save-oidc-btn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', saveOIDCSettings);
-    }
+        const saveBtn = document.getElementById('save-oidc-btn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', saveOIDCSettings);
+        }
 
-    const discoverBtn = document.getElementById('oidc-discover-btn');
-    if (discoverBtn) {
-        discoverBtn.addEventListener('click', discoverOIDCIssuer);
-    }
+        const discoverBtn = document.getElementById('oidc-discover-btn');
+        if (discoverBtn) {
+            discoverBtn.addEventListener('click', discoverOIDCIssuer);
+        }
 
-    const resetBtn = document.getElementById('reset-oidc-btn');
-    if (resetBtn) {
-        resetBtn.addEventListener('click', resetOIDCSettings);
+        const resetBtn = document.getElementById('reset-oidc-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => resetOIDCSettings(resetBtn));
+        }
+
+        oidcSettingsInitialized = true;
     }
 
     loadOIDCSettings();
@@ -1588,17 +1589,22 @@ async function saveDefaultCategories() {
     }
 }
 
+let defaultCategoriesInitialized = false;
 function initDefaultCategories() {
-    const addBtn = document.getElementById('add-default-category-btn');
-    const input = document.getElementById('new-default-category-input');
+    if (!defaultCategoriesInitialized) {
+        const addBtn = document.getElementById('add-default-category-btn');
+        const input = document.getElementById('new-default-category-input');
 
-    if (addBtn) {
-        addBtn.addEventListener('click', addDefaultCategory);
-    }
-    if (input) {
-        input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') addDefaultCategory();
-        });
+        if (addBtn) {
+            addBtn.addEventListener('click', addDefaultCategory);
+        }
+        if (input) {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') addDefaultCategory();
+            });
+        }
+
+        defaultCategoriesInitialized = true;
     }
 
     loadDefaultCategories();
@@ -1837,7 +1843,7 @@ function initTimer() {
         document.addEventListener(event, resetInactivity, { passive: true });
     });
 
-    // Save timer when page is hidden (bfcache-friendly, replaces beforeunload)
+    // Save timer when page is hidden
     document.addEventListener('visibilitychange', () => {
         if (document.hidden && timerRunning) {
             stopTimer(true);
@@ -2201,114 +2207,47 @@ function initAppUI() {
 
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
-    // Unregister any existing service worker
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistrations().then((regs) => {
-            regs.forEach((reg) => reg.unregister());
-        });
-    }
-
     // Initialize auth and login form
     initAuth();
     initTheme();
 
-    // Enable body transitions only AFTER first paint (prevents PWA open flash)
+    // Enable body transitions only AFTER first paint
     requestAnimationFrame(() => {
         requestAnimationFrame(() => {
             document.body.classList.add('theme-ready');
         });
     });
 
-    // Show app container immediately if previously authenticated (skip auth API wait)
+    // Show app container immediately if previously authenticated (skip login flash)
     const wasAuthenticated = localStorage.getItem('authenticated') === 'true';
     if (wasAuthenticated) {
         document.getElementById('login-container').style.display = 'none';
         document.querySelector('.container').style.display = 'block';
     }
 
-    // For returning users: use cached data for instant restore, verify auth in background
-    if (wasAuthenticated) {
-        // Restore cached patterns immediately (no network wait)
-        const cachedPatterns = localStorage.getItem('cachedPatterns');
-        if (cachedPatterns) {
-            try {
-                patterns = JSON.parse(cachedPatterns);
-                patternsLoaded = true;
-            } catch (e) { /* ignore bad cache */ }
-        }
-
-        // Init all UI components immediately
-        initAppUI();
-        appInitialized = true;
-
-        // Restore view from cached data — skip if inline script already injected HTML
-        if (patterns.length && !window.__cachedViewRestored) {
-            displayPatterns();
-            displayCurrentPatterns();
-            updateTabCounts();
-        }
-        await handleInitialNavigation();
-
-        // Now verify auth and refresh data in background
-        checkAuth().then(async (isAuthenticated) => {
-            if (!isAuthenticated) {
-                localStorage.removeItem('authenticated');
-                localStorage.removeItem('cachedPatterns');
-                showLogin();
-                return;
-            }
-            localStorage.setItem('authenticated', 'true');
-            await loadServerSettings();
-            updateUIForUser();
-            // Fresh server data replaces cached view
-            window.__cachedViewRestored = false;
-            // Refresh data from server (updates in place, no visible reload)
-            await Promise.all([loadPatterns(), loadProjects()]);
-            loadCurrentPatterns();
-            loadCategories();
-            loadHashtags();
-            await loadCurrentProjects();
-            updateTabCounts();
-            displayCurrentPatterns();
-            initProjectPanel();
-        });
-    } else {
-        // First visit or logged out: must await auth before proceeding
-        const isAuthenticated = await checkAuth();
-        if (!isAuthenticated) {
-            localStorage.removeItem('authenticated');
-            showLogin();
-            return;
-        }
-        localStorage.setItem('authenticated', 'true');
-        await loadServerSettings();
-        showApp();
-
-        initAppUI();
-        appInitialized = true;
-        await Promise.all([loadPatterns(), loadProjects()]);
-        loadCurrentPatterns();
-        loadCategories();
-        loadHashtags();
-        await loadCurrentProjects();
-        updateTabCounts();
-        displayCurrentPatterns();
-        initProjectPanel();
-        await handleInitialNavigation();
+    // Verify auth
+    const isAuthenticated = await checkAuth();
+    if (!isAuthenticated) {
+        localStorage.removeItem('authenticated');
+        showLogin();
+        return;
     }
-});
+    localStorage.setItem('authenticated', 'true');
+    await loadServerSettings();
+    if (!wasAuthenticated) showApp();
 
-// Save current view HTML every 2s for instant PWA restore
-// Android kills PWA process without firing visibilitychange/pagehide, so timer is the only reliable way
-setInterval(() => {
-    try {
-        const activeTab = document.querySelector('.tab-content.active');
-        if (activeTab && activeTab.id !== 'pdf-viewer-container' && activeTab.innerHTML.length > 100) {
-            localStorage.setItem('cachedViewTab', activeTab.id);
-            localStorage.setItem('cachedViewHTML', activeTab.innerHTML);
-        }
-    } catch (e) {}
-}, 2000);
+    initAppUI();
+    appInitialized = true;
+    await Promise.all([loadPatterns(), loadProjects()]);
+    loadCurrentPatterns();
+    loadCategories();
+    loadHashtags();
+    await loadCurrentProjects();
+    updateTabCounts();
+    displayCurrentPatterns();
+    initProjectPanel();
+    await handleInitialNavigation();
+});
 
 // Enable horizontal scrolling with mouse wheel for hashtag selectors
 let horizontalScrollInitialized = false;
@@ -2335,7 +2274,7 @@ function initHorizontalScroll() {
 }
 
 // Server-sent events for real-time notifications
-// Close when hidden to allow bfcache (prevents PWA reload on resume)
+// Manage SSE connection based on page visibility
 function initServerEvents() {
     let eventSource = null;
     let connectTimeout = null;
@@ -2373,7 +2312,7 @@ function initServerEvents() {
     // Delay initial connect so page lifecycle can settle
     connectTimeout = setTimeout(connect, 1000);
 
-    // Close on hide to enable bfcache, reconnect on show
+    // Close on hide, reconnect on show
     document.addEventListener('visibilitychange', () => {
         if (document.hidden) {
             disconnect();
@@ -2500,23 +2439,6 @@ async function handleInitialNavigation() {
         }
         history.replaceState({ view: hash }, '', `#${hash}`);
         return;
-    }
-
-    // No hash - restore last viewed pattern (survives PWA resume / Android process kill)
-    const viewingPatternId = localStorage.getItem('viewingPatternId');
-    if (viewingPatternId) {
-        const pattern = patterns.find(p => p.id === parseInt(viewingPatternId));
-        if (pattern) {
-            await openPDFViewer(parseInt(viewingPatternId), false);
-            const slug = getPatternSlug(pattern);
-            history.replaceState({ view: `pattern/${slug}` }, '', `#pattern/${slug}`);
-            return;
-        }
-        // Only clear if patterns actually loaded (pattern was deleted).
-        // If API failed, keep the ID so next launch can retry.
-        if (patternsLoaded) {
-            localStorage.removeItem('viewingPatternId');
-        }
     }
 
     // Default: go to default page
@@ -2750,10 +2672,6 @@ function initTheme() {
     const fullTheme = `${themeBase}-${effectiveMode}`;
     document.documentElement.setAttribute('data-theme', fullTheme);
     localStorage.setItem('theme', fullTheme);
-    requestAnimationFrame(() => {
-        const bg = getComputedStyle(document.body).backgroundColor;
-        if (bg) localStorage.setItem('themeBgColor', bg);
-    });
 
     // Gradient setting (default off)
     const useGradient = localStorage.getItem('useGradient') === 'true';
@@ -2780,12 +2698,6 @@ function initTheme() {
         }
     }
 
-    // Save bg color for instant splash-to-page transition on PWA resume
-    function saveThemeBgColor() {
-        const bg = getComputedStyle(document.body).backgroundColor;
-        if (bg) localStorage.setItem('themeBgColor', bg);
-    }
-
     // Apply theme helper
     function applyTheme() {
         const effectiveMode = getEffectiveMode();
@@ -2796,7 +2708,6 @@ function initTheme() {
         localStorage.setItem('themeMode', themeMode);
         localStorage.setItem('autoModeEnabled', autoEnabled);
         localStorage.setItem('autoType', autoType);
-        requestAnimationFrame(saveThemeBgColor);
         updateUI();
     }
 
@@ -3446,10 +3357,8 @@ function initTheme() {
 // Tab switching
 function initTabs() {
     // Check if we're restoring a pattern viewer - don't show tabs in that case
-    // Check both sessionStorage (for refresh) and URL hash (for cmd+click new tab)
-    const viewingPatternId = localStorage.getItem('viewingPatternId');
     const hash = window.location.hash.slice(1);
-    const isOpeningPattern = viewingPatternId || hash.startsWith('pattern/');
+    const isOpeningPattern = hash.startsWith('pattern/');
 
     if (isOpeningPattern) {
         // Hide tabs, content will be shown when pattern viewer opens
@@ -3458,7 +3367,7 @@ function initTabs() {
         document.querySelector('.tabs').style.display = 'none';
         tabContents.forEach(c => c.style.display = 'none');
     } else {
-        // Use localStorage for current tab (survives PWA process kill)
+        // Restore last active tab
         const currentTab = localStorage.getItem('activeTab');
         const defaultPage = localStorage.getItem('defaultPage') || 'current';
         const startTab = currentTab || defaultPage;
@@ -3479,7 +3388,6 @@ function initTabs() {
 
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
-            window.__cachedViewRestored = false; // Resume normal rendering
             const tabName = btn.dataset.tab;
             switchToTab(tabName);
             localStorage.setItem('activeTab', tabName);
@@ -4295,9 +4203,7 @@ async function loadPatterns() {
         const response = await fetch(`${API_URL}/api/patterns`);
         patterns = await response.json();
         patternsLoaded = true;
-        // Cache for instant PWA restore on next launch
-        try { localStorage.setItem('cachedPatterns', JSON.stringify(patterns)); } catch (e) { /* quota */ }
-        if (!window.__cachedViewRestored) displayPatterns();
+        displayPatterns();
         updateTabCounts();
     } catch (error) {
         console.error('Error loading patterns:', error);
@@ -4308,7 +4214,7 @@ async function loadCurrentPatterns() {
     try {
         const response = await fetch(`${API_URL}/api/patterns/current`);
         currentPatterns = await response.json();
-        if (!window.__cachedViewRestored) displayCurrentPatterns();
+        displayCurrentPatterns();
         updateTabCounts();
     } catch (error) {
         console.error('Error loading current patterns:', error);
@@ -6929,7 +6835,7 @@ function renderCategoriesList() {
                 </div>
                 <span class="category-count">${patternCount} pattern${patternCount !== 1 ? 's' : ''}</span>
                 <div class="category-actions">
-                    ${!isDefault ? `<button class="btn btn-small btn-secondary" onclick="setDefaultCategory('${escapeHtml(category)}')" title="Set as default">★</button>` : ''}
+                    ${isDefault ? `<button class="btn btn-small btn-secondary star-active" title="Default category">★</button>` : `<button class="btn btn-small btn-secondary" onclick="setDefaultCategory('${escapeHtml(category)}')" title="Set as default">★</button>`}
                     <button class="btn btn-small btn-secondary" onclick="startCategoryEdit(this.closest('.category-item'))">Edit</button>
                     <button class="btn btn-small btn-danger" onclick="deleteCategory(this, '${escapeHtml(category)}', ${patternCount})">Delete</button>
                 </div>
@@ -8803,9 +8709,6 @@ async function openPDFViewer(patternId, pushHistory = true) {
             history.pushState({ view: `pattern/${slug}` }, '', `#pattern/${slug}`);
         }
 
-        // Save viewing pattern for restore on PWA resume (localStorage survives process kill)
-        localStorage.setItem('viewingPatternId', id);
-
         // Route to appropriate viewer based on pattern type
         if (pattern.pattern_type === 'markdown') {
             await openMarkdownViewer(pattern, false); // Don't push history again, already done above
@@ -9365,7 +9268,6 @@ async function closePDFViewer() {
     }
 
     // Clear viewing pattern from sessionStorage
-    localStorage.removeItem('viewingPatternId');
 
     // Reset state
     resetTimerState();
@@ -10860,7 +10762,6 @@ async function closeMarkdownViewer() {
     }
 
     // Clear viewing pattern from sessionStorage
-    localStorage.removeItem('viewingPatternId');
 
     // Reset state
     resetTimerState();

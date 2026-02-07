@@ -3868,6 +3868,7 @@ body.global-drag-over #current::after {
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: left;
+    width: 100%;
 }
 
 .settings-nav-btn:hover {
@@ -4815,6 +4816,11 @@ input[type="number"].settings-input {
 .category-actions {
     display: flex;
     gap: 8px;
+}
+
+.category-actions .star-active {
+    color: var(--primary-color);
+    cursor: default;
 }
 
 .add-category-form {
@@ -6838,6 +6844,10 @@ input[type="number"].settings-input {
 
 #reset-oidc-btn:hover {
     background: #a93226;
+}
+
+#reset-oidc-btn.confirm-delete {
+    background: #922b21;
 }
 
 #add-user-open-btn {

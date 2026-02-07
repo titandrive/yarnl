@@ -44,16 +44,6 @@ function broadcastEvent(type, data) {
 app.use(cors({ credentials: true, origin: true }));
 app.use(express.json());
 app.use(cookieParser());
-// Service worker must not be cached by the browser
-app.get('/service-worker.js', (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.sendFile('service-worker.js', { root: 'public' });
-});
-// HTML must allow bfcache (no-store blocks it — Cloudflare tunnels can add it)
-app.get('/', (req, res) => {
-  res.setHeader('Cache-Control', 'no-cache');
-  res.sendFile('index.html', { root: 'public' });
-});
 
 app.use(express.static('public'));
 app.use('/mascots', express.static('mascots'));
@@ -2719,7 +2709,7 @@ app.get('/api/categories/all', async (req, res) => {
     }
 
     const result = await pool.query(
-      'SELECT name FROM categories WHERE user_id = $1 ORDER BY position, name',
+      'SELECT name FROM categories WHERE user_id = $1 ORDER BY name',
       [userId]
     );
     const categories = result.rows.map(row => row.name);

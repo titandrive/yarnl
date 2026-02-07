@@ -4,15 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#a78bfa">
-    <link rel="manifest" href="manifest.json">
     <link rel="apple-touch-icon" href="apple-touch-icon.png">
     <title>Yarnl - Crochet Project Manager</title>
     <script>
         // Set theme and background immediately to prevent flash between splash screen and page
         const theme = localStorage.getItem('theme') || 'dark';
         document.documentElement.setAttribute('data-theme', theme);
-        var bgColor = localStorage.getItem('themeBgColor') || '#0f0a1a';
-        document.documentElement.style.background = bgColor;
         // Set mascot immediately to prevent flash
         const savedMascot = localStorage.getItem('selectedMascot');
         if (savedMascot) {
@@ -22,13 +19,8 @@
         }
         // Hide login and show correct tab immediately for returning users
         if (localStorage.getItem('authenticated') === 'true') {
-            if (localStorage.getItem('viewingPatternId')) {
-                // Resuming into pattern viewer — hide everything to prevent tab flash
-                document.write('<style id="early-tab-style">#login-container{display:none!important}.container{display:block!important}.tabs{display:none!important}.tab-content{display:none!important}</style>');
-            } else {
-                var startTab = localStorage.getItem('activeTab') || localStorage.getItem('defaultPage') || 'current';
-                document.write('<style id="early-tab-style">#login-container{display:none!important}.container{display:block!important}.tab-content{display:none!important}.tab-content#' + startTab + '{display:block!important}</style>');
-            }
+            var startTab = localStorage.getItem('activeTab') || localStorage.getItem('defaultPage') || 'current';
+            document.write('<style id="early-tab-style">#login-container{display:none!important}.container{display:block!important}.tab-content{display:none!important}.tab-content#' + startTab + '{display:block!important}</style>');
         } else {
             // Not authenticated — hide app container, show login
             document.write('<style id="early-tab-style">.container{display:none!important}</style>');
@@ -2500,22 +2492,6 @@ Inc in each st around (12)
         </div>
     </div>
 
-    <script>
-        // Instant PWA restore: inject last-seen content before JS loads
-        // This makes the first paint show content instead of an empty shell
-        if (localStorage.getItem('authenticated') === 'true' && !localStorage.getItem('viewingPatternId')) {
-            var _vt = localStorage.getItem('cachedViewTab');
-            var _vh = localStorage.getItem('cachedViewHTML');
-            if (_vt && _vh) {
-                var _el = document.getElementById(_vt);
-                if (_el) {
-                    _el.innerHTML = _vh;
-                    _el.classList.add('active'); // So initTabs() takes fast path — no hide/show cycle
-                    window.__cachedViewRestored = true;
-                }
-            }
-        }
-    </script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
     <script defer src="app.js?v=152"></script>

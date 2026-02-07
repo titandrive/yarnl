@@ -4387,7 +4387,7 @@ function initSettings() {
     // PDF scroll mode setting
     const pdfScrollModeSelect = document.getElementById('pdf-scroll-mode-select');
     if (pdfScrollModeSelect) {
-        pdfScrollModeSelect.value = localStorage.getItem('pdfScrollMode') || 'page';
+        pdfScrollModeSelect.value = localStorage.getItem('pdfScrollMode') || 'scroll';
         pdfScrollModeSelect.addEventListener('change', () => {
             localStorage.setItem('pdfScrollMode', pdfScrollModeSelect.value);
             showToast(pdfScrollModeSelect.value === 'page' ? 'Paginated mode' : 'Scroll mode');
@@ -8613,7 +8613,7 @@ async function openPDFViewer(patternId, pushHistory = true) {
             if (!viewerApp) return;
             viewerApp.initializedPromise.then(() => {
                 // Set scroll mode from user preference (page=3, scroll=0)
-                const scrollPref = localStorage.getItem('pdfScrollMode') || 'page';
+                const scrollPref = localStorage.getItem('pdfScrollMode') || 'scroll';
                 viewerApp.pdfViewer.scrollMode = scrollPref === 'page' ? 3 : 0;
                 viewerApp.eventBus.on('pagechanging', (evt) => {
                     currentPageNum = evt.pageNumber;

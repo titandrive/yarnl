@@ -1,23 +1,17 @@
 // API base URL
 const API_URL = '';
 
-// PWA lifecycle diagnostic
+// PWA bfcache restore — refresh data when page is restored from memory
 window.addEventListener('pageshow', (e) => {
-    if (e.persisted) {
-        console.log('[PWA] Restored from bfcache');
-        return;
-    }
-    const nav = performance.getEntriesByType('navigation')[0];
-    const type = nav ? nav.type : 'unknown';
-    console.log(`[PWA] Fresh load (type: ${type})`);
-    if (nav && nav.notRestoredReasons) {
-        const reasons = nav.notRestoredReasons.reasons || [];
-        const children = (nav.notRestoredReasons.children || [])
-            .flatMap(c => c.reasons || []);
-        const all = [...reasons, ...children];
-        if (all.length) {
-            console.warn('[PWA] bfcache blocked:', all);
-        }
+    if (!e.persisted) return;
+    // Page was restored from bfcache — SSE will reconnect via visibilitychange
+    // Refresh stale data in background
+    if (typeof loadPatterns === 'function' && appInitialized) {
+        Promise.all([loadPatterns(), loadProjects()]).then(() => {
+            loadCurrentPatterns();
+            updateTabCounts();
+            displayCurrentPatterns();
+        }).catch(() => {});
     }
 });
 
@@ -2061,6 +2055,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     initAuth();
     initTheme();
 
+    // Enable body transitions only AFTER first paint (prevents PWA open flash)
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.body.classList.add('theme-ready');
+        });
+    });
+
     // Show app container immediately if previously authenticated (skip auth API wait)
     const wasAuthenticated = localStorage.getItem('authenticated') === 'true';
     if (wasAuthenticated) {
@@ -2083,8 +2084,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         initAppUI();
         appInitialized = true;
 
-        // Restore view from cached data (instant — no API wait)
-        if (patterns.length) {
+        // Restore view from cached data — skip if inline script already injected HTML
+        if (patterns.length && !window.__cachedViewRestored) {
             displayPatterns();
             displayCurrentPatterns();
             updateTabCounts();
@@ -2107,7 +2108,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             loadHashtags();
             await loadCurrentProjects();
             updateTabCounts();
-            displayCurrentPatterns();
+            // Skip re-render if cached view is showing — data is updated in memory,
+            // view refreshes on next tab switch or interaction
+            if (!window.__cachedViewRestored) {
+                displayCurrentPatterns();
+            }
             initProjectPanel();
         });
     } else {
@@ -2134,6 +2139,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         await handleInitialNavigation();
     }
 });
+
+// Save current view HTML every 2s for instant PWA restore
+// Android kills PWA process without firing visibilitychange/pagehide, so timer is the only reliable way
+setInterval(() => {
+    try {
+        const activeTab = document.querySelector('.tab-content.active');
+        if (activeTab && activeTab.id !== 'pdf-viewer-container' && activeTab.innerHTML.length > 100) {
+            localStorage.setItem('cachedViewTab', activeTab.id);
+            localStorage.setItem('cachedViewHTML', activeTab.innerHTML);
+        }
+    } catch (e) {}
+}, 2000);
 
 // Enable horizontal scrolling with mouse wheel for hashtag selectors
 let horizontalScrollInitialized = false;
@@ -3294,6 +3311,7 @@ function initTabs() {
 
     tabBtns.forEach(btn => {
         btn.addEventListener('click', () => {
+            window.__cachedViewRestored = false; // Resume normal rendering
             const tabName = btn.dataset.tab;
             switchToTab(tabName);
             localStorage.setItem('activeTab', tabName);
@@ -4111,7 +4129,7 @@ async function loadPatterns() {
         patternsLoaded = true;
         // Cache for instant PWA restore on next launch
         try { localStorage.setItem('cachedPatterns', JSON.stringify(patterns)); } catch (e) { /* quota */ }
-        displayPatterns();
+        if (!window.__cachedViewRestored) displayPatterns();
         updateTabCounts();
     } catch (error) {
         console.error('Error loading patterns:', error);
@@ -4122,7 +4140,7 @@ async function loadCurrentPatterns() {
     try {
         const response = await fetch(`${API_URL}/api/patterns/current`);
         currentPatterns = await response.json();
-        displayCurrentPatterns();
+        if (!window.__cachedViewRestored) displayCurrentPatterns();
         updateTabCounts();
     } catch (error) {
         console.error('Error loading current patterns:', error);

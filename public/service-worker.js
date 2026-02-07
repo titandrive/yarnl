@@ -1,19 +1,31 @@
-const CACHE_NAME = 'yarnl-cache-v3';
+const CACHE_NAME = 'yarnl-cache-v4';
 
-// Install — no pre-cache; cache builds from actual requests
+// Install — pre-cache critical assets for instant PWA loads
 // skipWaiting ensures new SW activates immediately (no stuck "waiting" state)
-self.addEventListener('install', () => {
+self.addEventListener('install', (e) => {
+  e.waitUntil(
+    caches.open(CACHE_NAME).then((cache) =>
+      Promise.allSettled([
+        cache.add('/'),
+        cache.add('/app.js'),
+        cache.add('/styles.css'),
+        cache.add('/manifest.json'),
+      ])
+    )
+  );
   self.skipWaiting();
 });
 
-// Activate — clean up old caches and take control immediately
+// Activate — clean up old caches
+// Note: no clients.claim() — new SW only controls pages opened after activation.
+// This avoids disrupting the current session and improves bfcache eligibility.
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then((keys) =>
       Promise.all(
         keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
       )
-    ).then(() => self.clients.claim())
+    )
   );
 });
 

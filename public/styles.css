@@ -6819,8 +6819,25 @@ input[type="number"].settings-input {
     font-size: 0.9rem;
 }
 
-#save-oidc-btn {
+.oidc-actions {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
     margin-top: 0.5rem;
+}
+
+.oidc-actions .btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    width: fit-content;
+}
+
+#reset-oidc-btn {
+    background: #c0392b;
+}
+
+#reset-oidc-btn:hover {
+    background: #a93226;
 }
 
 #add-user-open-btn {

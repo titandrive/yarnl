@@ -31,7 +31,9 @@
             }
         }
     </script>
-    <link rel="stylesheet" href="styles.css?v=166">
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"></noscript>
+    <link rel="stylesheet" href="styles.css?v=168">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -2477,8 +2479,24 @@ Inc in each st around (12)
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script src="app.js?v=139"></script>
+    <script>
+        // Instant PWA restore: inject last-seen content before JS loads
+        // This makes the first paint show content instead of an empty shell
+        if (localStorage.getItem('authenticated') === 'true' && !localStorage.getItem('viewingPatternId')) {
+            var _vt = localStorage.getItem('cachedViewTab');
+            var _vh = localStorage.getItem('cachedViewHTML');
+            if (_vt && _vh) {
+                var _el = document.getElementById(_vt);
+                if (_el) {
+                    _el.innerHTML = _vh;
+                    _el.classList.add('active'); // So initTabs() takes fast path — no hide/show cycle
+                    window.__cachedViewRestored = true;
+                }
+            }
+        }
+    </script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
+    <script defer src="app.js?v=151"></script>
 </body>
 </html>

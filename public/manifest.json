@@ -4,7 +4,7 @@
   "description": "Your self-hosted crochet companion",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#1a1025",
+  "background_color": "#0f0a1a",
   "theme_color": "#a78bfa",
   "icons": [
     {

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+/* Font loaded via <link> in index.html for parallel loading */
 
 * {
     margin: 0;
@@ -756,6 +756,10 @@ body {
     color: var(--text-color);
     min-height: 100vh;
     padding: 16px;
+}
+
+/* Only animate theme changes, not page loads — prevents PWA "refresh" flash */
+body.theme-ready {
     transition: background 0.3s ease, color 0.3s ease;
 }
 

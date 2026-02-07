@@ -106,7 +106,7 @@
                 </button>
             </div>
             <div class="header-title">
-                <h1>Yarnl<span id="header-logo"><img id="header-mascot-img" alt="Yarnl mascot" style="height: 2.59em; vertical-align: middle; margin-left: 0.3em;"><script>document.getElementById('header-mascot-img').src = localStorage.getItem('selectedMascot') || 'mascots/default.png';</script></span></h1>
+                <h1>Yarnl<span id="header-logo"><a href="#" id="mascot-home-link" style="text-decoration: none;"><img id="header-mascot-img" alt="Yarnl mascot" style="height: 2.59em; vertical-align: middle; margin-left: 0.3em;"><script>document.getElementById('header-mascot-img').src = localStorage.getItem('selectedMascot') || 'mascots/default.png';</script></a></span></h1>
                 <p class="subtitle" id="header-tagline">Your self-hosted crochet companion</p>
             </div>
             <div class="header-btn-container header-right">
@@ -1531,6 +1531,22 @@ Inc in each st around (12)
                             </div>
 
                             <div class="archived-patterns-list" id="archived-patterns-list">
+                                <p class="no-archived">Loading...</p>
+                            </div>
+                        </div>
+
+                        <div id="archived-projects-section">
+                            <h4 class="settings-subheading">Archived Projects</h4>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label><span id="archived-projects-count">0 archived projects</span></label>
+                                </div>
+                                <button id="delete-all-archived-projects-btn" class="btn btn-danger" style="display: none;">
+                                    Delete All
+                                </button>
+                            </div>
+
+                            <div class="archived-patterns-list" id="archived-projects-list">
                                 <p class="no-archived">Loading...</p>
                             </div>
                         </div>

@@ -247,6 +247,44 @@ app.post('/api/auth/logout', authMiddleware, async (req, res) => {
 });
 
 // ============================================
+// User settings sync (per-user preferences)
+// ============================================
+
+app.get('/api/user/settings', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT client_settings FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    res.json(result.rows[0]?.client_settings || {});
+  } catch (error) {
+    console.error('Error fetching user settings:', error);
+    res.status(500).json({ error: 'Failed to fetch settings' });
+  }
+});
+
+app.put('/api/user/settings', authMiddleware, async (req, res) => {
+  try {
+    const settings = req.body;
+    if (typeof settings !== 'object' || Array.isArray(settings)) {
+      return res.status(400).json({ error: 'Settings must be a JSON object' });
+    }
+    const json = JSON.stringify(settings);
+    if (json.length > 50000) {
+      return res.status(400).json({ error: 'Settings too large' });
+    }
+    await pool.query(
+      'UPDATE users SET client_settings = $1, updated_at = NOW() WHERE id = $2',
+      [json, req.user.id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving user settings:', error);
+    res.status(500).json({ error: 'Failed to save settings' });
+  }
+});
+
+// ============================================
 // User management endpoints (admin only)
 // ============================================
 
@@ -3104,6 +3142,30 @@ app.get('/api/projects/current', async (req, res) => {
   }
 });
 
+// Get archived projects (must be before :id route)
+app.get('/api/projects/archived', async (req, res) => {
+  try {
+    let result;
+    if (req.user?.role === 'admin') {
+      result = await pool.query(
+        'SELECT * FROM projects WHERE is_archived = true ORDER BY archived_at DESC'
+      );
+    } else if (req.user?.id) {
+      result = await pool.query(
+        'SELECT * FROM projects WHERE is_archived = true AND user_id = $1 ORDER BY archived_at DESC',
+        [req.user.id]
+      );
+    } else {
+      return res.json([]);
+    }
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching archived projects:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get single project with patterns
 app.get('/api/projects/:id', async (req, res) => {
   try {
@@ -3883,30 +3945,6 @@ app.post('/api/projects/:id/restore', async (req, res) => {
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Error restoring project:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Get archived projects
-app.get('/api/projects/archived', async (req, res) => {
-  try {
-    let result;
-    if (req.user?.role === 'admin') {
-      result = await pool.query(
-        'SELECT * FROM projects WHERE is_archived = true ORDER BY archived_at DESC'
-      );
-    } else if (req.user?.id) {
-      result = await pool.query(
-        'SELECT * FROM projects WHERE is_archived = true AND user_id = $1 ORDER BY archived_at DESC',
-        [req.user.id]
-      );
-    } else {
-      return res.json([]);
-    }
-
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Error fetching archived projects:', error);
     res.status(500).json({ error: error.message });
   }
 });

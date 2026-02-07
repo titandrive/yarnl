@@ -163,6 +163,17 @@ async function initDatabase() {
       END $$;
     `);
 
+    // Add client_settings column for syncing user preferences across devices
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='users' AND column_name='client_settings') THEN
+          ALTER TABLE users ADD COLUMN client_settings JSONB DEFAULT '{}';
+        END IF;
+      END $$;
+    `);
+
     // Create sessions table for auth sessions
     await client.query(`
       CREATE TABLE IF NOT EXISTS sessions (

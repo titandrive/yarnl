@@ -20,6 +20,107 @@ let currentUser = null;
 let authMode = 'single-user';
 let appInitialized = false;
 
+// All localStorage keys that should sync across devices
+const SYNCED_SETTING_KEYS = [
+    // Theme
+    'theme', 'themeBase', 'themeMode', 'themeBgColor',
+    'autoModeEnabled', 'autoType', 'dayStartTime', 'nightStartTime',
+    'useGradient', 'tagline', 'showTagline', 'showLogo',
+    'showHeaderThemeToggle', 'fontFamily', 'customFontName',
+    // Mascot
+    'selectedMascot', 'themeMascotEnabled',
+    // Library display
+    'showTabCounts', 'showTypeBadge', 'showStatusBadge',
+    'showCategoryBadge', 'showStarBadge',
+    'librarySort', 'libraryShowCompleted', 'libraryShowCurrent',
+    'libraryShowPdf', 'libraryShowMarkdown', 'libraryHighlightMode',
+    'libraryPinCurrent', 'libraryPinFavorites', 'libraryShowFilter',
+    'libraryCategoryFilter',
+    // Navigation & PDF
+    'defaultPage', 'defaultPdfZoom', 'pdfScrollMode', 'arrowKeysScroll',
+    // Behavior
+    'autoCurrentOnTimer', 'autoTimerDefault', 'defaultCategory',
+    'enableDirectDelete', 'hapticFeedback', 'keyboardShortcuts',
+    // Notes
+    'notesLivePreview', 'notesPopoverSize',
+    // Media
+    'mediaRemoteEnabled',
+    // Backup
+    'backupScheduleEnabled', 'backupSchedule',
+    'backupPruneEnabled', 'backupPruneMode',
+    'backupPruneValue', 'backupTime'
+];
+
+// Debounced settings sync to server
+const _originalSetItem = localStorage.setItem.bind(localStorage);
+const _originalRemoveItem = localStorage.removeItem.bind(localStorage);
+let _settingsSyncTimer = null;
+
+function scheduleSyncSettings() {
+    if (_settingsSyncTimer) clearTimeout(_settingsSyncTimer);
+    _settingsSyncTimer = setTimeout(syncSettingsToServer, 2000);
+}
+
+async function syncSettingsToServer() {
+    _settingsSyncTimer = null;
+    try {
+        const settings = getClientSettings();
+        await fetch(`${API_URL}/api/user/settings`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+    } catch (error) {
+        console.error('Settings sync failed:', error);
+    }
+}
+
+// Monkey-patch localStorage to auto-sync setting changes
+localStorage.setItem = function(key, value) {
+    _originalSetItem(key, value);
+    if (currentUser && SYNCED_SETTING_KEYS.includes(key)) {
+        scheduleSyncSettings();
+    }
+};
+
+localStorage.removeItem = function(key) {
+    _originalRemoveItem(key);
+    if (currentUser && SYNCED_SETTING_KEYS.includes(key)) {
+        scheduleSyncSettings();
+    }
+};
+
+// Load settings from server and apply to localStorage
+async function loadServerSettings() {
+    try {
+        const response = await fetch(`${API_URL}/api/user/settings`);
+        if (!response.ok) return;
+        const serverSettings = await response.json();
+        if (!serverSettings || Object.keys(serverSettings).length === 0) {
+            // No server settings yet — push current local settings up (migration)
+            syncSettingsToServer();
+            return;
+        }
+        // Check if server settings differ from localStorage
+        let changed = false;
+        for (const [key, value] of Object.entries(serverSettings)) {
+            if (value !== null && value !== undefined && SYNCED_SETTING_KEYS.includes(key)) {
+                if (localStorage.getItem(key) !== value) {
+                    changed = true;
+                }
+                _originalSetItem(key, value);
+            }
+        }
+        // If settings changed, reload so theme/UI picks up new values
+        // (theme uses closure variables that can't be updated after init)
+        if (changed) {
+            window.location.reload();
+        }
+    } catch (error) {
+        console.error('Failed to load server settings:', error);
+    }
+}
+
 // Auth functions
 async function checkAuth() {
     try {
@@ -139,6 +240,8 @@ async function handleLogin(e) {
         if (response.ok) {
             const data = await response.json();
             currentUser = data.user;
+            // Sync settings from server before showing UI
+            await loadServerSettings();
             // Clear hash and set default tab BEFORE showing app to prevent flash
             window.location.hash = '';
             const defaultPage = localStorage.getItem('defaultPage') || 'current';
@@ -2108,6 +2211,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             localStorage.setItem('authenticated', 'true');
+            await loadServerSettings();
             updateUIForUser();
             // Fresh server data replaces cached view
             window.__cachedViewRestored = false;
@@ -2130,6 +2234,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
         localStorage.setItem('authenticated', 'true');
+        await loadServerSettings();
         showApp();
 
         initAppUI();
@@ -2979,6 +3084,16 @@ function initTheme() {
     }
 
     loadMascots();
+
+    // Mascot home link
+    const mascotHomeLink = document.getElementById('mascot-home-link');
+    if (mascotHomeLink) {
+        mascotHomeLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            const defaultPage = localStorage.getItem('defaultPage') || 'current';
+            switchToTab(defaultPage);
+        });
+    }
 
     // Header theme toggle button
     const headerThemeToggle = document.getElementById('header-theme-toggle');
@@ -4920,6 +5035,15 @@ async function loadArchiveSettings() {
 
     // Load archived patterns list
     await loadArchivedPatternsUI();
+
+    // Delete All archived projects button
+    const deleteAllProjectsBtn = document.getElementById('delete-all-archived-projects-btn');
+    if (deleteAllProjectsBtn) {
+        deleteAllProjectsBtn.addEventListener('click', () => handleDeleteAllArchivedProjects(deleteAllProjectsBtn));
+    }
+
+    // Load archived projects list
+    await loadArchivedProjectsUI();
 }
 
 // Save auto-delete settings to server
@@ -5967,37 +6091,28 @@ function formatBackupDate(dateStr) {
 }
 
 function getClientSettings() {
-    // Collect all localStorage settings for backup
-    return {
-        theme: localStorage.getItem('theme'),
-        useGradient: localStorage.getItem('useGradient'),
-        tagline: localStorage.getItem('tagline'),
-        showTabCounts: localStorage.getItem('showTabCounts'),
-        defaultPage: localStorage.getItem('defaultPage'),
-        defaultZoom: localStorage.getItem('defaultZoom'),
-        showTypeBadge: localStorage.getItem('showTypeBadge'),
-        showStatusBadge: localStorage.getItem('showStatusBadge'),
-        showCategoryBadge: localStorage.getItem('showCategoryBadge'),
-        defaultCategory: localStorage.getItem('defaultCategory'),
-        keyboardShortcuts: localStorage.getItem('keyboardShortcuts'),
-        backupScheduleEnabled: localStorage.getItem('backupScheduleEnabled'),
-        backupSchedule: localStorage.getItem('backupSchedule'),
-        backupPruneEnabled: localStorage.getItem('backupPruneEnabled'),
-        backupPruneMode: localStorage.getItem('backupPruneMode'),
-        backupPruneValue: localStorage.getItem('backupPruneValue'),
-        backupTime: localStorage.getItem('backupTime')
-    };
+    const settings = {};
+    for (const key of SYNCED_SETTING_KEYS) {
+        const value = localStorage.getItem(key);
+        if (value !== null) {
+            settings[key] = value;
+        }
+    }
+    return settings;
 }
 
 function applyClientSettings(settings) {
     if (!settings) return;
 
-    // Apply each setting if it exists in the backup
+    // Apply each setting using original setItem to avoid triggering sync loop
     Object.entries(settings).forEach(([key, value]) => {
         if (value !== null && value !== undefined) {
-            localStorage.setItem(key, value);
+            _originalSetItem(key, value);
         }
     });
+
+    // Sync restored settings to server before reloading
+    syncSettingsToServer();
 
     // Reload the page to apply all settings
     window.location.reload();
@@ -8001,6 +8116,125 @@ async function loadArchivedPatternsUI() {
     } catch (error) {
         console.error('Error loading archived patterns:', error);
         container.innerHTML = '<p class="no-archived">Error loading archived patterns</p>';
+    }
+}
+
+async function loadArchivedProjectsUI() {
+    const container = document.getElementById('archived-projects-list');
+    if (!container) return;
+
+    try {
+        const response = await fetch(`${API_URL}/api/projects/archived`);
+        const archived = await response.json();
+
+        const countEl = document.getElementById('archived-projects-count');
+        if (countEl) {
+            countEl.textContent = `${archived.length} archived project${archived.length !== 1 ? 's' : ''}`;
+        }
+
+        const deleteAllBtn = document.getElementById('delete-all-archived-projects-btn');
+        if (deleteAllBtn) {
+            deleteAllBtn.style.display = archived.length > 0 ? 'inline-flex' : 'none';
+        }
+
+        if (archived.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+
+        container.innerHTML = archived.map(project => `
+            <div class="archived-item" data-id="${project.id}">
+                <div class="archived-info">
+                    <span class="archived-name">${escapeHtml(project.name)}</span>
+                    <span class="archived-meta">Archived ${formatRelativeDate(project.archived_at)}</span>
+                </div>
+                <div class="archived-actions">
+                    <button class="btn btn-small btn-secondary" onclick="restoreProject(${project.id})" title="Restore">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="1 4 1 10 7 10"></polyline>
+                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+                        </svg>
+                    </button>
+                    <button class="btn btn-small btn-danger archived-delete-btn" onclick="handlePermanentDeleteProject(this, ${project.id})" title="Delete permanently">
+                        <svg class="trash-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                        </svg>
+                        <svg class="confirm-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading archived projects:', error);
+        container.innerHTML = '<p class="no-archived">Error loading archived projects</p>';
+    }
+}
+
+function handlePermanentDeleteProject(btn, id) {
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.title = 'Click again to permanently delete';
+        return;
+    }
+    permanentlyDeleteProject(id);
+}
+
+async function permanentlyDeleteProject(id) {
+    try {
+        const response = await fetch(`${API_URL}/api/projects/${id}`, {
+            method: 'DELETE'
+        });
+
+        if (response.ok) {
+            showToast('Project permanently deleted');
+            await loadArchivedProjectsUI();
+        } else {
+            const error = await response.json();
+            showToast('Error deleting project: ' + error.error, 'error');
+        }
+    } catch (error) {
+        console.error('Error deleting project:', error);
+        showToast('Error deleting project', 'error');
+    }
+}
+
+function handleDeleteAllArchivedProjects(btn) {
+    if (!btn.classList.contains('confirm-delete')) {
+        btn.classList.add('confirm-delete');
+        btn.textContent = 'Confirm?';
+        return;
+    }
+    deleteAllArchivedProjects(btn);
+}
+
+async function deleteAllArchivedProjects(btn) {
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Deleting...';
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/api/projects/archived`);
+        const archived = await response.json();
+
+        for (const project of archived) {
+            await fetch(`${API_URL}/api/projects/${project.id}`, { method: 'DELETE' });
+        }
+
+        showToast('All archived projects deleted');
+        await loadArchivedProjectsUI();
+    } catch (error) {
+        console.error('Error deleting archived projects:', error);
+        showToast('Error deleting archived projects', 'error');
+    }
+
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Delete All';
+        btn.classList.remove('confirm-delete');
     }
 }
 
@@ -11890,9 +12124,10 @@ async function restoreProject(projectId) {
 
         if (response.ok) {
             showToast('Project restored');
+            await loadArchivedProjectsUI();
             await loadProjects();
             await loadCurrentProjects();
-            displayCurrentPatterns();
+            updateTabCounts();
         } else {
             const error = await response.json();
             console.error('Error restoring project:', error.error);

@@ -7250,6 +7250,8 @@ function getSelectedHashtagIds(selectorId) {
 function initLibraryFilters() {
     const searchInput = document.getElementById('search-input');
     const searchClearBtn = document.getElementById('search-clear-btn');
+    const mobileSearchInput = document.getElementById('mobile-search-input');
+    const mobileSearchClearBtn = document.getElementById('mobile-search-clear-btn');
     const sortSelect = document.getElementById('sort-select');
     const showCompletedCheckbox = document.getElementById('show-completed');
     const showCurrentCheckbox = document.getElementById('show-current');
@@ -7267,8 +7269,10 @@ function initLibraryFilters() {
     if (searchClearBtn) {
         searchClearBtn.addEventListener('click', () => {
             searchInput.value = '';
+            if (mobileSearchInput) mobileSearchInput.value = '';
             searchQuery = '';
             searchClearBtn.classList.remove('visible');
+            if (mobileSearchClearBtn) mobileSearchClearBtn.classList.remove('visible');
             displayPatterns();
             searchInput.focus();
         });
@@ -7280,9 +7284,11 @@ function initLibraryFilters() {
         searchQuery = query.toLowerCase();
         if (searchInput) {
             searchInput.value = query;
-            if (searchClearBtn) {
-                searchClearBtn.classList.add('visible');
-            }
+            if (searchClearBtn) searchClearBtn.classList.add('visible');
+        }
+        if (mobileSearchInput) {
+            mobileSearchInput.value = query;
+            if (mobileSearchClearBtn) mobileSearchClearBtn.classList.add('visible');
         }
         displayPatterns();
     };
@@ -7387,7 +7393,6 @@ function initLibraryFilters() {
 
     // Mobile filter bar
     const mobileFilterBtn = document.getElementById('mobile-filter-btn');
-    const mobileSearchInput = document.getElementById('mobile-search-input');
 
     if (mobileFilterBtn) {
         mobileFilterBtn.addEventListener('click', () => {
@@ -7403,16 +7408,30 @@ function initLibraryFilters() {
         mobileSearchInput.addEventListener('input', (e) => {
             searchQuery = e.target.value.toLowerCase();
             if (searchInput) searchInput.value = e.target.value;
+            if (searchClearBtn) searchClearBtn.classList.toggle('visible', e.target.value.length > 0);
+            if (mobileSearchClearBtn) mobileSearchClearBtn.classList.toggle('visible', e.target.value.length > 0);
             displayPatterns();
         });
 
         // Sync desktop search → mobile search
         if (searchInput) {
-            const origHandler = searchInput.oninput;
             searchInput.addEventListener('input', () => {
                 mobileSearchInput.value = searchInput.value;
+                if (mobileSearchClearBtn) mobileSearchClearBtn.classList.toggle('visible', searchInput.value.length > 0);
             });
         }
+    }
+
+    if (mobileSearchClearBtn) {
+        mobileSearchClearBtn.addEventListener('click', () => {
+            mobileSearchInput.value = '';
+            if (searchInput) searchInput.value = '';
+            searchQuery = '';
+            mobileSearchClearBtn.classList.remove('visible');
+            if (searchClearBtn) searchClearBtn.classList.remove('visible');
+            displayPatterns();
+            mobileSearchInput.focus();
+        });
     }
 }
 
@@ -7590,6 +7609,10 @@ function displayPatterns() {
                 return new Date(b.upload_date) - new Date(a.upload_date);
             case 'date-asc':
                 return new Date(a.upload_date) - new Date(b.upload_date);
+            case 'opened-desc':
+                return (new Date(b.last_opened_at || 0)) - (new Date(a.last_opened_at || 0));
+            case 'opened-asc':
+                return (new Date(a.last_opened_at || 0)) - (new Date(b.last_opened_at || 0));
             case 'name-asc':
                 return a.name.localeCompare(b.name);
             case 'name-desc':
@@ -8697,6 +8720,9 @@ async function openPDFViewer(patternId, pushHistory = true) {
         }
         const pattern = await response.json();
 
+        // Track last opened time (fire-and-forget)
+        fetch(`${API_URL}/api/patterns/${id}/opened`, { method: 'POST' }).catch(() => {});
+
         // Get slug for URL
         const slug = getPatternSlug(pattern);
 
@@ -9187,7 +9213,30 @@ async function changePage(delta) {
         if (viewerApp) {
             const newPage = viewerApp.page + delta;
             if (newPage >= 1 && newPage <= viewerApp.pagesCount) {
+                // Save viewport position before navigating
+                const container = viewerApp.pdfViewer.container;
+                const scrollLeft = container.scrollLeft;
+                const currentPageView = viewerApp.pdfViewer.getPageView(viewerApp.page - 1);
+                const withinPageTop = currentPageView?.div
+                    ? container.scrollTop - currentPageView.div.offsetTop
+                    : container.scrollTop;
+
                 viewerApp.page = newPage;
+
+                // Restore viewport position after navigation
+                requestAnimationFrame(() => {
+                    container.scrollLeft = scrollLeft;
+                    if (viewerApp.pdfViewer.scrollMode === 0) {
+                        // Continuous scroll: offset from new page's position
+                        const newPageView = viewerApp.pdfViewer.getPageView(newPage - 1);
+                        if (newPageView?.div) {
+                            container.scrollTop = newPageView.div.offsetTop + withinPageTop;
+                        }
+                    } else {
+                        // Page mode: restore directly
+                        container.scrollTop = withinPageTop;
+                    }
+                });
             }
         }
         return;
@@ -12824,6 +12873,10 @@ function renderProjectExistingGrid() {
         switch (sortBy) {
             case 'date-asc':
                 return new Date(a.upload_date) - new Date(b.upload_date);
+            case 'opened-desc':
+                return (new Date(b.last_opened_at || 0)) - (new Date(a.last_opened_at || 0));
+            case 'opened-asc':
+                return (new Date(a.last_opened_at || 0)) - (new Date(b.last_opened_at || 0));
             case 'name-asc':
                 return a.name.localeCompare(b.name);
             case 'name-desc':

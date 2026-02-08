@@ -2577,12 +2577,46 @@ function applyFont(fontName, customFontName = null) {
     document.documentElement.style.setProperty('--font-family', `"${fontToLoad}", sans-serif`);
 }
 
+// Theme data for picker modal
+const THEME_DATA = {
+    standard: [
+        { id: 'lavender', name: 'Lavender', primary: '#a78bfa', secondary: '#f472b6' },
+        { id: 'ocean', name: 'Ocean', primary: '#38bdf8', secondary: '#22d3ee' },
+        { id: 'forest', name: 'Forest', primary: '#4ade80', secondary: '#a3e635' },
+        { id: 'rose', name: 'Rose', primary: '#fb7185', secondary: '#db2777' },
+        { id: 'slate', name: 'Slate', primary: '#818cf8', secondary: '#94a3b8' },
+        { id: 'aqua', name: 'Aqua', primary: '#22d3ee', secondary: '#2dd4bf' },
+        // { id: 'coffee', name: 'Coffee', primary: '#c9a26d', secondary: '#d4a574' },
+        { id: 'nasa', name: 'NASA', primary: '#105bd8', secondary: '#0b3d91' },
+        { id: 'minimal', name: 'Minimal', primary: '#9ca3af', secondary: '#d1d5db' },
+    ],
+    darkOnly: [
+        { id: 'synthwave', name: 'Synthwave', primary: '#e879f9', secondary: '#22d3ee' },
+        { id: 'dracula', name: 'Dracula', primary: '#bd93f9', secondary: '#44475a' },
+        { id: 'midnight', name: 'Midnight', primary: '#ef4444', secondary: '#f97316' },
+        { id: 'cyberpunk', name: 'Cyberpink', primary: '#ff00ff', secondary: '#00f0ff' },
+        { id: 'halloween', name: 'Halloween', primary: '#f97316', secondary: '#22c55e' },
+        { id: 'sunset', name: 'Sunset', primary: '#fb923c', secondary: '#facc15' },
+        { id: 'razer', name: 'Razer', primary: '#00ff00', secondary: '#141414' },
+        { id: 'nuked', name: 'Nuked', primary: '#1aff80', secondary: '#10b860' },
+    ]
+};
+const DARK_ONLY_IDS = new Set(THEME_DATA.darkOnly.map(t => t.id));
+
 // Theme toggle
 function initTheme() {
-    const themeSelect = document.getElementById('theme-select');
+    const themeSelectBtn = document.getElementById('theme-select-btn');
+    const currentThemeNameEl = document.getElementById('current-theme-name');
+    const themeModal = document.getElementById('theme-modal');
+    const closeThemeModalBtn = document.getElementById('close-theme-modal');
+    const themeModeLightBtn = document.getElementById('theme-mode-light');
+    const themeModeDarkBtn = document.getElementById('theme-mode-dark');
+    const themeGridStandard = document.getElementById('theme-grid-standard');
+    const themeGridDark = document.getElementById('theme-grid-dark');
+    const themeModalPartyBtn = document.getElementById('theme-modal-party-btn');
+    const amoledToggle = document.getElementById('theme-amoled-toggle');
+    const amoledRow = document.getElementById('theme-amoled-row');
     const gradientCheckbox = document.getElementById('gradient-checkbox');
-    const dayModeBtn = document.getElementById('day-mode-btn');
-    const nightModeBtn = document.getElementById('night-mode-btn');
     const autoModeCheckbox = document.getElementById('auto-mode-checkbox');
     const autoTypeContainer = document.getElementById('auto-type-container');
     const autoTypeSelect = document.getElementById('auto-type-select');
@@ -2600,6 +2634,7 @@ function initTheme() {
     let themeMode = localStorage.getItem('themeMode') || 'dark'; // light or dark (manual selection)
     let autoEnabled = localStorage.getItem('autoModeEnabled') === 'true';
     let autoType = localStorage.getItem('autoType') || 'system'; // system or scheduled
+    let amoledEnabled = localStorage.getItem('amoledEnabled') === 'true';
 
     // Schedule times (default: 7am day, 7pm night)
     let dayStart = localStorage.getItem('dayStartTime') || '07:00';
@@ -2677,18 +2712,67 @@ function initTheme() {
     const effectiveMode = getEffectiveMode();
     const fullTheme = `${themeBase}-${effectiveMode}`;
     document.documentElement.setAttribute('data-theme', fullTheme);
+    document.documentElement.setAttribute('data-amoled', amoledEnabled);
     localStorage.setItem('theme', fullTheme);
 
     // Gradient setting (default off)
     const useGradient = localStorage.getItem('useGradient') === 'true';
     document.documentElement.setAttribute('data-gradient', useGradient);
 
+    // Get display name for a theme id
+    function getThemeDisplayName(id) {
+        const all = [...THEME_DATA.standard, ...THEME_DATA.darkOnly];
+        const t = all.find(t => t.id === id);
+        return t ? t.name : id.charAt(0).toUpperCase() + id.slice(1);
+    }
+
+    // Update the theme button label
+    function updateThemeButtonName() {
+        if (currentThemeNameEl) {
+            currentThemeNameEl.textContent = getThemeDisplayName(themeBase);
+        }
+    }
+
+    // Render swatch grid
+    function renderThemeGrid() {
+        function buildSwatches(themes, container) {
+            if (!container) return;
+            container.innerHTML = '';
+            themes.forEach(t => {
+                const swatch = document.createElement('div');
+                swatch.className = 'theme-swatch' + (t.id === themeBase ? ' selected' : '');
+                swatch.dataset.themeId = t.id;
+                swatch.innerHTML = `<div class="theme-swatch-color" style="background: ${t.primary}; --swatch-secondary: ${t.secondary};"></div><span class="theme-swatch-name">${t.name}</span>`;
+                swatch.addEventListener('click', () => {
+                    themeBase = t.id;
+                    // Dark-only enforcement
+                    if (DARK_ONLY_IDS.has(t.id)) {
+                        themeMode = 'dark';
+                        autoEnabled = false;
+                        if (autoModeCheckbox) autoModeCheckbox.checked = false;
+                    }
+                    applyTheme();
+                    updateThemeButtonName();
+                    renderThemeGrid();
+                    if (window.applyThemeMascot) window.applyThemeMascot(themeBase);
+                    showToast(`Theme: ${t.name}`);
+                });
+                container.appendChild(swatch);
+            });
+        }
+        buildSwatches(THEME_DATA.standard, themeGridStandard);
+        buildSwatches(THEME_DATA.darkOnly, themeGridDark);
+    }
+
     // Update UI states
     function updateUI() {
-        if (dayModeBtn && nightModeBtn) {
-            const currentEffective = getEffectiveMode();
-            dayModeBtn.classList.toggle('active', currentEffective === 'light');
-            nightModeBtn.classList.toggle('active', currentEffective === 'dark');
+        const currentEffective = getEffectiveMode();
+        if (themeModeLightBtn && themeModeDarkBtn) {
+            const isDarkOnly = DARK_ONLY_IDS.has(themeBase);
+            themeModeLightBtn.classList.toggle('active', currentEffective === 'light' && !isDarkOnly);
+            themeModeLightBtn.classList.toggle('disabled', isDarkOnly);
+            themeModeLightBtn.disabled = isDarkOnly;
+            themeModeDarkBtn.classList.toggle('active', currentEffective === 'dark' || isDarkOnly);
         }
         if (autoModeCheckbox) {
             autoModeCheckbox.checked = autoEnabled;
@@ -2702,6 +2786,14 @@ function initTheme() {
         if (scheduleTimesContainer) {
             scheduleTimesContainer.style.display = (autoEnabled && autoType === 'scheduled') ? 'flex' : 'none';
         }
+        // AMOLED toggle: disabled in light mode
+        if (amoledToggle && amoledRow) {
+            const isLight = currentEffective === 'light';
+            amoledToggle.checked = amoledEnabled;
+            amoledToggle.disabled = isLight;
+            amoledRow.classList.toggle('disabled', isLight);
+        }
+        updateThemeButtonName();
     }
 
     // Apply theme helper
@@ -2714,6 +2806,7 @@ function initTheme() {
         localStorage.setItem('themeMode', themeMode);
         localStorage.setItem('autoModeEnabled', autoEnabled);
         localStorage.setItem('autoType', autoType);
+        document.documentElement.setAttribute('data-amoled', amoledEnabled);
         updateUI();
     }
 
@@ -2731,33 +2824,56 @@ function initTheme() {
         }
     }, 60000);
 
-    if (themeSelect) {
-        themeSelect.value = themeBase;
-        themeSelect.addEventListener('change', () => {
-            themeBase = themeSelect.value;
-            applyTheme();
-            if (window.applyThemeMascot) {
-                window.applyThemeMascot(themeBase);
-            }
-            showToast('Theme updated');
+    // Theme modal open/close
+    if (themeSelectBtn && themeModal) {
+        themeSelectBtn.addEventListener('click', () => {
+            renderThemeGrid();
+            themeModal.style.display = 'flex';
+        });
+        themeModal.addEventListener('click', (e) => {
+            if (e.target === themeModal) themeModal.style.display = 'none';
+        });
+    }
+    if (closeThemeModalBtn && themeModal) {
+        closeThemeModalBtn.addEventListener('click', () => {
+            themeModal.style.display = 'none';
         });
     }
 
-    if (dayModeBtn) {
-        dayModeBtn.addEventListener('click', () => {
+    // Modal Light/Dark toggle
+    if (themeModeLightBtn) {
+        themeModeLightBtn.addEventListener('click', () => {
+            // If current theme is dark-only, switch to lavender
+            if (DARK_ONLY_IDS.has(themeBase)) {
+                themeBase = 'lavender';
+                if (window.applyThemeMascot) window.applyThemeMascot(themeBase);
+            }
             themeMode = 'light';
             autoEnabled = false;
+            if (autoModeCheckbox) autoModeCheckbox.checked = false;
             applyTheme();
-            showToast('Day mode enabled');
+            renderThemeGrid();
+            showToast('Light mode enabled');
+        });
+    }
+    if (themeModeDarkBtn) {
+        themeModeDarkBtn.addEventListener('click', () => {
+            themeMode = 'dark';
+            autoEnabled = false;
+            if (autoModeCheckbox) autoModeCheckbox.checked = false;
+            applyTheme();
+            renderThemeGrid();
+            showToast('Dark mode enabled');
         });
     }
 
-    if (nightModeBtn) {
-        nightModeBtn.addEventListener('click', () => {
-            themeMode = 'dark';
-            autoEnabled = false;
+    // AMOLED toggle
+    if (amoledToggle) {
+        amoledToggle.addEventListener('change', () => {
+            amoledEnabled = amoledToggle.checked;
+            localStorage.setItem('amoledEnabled', amoledEnabled);
             applyTheme();
-            showToast('Night mode enabled');
+            showToast(amoledEnabled ? 'AMOLED mode enabled' : 'AMOLED mode disabled');
         });
     }
 
@@ -3069,6 +3185,12 @@ function initTheme() {
 
         headerThemeToggle.addEventListener('click', () => {
             if (themeMode === 'dark') {
+                // Switching to light - if dark-only theme, fall back to lavender
+                if (DARK_ONLY_IDS.has(themeBase)) {
+                    themeBase = 'lavender';
+                    updateThemeButtonName();
+                    if (window.applyThemeMascot) window.applyThemeMascot(themeBase);
+                }
                 themeMode = 'light';
             } else {
                 themeMode = 'dark';
@@ -3191,20 +3313,25 @@ function initTheme() {
         });
     }
 
-    // Party mode - random theme, font, and mascot
-    const partyModeBtn = document.getElementById('party-mode-btn');
-    if (partyModeBtn) {
-        partyModeBtn.addEventListener('click', async () => {
-            const themes = ['lavender', 'ocean', 'forest', 'sunset', 'rose', 'slate', 'aqua', 'midnight', 'razer', 'synthwave', 'cyberpunk', 'dracula', 'coffee', 'nasa', 'minimal', 'halloween'];
+    // Party mode (Surprise Me!) - random theme, font, and mascot
+    if (themeModalPartyBtn) {
+        themeModalPartyBtn.addEventListener('click', async () => {
+            const allThemes = [...THEME_DATA.standard, ...THEME_DATA.darkOnly];
             const fonts = ['JetBrains Mono', 'Inter', 'Roboto', 'Open Sans', 'Lato', 'Poppins', 'Nunito', 'Raleway', 'Source Sans Pro', 'Ubuntu', 'Fira Sans'];
 
-            const randomTheme = themes[Math.floor(Math.random() * themes.length)];
+            const randomTheme = allThemes[Math.floor(Math.random() * allThemes.length)];
             const randomFont = fonts[Math.floor(Math.random() * fonts.length)];
 
             // Apply random theme
-            themeBase = randomTheme;
+            themeBase = randomTheme.id;
+            if (DARK_ONLY_IDS.has(themeBase)) {
+                themeMode = 'dark';
+                autoEnabled = false;
+                if (autoModeCheckbox) autoModeCheckbox.checked = false;
+            }
             applyTheme();
-            if (themeSelect) themeSelect.value = randomTheme;
+            updateThemeButtonName();
+            renderThemeGrid();
 
             // Apply random font
             applyFont(randomFont);
@@ -3220,7 +3347,7 @@ function initTheme() {
                 window.setRandomMascot();
             }
 
-            showToast(`Party mode! Theme: ${randomTheme}, Font: ${randomFont}`);
+            showToast(`Surprise! Theme: ${randomTheme.name}, Font: ${randomFont}`);
         });
     }
 
@@ -3237,9 +3364,14 @@ function initTheme() {
             localStorage.setItem('dayStartTime', '07:00');
             localStorage.setItem('nightStartTime', '19:00');
             document.documentElement.setAttribute('data-theme', 'lavender-dark');
-            if (themeSelect) themeSelect.value = 'lavender';
-            if (dayModeBtn) dayModeBtn.classList.remove('active');
-            if (nightModeBtn) nightModeBtn.classList.add('active');
+            themeBase = 'lavender';
+            themeMode = 'dark';
+            autoEnabled = false;
+            amoledEnabled = false;
+            localStorage.setItem('amoledEnabled', 'false');
+            document.documentElement.setAttribute('data-amoled', 'false');
+            if (amoledToggle) amoledToggle.checked = false;
+            updateThemeButtonName();
             if (autoModeCheckbox) autoModeCheckbox.checked = false;
             if (autoTypeContainer) autoTypeContainer.style.display = 'none';
             if (autoTypeSelect) autoTypeSelect.value = 'system';

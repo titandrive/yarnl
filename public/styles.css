@@ -4130,9 +4130,15 @@ body.global-drag-over #current::after {
         flex-wrap: nowrap;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
         gap: 4px;
         flex: 1;
         min-width: 0;
+    }
+
+    .settings-nav-scroll::-webkit-scrollbar {
+        display: none;
     }
 
     /* Collapsed: icon-only search button */

@@ -819,56 +819,7 @@ Inc in each st around (12)
                                 <label>Color Theme</label>
                                 <p class="setting-description">Choose a color scheme</p>
                             </div>
-                            <select id="theme-select" class="settings-select">
-                                <option value="lavender">Lavender</option>
-                                <option value="ocean">Ocean</option>
-                                <option value="forest">Forest</option>
-                                <option value="sunset">Sunset</option>
-                                <option value="rose">Rose</option>
-                                <option value="slate">Slate</option>
-                                <option value="aqua">Aqua</option>
-                                <option value="midnight">Midnight</option>
-                                <option value="razer">Razer</option>
-                                <option value="synthwave">Synthwave</option>
-                                <option value="cyberpunk">Cyberpunk</option>
-                                <option value="dracula">Dracula</option>
-                                <option value="coffee">Coffee</option>
-                                <option value="nasa">NASA</option>
-                                <option value="minimal">Minimal</option>
-                                <option value="halloween">Halloween</option>
-                                <option value="nuked">Nuked</option>
-                            </select>
-                        </div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label>Party Mode</label>
-                                <p class="setting-description">Random theme & font combo</p>
-                            </div>
-                            <button id="party-mode-btn" class="party-mode-btn" title="Randomize theme and font">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
-                                </svg>
-                                Surprise Me!
-                            </button>
-                        </div>
-                        <div class="setting-item">
-                            <div class="setting-info">
-                                <label>Day / Night Mode</label>
-                                <p class="setting-description">Switch between light and dark</p>
-                            </div>
-                            <div class="day-night-toggle">
-                                <button type="button" id="day-mode-btn" class="mode-btn" title="Day Mode">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <circle cx="12" cy="12" r="5"/>
-                                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-                                    </svg>
-                                </button>
-                                <button type="button" id="night-mode-btn" class="mode-btn" title="Night Mode">
-                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
-                                    </svg>
-                                </button>
-                            </div>
+                            <button id="theme-select-btn" class="settings-select"><span id="current-theme-name">Lavender</span></button>
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
@@ -2432,6 +2383,34 @@ Inc in each st around (12)
             </div>
             <div id="mascot-grid" class="mascot-grid">
                 <p>Loading mascots...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Theme Picker Modal -->
+    <div id="theme-modal" class="modal" style="display: none;">
+        <div class="modal-content theme-modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h3>Choose Theme</h3>
+                <button class="modal-close" id="close-theme-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="theme-mode-toggle">
+                    <button id="theme-mode-light" class="theme-mode-btn">Light</button>
+                    <button id="theme-mode-dark" class="theme-mode-btn active">Dark</button>
+                </div>
+                <div class="theme-amoled-row" id="theme-amoled-row">
+                    <span class="theme-amoled-label">AMOLED Black</span>
+                    <label class="toggle-switch small">
+                        <input type="checkbox" id="theme-amoled-toggle">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="theme-section-label">Light & Dark Mode</div>
+                <div id="theme-grid-standard" class="theme-grid"></div>
+                <div class="theme-section-label">Dark Mode Only</div>
+                <div id="theme-grid-dark" class="theme-grid"></div>
+                <button id="theme-modal-party-btn" class="btn btn-secondary" style="width: 100%; margin-top: 16px;">Surprise Me!</button>
             </div>
         </div>
     </div>

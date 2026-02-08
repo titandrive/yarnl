@@ -8023,6 +8023,10 @@ input[type="number"].settings-input {
 
 /* Mobile responsive */
 @media (max-width: 768px) {
+    .projects-container {
+        padding: 0;
+    }
+
     /* --- Upload panel (Add PDF) --- */
     .upload-panel-header,
     .new-pattern-header {

@@ -169,11 +169,9 @@ function updateUIForUser() {
     // Hide "New Pattern" button if user can't add patterns
     const addPatternBtn = document.getElementById('add-pattern-btn');
     if (addPatternBtn && currentUser) {
-        if (currentUser.role !== 'admin' && !currentUser.canAddPatterns) {
-            addPatternBtn.style.display = 'none';
-        } else {
-            addPatternBtn.style.display = '';
-        }
+        const canAdd = currentUser.role === 'admin' || currentUser.canAddPatterns;
+        addPatternBtn.style.display = canAdd ? '' : 'none';
+        localStorage.setItem('canAddPatterns', canAdd ? 'true' : 'false');
     }
 
     // Load user list for admin panel
@@ -284,6 +282,7 @@ async function handleLogout() {
         console.error('Logout error:', error);
     }
     currentUser = null;
+    localStorage.removeItem('canAddPatterns');
     showLogin();
 }
 
@@ -1307,8 +1306,9 @@ async function resetOIDCSettings(btn) {
             document.getElementById('oidc-disable-local').checked = false;
             document.getElementById('oidc-auto-create').checked = true;
             document.getElementById('oidc-default-role').value = 'user';
-            // Clear discovery status and endpoints but keep config fields visible
+            // Clear discovery status and endpoints, collapse config
             hideDiscoveredEndpoints();
+            document.getElementById('oidc-config-fields').style.display = 'none';
             const status = document.getElementById('oidc-discovery-status');
             if (status) status.style.display = 'none';
             checkOIDCEnabled();
@@ -2223,6 +2223,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (wasAuthenticated) {
         document.getElementById('login-container').style.display = 'none';
         document.querySelector('.container').style.display = 'block';
+        // Apply cached permissions immediately to prevent button flash
+        if (localStorage.getItem('canAddPatterns') === 'false') {
+            const addBtn = document.getElementById('add-pattern-btn');
+            if (addBtn) addBtn.style.display = 'none';
+        }
     }
 
     // Verify auth
@@ -2235,6 +2240,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     localStorage.setItem('authenticated', 'true');
     await loadServerSettings();
     if (!wasAuthenticated) showApp();
+    updateUIForUser();
 
     initAppUI();
     appInitialized = true;

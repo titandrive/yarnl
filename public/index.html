@@ -20,7 +20,11 @@
         // Hide login and show correct tab immediately for returning users
         if (localStorage.getItem('authenticated') === 'true') {
             var startTab = localStorage.getItem('activeTab') || localStorage.getItem('defaultPage') || 'current';
-            document.write('<style id="early-tab-style">#login-container{display:none!important}.container{display:block!important}.tab-content{display:none!important}.tab-content#' + startTab + '{display:block!important}</style>');
+            var earlyStyles = '#login-container{display:none!important}.container{display:block!important}.tab-content{display:none!important}.tab-content#' + startTab + '{display:block!important}';
+            if (localStorage.getItem('canAddPatterns') === 'false') {
+                earlyStyles += '#add-pattern-btn{display:none!important}';
+            }
+            document.write('<style id="early-tab-style">' + earlyStyles + '</style>');
         } else {
             // Not authenticated — hide app container, show login
             document.write('<style id="early-tab-style">.container{display:none!important}</style>');

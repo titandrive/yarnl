@@ -151,6 +151,12 @@
                     </button>
                     <div class="mobile-search-inline">
                         <input type="text" id="mobile-search-input" placeholder="Search patterns...">
+                        <button type="button" id="mobile-search-clear-btn" class="search-clear-btn" title="Clear search">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
                     </div>
                 </div>
                 <div class="library-layout">
@@ -199,8 +205,10 @@
                                 </div>
                             </div>
                             <select id="sort-select">
-                                <option value="date-desc">Date (Newest)</option>
-                                <option value="date-asc">Date (Oldest)</option>
+                                <option value="date-desc">Added (Newest)</option>
+                                <option value="date-asc">Added (Oldest)</option>
+                                <option value="opened-desc">Opened (Recent)</option>
+                                <option value="opened-asc">Opened (Oldest)</option>
                                 <option value="name-asc">Name (A-Z)</option>
                                 <option value="name-desc">Name (Z-A)</option>
                             </select>
@@ -344,7 +352,10 @@
                                 <button type="button" class="new-pattern-tab active" data-tab="edit">Edit</button>
                                 <button type="button" class="new-pattern-tab" data-tab="preview">Preview</button>
                                 <label class="new-pattern-live-preview-label">
-                                    <input type="checkbox" id="new-pattern-live-preview">
+                                    <div class="toggle-switch small">
+                                        <input type="checkbox" id="new-pattern-live-preview">
+                                        <span class="toggle-slider"></span>
+                                    </div>
                                     <span>Live preview</span>
                                 </label>
                             </div>
@@ -449,8 +460,10 @@ Inc in each st around (12)
                                 <div class="sidebar-section">
                                     <label>Sort by</label>
                                     <select id="project-sort-select">
-                                        <option value="date-desc">Date (Newest)</option>
-                                        <option value="date-asc">Date (Oldest)</option>
+                                        <option value="date-desc">Added (Newest)</option>
+                                        <option value="date-asc">Added (Oldest)</option>
+                                        <option value="opened-desc">Opened (Recent)</option>
+                                        <option value="opened-asc">Opened (Oldest)</option>
                                         <option value="name-asc">Name (A-Z)</option>
                                         <option value="name-desc">Name (Z-A)</option>
                                     </select>
@@ -2064,7 +2077,10 @@ Inc in each st around (12)
                 </div>
                 <div class="notes-popover-footer">
                     <label class="notes-live-preview-label">
-                        <input type="checkbox" id="notes-live-preview">
+                        <div class="toggle-switch small">
+                            <input type="checkbox" id="notes-live-preview">
+                            <span class="toggle-slider"></span>
+                        </div>
                         <span>Live preview</span>
                     </label>
                     <span id="notes-save-status" class="notes-save-status"></span>
@@ -2205,7 +2221,10 @@ Inc in each st around (12)
             </div>
             <div class="notes-popover-footer">
                 <label class="notes-live-preview-label">
-                    <input type="checkbox" id="markdown-notes-live-preview">
+                    <div class="toggle-switch small">
+                        <input type="checkbox" id="markdown-notes-live-preview">
+                        <span class="toggle-slider"></span>
+                    </div>
                     <span>Live preview</span>
                 </label>
                 <span id="markdown-notes-save-status" class="notes-save-status"></span>
@@ -2222,7 +2241,10 @@ Inc in each st around (12)
                         <button type="button" class="markdown-edit-tab active" data-tab="edit">Edit</button>
                         <button type="button" class="markdown-edit-tab" data-tab="preview">Preview</button>
                         <label class="markdown-edit-live-preview-label">
-                            <input type="checkbox" id="markdown-edit-live-preview">
+                            <div class="toggle-switch small">
+                                <input type="checkbox" id="markdown-edit-live-preview">
+                                <span class="toggle-slider"></span>
+                            </div>
                             <span>Live preview</span>
                         </label>
                     </div>

@@ -2272,6 +2272,19 @@ app.get('/api/patterns/:id', async (req, res) => {
   }
 });
 
+// Track pattern opened
+app.post('/api/patterns/:id/opened', async (req, res) => {
+  try {
+    const pattern = await verifyPatternReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) return res.status(403).json({ error: 'Not authorized' });
+    await pool.query('UPDATE patterns SET last_opened_at = NOW() WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating last_opened_at:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get pattern info (metadata including file size)
 app.get('/api/patterns/:id/info', async (req, res) => {
   try {
@@ -5573,11 +5586,11 @@ app.post('/api/backups/:filename/restore', authMiddleware, async (req, res) => {
       const result = await client.query(
         `INSERT INTO patterns (name, filename, original_name, upload_date, category, description,
          is_current, stitch_count, row_count, created_at, updated_at, thumbnail, current_page,
-         completed, completed_date, notes, pattern_type, content, timer_seconds, user_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`,
+         completed, completed_date, notes, pattern_type, content, timer_seconds, user_id, last_opened_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`,
         [row.name, row.filename, row.original_name, row.upload_date, row.category, row.description,
          row.is_current, row.stitch_count, row.row_count, row.created_at, row.updated_at, row.thumbnail,
-         row.current_page, row.completed, row.completed_date, row.notes, row.pattern_type, row.content, row.timer_seconds, userId]
+         row.current_page, row.completed, row.completed_date, row.notes, row.pattern_type, row.content, row.timer_seconds, userId, row.last_opened_at || null]
       );
       patternIdMap[row.id] = result.rows[0].id;
     }

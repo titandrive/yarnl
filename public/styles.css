@@ -1820,11 +1820,14 @@ html[data-theme="nuked-dark"] .btn-primary {
     .mobile-search-inline {
         flex: 1;
         min-width: 0;
+        position: relative;
+        display: flex;
+        align-items: center;
     }
 
     .mobile-search-inline input {
         width: 100%;
-        padding: 8px 10px;
+        padding: 8px 32px 8px 10px;
         border: 1px solid var(--border-color);
         border-radius: 8px;
         background: var(--card-bg);
@@ -4214,6 +4217,7 @@ body.global-drag-over #current::after {
     .settings-nav-btn {
         flex-shrink: 0;
         padding: 10px 14px;
+        width: auto;
     }
 
     .settings-nav-btn span {
@@ -5197,7 +5201,7 @@ input[type="number"].settings-input {
     display: flex;
     flex-wrap: nowrap;
     gap: 4px;
-    margin-top: -4px;
+    margin-top: 4px;
     margin-bottom: 8px;
     overflow-x: auto;
     scrollbar-width: none;
@@ -5466,8 +5470,8 @@ input[type="number"].settings-input {
     user-select: none;
 }
 
-.notes-live-preview-label input {
-    cursor: pointer;
+.notes-live-preview-label .toggle-switch {
+    flex-shrink: 0;
 }
 
 .notes-live-preview-label:hover {
@@ -5631,8 +5635,8 @@ input[type="number"].settings-input {
     margin-left: 12px;
 }
 
-.new-pattern-live-preview-label input {
-    cursor: pointer;
+.new-pattern-live-preview-label .toggle-switch {
+    flex-shrink: 0;
 }
 
 .new-pattern-live-preview-label:hover {
@@ -6034,8 +6038,8 @@ input[type="number"].settings-input {
     margin-left: 12px;
 }
 
-.markdown-edit-live-preview-label input {
-    cursor: pointer;
+.markdown-edit-live-preview-label .toggle-switch {
+    flex-shrink: 0;
 }
 
 .markdown-edit-live-preview-label:hover {

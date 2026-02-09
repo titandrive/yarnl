@@ -1042,6 +1042,7 @@ html[data-theme="nuked-dark"] .btn-primary {
 .tab-content {
     display: none;
     padding: 30px;
+    padding-top: 15px;
 }
 
 .tab-content.active {
@@ -1394,6 +1395,41 @@ html[data-theme="nuked-dark"] .btn-primary {
 .library-layout {
     display: flex;
     gap: 20px;
+}
+
+/* Desktop sidebar toggle icon */
+.grid-wrapper {
+    flex: 1;
+    min-width: 0;
+}
+
+.sidebar-toggle-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    opacity: 0.4;
+    transition: opacity 0.2s, color 0.2s;
+    margin-bottom: 8px;
+}
+
+.sidebar-toggle-icon:hover {
+    opacity: 1;
+    color: var(--primary-color);
+}
+
+.sidebar-toggle-icon.active {
+    opacity: 0.8;
+    color: var(--primary-color);
+}
+
+.library-layout.sidebar-collapsed .library-sidebar {
+    display: none;
 }
 
 .library-sidebar {
@@ -1853,6 +1889,10 @@ html[data-theme="nuked-dark"] .btn-primary {
     }
 
     /* ── Library Layout ── */
+    .sidebar-toggle-icon {
+        display: none !important;
+    }
+
     .library-layout {
         flex-direction: column;
     }

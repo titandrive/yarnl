@@ -163,7 +163,8 @@
                         </button>
                     </div>
                 </div>
-                <div class="library-layout">
+                <div class="library-layout" id="library-layout">
+                    <script>if(localStorage.getItem('librarySidebarCollapsed')==='true'){document.getElementById('library-layout').classList.add('sidebar-collapsed');}</script>
                     <aside class="library-sidebar">
                         <div class="sidebar-section">
                             <label for="search-input">Search</label>
@@ -261,8 +262,16 @@
                             </select>
                         </div>
                     </aside>
-                    <div id="patterns-grid" class="patterns-grid">
-                        <p class="empty-state">No patterns yet. Upload your first pattern!</p>
+                    <div class="grid-wrapper">
+                        <button class="sidebar-toggle-icon" id="library-sidebar-toggle" title="Toggle sidebar">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="9" y1="3" x2="9" y2="21"></line>
+                            </svg>
+                        </button>
+                        <div id="patterns-grid" class="patterns-grid">
+                            <p class="empty-state">No patterns yet. Upload your first pattern!</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -419,7 +428,8 @@ Inc in each st around (12)
                         </button>
                     </div>
                 </div>
-                <div class="library-layout">
+                <div class="library-layout" id="projects-layout">
+                    <script>if(localStorage.getItem('projectsSidebarCollapsed')==='true'){document.getElementById('projects-layout').classList.add('sidebar-collapsed');}</script>
                     <aside class="library-sidebar projects-sidebar">
                         <div class="sidebar-section">
                             <label>Search</label>
@@ -455,8 +465,16 @@ Inc in each st around (12)
                             </select>
                         </div>
                     </aside>
-                    <div id="projects-grid" class="patterns-grid">
-                        <p class="empty-state">You haven't created any projects yet. Projects let you group multiple patterns together for larger works!</p>
+                    <div class="grid-wrapper">
+                        <button class="sidebar-toggle-icon" id="projects-sidebar-toggle" title="Toggle sidebar">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="9" y1="3" x2="9" y2="21"></line>
+                            </svg>
+                        </button>
+                        <div id="projects-grid" class="patterns-grid">
+                            <p class="empty-state">You haven't created any projects yet. Projects let you group multiple patterns together for larger works!</p>
+                        </div>
                     </div>
                 </div>
             </div>

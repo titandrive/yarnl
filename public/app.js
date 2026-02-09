@@ -1248,6 +1248,7 @@ async function toggleOIDCEnabled(enabled) {
 
 async function saveOIDCSettings() {
     const settings = {
+        enabled: document.getElementById('oidc-enabled-toggle').checked,
         issuer: document.getElementById('oidc-issuer').value.trim(),
         clientId: document.getElementById('oidc-client-id').value.trim(),
         clientSecret: document.getElementById('oidc-client-secret').value,

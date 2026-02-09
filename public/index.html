@@ -444,6 +444,14 @@ Inc in each st around (12)
                             </div>
                         </div>
                         <div class="sidebar-section">
+                            <label>Show</label>
+                            <select id="project-show-filter">
+                                <option value="all">All Projects</option>
+                                <option value="favorites">Favorites Only</option>
+                                <option value="current">Current Only</option>
+                            </select>
+                        </div>
+                        <div class="sidebar-section">
                             <label>Sort by</label>
                             <select id="project-sort-select">
                                 <option value="date-desc">Added (Newest)</option>
@@ -454,14 +462,6 @@ Inc in each st around (12)
                                 <option value="name-desc">Name (Z-A)</option>
                                 <option value="progress-desc">Progress (Most)</option>
                                 <option value="progress-asc">Progress (Least)</option>
-                            </select>
-                        </div>
-                        <div class="sidebar-section">
-                            <label>Show</label>
-                            <select id="project-show-filter">
-                                <option value="all">All Projects</option>
-                                <option value="favorites">Favorites Only</option>
-                                <option value="current">Current Only</option>
                             </select>
                         </div>
                     </aside>

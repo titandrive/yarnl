@@ -1028,11 +1028,9 @@ html[data-theme="nuked-dark"] .btn-primary {
     text-align: center;
 }
 
-@media (hover: hover) {
-    .tab-btn:hover {
-        background: var(--hover-bg);
-        color: var(--primary-color);
-    }
+.tab-btn:hover {
+    background: var(--hover-bg);
+    color: var(--primary-color);
 }
 
 .tab-btn.active {
@@ -1834,8 +1832,17 @@ html[data-theme="nuked-dark"] .btn-primary {
         -webkit-tap-highlight-color: transparent;
     }
 
+    .tab-btn:hover,
     .tab-btn:focus {
+        background: transparent;
+        color: var(--text-color);
         outline: none;
+    }
+
+    .tab-btn.active:hover,
+    .tab-btn.active:focus {
+        color: var(--primary-color);
+        background: var(--card-bg);
     }
 
     .tab-content {

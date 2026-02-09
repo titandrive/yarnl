@@ -7575,6 +7575,18 @@ function initLibraryFilters() {
             mobileSearchInput.focus();
         });
     }
+
+    // Desktop sidebar toggle
+    const libToggleBtn = document.getElementById('library-sidebar-toggle');
+    if (libToggleBtn) {
+        const libraryLayout = document.getElementById('library-layout');
+        if (libraryLayout.classList.contains('sidebar-collapsed')) libToggleBtn.classList.add('active');
+        libToggleBtn.addEventListener('click', () => {
+            const isCollapsed = libraryLayout.classList.toggle('sidebar-collapsed');
+            libToggleBtn.classList.toggle('active', isCollapsed);
+            localStorage.setItem('librarySidebarCollapsed', isCollapsed);
+        });
+    }
 }
 
 function renderPatternCard(pattern, options = {}) {
@@ -11448,6 +11460,20 @@ function initProjectSidebar() {
             projectShowFilter = showFilterSelect.value;
             localStorage.setItem('projectShowFilter', projectShowFilter);
             displayProjects();
+        });
+    }
+
+    // Desktop sidebar collapse toggle
+    // Desktop sidebar toggle
+    // Desktop sidebar toggle
+    const projToggleBtn = document.getElementById('projects-sidebar-toggle');
+    if (projToggleBtn) {
+        const projectsLayout = document.getElementById('projects-layout');
+        if (projectsLayout.classList.contains('sidebar-collapsed')) projToggleBtn.classList.add('active');
+        projToggleBtn.addEventListener('click', () => {
+            const isCollapsed = projectsLayout.classList.toggle('sidebar-collapsed');
+            projToggleBtn.classList.toggle('active', isCollapsed);
+            localStorage.setItem('projectsSidebarCollapsed', isCollapsed);
         });
     }
 }

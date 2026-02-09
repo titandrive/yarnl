@@ -8191,14 +8191,11 @@ input[type="number"].settings-input {
 
 /* Projects container */
 .projects-container {
-    padding: 20px;
+    width: 100%;
 }
 
 /* Mobile responsive */
 @media (max-width: 768px) {
-    .projects-container {
-        padding: 0;
-    }
 
     /* --- Upload panel (Add PDF) --- */
     .upload-panel-header,

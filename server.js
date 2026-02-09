@@ -3344,6 +3344,19 @@ app.patch('/api/projects/:id', async (req, res) => {
   }
 });
 
+// Track project opened
+app.post('/api/projects/:id/opened', async (req, res) => {
+  try {
+    const project = await verifyProjectOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!project) return res.status(403).json({ error: 'Not authorized' });
+    await pool.query('UPDATE projects SET last_opened_at = NOW() WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error updating project last_opened_at:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Delete a project (patterns remain in library)
 app.delete('/api/projects/:id', async (req, res) => {
   try {

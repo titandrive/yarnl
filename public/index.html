@@ -402,8 +402,62 @@ Inc in each st around (12)
         <!-- Projects Tab -->
         <div id="projects" class="tab-content">
             <div class="projects-container">
-                <div id="projects-grid" class="patterns-grid">
-                    <p class="empty-state">You haven't created any projects yet. Projects let you group multiple patterns together for larger works!</p>
+                <div class="mobile-filter-bar">
+                    <button id="project-mobile-filter-btn" class="mobile-filter-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                        </svg>
+                        Filters
+                    </button>
+                    <div class="mobile-search-inline">
+                        <input type="text" id="project-mobile-search-input" placeholder="Search projects...">
+                        <button type="button" id="project-mobile-search-clear-btn" class="search-clear-btn" title="Clear search">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="library-layout">
+                    <aside class="library-sidebar projects-sidebar">
+                        <div class="sidebar-section">
+                            <label>Search</label>
+                            <div class="search-input-wrapper">
+                                <input type="text" id="project-search-input" placeholder="Search projects...">
+                                <button type="button" id="project-search-clear-btn" class="search-clear-btn" title="Clear search">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="sidebar-section">
+                            <label>Sort by</label>
+                            <select id="project-sort-select">
+                                <option value="date-desc">Added (Newest)</option>
+                                <option value="date-asc">Added (Oldest)</option>
+                                <option value="opened-desc">Opened (Recent)</option>
+                                <option value="opened-asc">Opened (Oldest)</option>
+                                <option value="name-asc">Name (A-Z)</option>
+                                <option value="name-desc">Name (Z-A)</option>
+                                <option value="progress-desc">Progress (Most)</option>
+                                <option value="progress-asc">Progress (Least)</option>
+                            </select>
+                        </div>
+                        <div class="sidebar-section">
+                            <label>Show</label>
+                            <select id="project-show-filter">
+                                <option value="all">All Projects</option>
+                                <option value="favorites">Favorites Only</option>
+                                <option value="current">Current Only</option>
+                            </select>
+                        </div>
+                    </aside>
+                    <div id="projects-grid" class="patterns-grid">
+                        <p class="empty-state">You haven't created any projects yet. Projects let you group multiple patterns together for larger works!</p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2401,7 +2455,7 @@ Inc in each st around (12)
                 </div>
                 <div class="theme-amoled-row" id="theme-amoled-row">
                     <span class="theme-amoled-label">AMOLED Black</span>
-                    <label class="toggle-switch small">
+                    <label class="toggle-switch">
                         <input type="checkbox" id="theme-amoled-toggle">
                         <span class="toggle-slider"></span>
                     </label>

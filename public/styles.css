@@ -1831,6 +1831,11 @@ html[data-theme="nuked-dark"] .btn-primary {
     .tab-btn {
         padding: 12px 8px;
         font-size: 0.9rem;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .tab-btn:focus {
+        outline: none;
     }
 
     .tab-content {

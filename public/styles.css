@@ -1028,9 +1028,11 @@ html[data-theme="nuked-dark"] .btn-primary {
     text-align: center;
 }
 
-.tab-btn:hover {
-    background: var(--hover-bg);
-    color: var(--primary-color);
+@media (hover: hover) {
+    .tab-btn:hover {
+        background: var(--hover-bg);
+        color: var(--primary-color);
+    }
 }
 
 .tab-btn.active {

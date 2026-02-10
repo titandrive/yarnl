@@ -2834,14 +2834,19 @@ function initTheme() {
         themeSelectBtn.addEventListener('click', () => {
             renderThemeGrid();
             themeModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
         });
         themeModal.addEventListener('click', (e) => {
-            if (e.target === themeModal) themeModal.style.display = 'none';
+            if (e.target === themeModal) {
+                themeModal.style.display = 'none';
+                document.body.style.overflow = '';
+            }
         });
     }
     if (closeThemeModalBtn && themeModal) {
         closeThemeModalBtn.addEventListener('click', () => {
             themeModal.style.display = 'none';
+            document.body.style.overflow = '';
         });
     }
 

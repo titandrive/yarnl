@@ -4162,6 +4162,30 @@ body.global-drag-over #current::after {
     flex-shrink: 0;
 }
 
+.settings-sidebar-links {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px 0;
+}
+
+.settings-sidebar-links a {
+    color: var(--text-muted);
+    opacity: 0.6;
+    transition: opacity 0.2s, color 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.settings-sidebar-links a:hover {
+    opacity: 1;
+    color: var(--primary-color);
+}
+
+.settings-mobile-links {
+    display: none;
+}
+
 .settings-content {
     flex: 1;
     min-width: 0;
@@ -4396,6 +4420,30 @@ body.global-drag-over #current::after {
         padding-bottom: 8px;
         gap: 4px;
         align-items: center;
+    }
+
+    .settings-sidebar-links {
+        display: none;
+    }
+
+    .settings-mobile-links {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        padding: 20px 0;
+    }
+
+    .settings-mobile-links a {
+        color: var(--text-muted);
+        opacity: 0.6;
+        transition: opacity 0.2s, color 0.2s;
+        display: flex;
+        align-items: center;
+    }
+
+    .settings-mobile-links a:hover {
+        opacity: 1;
+        color: var(--primary-color);
     }
 
     .settings-nav-scroll {

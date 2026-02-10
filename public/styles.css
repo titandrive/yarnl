@@ -2417,7 +2417,6 @@ body.global-drag-over #current::after {
     width: 50%;
     height: 100%;
     background: var(--swatch-secondary);
-    border-radius: 0 8px 8px 0;
 }
 
 .theme-swatch-name {
@@ -4662,27 +4661,9 @@ body.global-drag-over #current::after {
 }
 
 .party-mode-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border: 1px solid var(--primary-color);
-    border-radius: 8px;
     background: var(--primary-color);
+    border-color: var(--primary-color);
     color: white;
-    font-family: inherit;
-    font-size: 0.9rem;
-    cursor: pointer;
-    transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.party-mode-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-}
-
-.party-mode-btn:active {
-    transform: scale(0.98);
 }
 
 .settings-input {

@@ -4979,150 +4979,155 @@ async function createScheduledBackup() {
     if (settings.schedule === 'monthly' && diffDays < 29) return;
   }
 
-  console.log('Running scheduled backup...');
+  // Determine which user configured the schedule
+  const userId = settings.userId;
+  const username = settings.username;
+  if (!userId || !username) {
+    settings.enabled = false;
+    await saveBackupSettings(settings);
+    console.log('Scheduled backup disabled: missing user info (re-save schedule in settings)');
+    return;
+  }
+
+  console.log(`Running scheduled backup for ${username}...`);
 
   try {
-    const usersResult = await pool.query('SELECT id, username FROM users');
     const timestamp = getLocalTimestamp(now);
+    const userBackupsDir = getUserBackupsDir(username);
+    const userPatternsDir = getUserPatternsDir(username);
+    const userThumbnailsDir = getUserThumbnailsDir(username);
+    const userImagesDir = getUserImagesDir(username);
+    const userArchiveDir = getUserArchiveDir(username);
+    const userNotesDir = getUserNotesDir(username);
 
-    for (const user of usersResult.rows) {
-      const { id: userId, username } = user;
-      const userBackupsDir = getUserBackupsDir(username);
-      const userPatternsDir = getUserPatternsDir(username);
-      const userThumbnailsDir = getUserThumbnailsDir(username);
-      const userImagesDir = getUserImagesDir(username);
-      const userArchiveDir = getUserArchiveDir(username);
-      const userNotesDir = getUserNotesDir(username);
+    if (!fs.existsSync(userBackupsDir)) {
+      fs.mkdirSync(userBackupsDir, { recursive: true });
+    }
 
-      if (!fs.existsSync(userBackupsDir)) {
-        fs.mkdirSync(userBackupsDir, { recursive: true });
-      }
+    const backupFilename = `yarnl-backup-${timestamp}.zip`;
+    const backupPath = path.join(userBackupsDir, backupFilename);
 
-      const backupFilename = `yarnl-backup-${timestamp}.zip`;
-      const backupPath = path.join(userBackupsDir, backupFilename);
+    // Export this user's database tables
+    const dbExport = {
+      exportDate: now.toISOString(),
+      version: '2.0',
+      username: username,
+      includePatterns: settings.includePatterns,
+      includeMarkdown: settings.includeMarkdown,
+      includeArchive: settings.includeArchive,
+      includeNotes: settings.includeNotes,
+      tables: {}
+    };
 
-      // Export this user's database tables
-      const dbExport = {
-        exportDate: now.toISOString(),
-        version: '2.0',
-        username: username,
-        includePatterns: settings.includePatterns,
-        includeMarkdown: settings.includeMarkdown,
-        includeArchive: settings.includeArchive,
-        includeNotes: settings.includeNotes,
-        tables: {}
-      };
+    const categoriesResult = await pool.query(
+      'SELECT * FROM categories WHERE user_id = $1', [userId]
+    );
+    dbExport.tables.categories = categoriesResult.rows;
 
-      const categoriesResult = await pool.query(
-        'SELECT * FROM categories WHERE user_id = $1', [userId]
+    const hashtagsResult = await pool.query('SELECT * FROM hashtags');
+    dbExport.tables.hashtags = hashtagsResult.rows;
+
+    const patternsResult = await pool.query(
+      'SELECT * FROM patterns WHERE user_id = $1', [userId]
+    );
+    dbExport.tables.patterns = patternsResult.rows;
+
+    const patternIds = patternsResult.rows.map(p => p.id);
+    if (patternIds.length > 0) {
+      const countersResult = await pool.query(
+        'SELECT * FROM counters WHERE pattern_id = ANY($1)', [patternIds]
       );
-      dbExport.tables.categories = categoriesResult.rows;
+      dbExport.tables.counters = countersResult.rows;
 
-      const hashtagsResult = await pool.query('SELECT * FROM hashtags');
-      dbExport.tables.hashtags = hashtagsResult.rows;
-
-      const patternsResult = await pool.query(
-        'SELECT * FROM patterns WHERE user_id = $1', [userId]
+      const patternHashtagsResult = await pool.query(
+        'SELECT * FROM pattern_hashtags WHERE pattern_id = ANY($1)', [patternIds]
       );
-      dbExport.tables.patterns = patternsResult.rows;
+      dbExport.tables.pattern_hashtags = patternHashtagsResult.rows;
+    } else {
+      dbExport.tables.counters = [];
+      dbExport.tables.pattern_hashtags = [];
+    }
 
-      const patternIds = patternsResult.rows.map(p => p.id);
-      if (patternIds.length > 0) {
-        const countersResult = await pool.query(
-          'SELECT * FROM counters WHERE pattern_id = ANY($1)', [patternIds]
-        );
-        dbExport.tables.counters = countersResult.rows;
+    // Create zip archive
+    const output = fs.createWriteStream(backupPath);
+    const archive = archiver('zip', { zlib: { level: 9 } });
 
-        const patternHashtagsResult = await pool.query(
-          'SELECT * FROM pattern_hashtags WHERE pattern_id = ANY($1)', [patternIds]
-        );
-        dbExport.tables.pattern_hashtags = patternHashtagsResult.rows;
-      } else {
-        dbExport.tables.counters = [];
-        dbExport.tables.pattern_hashtags = [];
+    await new Promise((resolve, reject) => {
+      output.on('close', resolve);
+      archive.on('error', reject);
+
+      archive.pipe(output);
+      archive.append(JSON.stringify(dbExport, null, 2), { name: 'database.json' });
+
+      // Add PDF patterns and thumbnails
+      if (settings.includePatterns && fs.existsSync(userPatternsDir)) {
+        const categories = fs.readdirSync(userPatternsDir).filter(f => {
+          const fullPath = path.join(userPatternsDir, f);
+          return fs.statSync(fullPath).isDirectory() && f !== 'images' && f !== 'thumbnails';
+        });
+        for (const category of categories) {
+          const categoryPath = path.join(userPatternsDir, category);
+          const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.pdf'));
+          for (const file of files) {
+            archive.file(path.join(categoryPath, file), { name: `patterns/${category}/${file}` });
+          }
+        }
+        if (fs.existsSync(userThumbnailsDir)) {
+          archive.directory(userThumbnailsDir, 'patterns/thumbnails');
+        }
       }
 
-      // Create zip archive
-      const output = fs.createWriteStream(backupPath);
-      const archive = archiver('zip', { zlib: { level: 9 } });
-
-      await new Promise((resolve, reject) => {
-        output.on('close', resolve);
-        archive.on('error', reject);
-
-        archive.pipe(output);
-        archive.append(JSON.stringify(dbExport, null, 2), { name: 'database.json' });
-
-        // Add PDF patterns and thumbnails
-        if (settings.includePatterns && fs.existsSync(userPatternsDir)) {
-          const categories = fs.readdirSync(userPatternsDir).filter(f => {
-            const fullPath = path.join(userPatternsDir, f);
-            return fs.statSync(fullPath).isDirectory() && f !== 'images' && f !== 'thumbnails';
-          });
-          for (const category of categories) {
-            const categoryPath = path.join(userPatternsDir, category);
-            const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.pdf'));
-            for (const file of files) {
-              archive.file(path.join(categoryPath, file), { name: `patterns/${category}/${file}` });
-            }
-          }
-          if (fs.existsSync(userThumbnailsDir)) {
-            archive.directory(userThumbnailsDir, 'patterns/thumbnails');
+      // Add markdown patterns
+      if (settings.includeMarkdown && fs.existsSync(userPatternsDir)) {
+        const categories = fs.readdirSync(userPatternsDir).filter(f => {
+          const fullPath = path.join(userPatternsDir, f);
+          return fs.statSync(fullPath).isDirectory() && f !== 'images' && f !== 'thumbnails';
+        });
+        for (const category of categories) {
+          const categoryPath = path.join(userPatternsDir, category);
+          const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.md'));
+          for (const file of files) {
+            archive.file(path.join(categoryPath, file), { name: `patterns/${category}/${file}` });
           }
         }
-
-        // Add markdown patterns
-        if (settings.includeMarkdown && fs.existsSync(userPatternsDir)) {
-          const categories = fs.readdirSync(userPatternsDir).filter(f => {
-            const fullPath = path.join(userPatternsDir, f);
-            return fs.statSync(fullPath).isDirectory() && f !== 'images' && f !== 'thumbnails';
-          });
-          for (const category of categories) {
-            const categoryPath = path.join(userPatternsDir, category);
-            const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.md'));
-            for (const file of files) {
-              archive.file(path.join(categoryPath, file), { name: `patterns/${category}/${file}` });
-            }
-          }
-        }
-
-        // Add images when markdown is included
-        if (settings.includeMarkdown && fs.existsSync(userImagesDir)) {
-          archive.directory(userImagesDir, 'images');
-        }
-
-        // Add archive if requested
-        if (settings.includeArchive && fs.existsSync(userArchiveDir)) {
-          archive.directory(userArchiveDir, 'archive');
-        }
-
-        // Add notes if requested
-        if (settings.includeNotes && fs.existsSync(userNotesDir)) {
-          archive.directory(userNotesDir, 'notes');
-        }
-
-        archive.finalize();
-      });
-
-      console.log(`Scheduled backup created for ${username}: ${backupFilename}`);
-
-      // Run per-user prune if enabled
-      if (settings.pruneEnabled) {
-        runScheduledPrune(settings, username);
       }
+
+      // Add images when markdown is included
+      if (settings.includeMarkdown && fs.existsSync(userImagesDir)) {
+        archive.directory(userImagesDir, 'images');
+      }
+
+      // Add archive if requested
+      if (settings.includeArchive && fs.existsSync(userArchiveDir)) {
+        archive.directory(userArchiveDir, 'archive');
+      }
+
+      // Add notes if requested
+      if (settings.includeNotes && fs.existsSync(userNotesDir)) {
+        archive.directory(userNotesDir, 'notes');
+      }
+
+      archive.finalize();
+    });
+
+    console.log(`Scheduled backup created for ${username}: ${backupFilename}`);
+
+    // Run prune if enabled
+    if (settings.pruneEnabled) {
+      runScheduledPrune(settings, username);
     }
 
     // Update last backup time
     settings.lastBackup = now.toISOString();
     await saveBackupSettings(settings);
 
-    // Broadcast backup completion to all connected clients
-    broadcastEvent('backup_complete', { filename: `yarnl-backup-${timestamp}.zip` });
+    // Broadcast backup completion
+    broadcastEvent('backup_complete', { filename: backupFilename });
 
     // Send Pushover notification if enabled
     const notifySettings = await loadNotificationSettings();
     if (notifySettings.notifyBackupComplete) {
-      await sendPushoverNotification('Yarnl Backup Complete', `Scheduled backup created for ${usersResult.rows.length} user(s)`);
+      await sendPushoverNotification('Yarnl Backup Complete', `Scheduled backup created: ${backupFilename}`);
     }
   } catch (error) {
     console.error('Error creating scheduled backup:', error);
@@ -5196,7 +5201,7 @@ app.get('/api/backups/schedule', async (req, res) => {
 app.post('/api/backups/schedule', async (req, res) => {
   try {
     const currentSettings = await loadBackupSettings();
-    const newSettings = { ...currentSettings, ...req.body };
+    const newSettings = { ...currentSettings, ...req.body, userId: req.user.id, username: req.user.username };
     await saveBackupSettings(newSettings);
     res.json({ success: true, settings: newSettings });
   } catch (error) {

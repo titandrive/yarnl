@@ -4768,6 +4768,40 @@ function initSettings() {
 
     // Settings search functionality
     initSettingsSearch();
+
+    // Swipe between settings sections on mobile
+    if (window.matchMedia('(max-width: 768px)').matches) {
+        const settingsContent = document.querySelector('.settings-content');
+        if (settingsContent) {
+            let startX = 0, startY = 0, tracking = false;
+
+            settingsContent.addEventListener('touchstart', (e) => {
+                if (e.target.closest('.toggle-switch, select, input, button, .toggle-slider')) return;
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+                tracking = true;
+            }, { passive: true });
+
+            settingsContent.addEventListener('touchend', (e) => {
+                if (!tracking) return;
+                tracking = false;
+
+                const diffX = e.changedTouches[0].clientX - startX;
+                const diffY = e.changedTouches[0].clientY - startY;
+                if (Math.abs(diffX) < 80 || Math.abs(diffY) > Math.abs(diffX)) return;
+
+                const visibleBtns = [...document.querySelectorAll('.settings-nav-btn')].filter(b => b.style.display !== 'none');
+                const activeBtn = document.querySelector('.settings-nav-btn.active');
+                const currentIdx = visibleBtns.indexOf(activeBtn);
+                if (currentIdx === -1) return;
+
+                const nextIdx = diffX < 0 ? currentIdx + 1 : currentIdx - 1;
+                if (nextIdx >= 0 && nextIdx < visibleBtns.length) {
+                    switchToSettingsSection(visibleBtns[nextIdx].dataset.section, true);
+                }
+            }, { passive: true });
+        }
+    }
 }
 
 function initSettingsSearch() {

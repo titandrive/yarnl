@@ -206,7 +206,7 @@ function updateUIForUser() {
     // Update current user info
     const userInfo = document.getElementById('current-user-info');
     if (userInfo && currentUser) {
-        userInfo.textContent = `${currentUser.displayName || currentUser.username} (${currentUser.role})`;
+        userInfo.textContent = `${currentUser.username} (${currentUser.role})`;
     }
 }
 
@@ -862,7 +862,7 @@ function initUserManagement() {
     // Update current user info
     const userInfo = document.getElementById('current-user-info');
     if (userInfo && currentUser) {
-        userInfo.textContent = `${currentUser.displayName || currentUser.username} (${currentUser.role})`;
+        userInfo.textContent = `${currentUser.username} (${currentUser.role})`;
     }
 
     // Show/hide admin nav button based on role
@@ -886,7 +886,12 @@ function initUserManagement() {
             changePasswordBtn.style.display = 'none';
             changePasswordForm.style.display = 'flex';
             changePasswordItem.classList.add('expanded');
-            document.getElementById('current-password-input').focus();
+            const curInput = document.getElementById('current-password-input');
+            if (curInput && curInput.style.display !== 'none') {
+                curInput.focus();
+            } else {
+                document.getElementById('new-password-input').focus();
+            }
         });
         document.getElementById('cancel-password-btn').addEventListener('click', () => {
             changePasswordForm.style.display = 'none';
@@ -962,38 +967,26 @@ async function loadAccountInfo() {
 
         // Password section - hide entirely if user can't change password
         const passwordHeading = document.getElementById('password-section-heading');
-        const passwordSettingItem = document.getElementById('password-setting-item');
-        const passwordStatus = document.getElementById('password-status');
         const removePasswordItem = document.getElementById('remove-password-item');
         const changePasswordItem = document.getElementById('change-password-item');
 
         if (account.allow_password_change) {
             // Show password section
             if (passwordHeading) passwordHeading.style.display = '';
-            if (passwordSettingItem) passwordSettingItem.style.display = '';
             if (changePasswordItem) changePasswordItem.style.display = '';
-
-            if (passwordStatus) {
-                if (account.has_password) {
-                    passwordStatus.textContent = account.password_required
-                        ? 'Set (required by admin)'
-                        : 'Set';
-                } else {
-                    passwordStatus.textContent = account.password_required
-                        ? 'Not set (required by admin - contact admin)'
-                        : 'Not set (passwordless login)';
-                }
-            }
 
             // Update button text and description based on whether password is set
             const changePasswordBtn = document.getElementById('change-password-btn');
             const changePasswordDesc = changePasswordItem?.querySelector('.setting-description');
+            const currentPasswordInput = document.getElementById('current-password-input');
             if (account.has_password) {
                 if (changePasswordBtn) changePasswordBtn.textContent = 'Change Password';
                 if (changePasswordDesc) changePasswordDesc.textContent = 'Set a new password for your account';
+                if (currentPasswordInput) currentPasswordInput.style.display = '';
             } else {
                 if (changePasswordBtn) changePasswordBtn.textContent = 'Set Password';
                 if (changePasswordDesc) changePasswordDesc.textContent = 'Set a password for your account';
+                if (currentPasswordInput) currentPasswordInput.style.display = 'none';
             }
 
             // Show remove password option only if user has password and it's not required
@@ -1003,7 +996,6 @@ async function loadAccountInfo() {
         } else {
             // Hide entire password section
             if (passwordHeading) passwordHeading.style.display = 'none';
-            if (passwordSettingItem) passwordSettingItem.style.display = 'none';
             if (changePasswordItem) changePasswordItem.style.display = 'none';
             if (removePasswordItem) removePasswordItem.style.display = 'none';
         }

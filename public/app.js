@@ -3180,8 +3180,25 @@ function initTheme() {
     if (mascotHomeLink) {
         mascotHomeLink.addEventListener('click', (e) => {
             e.preventDefault();
+            const mascotAction = localStorage.getItem('mascotAction') || 'home';
+            if (mascotAction === 'recent') {
+                const lastPatternId = localStorage.getItem('lastOpenedPatternId');
+                if (lastPatternId) {
+                    openPDFViewer(lastPatternId);
+                    return;
+                }
+            }
             const defaultPage = localStorage.getItem('defaultPage') || 'current';
             switchToTab(defaultPage);
+        });
+    }
+
+    // Mascot action setting
+    const mascotActionSelect = document.getElementById('mascot-action-select');
+    if (mascotActionSelect) {
+        mascotActionSelect.value = localStorage.getItem('mascotAction') || 'home';
+        mascotActionSelect.addEventListener('change', () => {
+            localStorage.setItem('mascotAction', mascotActionSelect.value);
         });
     }
 
@@ -8937,6 +8954,9 @@ async function openPDFViewer(patternId, pushHistory = true) {
             return;
         }
         const pattern = await response.json();
+
+        // Save for mascot "recent pattern" action
+        localStorage.setItem('lastOpenedPatternId', id);
 
         // Track last opened time (fire-and-forget)
         fetch(`${API_URL}/api/patterns/${id}/opened`, { method: 'POST' }).catch(() => {});

@@ -8405,6 +8405,12 @@ function initPDFViewer() {
     backBtn.addEventListener('click', closePDFViewer);
     prevPageBtn.addEventListener('click', () => changePage(-1));
     nextPageBtn.addEventListener('click', () => changePage(1));
+
+    // Desktop floating page arrows
+    const desktopPrevPage = document.getElementById('desktop-prev-page');
+    const desktopNextPage = document.getElementById('desktop-next-page');
+    if (desktopPrevPage) desktopPrevPage.addEventListener('click', () => changePage(-1));
+    if (desktopNextPage) desktopNextPage.addEventListener('click', () => changePage(1));
     addCounterBtn.addEventListener('click', () => addCounter());
     notesBtn.addEventListener('click', toggleNotesPopover);
     notesCloseBtn.addEventListener('click', closeNotesPopover);
@@ -9019,9 +9025,18 @@ async function openPDFViewer(patternId, pushHistory = true) {
                         if (next) next.style.display = 'none';
                     }
                 }
+                // Show/hide desktop page arrows based on scroll mode + setting
+                const hideDesktopArrows = scrollPref === 'scroll' && localStorage.getItem('scrollPageButtons') !== 'true';
+                const dPrev = document.getElementById('desktop-prev-page');
+                const dNext = document.getElementById('desktop-next-page');
+                if (dPrev) dPrev.style.display = hideDesktopArrows ? 'none' : '';
+                if (dNext) dNext.style.display = hideDesktopArrows ? 'none' : '';
                 viewerApp.eventBus.on('pagechanging', (evt) => {
                     currentPageNum = evt.pageNumber;
                     mobileBar.updatePageInfo();
+                    // Update desktop arrow disabled states
+                    if (dPrev) dPrev.disabled = evt.pageNumber <= 1;
+                    if (dNext) dNext.disabled = evt.pageNumber >= viewerApp.pagesCount;
                 });
                 // Auto-save annotations - set up after document loads
                 const patternId = pattern.id;

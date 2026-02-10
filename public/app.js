@@ -9065,6 +9065,18 @@ async function openPDFViewer(patternId, pushHistory = true) {
                 const dNext = document.getElementById('desktop-next-page');
                 if (dPrev) dPrev.style.display = hideDesktopArrows ? 'none' : '';
                 if (dNext) dNext.style.display = hideDesktopArrows ? 'none' : '';
+                // Forward keydown events from iframe to parent so shortcuts work
+                pdfIframe.contentDocument.addEventListener('keydown', (e) => {
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    document.dispatchEvent(new KeyboardEvent('keydown', {
+                        key: e.key, code: e.code, keyCode: e.keyCode,
+                        ctrlKey: e.ctrlKey, shiftKey: e.shiftKey, altKey: e.altKey, metaKey: e.metaKey,
+                        bubbles: true
+                    }));
+                });
+
                 viewerApp.eventBus.on('pagechanging', (evt) => {
                     currentPageNum = evt.pageNumber;
                     mobileBar.updatePageInfo();

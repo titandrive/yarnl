@@ -5048,6 +5048,12 @@ async function createScheduledBackup() {
       dbExport.tables.pattern_hashtags = [];
     }
 
+    // Fetch client settings from DB before creating archive
+    const userSettingsResult = await pool.query(
+      'SELECT client_settings FROM users WHERE id = $1', [userId]
+    );
+    const clientSettings = userSettingsResult.rows[0]?.client_settings;
+
     // Create zip archive
     const output = fs.createWriteStream(backupPath);
     const archive = archiver('zip', { zlib: { level: 9 } });
@@ -5058,6 +5064,10 @@ async function createScheduledBackup() {
 
       archive.pipe(output);
       archive.append(JSON.stringify(dbExport, null, 2), { name: 'database.json' });
+
+      if (clientSettings) {
+        archive.append(JSON.stringify(clientSettings, null, 2), { name: 'settings.json' });
+      }
 
       // Add PDF patterns and thumbnails
       if (settings.includePatterns && fs.existsSync(userPatternsDir)) {

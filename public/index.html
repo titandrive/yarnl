@@ -25,6 +25,9 @@
                 earlyStyles += '#add-pattern-btn{display:none!important}';
             }
             document.write('<style id="early-tab-style">' + earlyStyles + '</style>');
+            if ((localStorage.getItem('pdfScrollMode') || 'scroll') === 'scroll' && localStorage.getItem('scrollPageButtons') !== 'true') {
+                document.write('<style id="early-hide-page-btns">.mobile-page-prev,.mobile-page-next{display:none!important}</style>');
+            }
         } else {
             // Not authenticated — hide app container, show login
             document.write('<style id="early-tab-style">.container{display:none!important}</style>');
@@ -1144,6 +1147,16 @@ Inc in each st around (12)
                                 <option value="page">Paginated</option>
                                 <option value="scroll">Scroll</option>
                             </select>
+                        </div>
+                        <div class="setting-item" id="scroll-page-buttons-container" style="display: none;">
+                            <div class="setting-info">
+                                <label>Page Buttons</label>
+                                <p class="setting-description">Show next/prev buttons in scroll mode</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="scroll-page-buttons-checkbox">
+                                <span class="toggle-slider"></span>
+                            </label>
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">

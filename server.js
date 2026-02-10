@@ -640,14 +640,14 @@ app.post('/api/auth/change-password', authMiddleware, async (req, res) => {
       if (!currentPassword) {
         return res.status(400).json({ error: 'Current password is required' });
       }
-      const valid = await bcrypt.compare(currentPassword, user.password_hash);
+      const valid = await verifyPassword(currentPassword, user.password_hash);
       if (!valid) {
         return res.status(401).json({ error: 'Current password is incorrect' });
       }
     }
 
     // Hash and save new password
-    const hash = await bcrypt.hash(newPassword, 10);
+    const hash = await hashPassword(newPassword);
     await pool.query(
       'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
       [hash, req.user.id]
@@ -4590,7 +4590,7 @@ app.get('/api/stats', authMiddleware, async (req, res) => {
       totalCategories: patternsByCategory.length,
       totalSize,
       libraryPath: isAdmin ? '/opt/yarnl/users' : `/opt/yarnl/users/${username}`,
-      backupHostPath: process.env.BACKUP_HOST_PATH || './backups'
+      backupHostPath: `/opt/yarnl/users/${username}/backups`
     });
   } catch (error) {
     console.error('Error fetching stats:', error);

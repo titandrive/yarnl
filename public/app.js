@@ -4608,11 +4608,29 @@ function initSettings() {
 
     // PDF scroll mode setting
     const pdfScrollModeSelect = document.getElementById('pdf-scroll-mode-select');
+    const scrollPageButtonsContainer = document.getElementById('scroll-page-buttons-container');
+    const scrollPageButtonsCheckbox = document.getElementById('scroll-page-buttons-checkbox');
     if (pdfScrollModeSelect) {
         pdfScrollModeSelect.value = localStorage.getItem('pdfScrollMode') || 'scroll';
+        // Show page buttons toggle only when in scroll mode
+        if (scrollPageButtonsContainer) {
+            scrollPageButtonsContainer.style.display = pdfScrollModeSelect.value === 'scroll' ? '' : 'none';
+        }
         pdfScrollModeSelect.addEventListener('change', () => {
             localStorage.setItem('pdfScrollMode', pdfScrollModeSelect.value);
             showToast(pdfScrollModeSelect.value === 'page' ? 'Paginated mode' : 'Scroll mode');
+            if (scrollPageButtonsContainer) {
+                scrollPageButtonsContainer.style.display = pdfScrollModeSelect.value === 'scroll' ? '' : 'none';
+            }
+        });
+    }
+    if (scrollPageButtonsCheckbox) {
+        scrollPageButtonsCheckbox.checked = localStorage.getItem('scrollPageButtons') === 'true';
+        scrollPageButtonsCheckbox.addEventListener('change', () => {
+            localStorage.setItem('scrollPageButtons', scrollPageButtonsCheckbox.checked);
+            const earlyHide = document.getElementById('early-hide-page-btns');
+            if (earlyHide) earlyHide.remove();
+            showToast(scrollPageButtonsCheckbox.checked ? 'Page buttons shown' : 'Page buttons hidden');
         });
     }
 
@@ -8991,6 +9009,16 @@ async function openPDFViewer(patternId, pushHistory = true) {
                 // Set scroll mode from user preference (page=3, scroll=0)
                 const scrollPref = localStorage.getItem('pdfScrollMode') || 'scroll';
                 viewerApp.pdfViewer.scrollMode = scrollPref === 'page' ? 3 : 0;
+                // Hide mobile page buttons in scroll mode unless setting is on
+                if (scrollPref === 'scroll' && localStorage.getItem('scrollPageButtons') !== 'true') {
+                    const bar = document.getElementById('mobile-bottom-bar');
+                    if (bar) {
+                        const prev = bar.querySelector('.mobile-page-prev');
+                        const next = bar.querySelector('.mobile-page-next');
+                        if (prev) prev.style.display = 'none';
+                        if (next) next.style.display = 'none';
+                    }
+                }
                 viewerApp.eventBus.on('pagechanging', (evt) => {
                     currentPageNum = evt.pageNumber;
                     mobileBar.updatePageInfo();
@@ -9474,6 +9502,14 @@ async function closePDFViewer() {
         if (zoomOverlay) zoomOverlay.style.display = '';
         const navControls = document.querySelector('.pdf-nav-controls');
         if (navControls) navControls.style.display = '';
+        // Restore mobile page buttons
+        const bar = document.getElementById('mobile-bottom-bar');
+        if (bar) {
+            const prev = bar.querySelector('.mobile-page-prev');
+            const next = bar.querySelector('.mobile-page-next');
+            if (prev) prev.style.display = '';
+            if (next) next.style.display = '';
+        }
     }
 
     // Clear viewing pattern from sessionStorage

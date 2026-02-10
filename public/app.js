@@ -2618,7 +2618,7 @@ function initTheme() {
     const themeModeDarkBtn = document.getElementById('theme-mode-dark');
     const themeGridStandard = document.getElementById('theme-grid-standard');
     const themeGridDark = document.getElementById('theme-grid-dark');
-    const themeModalPartyBtn = document.getElementById('theme-modal-party-btn');
+    const themeModalPartyBtn = document.getElementById('party-mode-btn');
     const amoledToggle = document.getElementById('theme-amoled-toggle');
     const amoledRow = document.getElementById('theme-amoled-row');
     const gradientCheckbox = document.getElementById('gradient-checkbox');

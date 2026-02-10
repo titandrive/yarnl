@@ -2848,6 +2848,54 @@ body.global-drag-over #current::after {
     touch-action: pan-x pan-y; /* Allow panning but not browser zoom */
 }
 
+.desktop-page-arrow {
+    display: none;
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    color: var(--text-color);
+}
+
+.pdf-viewer-wrapper:hover .desktop-page-arrow {
+    display: flex;
+    opacity: 0.4;
+}
+
+.desktop-page-arrow:hover {
+    opacity: 1 !important;
+    background: var(--hover-bg);
+}
+
+.desktop-page-prev {
+    left: 12px;
+}
+
+.desktop-page-next {
+    right: 12px;
+}
+
+.desktop-page-arrow:disabled {
+    opacity: 0.1 !important;
+    cursor: default;
+}
+
+@media (max-width: 768px) {
+    .desktop-page-arrow {
+        display: none !important;
+    }
+}
+
 .native-pdf-viewer {
     width: 100%;
     height: 100%;

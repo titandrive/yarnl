@@ -9068,6 +9068,9 @@ async function openPDFViewer(patternId, pushHistory = true) {
                 // Forward keydown events from iframe to parent so shortcuts work
                 pdfIframe.contentDocument.addEventListener('keydown', (e) => {
                     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                    const isArrowKey = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key);
+                    const arrowKeysScroll = localStorage.getItem('arrowKeysScroll') === 'true';
+                    if (isArrowKey && arrowKeysScroll) return;
                     e.preventDefault();
                     e.stopPropagation();
                     document.dispatchEvent(new KeyboardEvent('keydown', {

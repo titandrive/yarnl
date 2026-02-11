@@ -2130,6 +2130,23 @@ app.get('/api/patterns/:id/thumbnail', async (req, res) => {
   }
 });
 
+// Get most recently opened pattern (must come before /api/patterns/:id)
+app.get('/api/patterns/recent', async (req, res) => {
+  try {
+    let result;
+    if (req.user?.role === 'admin') {
+      result = await pool.query('SELECT id FROM patterns WHERE last_opened_at IS NOT NULL ORDER BY last_opened_at DESC LIMIT 1');
+    } else {
+      result = await pool.query('SELECT id FROM patterns WHERE user_id = $1 AND last_opened_at IS NOT NULL ORDER BY last_opened_at DESC LIMIT 1', [req.user?.id]);
+    }
+    if (result.rows.length === 0) return res.json({ id: null });
+    res.json({ id: result.rows[0].id });
+  } catch (error) {
+    console.error('Error getting recent pattern:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get current patterns (must come before /api/patterns/:id)
 app.get('/api/patterns/current', async (req, res) => {
   try {

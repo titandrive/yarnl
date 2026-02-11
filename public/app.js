@@ -9946,20 +9946,21 @@ function displayCounters() {
                 <input type="text" value="${escapeHtml(counter.name)}"
                        onchange="updateCounterName(${counter.id}, this.value)"
                        onkeydown="if(event.key==='Enter'){this.blur()}"
-                       onclick="event.stopPropagation()"
+                       onclick="event.stopPropagation(); selectCounter(${counter.id})"
+                       onfocus="selectCounter(${counter.id})"
                        placeholder="Counter name">
             </div>
             <div class="counter-value">${counter.value}</div>
             <div class="counter-controls">
-                <button class="counter-btn counter-btn-minus" onclick="event.stopPropagation(); decrementCounter(${counter.id})">−</button>
-                <button class="counter-btn counter-btn-plus" onclick="event.stopPropagation(); incrementCounter(${counter.id})">+</button>
-                <button class="counter-btn counter-btn-reset" onclick="handleCounterReset(event, ${counter.id})" title="Click twice to reset">
+                <button class="counter-btn counter-btn-minus" onclick="event.stopPropagation(); selectCounter(${counter.id}); decrementCounter(${counter.id})">−</button>
+                <button class="counter-btn counter-btn-plus" onclick="event.stopPropagation(); selectCounter(${counter.id}); incrementCounter(${counter.id})">+</button>
+                <button class="counter-btn counter-btn-reset" onclick="selectCounter(${counter.id}); handleCounterReset(event, ${counter.id})" title="Click twice to reset">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
                         <path d="M3 3v5h5"/>
                     </svg>
                 </button>
-                <button class="counter-btn counter-btn-delete" onclick="handleCounterDelete(event, ${counter.id})" title="Click twice to delete">
+                <button class="counter-btn counter-btn-delete" onclick="selectCounter(${counter.id}); handleCounterDelete(event, ${counter.id})" title="Click twice to delete">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="18" y1="6" x2="6" y2="18"></line>
                         <line x1="6" y1="6" x2="18" y2="18"></line>
@@ -9973,8 +9974,13 @@ function displayCounters() {
 }
 
 function selectCounter(counterId) {
+    if (lastUsedCounterId === counterId) return;
     lastUsedCounterId = counterId;
-    displayCounters();
+    // Update active class without full re-render
+    document.querySelectorAll('.counter-item').forEach(el => {
+        el.classList.toggle('active', parseInt(el.dataset.counterId) === counterId);
+    });
+    mobileBar.update();
 }
 
 // Mobile Bar (top bar + bottom bar for mobile PDF viewer)

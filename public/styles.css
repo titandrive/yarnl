@@ -3134,16 +3134,16 @@ body.global-drag-over #current::after {
 }
 
 .counter-btn-reset {
-    background: var(--warning-color);
+    background: #3b82f6;
     color: white;
 }
 
 .counter-btn-reset:hover {
-    background: #d97706;
+    background: #2563eb;
 }
 
 .counter-btn-reset.confirming {
-    background: #b45309;
+    background: #1d4ed8;
     animation: pulse-warning 0.6s ease-in-out infinite;
 }
 

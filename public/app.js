@@ -8744,6 +8744,12 @@ function initPDFViewer() {
             return;
         }
 
+        // Hidden desktop border toggle (w key)
+        if (e.key === 'w' || e.key === 'W') {
+            document.documentElement.classList.toggle('desktop-borders');
+            return;
+        }
+
         const isPdfViewerOpen = pdfViewerContainer.style.display === 'flex';
         const isMarkdownViewerOpen = markdownViewerContainer && markdownViewerContainer.style.display === 'flex';
 

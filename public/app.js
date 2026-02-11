@@ -10431,18 +10431,6 @@ async function openNotesPopover() {
 
     if (!currentPattern) return;
 
-    // Restore saved size from localStorage
-    const savedSize = localStorage.getItem('notesPopoverSize');
-    if (savedSize) {
-        try {
-            const { width, height } = JSON.parse(savedSize);
-            popover.style.width = width + 'px';
-            popover.style.height = height + 'px';
-        } catch (e) {
-            // Ignore invalid saved data
-        }
-    }
-
     // Load notes from API
     try {
         const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/notes`);
@@ -10471,7 +10459,17 @@ async function openNotesPopover() {
         switchNotesTab('edit');
     }
 
-    popover.style.display = 'flex';
+    // Restore saved size
+    let noteWidth = 650, noteHeight = 500;
+    const savedSize = localStorage.getItem('notesPopoverSize');
+    if (savedSize) {
+        try {
+            const parsed = JSON.parse(savedSize);
+            noteWidth = parsed.width;
+            noteHeight = parsed.height;
+        } catch (e) { /* use defaults */ }
+    }
+    popover.style.cssText = `display: flex; width: ${noteWidth}px; height: ${noteHeight}px;`;
 }
 
 function closeNotesPopover() {
@@ -10499,13 +10497,18 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Close notes popover when clicking into PDF iframe (window loses focus)
+// Close notes popover when clicking into PDF iframe (window loses focus to iframe)
 window.addEventListener('blur', () => {
-    const popover = document.getElementById('notes-popover');
-    if (popover && popover.style.display !== 'none') {
-        closeNotesPopover();
-    }
+    setTimeout(() => {
+        if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
+            const popover = document.getElementById('notes-popover');
+            if (popover && popover.style.display !== 'none') {
+                closeNotesPopover();
+            }
+        }
+    }, 0);
 });
+
 
 function initNotesDrag() {
     const popover = document.getElementById('notes-popover');

@@ -34,6 +34,16 @@
     --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #faf5ff 100%);
     --upload-bg: #f9fafb;
     --font-family: 'JetBrains Mono', sans-serif;
+    --counter-minus-bg: #6b7280;
+    --counter-minus-hover: #4b5563;
+    --counter-plus-bg: var(--primary-color);
+    --counter-plus-hover: #7c3aed;
+    --counter-reset-bg: #3b82f6;
+    --counter-reset-hover: #2563eb;
+    --counter-reset-confirm: #1d4ed8;
+    --counter-delete-bg: var(--danger-color);
+    --counter-delete-hover: #dc2626;
+    --counter-delete-confirm: #b91c1c;
 }
 
 /* Theme: Lavender (Default) - Dark */
@@ -395,6 +405,16 @@
     --hover-bg: #f5f5f5;
     --counter-card-bg: linear-gradient(135deg, #ffffff 0%, #fdf4ff 100%);
     --upload-bg: #f5f5f5;
+    --counter-minus-bg: #9ca3af;
+    --counter-minus-hover: #6b7280;
+    --counter-plus-bg: var(--primary-color);
+    --counter-plus-hover: #c026d3;
+    --counter-reset-bg: #06b6d4;
+    --counter-reset-hover: #0891b2;
+    --counter-reset-confirm: #0e7490;
+    --counter-delete-bg: var(--danger-color);
+    --counter-delete-hover: #dc2626;
+    --counter-delete-confirm: #b91c1c;
 }
 
 /* Theme: Cyberpunk (Magenta/Cyan) - Dark */
@@ -415,6 +435,16 @@
     --hover-bg: #333333;
     --counter-card-bg: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
     --upload-bg: #1a1a1a;
+    --counter-minus-bg: #555;
+    --counter-minus-hover: #777;
+    --counter-plus-bg: var(--primary-color);
+    --counter-plus-hover: #dd00dd;
+    --counter-reset-bg: #00c8d4;
+    --counter-reset-hover: #00f0ff;
+    --counter-reset-confirm: #0099aa;
+    --counter-delete-bg: var(--danger-color);
+    --counter-delete-hover: #ff1744;
+    --counter-delete-confirm: #cc0033;
 }
 
 /* Theme: Dracula - Light */
@@ -3116,34 +3146,34 @@ body.global-drag-over #current::after {
 }
 
 .counter-btn-minus {
-    background: #6b7280;
+    background: var(--counter-minus-bg);
     color: white;
 }
 
 .counter-btn-minus:hover {
-    background: #4b5563;
+    background: var(--counter-minus-hover);
 }
 
 .counter-btn-plus {
-    background: var(--primary-color);
+    background: var(--counter-plus-bg);
     color: white;
 }
 
 .counter-btn-plus:hover {
-    background: #7c3aed;
+    background: var(--counter-plus-hover);
 }
 
 .counter-btn-reset {
-    background: #3b82f6;
+    background: var(--counter-reset-bg);
     color: white;
 }
 
 .counter-btn-reset:hover {
-    background: #2563eb;
+    background: var(--counter-reset-hover);
 }
 
 .counter-btn-reset.confirming {
-    background: #1d4ed8;
+    background: var(--counter-reset-confirm);
     animation: pulse-warning 0.6s ease-in-out infinite;
 }
 
@@ -3153,16 +3183,16 @@ body.global-drag-over #current::after {
 }
 
 .counter-btn-delete {
-    background: var(--danger-color);
+    background: var(--counter-delete-bg);
     color: white;
 }
 
 .counter-btn-delete:hover {
-    background: #dc2626;
+    background: var(--counter-delete-hover);
 }
 
 .counter-btn-delete.confirming {
-    background: #b91c1c;
+    background: var(--counter-delete-confirm);
 }
 
 .counter-actions {

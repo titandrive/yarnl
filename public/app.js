@@ -14,7 +14,7 @@ const SYNCED_SETTING_KEYS = [
     'useGradient', 'tagline', 'showTagline', 'showLogo',
     'showHeaderThemeToggle', 'fontFamily', 'customFontName',
     // Mascot
-    'selectedMascot', 'themeMascotEnabled',
+    'selectedMascot', 'themeMascotEnabled', 'mascotAction',
     // Library display
     'showTabCounts', 'showTypeBadge', 'showStatusBadge',
     'showCategoryBadge', 'showStarBadge',
@@ -24,6 +24,9 @@ const SYNCED_SETTING_KEYS = [
     'libraryCategoryFilter',
     // Navigation & PDF
     'defaultPage', 'defaultPdfZoom', 'pdfScrollMode', 'arrowKeysScroll',
+    'scrollPageButtons',
+    // Projects
+    'projectSort', 'projectShowFilter',
     // Behavior
     'autoCurrentOnTimer', 'autoTimerDefault', 'defaultCategory',
     'enableDirectDelete', 'hapticFeedback', 'keyboardShortcuts',
@@ -4769,6 +4772,7 @@ function initSettings() {
     settingsNavBtns.forEach(btn => {
         btn.addEventListener('click', () => {
             const section = btn.dataset.section;
+            btn.blur();
             // Clear search when clicking nav
             clearSettingsSearch();
             switchToSettingsSection(section, true);
@@ -4976,6 +4980,7 @@ function switchToSettingsSection(section, updateHistory = true) {
     settingsNavBtns.forEach(b => {
         if (b.dataset.section === section) {
             b.classList.add('active');
+            b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
         } else {
             b.classList.remove('active');
         }
@@ -5029,16 +5034,20 @@ async function loadArchiveSettings() {
         }
     }
 
-    // Helper to update warning visibility based on archived pattern count
+    // Helper to update warning visibility based on archived item count
     async function updateWarningVisibility() {
         if (!deleteModeWarning || enableDirectDelete) {
             if (deleteModeWarning) deleteModeWarning.style.display = 'none';
             return;
         }
         try {
-            const response = await fetch(`${API_URL}/api/patterns/archived`);
-            const archived = await response.json();
-            deleteModeWarning.style.display = archived.length > 0 ? 'block' : 'none';
+            const [patResponse, projResponse] = await Promise.all([
+                fetch(`${API_URL}/api/patterns/archived`),
+                fetch(`${API_URL}/api/projects/archived`)
+            ]);
+            const archivedPatterns = await patResponse.json();
+            const archivedProjects = await projResponse.json();
+            deleteModeWarning.style.display = (archivedPatterns.length + archivedProjects.length) > 0 ? 'block' : 'none';
         } catch (error) {
             deleteModeWarning.style.display = 'none';
         }
@@ -5079,39 +5088,45 @@ async function loadArchiveSettings() {
             // If confirming deletion (check this FIRST before the async call resets state)
             if (turningOn && pending) {
                 console.log('Confirming deletion');
-                // Delete all archived patterns
+                // Delete all archived patterns and projects
                 try {
                     await fetch(`${API_URL}/api/patterns/archived/all`, { method: 'DELETE' });
-                    showToast('Archived patterns deleted');
+                    showToast('Archived patterns and projects deleted');
                     await loadArchivedPatternsUI();
                 } catch (error) {
-                    console.error('Error deleting archived patterns:', error);
+                    console.error('Error deleting archived items:', error);
                 }
                 resetConfirmState();
                 // Continue to enable delete mode below
             }
-            // If turning ON and there are archived patterns, require confirmation
+            // If turning ON and there are archived items, require confirmation
             else if (turningOn && !pending) {
-                console.log('First click - checking for archived patterns');
-                // Check if there are archived patterns
+                console.log('First click - checking for archived items');
                 try {
-                    const response = await fetch(`${API_URL}/api/patterns/archived`);
-                    const archived = await response.json();
-                    console.log('Archived patterns:', archived.length);
+                    const [patResponse, projResponse] = await Promise.all([
+                        fetch(`${API_URL}/api/patterns/archived`),
+                        fetch(`${API_URL}/api/projects/archived`)
+                    ]);
+                    const archivedPatterns = await patResponse.json();
+                    const archivedProjects = await projResponse.json();
+                    const totalCount = archivedPatterns.length + archivedProjects.length;
 
-                    if (archived.length > 0) {
-                        // Prevent the toggle from activating yet
+                    if (totalCount > 0) {
+                        const parts = [];
+                        if (archivedPatterns.length > 0) parts.push(`${archivedPatterns.length} pattern${archivedPatterns.length !== 1 ? 's' : ''}`);
+                        if (archivedProjects.length > 0) parts.push(`${archivedProjects.length} project${archivedProjects.length !== 1 ? 's' : ''}`);
+                        const label = parts.join(' and ');
                         enableDeleteCheckbox.checked = false;
                         setPendingConfirm();
                         if (toggleSwitch) {
                             toggleSwitch.classList.add('confirm-state');
-                            toggleSwitch.title = `Click again to delete ${archived.length} archived pattern${archived.length !== 1 ? 's' : ''} and enable`;
+                            toggleSwitch.title = `Click again to delete ${label} and enable`;
                         }
-                        showToast(`Click again to delete ${archived.length} archived pattern${archived.length !== 1 ? 's' : ''}`);
+                        showToast(`Click again to delete ${label}`);
                         return;
                     }
                 } catch (error) {
-                    console.error('Error checking archived patterns:', error);
+                    console.error('Error checking archived items:', error);
                 }
             }
 
@@ -10497,7 +10512,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// Close notes popover when clicking into PDF iframe (window loses focus to iframe)
+// Close notes popover and mobile menu when clicking into PDF iframe (window loses focus to iframe)
 window.addEventListener('blur', () => {
     setTimeout(() => {
         if (document.activeElement && document.activeElement.tagName === 'IFRAME') {
@@ -10505,6 +10520,8 @@ window.addEventListener('blur', () => {
             if (popover && popover.style.display !== 'none') {
                 closeNotesPopover();
             }
+            const mobileMenu = document.getElementById('mobile-menu');
+            if (mobileMenu) mobileMenu.style.display = 'none';
         }
     }, 0);
 });

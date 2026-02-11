@@ -4546,6 +4546,20 @@ body.global-drag-over #current::after {
         flex-shrink: 0;
         padding: 10px 14px;
         width: auto;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .settings-nav-btn:focus,
+    .settings-nav-btn:hover {
+        outline: none;
+        background: transparent;
+    }
+
+    .settings-nav-btn.active,
+    .settings-nav-btn.active:hover,
+    .settings-nav-btn.active:focus {
+        background: var(--primary-color);
+        color: white;
     }
 
     .settings-nav-btn span {

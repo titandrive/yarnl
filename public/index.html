@@ -34,7 +34,7 @@
         }
     </script>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=171">
+    <link rel="stylesheet" href="styles.css?v=174">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -1571,7 +1571,7 @@ Inc in each st around (12)
                             <div class="setting-info">
                                 <label>Delete instead of archive</label>
                                 <p class="setting-description">Disables archive and replaces archive button with delete button that permanently deletes files</p>
-                                <p class="setting-description" id="delete-mode-warning" style="display: none; font-style: italic;">Enabling will permanently delete all archived patterns</p>
+                                <p class="setting-description" id="delete-mode-warning" style="display: none; font-style: italic;">Enabling will permanently delete all archived patterns and projects</p>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="enable-delete-checkbox">
@@ -1583,7 +1583,7 @@ Inc in each st around (12)
                             <div class="setting-item">
                                 <div class="setting-info">
                                     <label>Auto Empty</label>
-                                    <p class="setting-description">Automatically delete archived patterns after a set time</p>
+                                    <p class="setting-description">Automatically delete archived patterns and projects after a set time</p>
                                 </div>
                                 <label class="toggle-switch">
                                     <input type="checkbox" id="auto-delete-checkbox">
@@ -1594,7 +1594,7 @@ Inc in each st around (12)
                             <div class="setting-item" id="auto-delete-days-setting" style="display: none;">
                                 <div class="setting-info">
                                     <label>Empty After</label>
-                                    <p class="setting-description">Days before archived patterns are permanently deleted</p>
+                                    <p class="setting-description">Days before archived patterns and projects are permanently deleted</p>
                                 </div>
                                 <div class="setting-input-group">
                                     <input type="number" id="auto-delete-days" class="settings-input" min="1" max="365" value="30" style="width: 70px;">
@@ -2658,6 +2658,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=154"></script>
+    <script defer src="app.js?v=158"></script>
 </body>
 </html>

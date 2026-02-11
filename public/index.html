@@ -10,6 +10,9 @@
         // Set theme and background immediately to prevent flash between splash screen and page
         const theme = localStorage.getItem('theme') || 'dark';
         document.documentElement.setAttribute('data-theme', theme);
+        if (navigator.userAgent.includes('YarnlAndroid')) {
+            document.documentElement.classList.add('yarnl-android');
+        }
         // Set mascot immediately to prevent flash
         const savedMascot = localStorage.getItem('selectedMascot');
         if (savedMascot) {

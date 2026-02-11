@@ -833,21 +833,10 @@ body.screenshot-mode-green .container {
     overflow: hidden;
 }
 
-@media (min-width: 769px) {
-    .desktop-borders body {
-        padding: 20px;
-    }
-    .desktop-borders .container {
-        max-width: 1900px;
-        border-radius: 20px;
-        box-shadow: var(--shadow);
-    }
-}
 
-@media (min-width: 1920px) {
-    .desktop-borders body {
-        padding: 20px 40px;
-    }
+
+.yarnl-android header {
+    padding-top: 25px;
 }
 
 header {

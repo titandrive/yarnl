@@ -29,7 +29,7 @@ const SYNCED_SETTING_KEYS = [
     'projectSort', 'projectShowFilter',
     // Behavior
     'autoCurrentOnTimer', 'autoTimerDefault', 'defaultCategory',
-    'enableDirectDelete', 'hapticFeedback', 'keyboardShortcuts',
+    'enableDirectDelete', 'hapticFeedback', 'wakeLock', 'keyboardShortcuts',
     // Notes
     'notesLivePreview', 'notesPopoverSize',
     // Media
@@ -78,6 +78,36 @@ localStorage.removeItem = function(key) {
         scheduleSyncSettings();
     }
 };
+
+// Wake lock
+let wakeLockSentinel = null;
+
+async function requestWakeLock() {
+    if (localStorage.getItem('wakeLock') !== 'true') return;
+    if (!('wakeLock' in navigator)) return;
+    try {
+        wakeLockSentinel = await navigator.wakeLock.request('screen');
+        wakeLockSentinel.addEventListener('release', () => { wakeLockSentinel = null; });
+    } catch (e) {
+        // Wake lock request failed (e.g. low battery)
+    }
+}
+
+function releaseWakeLock() {
+    if (wakeLockSentinel) {
+        wakeLockSentinel.release();
+        wakeLockSentinel = null;
+    }
+}
+
+// Re-acquire wake lock when returning to tab (browser releases it on visibility change)
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && !wakeLockSentinel) {
+        const isPdfOpen = document.getElementById('pdf-viewer-container')?.style.display === 'flex';
+        const isMdOpen = document.getElementById('markdown-viewer-container')?.style.display === 'flex';
+        if (isPdfOpen || isMdOpen) requestWakeLock();
+    }
+});
 
 // Load settings from server and apply to localStorage
 async function loadServerSettings() {
@@ -3173,15 +3203,17 @@ function initTheme() {
     // Mascot home link
     const mascotHomeLink = document.getElementById('mascot-home-link');
     if (mascotHomeLink) {
-        mascotHomeLink.addEventListener('click', (e) => {
+        mascotHomeLink.addEventListener('click', async (e) => {
             e.preventDefault();
             const mascotAction = localStorage.getItem('mascotAction') || 'home';
             if (mascotAction === 'recent') {
-                const lastPatternId = localStorage.getItem('lastOpenedPatternId');
-                if (lastPatternId) {
-                    openPDFViewer(lastPatternId);
-                    return;
-                }
+                try {
+                    const res = await fetch(`${API_URL}/api/patterns/recent`);
+                    if (res.ok) {
+                        const { id } = await res.json();
+                        if (id) { openPDFViewer(id); return; }
+                    }
+                } catch (e) {}
             }
             const defaultPage = localStorage.getItem('defaultPage') || 'current';
             switchToTab(defaultPage);
@@ -3277,6 +3309,21 @@ function initTheme() {
             const enabled = hapticCheckbox.checked;
             localStorage.setItem('hapticFeedback', enabled);
             showToast(enabled ? 'Haptic feedback enabled' : 'Haptic feedback disabled');
+        });
+    }
+
+    // Wake lock setting
+    const wakeLockCheckbox = document.getElementById('wake-lock-checkbox');
+    const wakeLockEnabled = localStorage.getItem('wakeLock') === 'true';
+
+    if (wakeLockCheckbox) {
+        wakeLockCheckbox.checked = wakeLockEnabled;
+
+        wakeLockCheckbox.addEventListener('change', () => {
+            const enabled = wakeLockCheckbox.checked;
+            localStorage.setItem('wakeLock', enabled);
+            showToast(enabled ? 'Screen wake lock enabled' : 'Screen wake lock disabled');
+            if (!enabled) releaseWakeLock();
         });
     }
 
@@ -8963,9 +9010,6 @@ async function openPDFViewer(patternId, pushHistory = true) {
         }
         const pattern = await response.json();
 
-        // Save for mascot "recent pattern" action
-        localStorage.setItem('lastOpenedPatternId', id);
-
         // Track last opened time (fire-and-forget)
         fetch(`${API_URL}/api/patterns/${id}/opened`, { method: 'POST' }).catch(() => {});
 
@@ -9037,6 +9081,7 @@ async function openPDFViewer(patternId, pushHistory = true) {
         document.querySelector('.tabs').style.display = 'none';
         tabContents.forEach(c => c.style.display = 'none');
         pdfViewerContainer.style.display = 'flex';
+        requestWakeLock();
 
         // Re-show mobile bottom bar (cleared by tab switch)
         const mobileBottomBar = document.getElementById('mobile-bottom-bar');
@@ -9547,6 +9592,7 @@ async function changePage(delta) {
 }
 
 async function closePDFViewer() {
+    releaseWakeLock();
     // Save PDF viewer state (zoom and scroll position) before closing
     savePdfViewerState();
 
@@ -10954,6 +11000,7 @@ async function openMarkdownViewer(pattern, pushHistory = true) {
         document.querySelector('.tabs').style.display = 'none';
         tabContents.forEach(c => c.style.display = 'none');
         markdownViewerContainer.style.display = 'flex';
+        requestWakeLock();
 
         // Update header
         document.getElementById('markdown-pattern-name').textContent = pattern.name;
@@ -11105,6 +11152,7 @@ function switchMarkdownEditTab(tab) {
 }
 
 async function closeMarkdownViewer() {
+    releaseWakeLock();
     // Save timer before closing (immediate, not debounced)
     if (currentPattern && timerSeconds > 0) {
         if (timerRunning) {

@@ -824,6 +824,16 @@ body.screenshot-mode-green .container {
     box-shadow: none !important;
 }
 
+.yarnl-android body {
+    padding: 0;
+}
+
+.yarnl-android .container {
+    max-width: none;
+    border-radius: 0;
+    box-shadow: none;
+}
+
 @media (min-width: 768px) {
     body {
         padding: 20px;

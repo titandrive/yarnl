@@ -5596,7 +5596,6 @@ input[type="number"].settings-input {
     position: absolute;
     top: 70px;
     left: 20px;
-    width: 550px;
     min-width: 300px;
     min-height: 300px;
     max-width: calc(100vw - 40px);

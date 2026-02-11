@@ -2236,12 +2236,36 @@ app.delete('/api/patterns/archived/all', async (req, res) => {
     // Delete all archived patterns from database
     await pool.query('DELETE FROM patterns WHERE is_archived = true');
 
+    // Delete all archived projects
+    const projectResult = await pool.query(`
+      SELECT p.*, u.username as owner_username
+      FROM projects p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.is_archived = true
+    `);
+
+    for (const project of projectResult.rows) {
+      const ownerUsername = project.owner_username || process.env.ADMIN_USERNAME || 'admin';
+      if (project.thumbnail) {
+        const thumbnailPath = path.join(getUserThumbnailsDir(ownerUsername), project.thumbnail);
+        if (fs.existsSync(thumbnailPath)) {
+          fs.unlinkSync(thumbnailPath);
+        }
+      }
+    }
+
+    await pool.query('DELETE FROM projects WHERE is_archived = true');
+
     // Clean up all empty archive directories
     cleanupEmptyArchiveCategories();
 
-    res.json({ message: `${deletedCount} pattern${deletedCount !== 1 ? 's' : ''} permanently deleted` });
+    const projectCount = projectResult.rows.length;
+    const parts = [];
+    if (deletedCount > 0) parts.push(`${deletedCount} pattern${deletedCount !== 1 ? 's' : ''}`);
+    if (projectCount > 0) parts.push(`${projectCount} project${projectCount !== 1 ? 's' : ''}`);
+    res.json({ message: `${parts.join(' and ')} permanently deleted` });
   } catch (error) {
-    console.error('Error deleting all archived patterns:', error);
+    console.error('Error deleting all archived items:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -6142,7 +6166,7 @@ async function saveArchiveSettings(settings) {
   }
 }
 
-// Auto-delete old archived patterns
+// Auto-delete old archived patterns and projects
 async function autoDeleteOldArchived() {
   try {
     const settings = await loadArchiveSettings();
@@ -6159,9 +6183,9 @@ async function autoDeleteOldArchived() {
       WHERE p.is_archived = true AND p.archived_at < $1
     `, [daysAgo]);
 
-    if (result.rows.length === 0) return;
-
+    if (result.rows.length > 0) {
     console.log(`Auto-deleting ${result.rows.length} archived patterns older than ${settings.autoDeleteDays} days`);
+    }
 
     for (const pattern of result.rows) {
       const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
@@ -6187,19 +6211,52 @@ async function autoDeleteOldArchived() {
     // Clean up empty archive directories
     cleanupEmptyArchiveCategories();
 
+    // Auto-delete old archived projects
+    const projectResult = await pool.query(`
+      SELECT p.*, u.username as owner_username
+      FROM projects p
+      LEFT JOIN users u ON p.user_id = u.id
+      WHERE p.is_archived = true AND p.archived_at < $1
+    `, [daysAgo]);
+
+    for (const project of projectResult.rows) {
+      const ownerUsername = project.owner_username || process.env.ADMIN_USERNAME || 'admin';
+
+      // Delete project thumbnail
+      if (project.thumbnail) {
+        const thumbnailPath = path.join(getUserThumbnailsDir(ownerUsername), project.thumbnail);
+        if (fs.existsSync(thumbnailPath)) {
+          fs.unlinkSync(thumbnailPath);
+        }
+      }
+
+      // Delete from database (cascade removes project_patterns and project_hashtags)
+      await pool.query('DELETE FROM projects WHERE id = $1', [project.id]);
+    }
+
+    if (projectResult.rows.length > 0) {
+      console.log(`Auto-deleted ${projectResult.rows.length} old archived projects`);
+    }
+
     console.log(`Auto-deleted ${result.rows.length} old archived patterns`);
 
     // Send notification if enabled
     const notificationSettings = await loadNotificationSettings();
-    if (notificationSettings.notifyAutoDelete) {
-      const patternNames = result.rows.map(p => p.name).join(', ');
+    if (notificationSettings.notifyAutoDelete && (result.rows.length > 0 || projectResult.rows.length > 0)) {
+      const parts = [];
+      if (result.rows.length > 0) {
+        parts.push(`${result.rows.length} pattern${result.rows.length !== 1 ? 's' : ''}: ${result.rows.map(p => p.name).join(', ')}`);
+      }
+      if (projectResult.rows.length > 0) {
+        parts.push(`${projectResult.rows.length} project${projectResult.rows.length !== 1 ? 's' : ''}: ${projectResult.rows.map(p => p.name).join(', ')}`);
+      }
       await sendPushoverNotification(
         'Archive Emptied',
-        `${result.rows.length} pattern${result.rows.length !== 1 ? 's' : ''} deleted: ${patternNames}`
+        parts.join('; ')
       );
     }
   } catch (error) {
-    console.error('Error auto-deleting old archived patterns:', error);
+    console.error('Error auto-deleting old archived items:', error);
   }
 }
 

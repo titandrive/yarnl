@@ -804,7 +804,7 @@ body {
     background: linear-gradient(135deg, var(--bg-color) 0%, var(--bg-color) 100%);
     color: var(--text-color);
     min-height: 100vh;
-    padding: 16px;
+    padding: 0;
 }
 
 /* Only animate theme changes, not page loads — prevents PWA "refresh" flash */
@@ -824,35 +824,30 @@ body.screenshot-mode-green .container {
     box-shadow: none !important;
 }
 
-.yarnl-android body {
-    padding: 0;
-}
-
-.yarnl-android .container {
+.container {
     max-width: none;
+    margin: 0 auto;
+    background: var(--card-bg);
     border-radius: 0;
     box-shadow: none;
+    overflow: hidden;
 }
 
-@media (min-width: 768px) {
-    body {
+@media (min-width: 769px) {
+    .desktop-borders body {
         padding: 20px;
+    }
+    .desktop-borders .container {
+        max-width: 1900px;
+        border-radius: 20px;
+        box-shadow: var(--shadow);
     }
 }
 
 @media (min-width: 1920px) {
-    body {
+    .desktop-borders body {
         padding: 20px 40px;
     }
-}
-
-.container {
-    max-width: 1900px;
-    margin: 0 auto;
-    background: var(--card-bg);
-    border-radius: 20px;
-    box-shadow: var(--shadow);
-    overflow: hidden;
 }
 
 header {
@@ -1823,11 +1818,12 @@ html[data-theme="nuked-dark"] .btn-primary {
 /* Responsive */
 @media (max-width: 768px) {
     body {
-        padding: 10px;
+        padding: 0;
     }
 
     .container {
-        border-radius: 15px;
+        border-radius: 0;
+        box-shadow: none;
     }
 
     /* ── Mobile Header ── */

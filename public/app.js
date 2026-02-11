@@ -10499,6 +10499,14 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// Close notes popover when clicking into PDF iframe (window loses focus)
+window.addEventListener('blur', () => {
+    const popover = document.getElementById('notes-popover');
+    if (popover && popover.style.display !== 'none') {
+        closeNotesPopover();
+    }
+});
+
 function initNotesDrag() {
     const popover = document.getElementById('notes-popover');
     const header = document.querySelector('.notes-popover-header');

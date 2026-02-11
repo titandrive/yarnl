@@ -5766,6 +5766,7 @@ input[type="number"].settings-input {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 10px;
     padding: 12px 16px;
     border-top: 1px solid var(--border-color);
 }
@@ -5820,7 +5821,24 @@ input[type="number"].settings-input {
     color: var(--danger-color);
 }
 
-#notes-clear-btn.confirm {
+#notes-clear-btn,
+#markdown-notes-clear-btn {
+    width: auto;
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    background: transparent;
+    color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+#notes-clear-btn:hover,
+#markdown-notes-clear-btn:hover {
+    background: var(--danger-color);
+    color: white;
+}
+
+#notes-clear-btn.confirm,
+#markdown-notes-clear-btn.confirm {
     background: var(--danger-color);
     color: white;
 }

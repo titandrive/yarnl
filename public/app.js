@@ -9270,6 +9270,61 @@ async function openPDFViewer(patternId, pushHistory = true) {
                         }
                     }
 
+                    // Double-tap-and-drag zoom on mobile
+                    if (window.matchMedia('(max-width: 768px)').matches) {
+                        const viewer = viewerApp.pdfViewer;
+                        const container = viewer.container;
+                        let lastTapTime = 0;
+                        let lastTapY = 0;
+                        let dragZooming = false;
+                        let dragStartY = 0;
+                        let dragStartScale = 1;
+                        let tapX = 0;
+                        let tapY = 0;
+                        let scrollXAtStart = 0;
+                        let scrollYAtStart = 0;
+
+                        container.addEventListener('touchstart', (e) => {
+                            if (e.touches.length !== 1) return;
+                            const now = Date.now();
+                            const y = e.touches[0].clientY;
+
+                            if (now - lastTapTime < 300 && Math.abs(y - lastTapY) < 50) {
+                                // Second tap — start drag-zoom
+                                e.preventDefault();
+                                dragZooming = true;
+                                dragStartY = y;
+                                dragStartScale = viewer.currentScale;
+                                // Remember tap position relative to container for zoom origin
+                                const rect = container.getBoundingClientRect();
+                                tapX = e.touches[0].clientX - rect.left + container.scrollLeft;
+                                tapY = e.touches[0].clientY - rect.top + container.scrollTop;
+                                scrollXAtStart = container.scrollLeft;
+                                scrollYAtStart = container.scrollTop;
+                            }
+                            lastTapTime = now;
+                            lastTapY = y;
+                        }, { passive: false });
+
+                        container.addEventListener('touchmove', (e) => {
+                            if (!dragZooming || e.touches.length !== 1) return;
+                            e.preventDefault();
+                            // Down = zoom in, up = zoom out
+                            const deltaY = e.touches[0].clientY - dragStartY;
+                            const zoomFactor = Math.pow(1.01, deltaY);
+                            const newScale = Math.min(5, Math.max(0.25, dragStartScale * zoomFactor));
+                            const ratio = newScale / dragStartScale;
+                            viewer.currentScale = newScale;
+                            // Keep tap point anchored
+                            container.scrollLeft = tapX * ratio - (tapX - scrollXAtStart);
+                            container.scrollTop = tapY * ratio - (tapY - scrollYAtStart);
+                        }, { passive: false });
+
+                        container.addEventListener('touchend', () => {
+                            dragZooming = false;
+                        });
+                    }
+
                     // Defer hook so it runs AFTER viewer's own _initializeAnnotationStorageCallbacks
                     setTimeout(() => {
                         const storage = viewerApp.pdfDocument?.annotationStorage;

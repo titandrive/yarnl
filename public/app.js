@@ -3098,6 +3098,9 @@ function initTheme() {
             if (!response.ok) return;
             mascotsList = await response.json();
 
+            // Preload all mascot images so the picker opens instantly
+            mascotsList.forEach(m => { new Image().src = m.url; });
+
             // Apply saved mascot on load (or theme mascot if enabled)
             if (mascotsList.length > 0) {
                 if (themeMascotEnabled) {

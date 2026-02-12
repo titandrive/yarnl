@@ -3226,6 +3226,8 @@ function initTheme() {
         mascotActionSelect.value = localStorage.getItem('mascotAction') || 'home';
         mascotActionSelect.addEventListener('change', () => {
             localStorage.setItem('mascotAction', mascotActionSelect.value);
+            const label = mascotActionSelect.options[mascotActionSelect.selectedIndex].text;
+            showToast(`Mascot action: ${label}`);
         });
     }
 

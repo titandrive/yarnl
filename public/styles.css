@@ -1884,11 +1884,11 @@ html[data-theme="nuked-dark"] .btn-primary {
 }
 
 .action-btn.completed {
-    color: var(--primary-color);
+    color: var(--success-color);
 }
 
 .action-btn.completed:hover {
-    background: var(--primary-color);
+    background: var(--success-color);
     color: white;
 }
 

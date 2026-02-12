@@ -1929,6 +1929,277 @@ app.post('/api/patterns/markdown', async (req, res) => {
   }
 });
 
+// ============================================
+// Bulk pattern endpoints (must be before :id routes)
+// ============================================
+
+// Bulk add/remove hashtags
+app.post('/api/patterns/bulk/hashtags', async (req, res) => {
+  try {
+    const { patternIds, addHashtagIds = [], removeHashtagIds = [] } = req.body;
+    if (!patternIds || patternIds.length === 0) {
+      return res.status(400).json({ error: 'No patterns specified' });
+    }
+
+    let count = 0;
+    for (const patternId of patternIds) {
+      const pattern = await verifyPatternOwnership(patternId, req.user?.id, req.user?.role === 'admin');
+      if (!pattern) continue;
+
+      if (removeHashtagIds.length > 0) {
+        await pool.query(
+          'DELETE FROM pattern_hashtags WHERE pattern_id = $1 AND hashtag_id = ANY($2::int[])',
+          [patternId, removeHashtagIds]
+        );
+      }
+
+      for (const hashtagId of addHashtagIds) {
+        await pool.query(
+          'INSERT INTO pattern_hashtags (pattern_id, hashtag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [patternId, hashtagId]
+        );
+      }
+
+      count++;
+    }
+
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk updating hashtags:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk update category
+app.post('/api/patterns/bulk/category', async (req, res) => {
+  try {
+    const { patternIds, category } = req.body;
+    if (!patternIds || patternIds.length === 0 || !category) {
+      return res.status(400).json({ error: 'Missing patternIds or category' });
+    }
+
+    let count = 0;
+    for (const patternId of patternIds) {
+      const pattern = await verifyPatternOwnership(patternId, req.user?.id, req.user?.role === 'admin');
+      if (!pattern) continue;
+      if (pattern.category === category) { count++; continue; }
+
+      const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+      const categoryDir = getCategoryDir(ownerUsername, category);
+
+      let oldFilePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
+      if (!fs.existsSync(oldFilePath)) {
+        oldFilePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
+      }
+      if (fs.existsSync(oldFilePath)) {
+        if (!fs.existsSync(categoryDir)) {
+          fs.mkdirSync(categoryDir, { recursive: true });
+        }
+        fs.renameSync(oldFilePath, path.join(categoryDir, pattern.filename));
+      }
+
+      await pool.query('UPDATE patterns SET category = $1 WHERE id = $2', [category, patternId]);
+      count++;
+    }
+
+    await cleanupEmptyCategories();
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk updating category:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk archive patterns
+app.post('/api/patterns/bulk/archive', async (req, res) => {
+  try {
+    const { patternIds } = req.body;
+    if (!patternIds || patternIds.length === 0) {
+      return res.status(400).json({ error: 'No patterns specified' });
+    }
+
+    let count = 0;
+    for (const patternId of patternIds) {
+      const pattern = await verifyPatternOwnership(patternId, req.user?.id, req.user?.role === 'admin');
+      if (!pattern) continue;
+
+      const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+
+      let filePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
+      if (!fs.existsSync(filePath)) {
+        filePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
+      }
+      const archiveCategoryDir = ensureArchiveCategoryDir(ownerUsername, pattern.category);
+      if (fs.existsSync(filePath)) {
+        fs.copyFileSync(filePath, path.join(archiveCategoryDir, pattern.filename));
+        fs.unlinkSync(filePath);
+      }
+      const annotatedName = pattern.filename.replace(/\.pdf$/i, '.annotated.pdf');
+      const annotatedPath = path.join(path.dirname(filePath), annotatedName);
+      if (fs.existsSync(annotatedPath)) {
+        fs.copyFileSync(annotatedPath, path.join(archiveCategoryDir, annotatedName));
+        fs.unlinkSync(annotatedPath);
+      }
+      if (pattern.thumbnail) {
+        const thumbnailPath = path.join(getUserThumbnailsDir(ownerUsername), pattern.thumbnail);
+        if (fs.existsSync(thumbnailPath)) {
+          const archiveThumbnailDir = getUserArchiveThumbnailsDir(ownerUsername);
+          if (!fs.existsSync(archiveThumbnailDir)) {
+            fs.mkdirSync(archiveThumbnailDir, { recursive: true });
+          }
+          fs.copyFileSync(thumbnailPath, path.join(archiveThumbnailDir, pattern.thumbnail));
+          fs.unlinkSync(thumbnailPath);
+        }
+      }
+
+      await pool.query(
+        `UPDATE patterns SET is_archived = true, archived_at = CURRENT_TIMESTAMP, is_current = false WHERE id = $1`,
+        [patternId]
+      );
+      count++;
+    }
+
+    await cleanupEmptyCategories();
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk archiving patterns:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk delete patterns
+app.post('/api/patterns/bulk/delete', async (req, res) => {
+  try {
+    const { patternIds } = req.body;
+    if (!patternIds || patternIds.length === 0) {
+      return res.status(400).json({ error: 'No patterns specified' });
+    }
+
+    let count = 0;
+    for (const patternId of patternIds) {
+      const pattern = await verifyPatternOwnership(patternId, req.user?.id, req.user?.role === 'admin');
+      if (!pattern) continue;
+
+      const ownerUsername = pattern.owner_username || process.env.ADMIN_USERNAME || 'admin';
+
+      let filePath = path.join(getCategoryDir(ownerUsername, pattern.category), pattern.filename);
+      if (!fs.existsSync(filePath)) {
+        filePath = path.join(getUserPatternsDir(ownerUsername), pattern.filename);
+      }
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+
+      const annotatedName = pattern.filename.replace(/\.pdf$/i, '.annotated.pdf');
+      const annotatedPath = path.join(path.dirname(filePath), annotatedName);
+      if (fs.existsSync(annotatedPath)) fs.unlinkSync(annotatedPath);
+
+      if (pattern.thumbnail) {
+        const thumbnailPath = path.join(getUserThumbnailsDir(ownerUsername), pattern.thumbnail);
+        if (fs.existsSync(thumbnailPath)) fs.unlinkSync(thumbnailPath);
+      }
+
+      await pool.query('DELETE FROM patterns WHERE id = $1', [patternId]);
+      count++;
+    }
+
+    await cleanupEmptyCategories();
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk deleting patterns:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk toggle current/in-progress
+app.post('/api/patterns/bulk/current', async (req, res) => {
+  try {
+    const { patternIds, isCurrent } = req.body;
+    if (!patternIds || patternIds.length === 0) {
+      return res.status(400).json({ error: 'No patterns specified' });
+    }
+
+    let count = 0;
+    for (const patternId of patternIds) {
+      const pattern = await verifyPatternOwnership(patternId, req.user?.id, req.user?.role === 'admin');
+      if (!pattern) continue;
+
+      await pool.query(
+        `UPDATE patterns
+         SET is_current = $1,
+             completed = CASE WHEN $1 = true THEN false ELSE completed END,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2`,
+        [isCurrent, patternId]
+      );
+      count++;
+    }
+
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk updating current status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk toggle complete
+app.post('/api/patterns/bulk/complete', async (req, res) => {
+  try {
+    const { patternIds, completed } = req.body;
+    if (!patternIds || patternIds.length === 0) {
+      return res.status(400).json({ error: 'No patterns specified' });
+    }
+
+    let count = 0;
+    for (const patternId of patternIds) {
+      const pattern = await verifyPatternOwnership(patternId, req.user?.id, req.user?.role === 'admin');
+      if (!pattern) continue;
+
+      const completedDate = completed ? 'CURRENT_TIMESTAMP' : 'NULL';
+      await pool.query(
+        `UPDATE patterns
+         SET completed = $1,
+             completed_date = ${completedDate},
+             is_current = CASE WHEN $1 = true THEN false ELSE is_current END,
+             updated_at = CURRENT_TIMESTAMP
+         WHERE id = $2`,
+        [completed, patternId]
+      );
+      count++;
+    }
+
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk updating complete status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk toggle favorite
+app.post('/api/patterns/bulk/favorite', async (req, res) => {
+  try {
+    const { patternIds, isFavorite } = req.body;
+    if (!patternIds || patternIds.length === 0) {
+      return res.status(400).json({ error: 'No patterns specified' });
+    }
+
+    let count = 0;
+    for (const patternId of patternIds) {
+      const pattern = await verifyPatternOwnership(patternId, req.user?.id, req.user?.role === 'admin');
+      if (!pattern) continue;
+
+      await pool.query(
+        `UPDATE patterns SET is_favorite = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        [isFavorite, patternId]
+      );
+      count++;
+    }
+
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk updating favorite status:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get markdown content for a pattern
 app.get('/api/patterns/:id/content', async (req, res) => {
   try {

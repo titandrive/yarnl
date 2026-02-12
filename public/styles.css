@@ -1372,6 +1372,161 @@ html[data-theme="nuked-dark"] .btn-primary {
     border-color: var(--primary-color);
 }
 
+/* ── Bulk Selection ── */
+.bulk-select-checkbox {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    z-index: 15;
+    opacity: 0;
+    transition: opacity 0.2s;
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.pattern-card:hover .bulk-select-checkbox {
+    opacity: 1;
+}
+
+.pattern-card.bulk-selected .bulk-select-checkbox {
+    opacity: 1;
+    background: var(--primary-color);
+}
+
+.pattern-card.bulk-selected {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px var(--primary-color);
+}
+
+.pattern-card.bulk-selected:hover {
+    transform: translateY(-3px);
+}
+
+@keyframes bulk-toolbar-in {
+    from { transform: translateX(-50%) translateY(100%); opacity: 0; }
+    to   { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+.bulk-toolbar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--card-bg);
+    border: 2px solid var(--primary-color);
+    border-radius: 14px;
+    padding: 12px 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.3);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+    animation: bulk-toolbar-in 0.25s ease-out;
+}
+
+.bulk-toolbar .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95rem;
+}
+
+.bulk-edit-modal-content {
+    max-width: 380px;
+    padding: 22px;
+}
+
+.bulk-edit-modal-content .modal-header h2 {
+    font-size: 1.2rem;
+}
+
+.bulk-edit-modal-content .form-group label {
+    font-size: 0.85rem;
+    margin-bottom: 4px;
+}
+
+.bulk-edit-modal-content .modal-footer .btn {
+    padding: 8px 18px;
+    font-size: 0.85rem;
+}
+
+.bulk-status-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+}
+
+.bulk-status-label {
+    font-size: 0.8rem;
+    color: var(--text-color);
+    opacity: 0.6;
+    width: 52px;
+    flex-shrink: 0;
+}
+
+.bulk-status-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: none;
+    color: var(--text-color);
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.2s;
+}
+
+.bulk-status-btn:hover:not(:disabled) {
+    border-color: var(--primary-color);
+}
+
+.bulk-status-btn:disabled {
+    opacity: 0.25;
+    cursor: default;
+}
+
+.bulk-status-btn.active[data-action="set"] {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: white;
+}
+
+.bulk-status-btn.active[data-action="remove"] {
+    border-color: var(--primary-color);
+    background: var(--primary-color);
+    color: white;
+}
+
+.bulk-danger-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.bulk-danger-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.2s;
+}
+
+.bulk-danger-actions .btn.confirm-danger {
+    background: var(--danger-color);
+    color: white;
+    border-color: var(--danger-color);
+}
+
 .pattern-card h3 {
     color: var(--primary-color);
     margin-bottom: 4px;
@@ -1729,11 +1884,11 @@ html[data-theme="nuked-dark"] .btn-primary {
 }
 
 .action-btn.completed {
-    color: var(--success-color);
+    color: var(--primary-color);
 }
 
 .action-btn.completed:hover {
-    background: var(--success-color);
+    background: var(--primary-color);
     color: white;
 }
 

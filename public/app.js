@@ -1745,6 +1745,9 @@ const INACTIVITY_DELAY = 5 * 60 * 1000; // 5 minutes
 let defaultCategory = localStorage.getItem('defaultCategory') || 'Amigurumi';
 let enableDirectDelete = localStorage.getItem('enableDirectDelete') === 'true';
 
+// Bulk selection state
+let selectedPatternIds = new Set();
+
 function getDefaultCategory() {
     // Return the stored default, but fallback to first category if default doesn't exist
     if (allCategories.includes(defaultCategory)) {
@@ -7735,8 +7738,12 @@ function renderPatternCard(pattern, options = {}) {
 
     const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';
 
+    const isSelected = selectedPatternIds.has(pattern.id);
     return `
-        <div class="pattern-card${highlightClass}" onclick="handlePatternClick(event, ${pattern.id})">
+        <div class="pattern-card${highlightClass}${isSelected ? ' bulk-selected' : ''}" onclick="handlePatternClick(event, ${pattern.id})" data-pattern-id="${pattern.id}">
+            <div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleBulkSelect(${pattern.id}, this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
             ${showStatusBadge && pattern.completed ? '<span class="completed-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>' : ''}
             ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>' : ''}
             ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
@@ -7778,8 +7785,9 @@ function renderPatternCard(pattern, options = {}) {
                 <button class="action-btn ${pattern.completed ? 'completed' : ''}"
                         onclick="toggleComplete('${pattern.id}', ${!pattern.completed})"
                         title="${pattern.completed ? 'Mark Incomplete' : 'Mark Complete'}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${pattern.completed ? '3' : '2'}" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" ${pattern.completed ? 'fill="currentColor"' : ''}></circle>
+                        <polyline points="16 8 10 16 7 13" ${pattern.completed ? 'stroke="var(--card-bg, #1a1a2e)"' : ''}></polyline>
                     </svg>
                 </button>
                 <button class="action-btn" onclick="openEditModal('${pattern.id}')" title="Edit">
@@ -7926,6 +7934,13 @@ function displayPatterns() {
 }
 
 async function toggleCurrent(id, isCurrent) {
+    // Optimistic update
+    const pattern = patterns.find(p => String(p.id) === String(id));
+    if (pattern) {
+        pattern.is_current = isCurrent;
+        displayCurrentPatterns();
+        displayPatterns();
+    }
     try {
         const response = await fetch(`${API_URL}/api/patterns/${id}/current`, {
             method: 'PATCH',
@@ -7933,19 +7948,28 @@ async function toggleCurrent(id, isCurrent) {
             body: JSON.stringify({ isCurrent })
         });
 
-        if (response.ok) {
+        if (!response.ok) {
+            // Revert on failure
+            if (pattern) pattern.is_current = !isCurrent;
             await loadPatterns();
             await loadCurrentPatterns();
-        } else {
-            const error = await response.json();
-            console.error('Error updating pattern:', error.error);
         }
     } catch (error) {
         console.error('Error toggling current status:', error);
+        if (pattern) pattern.is_current = !isCurrent;
+        await loadPatterns();
+        await loadCurrentPatterns();
     }
 }
 
 async function toggleComplete(id, completed) {
+    // Optimistic update
+    const pattern = patterns.find(p => String(p.id) === String(id));
+    if (pattern) {
+        pattern.completed = completed;
+        displayCurrentPatterns();
+        displayPatterns();
+    }
     try {
         const response = await fetch(`${API_URL}/api/patterns/${id}/complete`, {
             method: 'PATCH',
@@ -7953,19 +7977,27 @@ async function toggleComplete(id, completed) {
             body: JSON.stringify({ completed })
         });
 
-        if (response.ok) {
+        if (!response.ok) {
+            if (pattern) pattern.completed = !completed;
             await loadPatterns();
             await loadCurrentPatterns();
-        } else {
-            const error = await response.json();
-            console.error('Error updating completion status:', error.error);
         }
     } catch (error) {
         console.error('Error toggling completion status:', error);
+        if (pattern) pattern.completed = !completed;
+        await loadPatterns();
+        await loadCurrentPatterns();
     }
 }
 
 async function toggleFavorite(id, isFavorite) {
+    // Optimistic update
+    const pattern = patterns.find(p => String(p.id) === String(id));
+    if (pattern) {
+        pattern.is_favorite = isFavorite;
+        displayCurrentPatterns();
+        displayPatterns();
+    }
     try {
         const response = await fetch(`${API_URL}/api/patterns/${id}/favorite`, {
             method: 'PATCH',
@@ -7973,15 +8005,16 @@ async function toggleFavorite(id, isFavorite) {
             body: JSON.stringify({ isFavorite })
         });
 
-        if (response.ok) {
+        if (!response.ok) {
+            if (pattern) pattern.is_favorite = !isFavorite;
             await loadPatterns();
             await loadCurrentPatterns();
-        } else {
-            const error = await response.json();
-            console.error('Error updating favorite status:', error.error);
         }
     } catch (error) {
         console.error('Error toggling favorite status:', error);
+        if (pattern) pattern.is_favorite = !isFavorite;
+        await loadPatterns();
+        await loadCurrentPatterns();
     }
 }
 
@@ -9001,6 +9034,259 @@ function handlePatternClick(event, patternId) {
         window.open(url, '_blank');
     } else {
         openPDFViewer(patternId);
+    }
+}
+
+// ── Bulk Selection ──
+
+function toggleBulkSelect(patternId, el) {
+    if (selectedPatternIds.has(patternId)) {
+        selectedPatternIds.delete(patternId);
+    } else {
+        selectedPatternIds.add(patternId);
+    }
+    // Update the card's visual state
+    const card = el.closest('.pattern-card');
+    if (card) card.classList.toggle('bulk-selected', selectedPatternIds.has(patternId));
+    updateBulkToolbar();
+}
+
+function clearBulkSelection() {
+    selectedPatternIds.clear();
+    document.querySelectorAll('.pattern-card.bulk-selected').forEach(c => c.classList.remove('bulk-selected'));
+    updateBulkToolbar();
+}
+
+function updateBulkToolbar() {
+    const toolbar = document.getElementById('bulk-toolbar');
+    if (!toolbar) return;
+    if (selectedPatternIds.size > 0) {
+        toolbar.style.display = 'flex';
+        document.getElementById('bulk-count').textContent = `${selectedPatternIds.size} selected`;
+    } else {
+        toolbar.style.display = 'none';
+    }
+}
+
+// Escape key clears bulk selection
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && selectedPatternIds.size > 0) {
+        clearBulkSelection();
+    }
+});
+
+// ── Bulk Edit Modal ──
+
+function openBulkEditModal() {
+    const count = selectedPatternIds.size;
+    if (count === 0) return;
+
+    document.getElementById('bulk-edit-count').textContent = `(${count} pattern${count > 1 ? 's' : ''})`;
+
+    // Populate hashtag selector (none pre-selected)
+    document.getElementById('bulk-add-hashtags').innerHTML = createHashtagSelector('bulk-add', []);
+
+    // Populate category dropdown with "No change" default
+    const categoryHtml = createCategoryDropdown('bulk-category', '');
+    document.getElementById('bulk-category-container').innerHTML = categoryHtml;
+    // Override displayed value to show placeholder
+    const dropdown = document.querySelector('.category-dropdown[data-id="bulk-category"]');
+    if (dropdown) {
+        dropdown.dataset.value = '';
+        dropdown.querySelector('.category-dropdown-value').textContent = 'No change';
+    }
+
+    // Show archive or delete based on user setting
+    const dangerEl = document.getElementById('bulk-danger-actions');
+    if (enableDirectDelete) {
+        dangerEl.innerHTML = `<button class="btn btn-danger btn-sm" onclick="bulkDelete(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+            Delete All</button>`;
+    } else {
+        dangerEl.innerHTML = `<button class="btn btn-secondary btn-sm" onclick="bulkArchive(this)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>
+            Archive All</button>`;
+    }
+
+    // Reset status buttons and disable remove buttons when no selected patterns have that status
+    const selectedList = Array.from(selectedPatternIds);
+    const selectedPatterns = patterns.filter(p => selectedList.includes(p.id))
+        .concat(currentPatterns.filter(p => selectedList.includes(p.id)));
+    // Dedupe by id
+    const seen = new Set();
+    const uniqueSelected = selectedPatterns.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+
+    const anyCurrent = uniqueSelected.some(p => p.is_current);
+    const anyComplete = uniqueSelected.some(p => p.completed);
+    const anyFavorite = uniqueSelected.some(p => p.is_favorite);
+
+    // Reset all buttons
+    document.querySelectorAll('.bulk-status-btn').forEach(btn => {
+        btn.classList.remove('active');
+        btn.disabled = false;
+        btn.dataset.touched = '';
+    });
+
+    // Remove row: pre-activate if any selected have that status, disable if none do
+    const statusMap = { current: anyCurrent, complete: anyComplete, favorite: anyFavorite };
+    const labelMap = { current: 'in progress', complete: 'complete', favorite: 'favorited' };
+    document.querySelectorAll('.bulk-status-btn[data-action="remove"]').forEach(btn => {
+        const has = statusMap[btn.dataset.field];
+        btn.disabled = !has;
+        btn.classList.toggle('active', has);
+        btn.title = has ? 'Click to remove' : `No selected patterns are ${labelMap[btn.dataset.field]}`;
+    });
+
+    document.getElementById('bulk-edit-modal').style.display = 'flex';
+}
+
+function closeBulkEditModal() {
+    document.getElementById('bulk-edit-modal').style.display = 'none';
+}
+
+async function applyBulkEdit() {
+    const patternIds = Array.from(selectedPatternIds);
+    const addHashtagIds = getSelectedHashtagIds('bulk-add');
+    const category = getCategoryDropdownValue('bulk-category');
+
+    // Read status button states
+    // Set row: active = user wants to set this status
+    // Remove row: starts active if any selected have it; user clicks OFF to remove
+    //   - still active (untouched) = no change
+    //   - inactive + was touched = remove
+    function getStatusAction(field) {
+        const setBtn = document.querySelector(`.bulk-status-btn[data-field="${field}"][data-action="set"]`);
+        const removeBtn = document.querySelector(`.bulk-status-btn[data-field="${field}"][data-action="remove"]`);
+        if (setBtn?.classList.contains('active')) return 'set';
+        if (removeBtn && removeBtn.dataset.touched === 'true' && !removeBtn.classList.contains('active')) return 'remove';
+        return 'none';
+    }
+
+    const currentAction = getStatusAction('current');
+    const completeAction = getStatusAction('complete');
+    const favoriteAction = getStatusAction('favorite');
+
+    const promises = [];
+
+    // Apply hashtag changes
+    if (addHashtagIds.length > 0) {
+        promises.push(fetch(`${API_URL}/api/patterns/bulk/hashtags`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patternIds, addHashtagIds, removeHashtagIds: [] })
+        }));
+    }
+
+    // Apply category change
+    if (category) {
+        promises.push(fetch(`${API_URL}/api/patterns/bulk/category`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patternIds, category })
+        }));
+    }
+
+    // Apply status changes
+    if (currentAction !== 'none') {
+        promises.push(fetch(`${API_URL}/api/patterns/bulk/current`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patternIds, isCurrent: currentAction === 'set' })
+        }));
+    }
+    if (completeAction !== 'none') {
+        promises.push(fetch(`${API_URL}/api/patterns/bulk/complete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patternIds, completed: completeAction === 'set' })
+        }));
+    }
+    if (favoriteAction !== 'none') {
+        promises.push(fetch(`${API_URL}/api/patterns/bulk/favorite`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patternIds, isFavorite: favoriteAction === 'set' })
+        }));
+    }
+
+    if (promises.length > 0) {
+        await Promise.all(promises);
+        closeBulkEditModal();
+        clearBulkSelection();
+        await Promise.all([loadPatterns(), loadCurrentPatterns()]);
+        showToast(`Updated ${patternIds.length} pattern${patternIds.length > 1 ? 's' : ''}`);
+    } else {
+        showToast('No changes selected');
+    }
+}
+
+async function bulkArchive(btn) {
+    if (!btn.classList.contains('confirm-danger')) {
+        btn.classList.add('confirm-danger');
+        btn.textContent = 'Confirm Archive?';
+        setTimeout(() => {
+            if (btn.classList.contains('confirm-danger')) {
+                btn.classList.remove('confirm-danger');
+                btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg> Archive All`;
+            }
+        }, 3000);
+        return;
+    }
+
+    const count = selectedPatternIds.size;
+    const patternIds = Array.from(selectedPatternIds);
+    await fetch(`${API_URL}/api/patterns/bulk/archive`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patternIds })
+    });
+
+    closeBulkEditModal();
+    clearBulkSelection();
+    await Promise.all([loadPatterns(), loadCurrentPatterns()]);
+    showToast(`Archived ${count} pattern${count > 1 ? 's' : ''}`);
+}
+
+async function bulkDelete(btn) {
+    if (!btn.classList.contains('confirm-danger')) {
+        btn.classList.add('confirm-danger');
+        btn.textContent = 'Confirm Delete?';
+        setTimeout(() => {
+            if (btn.classList.contains('confirm-danger')) {
+                btn.classList.remove('confirm-danger');
+                btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> Delete All`;
+            }
+        }, 3000);
+        return;
+    }
+
+    const count = selectedPatternIds.size;
+    const patternIds = Array.from(selectedPatternIds);
+    await fetch(`${API_URL}/api/patterns/bulk/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patternIds })
+    });
+
+    closeBulkEditModal();
+    clearBulkSelection();
+    await Promise.all([loadPatterns(), loadCurrentPatterns()]);
+    showToast(`Deleted ${count} pattern${count > 1 ? 's' : ''}`);
+}
+
+function toggleBulkStatusBtn(btn) {
+    const field = btn.dataset.field;
+    const action = btn.dataset.action;
+    const opposite = action === 'set' ? 'remove' : 'set';
+    const oppositeBtn = document.querySelector(`.bulk-status-btn[data-field="${field}"][data-action="${opposite}"]`);
+
+    btn.dataset.touched = 'true';
+    btn.classList.toggle('active');
+
+    // If activating set, deactivate remove (and vice versa)
+    if (btn.classList.contains('active') && oppositeBtn) {
+        oppositeBtn.classList.remove('active');
+        oppositeBtn.dataset.touched = 'true';
     }
 }
 
@@ -11805,8 +12091,9 @@ function renderProjectCard(project) {
                 <button class="action-btn ${project.completed ? 'completed' : ''}"
                         onclick="toggleProjectComplete(${project.id}, ${!project.completed})"
                         title="${project.completed ? 'Mark Incomplete' : 'Mark Complete'}">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${project.completed ? '3' : '2'}" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="20 6 9 17 4 12"></polyline>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10" ${project.completed ? 'fill="currentColor"' : ''}></circle>
+                        <polyline points="16 8 10 16 7 13" ${project.completed ? 'stroke="var(--card-bg, #1a1a2e)"' : ''}></polyline>
                     </svg>
                 </button>
                 <button class="action-btn" onclick="editProjectFromCard(${project.id})" title="Edit">

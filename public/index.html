@@ -37,7 +37,7 @@
         }
     </script>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=177">
+    <link rel="stylesheet" href="styles.css?v=179">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -2685,8 +2685,80 @@ Inc in each st around (12)
         </div>
     </div>
 
+    <!-- Bulk Selection Toolbar -->
+    <div id="bulk-toolbar" class="bulk-toolbar" style="display: none;">
+        <span id="bulk-count">0 selected</span>
+        <button class="btn btn-primary btn-sm" onclick="openBulkEditModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            Edit
+        </button>
+        <button class="btn btn-sm btn-secondary" onclick="clearBulkSelection()">Clear</button>
+    </div>
+
+    <!-- Bulk Edit Modal -->
+    <div id="bulk-edit-modal" class="modal" style="display: none;" onclick="closeBulkEditModal()">
+        <div class="modal-content bulk-edit-modal-content" onclick="event.stopPropagation(); if (!event.target.closest('.category-dropdown')) document.querySelectorAll('.category-dropdown.open').forEach(d => d.classList.remove('open'))">
+            <div class="modal-header">
+                <h2>Bulk Edit <span id="bulk-edit-count"></span></h2>
+                <button class="modal-close" onclick="closeBulkEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Add Hashtags</label>
+                    <div id="bulk-add-hashtags"></div>
+                </div>
+                <div class="form-group">
+                    <label>Set Category</label>
+                    <div id="bulk-category-container"></div>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <div class="bulk-status-row">
+                        <span class="bulk-status-label">Set:</span>
+                        <button class="bulk-status-btn" data-action="set" data-field="current" onclick="toggleBulkStatusBtn(this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            In Progress
+                        </button>
+                        <button class="bulk-status-btn" data-action="set" data-field="complete" onclick="toggleBulkStatusBtn(this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            Complete
+                        </button>
+                        <button class="bulk-status-btn" data-action="set" data-field="favorite" onclick="toggleBulkStatusBtn(this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                            Favorite
+                        </button>
+                    </div>
+                    <div class="bulk-status-row">
+                        <span class="bulk-status-label">Remove:</span>
+                        <button class="bulk-status-btn" data-action="remove" data-field="current" onclick="toggleBulkStatusBtn(this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                            In Progress
+                        </button>
+                        <button class="bulk-status-btn" data-action="remove" data-field="complete" onclick="toggleBulkStatusBtn(this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            Complete
+                        </button>
+                        <button class="bulk-status-btn" data-action="remove" data-field="favorite" onclick="toggleBulkStatusBtn(this)">
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                            Favorite
+                        </button>
+                    </div>
+                </div>
+                <hr style="border-color: var(--border-color); margin: 16px 0;">
+                <div class="form-group">
+                    <label style="color: var(--danger-color);">Danger Zone</label>
+                    <div id="bulk-danger-actions" class="bulk-danger-actions"></div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeBulkEditModal()">Cancel</button>
+                <button class="btn btn-primary" onclick="applyBulkEdit()">Apply Changes</button>
+            </div>
+        </div>
+    </div>
+
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=159"></script>
+    <script defer src="app.js?v=161"></script>
 </body>
 </html>

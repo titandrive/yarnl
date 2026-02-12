@@ -3701,10 +3701,12 @@ function switchToTab(tabName, pushHistory = true) {
         content.style.display = 'block';
     }
 
-    // Hide PDF viewer and markdown viewer
+    // Hide PDF viewer, markdown viewer, and project detail
     pdfViewerContainer.style.display = 'none';
     const markdownViewer = document.getElementById('markdown-viewer-container');
     if (markdownViewer) markdownViewer.style.display = 'none';
+    const projectDetail = document.getElementById('project-detail-view');
+    if (projectDetail) projectDetail.style.display = 'none';
     document.querySelector('.tabs').style.display = 'flex';
     const mobileBottomBar = document.getElementById('mobile-bottom-bar');
     if (mobileBottomBar) mobileBottomBar.style.display = 'none';
@@ -12235,8 +12237,17 @@ async function createProject() {
 }
 
 // Open project detail view
-async function openProjectView(projectId) {
+async function openProjectView(projectId, pushHistory = true) {
     currentProjectId = projectId;
+
+    // Push current view to navigation history
+    if (pushHistory && !isNavigatingBack) {
+        const currentView = getCurrentView();
+        if (currentView && !currentView.startsWith('project/')) {
+            navigationHistory.push(currentView);
+        }
+        history.pushState({ view: `project/${projectId}` }, '', `#project/${projectId}`);
+    }
 
     // Track last opened (fire-and-forget)
     fetch(`${API_URL}/api/projects/${projectId}/opened`, { method: 'POST' }).catch(() => {});
@@ -12293,7 +12304,7 @@ async function openProjectView(projectId) {
 }
 
 // Close project detail view
-function closeProjectView() {
+async function closeProjectView() {
     currentProjectId = null;
     currentProjectPatterns = [];
 
@@ -12314,14 +12325,10 @@ function closeProjectView() {
         }
     }
 
-    const tabsNav = document.querySelector('.tabs');
     const projectDetailView = document.getElementById('project-detail-view');
-
     if (projectDetailView) projectDetailView.style.display = 'none';
-    if (tabsNav) tabsNav.style.display = 'flex';
 
-    // Show projects tab
-    switchToTab('projects');
+    await navigateBack();
 }
 
 // Render patterns in project detail view

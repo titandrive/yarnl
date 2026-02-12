@@ -28,6 +28,7 @@ backups/
 
 # Claude development log
 claude-log.md
+API.md
 
 # OS / editor
 .DS_Store

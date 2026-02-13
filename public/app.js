@@ -12275,9 +12275,10 @@ function hideNewProjectPanel() {
         tabsNav.style.display = 'flex';
     }
 
-    // Clear staged files and selected patterns
+    // Clear staged files, selected patterns, and thumbnail
     projectStagedFiles = [];
     projectSelectedPatternIds = [];
+    clearThumbnailSelector('new-project');
 
     // Show active tab
     const activeTab = document.querySelector('.tab-btn.active');
@@ -12580,6 +12581,17 @@ async function createProject() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ patternIds })
+            });
+        }
+
+        // Upload thumbnail if one was selected
+        const thumbnailFile = getThumbnailFile('new-project');
+        if (thumbnailFile) {
+            const thumbFormData = new FormData();
+            thumbFormData.append('thumbnail', thumbnailFile);
+            await fetch(`${API_URL}/api/projects/${project.id}/thumbnail`, {
+                method: 'POST',
+                body: thumbFormData
             });
         }
 

@@ -9077,6 +9077,50 @@ input[type="number"].settings-input {
 
 /* Mobile responsive - must come after base styles above */
 @media (max-width: 768px) {
+    /* --- Add Project panel mobile --- */
+    #new-project-panel .new-pattern-header {
+        padding: 12px 16px;
+    }
+
+    #new-project-panel .new-pattern-header h3 {
+        font-size: 1.1rem;
+    }
+
+    #new-project-panel .new-pattern-form {
+        padding: 14px;
+        gap: 12px;
+        overflow-x: hidden;
+    }
+
+    #new-project-panel .form-row {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    #new-project-panel .form-row[style*="align-items: flex-start"] {
+        flex-direction: column;
+    }
+
+    #new-project-panel .form-group {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    #new-project-panel .hashtag-selector {
+        max-width: 100%;
+        overflow-x: auto;
+    }
+
+    #new-project-panel .thumbnail-selector-preview {
+        width: 80px;
+        height: 80px;
+    }
+
+    #new-project-panel .thumbnail-selector-placeholder {
+        font-size: 1.5rem;
+    }
+
     .project-existing-layout {
         flex-direction: column;
         height: auto;
@@ -9086,10 +9130,32 @@ input[type="number"].settings-input {
         width: 100%;
         padding-right: 0;
         overflow-y: visible;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .project-existing-sidebar .sidebar-section {
+        margin-bottom: 0;
     }
 
     .project-existing-grid {
-        max-height: 300px;
+        max-height: 450px;
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+    }
+
+    .project-add-patterns-tabs {
+        gap: 4px;
+    }
+
+    .project-add-patterns-tabs .project-add-tab {
+        font-size: 0.8rem;
+        padding: 6px 12px;
+    }
+
+    #new-project-panel .new-pattern-actions {
+        padding: 12px 0 0;
     }
 
     .project-staged-item-category .category-dropdown {

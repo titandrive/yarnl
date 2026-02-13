@@ -1,13 +1,18 @@
-# Yarnl
+# Yarnl: Your self-hosted crochet companion
 
-A self-hosted web application for managing crochet patterns, tracking project progress, and organizing your craft library.
+A self-hosted web application for managing crochet patterns, tracking project progress, and organizing your crochet library.
+
+Try out the [demo](https://demo.yarnl.com) yourself (Username: Demo, Password: Demo) or read the [docs](https://yarnl.com/docs/about) to get started.
+
+![Home](https://yarnl.com/img/screenshots/home.png)
+![Viewer](https://yarnl.com/img/screenshots/viewer.png)
 
 ## Features
 
 ### Pattern Library
-- Upload **PDF** and create **Markdown** patterns with automatic thumbnail generation
+- Upload **PDF** patterns or create **Markdown** patterns with automatic thumbnail generation
 - Organize by categories and hashtags
-- Integrated PDF viewer with page navigation, zoom, and annotations
+- Integrated PDF viewer with row counters, timer, page navigation, zoom, keyboard controls and annotations
 - Pattern notes stored as markdown files
 
 ### Project Tracking
@@ -134,10 +139,6 @@ All configuration is done through environment variables. Copy `.env.example` to 
 
 OIDC is configured through the admin settings panel in the app (Settings > Admin > SSO). Yarnl supports any OpenID Connect provider with auto-discovery. If SSO is misconfigured and you get locked out, set `FORCE_LOCAL_LOGIN=true` to bypass SSO and log in with your local credentials.
 
-### Pushover Notifications (Optional)
-
-Configure push notifications for backup events in Settings > Notifications.
-
 ## Data Persistence
 
 All user data is stored in the `./users` directory on the host, mounted as a Docker volume:
@@ -184,3 +185,6 @@ Then run `docker compose up -d --build`.
 ## License
 
 [MIT](LICENSE)
+
+## AI Disclosure
+Yarnl was developed with the assistance of Claude. 

@@ -74,13 +74,8 @@ async function getAdminUser() {
 }
 
 async function initializeAdmin() {
-  const adminUsername = process.env.ADMIN_USERNAME;
-  const adminPassword = process.env.ADMIN_PASSWORD;
-
-  if (!adminUsername) {
-    console.log('ADMIN_USERNAME not set - skipping admin initialization');
-    return null;
-  }
+  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+  const adminPassword = process.env.ADMIN_PASSWORD || null;
 
   // Check if admin already exists
   const existing = await pool.query('SELECT id FROM users WHERE role = $1', ['admin']);

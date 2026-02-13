@@ -43,6 +43,10 @@ Try out the [demo](https://demo.yarnl.com) yourself (username: demo, password: d
 
 ## Quick Start
 
+**Prerequisites:** [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+
+Get Yarnl up and running in minutes:
+
 ```bash
 mkdir yarnl && cd yarnl                # Create a directory for Yarnl
 curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/docker-compose.yml  # Download the compose file

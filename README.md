@@ -124,18 +124,18 @@ volumes:
 
 All configuration is done through environment variables. Copy `.env.example` to `.env` and adjust as needed.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `POSTGRES_DB` | `yarnl` | Database name |
-| `POSTGRES_USER` | `yarnl` | Database user |
-| `POSTGRES_PASSWORD` | `yarnl` | Database password |
-| `POSTGRES_HOST` | `postgres` | Database hostname (use default with Docker Compose) |
-| `POSTGRES_PORT` | `5432` | Database port |
-| `ADMIN_USERNAME` | `admin` | Initial admin username |
-| `ADMIN_PASSWORD` | *(empty)* | Admin password (empty = passwordless login) |
-| `PORT` | `3000` | Port exposed on the host |
-| `TZ` | `UTC` | Timezone for scheduled backups |
-| `FORCE_LOCAL_LOGIN` | `false` | Force local login even when OIDC/SSO is configured |
+| Variable | Default | Required | Description |
+|----------|---------|----------|-------------|
+| `POSTGRES_DB` | `yarnl` | Optional | Database name |
+| `POSTGRES_USER` | `yarnl` | Optional | Database user |
+| `POSTGRES_PASSWORD` | `yarnl` | Optional | Database password |
+| `POSTGRES_HOST` | `postgres` | Optional | Database hostname (use default with Docker Compose) |
+| `POSTGRES_PORT` | `5432` | Optional | Database port |
+| `ADMIN_USERNAME` | `admin` | Optional | Initial admin username |
+| `ADMIN_PASSWORD` | *(empty)* | Optional | Admin password (empty = passwordless login) |
+| `PORT` | `3000` | Optional | Port exposed on the host |
+| `TZ` | `UTC` | Optional | Timezone for scheduled backups |
+| `FORCE_LOCAL_LOGIN` | `false` | Optional | Force local login even when OIDC/SSO is configured |
 
 ### OIDC / SSO (Optional)
 

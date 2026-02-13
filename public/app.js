@@ -7831,6 +7831,7 @@ function displayCurrentPatterns() {
     const patternCards = currentPatterns.map(pattern => renderPatternCard(pattern)).join('');
 
     grid.innerHTML = projectCards + patternCards;
+    grid.querySelectorAll('.pattern-card[data-pattern-id]').forEach(initLongPress);
 }
 
 function displayPatterns() {
@@ -7931,6 +7932,7 @@ function displayPatterns() {
         const highlightClass = shouldHighlight ? ' highlight-new' : '';
         return renderPatternCard(pattern, { highlightClass });
     }).join('');
+    grid.querySelectorAll('.pattern-card[data-pattern-id]').forEach(initLongPress);
 }
 
 async function toggleCurrent(id, isCurrent) {
@@ -9022,6 +9024,14 @@ function initPDFViewer() {
 
 // Handle pattern card click - supports cmd/ctrl+click to open in new window
 function handlePatternClick(event, patternId) {
+    // If in bulk selection mode, taps toggle selection
+    if (selectedPatternIds.size > 0) {
+        event.preventDefault();
+        event.stopPropagation();
+        const card = event.currentTarget || event.target.closest('.pattern-card');
+        if (card) toggleBulkSelect(patternId, card.querySelector('.bulk-select-checkbox') || card);
+        return;
+    }
     // Check for cmd (Mac) or ctrl (Windows/Linux) key
     if (event.metaKey || event.ctrlKey) {
         event.preventDefault();
@@ -9035,6 +9045,41 @@ function handlePatternClick(event, patternId) {
     } else {
         openPDFViewer(patternId);
     }
+}
+
+// ── Mobile Long Press for Bulk Select ──
+let longPressTimer = null;
+let longPressTriggered = false;
+
+function initLongPress(card) {
+    card.addEventListener('touchstart', (e) => {
+        longPressTriggered = false;
+        const patternId = parseInt(card.dataset.patternId);
+        longPressTimer = setTimeout(() => {
+            longPressTriggered = true;
+            // Vibrate if available
+            if (navigator.vibrate) navigator.vibrate(30);
+            const checkbox = card.querySelector('.bulk-select-checkbox') || card;
+            toggleBulkSelect(patternId, checkbox);
+        }, 500);
+    }, { passive: true });
+
+    card.addEventListener('touchend', (e) => {
+        clearTimeout(longPressTimer);
+        if (longPressTriggered) {
+            e.preventDefault();
+        }
+    });
+
+    card.addEventListener('touchmove', () => {
+        clearTimeout(longPressTimer);
+    }, { passive: true });
+
+    card.addEventListener('contextmenu', (e) => {
+        if (longPressTimer || longPressTriggered) {
+            e.preventDefault();
+        }
+    });
 }
 
 // ── Bulk Selection ──

@@ -43,14 +43,15 @@ A self-hosted web application for managing crochet patterns, tracking project pr
 
 ### Setup
 
-1. **Clone the repository**
+1. **Download the compose file**
    ```bash
-   git clone https://github.com/titandrive/yarnl.git
-   cd yarnl
+   mkdir yarnl && cd yarnl
+   curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/docker-compose.yml
    ```
 
 2. **Configure environment** (optional)
    ```bash
+   curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/.env.example
    cp .env.example .env
    # Edit .env to set your preferences (passwords, timezone, etc.)
    ```
@@ -106,13 +107,14 @@ The PostgreSQL database uses a named Docker volume (`yarnl-postgres-data`) for m
 3. Set database environment variables
 4. Start the server: `npm start`
 
-### Development with hot-reload
+### Development with Docker
 
-Create a `docker-compose.override.yml` to mount the public directory for live editing:
+Clone the repo and create a `docker-compose.override.yml` to build from source and mount the public directory for live editing:
 
 ```yaml
 services:
   yarnl:
+    build: .
     volumes:
       - ./public:/app/public
 ```

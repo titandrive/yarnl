@@ -41,8 +41,9 @@ Try out the [demo](https://demo.yarnl.com) yourself (username: demo, password: d
 - Bluetooth/media remote support for hands-free counting
 - Mobile-optimized responsive design
 
-## Quick Start
-Yarnl is easy to install with the following commands. You'll be crocheting in no time. 
+## Installation
+### Quick Start
+Yarnl is easy to get up and running with Docker. You'll be crocheting in no time. 
 
 **Prerequisites:** 
 - [Docker](https://docs.docker.com/get-docker/) 

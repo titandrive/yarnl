@@ -42,10 +42,13 @@ Try out the [demo](https://demo.yarnl.com) yourself (username: demo, password: d
 - Mobile-optimized responsive design
 
 ## Quick Start
+Yarnl is easy to install with the following commands. You'll be crocheting in no time. 
 
-**Prerequisites:** [Docker](https://docs.docker.com/get-docker/) and Docker Compose
+**Prerequisites:** 
+- [Docker](https://docs.docker.com/get-docker/) 
+- Docker Compose
 
-Get Yarnl up and running in minutes:
+1. Open terminal and run the folloing command:
 
 ```bash
 mkdir yarnl && cd yarnl                # Create a directory for Yarnl
@@ -53,7 +56,9 @@ curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/docker-compose.y
 docker compose up -d                   # Start Yarnl and PostgreSQL
 ```
 
-Open `http://localhost:3000` and you're done. By default, Yarnl starts in single-user mode with an `admin` account and no password.
+2. Open your browser and naviate to `http://localhost:3000`
+
+By default, Yarnl starts in single-user mode with an `admin` account and no password.
 
 To configure passwords, timezone, and other options, download the [`.env.example`](https://raw.githubusercontent.com/titandrive/yarnl/main/.env.example) file, rename it to `.env`, and edit as needed before starting.
 

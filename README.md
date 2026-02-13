@@ -4,8 +4,8 @@ A self-hosted web application for managing crochet patterns, tracking project pr
 
 Try out the [demo](https://demo.yarnl.com) yourself (Username: Demo, Password: Demo) or read the [docs](https://yarnl.com/docs/about) to get started.
 
-![Home](https://yarnl.com/img/screenshots/home.png)
-![Viewer](https://yarnl.com/img/screenshots/viewer.png)
+<img src="https://yarnl.com/img/screenshots/home.png" alt="Home" width="700">
+<img src="https://yarnl.com/img/screenshots/viewer.png" alt="Viewer" width="700">
 
 ## Features
 

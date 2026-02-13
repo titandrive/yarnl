@@ -40,7 +40,7 @@
         }
     </script>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=184">
+    <link rel="stylesheet" href="styles.css?v=188">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -506,10 +506,20 @@ Inc in each st around (12)
                         <input type="text" id="new-project-description" placeholder="Brief description">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Hashtags <span class="required">optional</span></label>
-                    <div id="new-project-hashtags-container">
-                        <!-- Hashtag selector will be populated dynamically -->
+                <div class="form-row" style="align-items: flex-start;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Hashtags <span class="required">optional</span></label>
+                        <div id="new-project-hashtags-container">
+                            <!-- Hashtag selector will be populated dynamically -->
+                        </div>
+                    </div>
+                    <div class="form-group" style="flex: 0 0 auto;">
+                        <label>Thumbnail <span class="required">optional</span></label>
+                        <div class="thumbnail-selector" id="new-project-thumbnail-selector" data-target="new-project">
+                            <div class="thumbnail-selector-preview" id="new-project-thumbnail-preview">
+                                <span class="thumbnail-selector-placeholder">+</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="form-group">
@@ -2784,6 +2794,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=165"></script>
+    <script defer src="app.js?v=166"></script>
 </body>
 </html>

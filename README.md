@@ -81,8 +81,6 @@ services:
       - POSTGRES_USER=${POSTGRES_USER:-yarnl}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-yarnl}
     restart: unless-stopped
-    networks:
-      - yarnl
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-yarnl}"]
       interval: 5s
@@ -110,11 +108,6 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - yarnl
-
-networks:
-  yarnl:
 
 volumes:
   yarnl-postgres-data:

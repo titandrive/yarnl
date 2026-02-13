@@ -4911,7 +4911,7 @@ app.get('/api/stats', authMiddleware, async (req, res) => {
       }
     }
 
-    res.json({
+    const response = {
       totalPatterns,
       currentPatterns,
       completedPatterns,
@@ -4923,7 +4923,36 @@ app.get('/api/stats', authMiddleware, async (req, res) => {
       totalSize,
       libraryPath: isAdmin ? '/opt/yarnl/users' : `/opt/yarnl/users/${username}`,
       backupHostPath: `/opt/yarnl/users/${username}/backups`
-    });
+    };
+
+    // Admin-only stats
+    if (isAdmin) {
+      const usersResult = await pool.query(`SELECT COUNT(*) as count FROM users`);
+
+      // Per-user breakdown
+      const userBreakdown = await pool.query(`
+        SELECT u.username,
+          COUNT(p.id) FILTER (WHERE p.is_archived = false OR p.is_archived IS NULL) as pattern_count,
+          COALESCE(SUM(p.timer_seconds) FILTER (WHERE p.is_archived = false OR p.is_archived IS NULL), 0) as total_time,
+          COUNT(p.id) FILTER (WHERE p.completed = true AND (p.is_archived = false OR p.is_archived IS NULL)) as completed_count
+        FROM users u
+        LEFT JOIN patterns p ON p.user_id = u.id
+        GROUP BY u.id, u.username
+        ORDER BY pattern_count DESC
+      `);
+
+      response.adminStats = {
+        totalUsers: parseInt(usersResult.rows[0].count),
+        userBreakdown: userBreakdown.rows.map(row => ({
+          username: row.username,
+          patternCount: parseInt(row.pattern_count),
+          totalTime: parseInt(row.total_time),
+          completedCount: parseInt(row.completed_count)
+        }))
+      };
+    }
+
+    res.json(response);
   } catch (error) {
     console.error('Error fetching stats:', error);
     res.status(500).json({ error: error.message });

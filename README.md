@@ -43,7 +43,7 @@ A self-hosted web application for managing crochet patterns, tracking project pr
 
 ### Setup
 
-1. **Download the compose file**
+1. **Create a directory and download the compose file**
    ```bash
    mkdir yarnl && cd yarnl
    curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/docker-compose.yml
@@ -65,6 +65,61 @@ A self-hosted web application for managing crochet patterns, tracking project pr
 
 By default, Yarnl starts in single-user mode with an `admin` account and no password. To enable multi-user mode, set `ADMIN_PASSWORD` in your `.env` file.
 
+### Docker Compose
+
+If you prefer to write the compose file yourself instead of downloading it:
+
+```yaml
+services:
+  postgres:
+    container_name: yarnl-db
+    image: postgres:16-alpine
+    volumes:
+      - yarnl-postgres-data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-yarnl}
+      - POSTGRES_USER=${POSTGRES_USER:-yarnl}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-yarnl}
+    restart: unless-stopped
+    networks:
+      - yarnl
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-yarnl}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  yarnl:
+    container_name: yarnl
+    image: titandrive/yarnl:latest
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      - ./users:/app/users
+    environment:
+      - NODE_ENV=production
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=${POSTGRES_DB:-yarnl}
+      - POSTGRES_USER=${POSTGRES_USER:-yarnl}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-yarnl}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - TZ=${TZ:-UTC}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - yarnl
+
+networks:
+  yarnl:
+
+volumes:
+  yarnl-postgres-data:
+```
+
 ## Configuration
 
 All configuration is done through environment variables. Copy `.env.example` to `.env` and adjust as needed.
@@ -74,14 +129,17 @@ All configuration is done through environment variables. Copy `.env.example` to 
 | `POSTGRES_DB` | `yarnl` | Database name |
 | `POSTGRES_USER` | `yarnl` | Database user |
 | `POSTGRES_PASSWORD` | `yarnl` | Database password |
+| `POSTGRES_HOST` | `postgres` | Database hostname (use default with Docker Compose) |
+| `POSTGRES_PORT` | `5432` | Database port |
 | `ADMIN_USERNAME` | `admin` | Initial admin username |
 | `ADMIN_PASSWORD` | *(empty)* | Admin password (empty = passwordless login) |
 | `PORT` | `3000` | Port exposed on the host |
 | `TZ` | `UTC` | Timezone for scheduled backups |
+| `FORCE_LOCAL_LOGIN` | `false` | Force local login even when OIDC/SSO is configured |
 
 ### OIDC / SSO (Optional)
 
-OIDC is configured through the admin settings panel in the app (Settings > Admin > SSO). Yarnl supports any OpenID Connect provider with auto-discovery.
+OIDC is configured through the admin settings panel in the app (Settings > Admin > SSO). Yarnl supports any OpenID Connect provider with auto-discovery. If SSO is misconfigured and you get locked out, set `FORCE_LOCAL_LOGIN=true` to bypass SSO and log in with your local credentials.
 
 ### Pushover Notifications (Optional)
 

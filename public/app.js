@@ -6295,6 +6295,42 @@ async function loadLibraryStats() {
                     </div>
                 </div>
             ` : ''}
+            ${stats.adminStats ? `
+                <div class="admin-stats-section">
+                    <h4>Admin Stats</h4>
+                    <div class="library-stats-grid">
+                        <div class="stat-item">
+                            <span class="stat-value">${stats.adminStats.totalUsers}</span>
+                            <span class="stat-label">User${stats.adminStats.totalUsers === 1 ? '' : 's'}</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-value">${stats.totalPatterns}</span>
+                            <span class="stat-label">Total Pattern${stats.totalPatterns === 1 ? '' : 's'}</span>
+                        </div>
+                    </div>
+                    ${stats.adminStats.userBreakdown.length > 1 ? `
+                        <div class="admin-user-breakdown">
+                            <h4>Per-User Breakdown</h4>
+                            <div class="user-breakdown-table">
+                                <div class="user-breakdown-header">
+                                    <span>User</span>
+                                    <span>Patterns</span>
+                                    <span>Completed</span>
+                                    <span>Time</span>
+                                </div>
+                                ${stats.adminStats.userBreakdown.map(u => `
+                                    <div class="user-breakdown-row">
+                                        <span class="user-breakdown-name">${escapeHtml(u.username)}</span>
+                                        <span>${u.patternCount}</span>
+                                        <span>${u.completedCount}</span>
+                                        <span>${formatTime(u.totalTime)}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            ` : ''}
         `;
         // Load version from API
         const versionEl = document.getElementById('app-version');

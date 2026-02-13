@@ -5646,6 +5646,65 @@ input[type="number"].settings-input {
     border: 1px solid var(--border-color);
 }
 
+/* Admin stats */
+.admin-stats-section {
+    border-top: 1px solid var(--border-color);
+    padding-top: 16px;
+    margin-top: 16px;
+}
+
+.admin-stats-section h4 {
+    font-size: 0.9rem;
+    margin-bottom: 12px;
+    color: var(--text-color);
+}
+
+.admin-user-breakdown {
+    margin-top: 16px;
+}
+
+.user-breakdown-table {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.user-breakdown-header,
+.user-breakdown-row {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.user-breakdown-header {
+    font-weight: 600;
+    color: var(--secondary-text);
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.user-breakdown-row {
+    background: var(--input-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.user-breakdown-name {
+    font-weight: 500;
+}
+
+@media (max-width: 768px) {
+    .user-breakdown-header,
+    .user-breakdown-row {
+        grid-template-columns: 1.2fr 0.8fr 0.8fr 1fr;
+        padding: 6px 8px;
+        font-size: 0.8rem;
+    }
+}
+
 /* Hashtag styles */
 .hashtags-list {
     display: flex;

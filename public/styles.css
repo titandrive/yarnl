@@ -7628,6 +7628,21 @@ input[type="number"].settings-input {
     pointer-events: none;
 }
 
+.user-perm-toggles {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.toggle-label-inline {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
 /* Small toggle switch for permission grid */
 .toggle-sm {
     width: 36px !important;

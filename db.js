@@ -113,6 +113,8 @@ async function initDatabase() {
         oidc_subject VARCHAR(255) UNIQUE,
         oidc_provider VARCHAR(100),
         can_add_patterns BOOLEAN DEFAULT true,
+        can_upload_pdf BOOLEAN DEFAULT true,
+        can_create_markdown BOOLEAN DEFAULT true,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         last_login TIMESTAMP
@@ -159,6 +161,19 @@ async function initDatabase() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                       WHERE table_name='users' AND column_name='can_change_password') THEN
           ALTER TABLE users ADD COLUMN can_change_password BOOLEAN DEFAULT true;
+        END IF;
+      END $$;
+    `);
+
+    // Add granular pattern upload permissions (replaces can_add_patterns)
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='users' AND column_name='can_upload_pdf') THEN
+          ALTER TABLE users ADD COLUMN can_upload_pdf BOOLEAN DEFAULT true;
+          ALTER TABLE users ADD COLUMN can_create_markdown BOOLEAN DEFAULT true;
+          UPDATE users SET can_upload_pdf = can_add_patterns, can_create_markdown = can_add_patterns;
         END IF;
       END $$;
     `);

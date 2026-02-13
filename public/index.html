@@ -24,8 +24,11 @@
         if (localStorage.getItem('authenticated') === 'true') {
             var startTab = localStorage.getItem('activeTab') || localStorage.getItem('defaultPage') || 'current';
             var earlyStyles = '#login-container{display:none!important}.container{display:block!important}.tab-content{display:none!important}.tab-content#' + startTab + '{display:block!important}';
-            if (localStorage.getItem('canAddPatterns') === 'false') {
-                earlyStyles += '#add-pattern-btn{display:none!important}';
+            if (localStorage.getItem('canUploadPdf') === 'false') {
+                earlyStyles += '#add-upload-pdf{display:none!important}';
+            }
+            if (localStorage.getItem('canCreateMarkdown') === 'false') {
+                earlyStyles += '#add-new-pattern{display:none!important}';
             }
             document.write('<style id="early-tab-style">' + earlyStyles + '</style>');
             if ((localStorage.getItem('pdfScrollMode') || 'scroll') === 'scroll' && localStorage.getItem('scrollPageButtons') !== 'true') {
@@ -37,7 +40,7 @@
         }
     </script>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=183">
+    <link rel="stylesheet" href="styles.css?v=184">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -2647,10 +2650,19 @@ Inc in each st around (12)
                 </div>
                 <div class="setting-item">
                     <div class="setting-info">
-                        <label>Can Add Patterns</label>
+                        <label>Can Upload PDF</label>
                     </div>
                     <label class="toggle-switch">
-                        <input type="checkbox" id="new-user-can-add" checked>
+                        <input type="checkbox" id="new-user-can-upload-pdf" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-info">
+                        <label>Can Create Markdown</label>
+                    </div>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="new-user-can-create-markdown" checked>
                         <span class="toggle-slider"></span>
                     </label>
                 </div>
@@ -2772,6 +2784,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=162"></script>
+    <script defer src="app.js?v=165"></script>
 </body>
 </html>

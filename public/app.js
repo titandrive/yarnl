@@ -199,12 +199,17 @@ function showApp() {
 }
 
 function updateUIForUser() {
-    // Hide "New Pattern" button if user can't add patterns
-    const addPatternBtn = document.getElementById('add-pattern-btn');
-    if (addPatternBtn && currentUser) {
-        const canAdd = currentUser.role === 'admin' || currentUser.canAddPatterns;
-        addPatternBtn.style.display = canAdd ? '' : 'none';
-        localStorage.setItem('canAddPatterns', canAdd ? 'true' : 'false');
+    // Hide pattern upload options based on granular permissions
+    if (currentUser) {
+        const isAdmin = currentUser.role === 'admin';
+        const canPdf = isAdmin || currentUser.canUploadPdf;
+        const canMarkdown = isAdmin || currentUser.canCreateMarkdown;
+        const uploadPdf = document.getElementById('add-upload-pdf');
+        const newPattern = document.getElementById('add-new-pattern');
+        if (uploadPdf) uploadPdf.style.display = canPdf ? '' : 'none';
+        if (newPattern) newPattern.style.display = canMarkdown ? '' : 'none';
+        localStorage.setItem('canUploadPdf', canPdf ? 'true' : 'false');
+        localStorage.setItem('canCreateMarkdown', canMarkdown ? 'true' : 'false');
     }
 
     // Load user list for admin panel
@@ -315,7 +320,8 @@ async function handleLogout() {
         console.error('Logout error:', error);
     }
     currentUser = null;
-    localStorage.removeItem('canAddPatterns');
+    localStorage.removeItem('canUploadPdf');
+    localStorage.removeItem('canCreateMarkdown');
     showLogin();
 }
 
@@ -425,12 +431,24 @@ function displayUsers() {
                         <div class="user-perm-item">
                             <div class="user-perm-info">
                                 <span class="user-perm-title">Can add patterns</span>
-                                <span class="user-perm-desc">User can upload or create new patterns</span>
+                                <span class="user-perm-desc">PDF and Markdown uploads</span>
                             </div>
-                            <label class="toggle-switch toggle-sm">
-                                <input type="checkbox" ${user.can_add_patterns !== false ? 'checked' : ''} onchange="toggleUserPermission(${user.id}, 'canAddPatterns', this.checked)">
-                                <span class="toggle-slider"></span>
-                            </label>
+                            <div class="user-perm-toggles">
+                                <label class="toggle-label-inline">
+                                    <label class="toggle-switch toggle-sm">
+                                        <input type="checkbox" ${user.can_upload_pdf !== false ? 'checked' : ''} onchange="toggleUserPermission(${user.id}, 'canUploadPdf', this.checked)">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                    <span>PDF</span>
+                                </label>
+                                <label class="toggle-label-inline">
+                                    <label class="toggle-switch toggle-sm">
+                                        <input type="checkbox" ${user.can_create_markdown !== false ? 'checked' : ''} onchange="toggleUserPermission(${user.id}, 'canCreateMarkdown', this.checked)">
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                    <span>MD</span>
+                                </label>
+                            </div>
                         </div>
                         <div class="user-perm-item">
                             <div class="user-perm-info">
@@ -527,9 +545,7 @@ function handleAddUserModalEscape(e) {
 async function toggleUserPermission(userId, permission, value) {
     try {
         const body = {};
-        if (permission === 'canAddPatterns') {
-            body.canAddPatterns = value;
-        }
+        body[permission] = value;
 
         const response = await fetch(`${API_URL}/api/users/${userId}`, {
             method: 'PATCH',
@@ -835,7 +851,8 @@ async function addNewUser() {
     const username = document.getElementById('new-user-username').value.trim();
     const password = document.getElementById('new-user-password').value;
     const role = document.getElementById('new-user-admin').checked ? 'admin' : 'user';
-    const canAddPatterns = document.getElementById('new-user-can-add').checked;
+    const canUploadPdf = document.getElementById('new-user-can-upload-pdf').checked;
+    const canCreateMarkdown = document.getElementById('new-user-can-create-markdown').checked;
     const passwordRequired = document.getElementById('new-user-require-pw').checked;
     const oidcAllowed = document.getElementById('new-user-allow-sso').checked;
     const canChangeUsername = document.getElementById('new-user-change-username').checked;
@@ -854,7 +871,8 @@ async function addNewUser() {
                 username,
                 password: password || undefined,
                 role,
-                canAddPatterns,
+                canUploadPdf,
+                canCreateMarkdown,
                 passwordRequired,
                 oidcAllowed,
                 canChangeUsername,
@@ -2256,9 +2274,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('login-container').style.display = 'none';
         document.querySelector('.container').style.display = 'block';
         // Apply cached permissions immediately to prevent button flash
-        if (localStorage.getItem('canAddPatterns') === 'false') {
-            const addBtn = document.getElementById('add-pattern-btn');
-            if (addBtn) addBtn.style.display = 'none';
+        if (localStorage.getItem('canUploadPdf') === 'false') {
+            const uploadPdf = document.getElementById('add-upload-pdf');
+            if (uploadPdf) uploadPdf.style.display = 'none';
+        }
+        if (localStorage.getItem('canCreateMarkdown') === 'false') {
+            const newPattern = document.getElementById('add-new-pattern');
+            if (newPattern) newPattern.style.display = 'none';
         }
     }
 

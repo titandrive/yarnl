@@ -95,11 +95,18 @@ function adminOnly(req, res, next) {
 }
 
 // Pattern permission middleware
-function canAddPatterns(req, res, next) {
-  if (req.user?.role === 'admin' || req.user?.can_add_patterns) {
+function canUploadPdf(req, res, next) {
+  if (req.user?.role === 'admin' || req.user?.can_upload_pdf) {
     return next();
   }
-  return res.status(403).json({ error: 'Permission denied: cannot add patterns' });
+  return res.status(403).json({ error: 'Permission denied: cannot upload PDF patterns' });
+}
+
+function canCreateMarkdown(req, res, next) {
+  if (req.user?.role === 'admin' || req.user?.can_create_markdown) {
+    return next();
+  }
+  return res.status(403).json({ error: 'Permission denied: cannot create markdown patterns' });
 }
 
 // SSE endpoint for real-time notifications
@@ -148,7 +155,8 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
     username: req.user.username,
     displayName: req.user.display_name,
     role: req.user.role,
-    canAddPatterns: req.user.can_add_patterns
+    canUploadPdf: req.user.can_upload_pdf,
+    canCreateMarkdown: req.user.can_create_markdown
   });
 });
 
@@ -214,7 +222,8 @@ app.post('/api/auth/login', async (req, res) => {
         username: user.username,
         displayName: user.display_name,
         role: user.role,
-        canAddPatterns: user.can_add_patterns
+        canUploadPdf: user.can_upload_pdf,
+        canCreateMarkdown: user.can_create_markdown
       }
     });
   } catch (error) {
@@ -283,7 +292,8 @@ app.put('/api/user/settings', authMiddleware, async (req, res) => {
 app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, username, display_name, role, can_add_patterns, password_required, oidc_allowed, oidc_provider,
+      `SELECT id, username, display_name, role, can_add_patterns, can_upload_pdf, can_create_markdown,
+              password_required, oidc_allowed, oidc_provider,
               can_change_username, can_change_password, created_at, last_login,
               (password_hash IS NOT NULL) as has_password
        FROM users ORDER BY created_at`
@@ -298,7 +308,7 @@ app.get('/api/users', authMiddleware, adminOnly, async (req, res) => {
 // Create user
 app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
   try {
-    const { username, password, role, canAddPatterns, passwordRequired, oidcAllowed, canChangeUsername, canChangePassword } = req.body;
+    const { username, password, role, canUploadPdf, canCreateMarkdown, passwordRequired, oidcAllowed, canChangeUsername, canChangePassword } = req.body;
 
     if (!username) {
       return res.status(400).json({ error: 'Username is required' });
@@ -313,14 +323,15 @@ app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
     const passwordHash = password ? await hashPassword(password) : null;
 
     const result = await pool.query(
-      `INSERT INTO users (username, password_hash, role, can_add_patterns, password_required, oidc_allowed, can_change_username, can_change_password)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, username, role, can_add_patterns, created_at`,
+      `INSERT INTO users (username, password_hash, role, can_upload_pdf, can_create_markdown, password_required, oidc_allowed, can_change_username, can_change_password)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+       RETURNING id, username, role, can_upload_pdf, can_create_markdown, created_at`,
       [
         username,
         passwordHash,
         role || 'user',
-        canAddPatterns !== false,
+        canUploadPdf !== false,
+        canCreateMarkdown !== false,
         passwordRequired === true,
         oidcAllowed !== false,
         canChangeUsername !== false,
@@ -347,7 +358,7 @@ app.post('/api/users', authMiddleware, adminOnly, async (req, res) => {
 app.patch('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
   try {
     const userId = parseInt(req.params.id);
-    const { role, canAddPatterns, password, displayName, passwordRequired, oidcAllowed, username, removePassword } = req.body;
+    const { role, canUploadPdf, canCreateMarkdown, password, displayName, passwordRequired, oidcAllowed, username, removePassword } = req.body;
 
     const updates = [];
     const values = [];
@@ -366,9 +377,13 @@ app.patch('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
       updates.push(`role = $${paramCount++}`);
       values.push(role);
     }
-    if (canAddPatterns !== undefined) {
-      updates.push(`can_add_patterns = $${paramCount++}`);
-      values.push(canAddPatterns);
+    if (canUploadPdf !== undefined) {
+      updates.push(`can_upload_pdf = $${paramCount++}`);
+      values.push(canUploadPdf);
+    }
+    if (canCreateMarkdown !== undefined) {
+      updates.push(`can_create_markdown = $${paramCount++}`);
+      values.push(canCreateMarkdown);
     }
     if (displayName !== undefined) {
       updates.push(`display_name = $${paramCount++}`);
@@ -408,7 +423,7 @@ app.patch('/api/users/:id', authMiddleware, adminOnly, async (req, res) => {
 
     const result = await pool.query(
       `UPDATE users SET ${updates.join(', ')} WHERE id = $${paramCount}
-       RETURNING id, username, display_name, role, can_add_patterns, password_required, oidc_allowed`,
+       RETURNING id, username, display_name, role, can_upload_pdf, can_create_markdown, password_required, oidc_allowed`,
       values
     );
 
@@ -555,7 +570,7 @@ app.post('/api/auth/remove-password', authMiddleware, async (req, res) => {
 app.get('/api/auth/account', authMiddleware, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, username, role, can_add_patterns, password_required, oidc_allowed, oidc_provider,
+      `SELECT id, username, role, can_upload_pdf, can_create_markdown, password_required, oidc_allowed, oidc_provider,
               can_change_username, can_change_password,
               (password_hash IS NOT NULL) as has_password
        FROM users WHERE id = $1`,
@@ -6146,8 +6161,8 @@ app.get('/api/admin/backup/config', authMiddleware, adminOnly, async (req, res) 
 
     // Get all users (including password hashes for full restore capability)
     const usersResult = await pool.query(
-      `SELECT id, username, display_name, role, can_add_patterns, password_required,
-              oidc_allowed, oidc_subject, oidc_provider, can_change_username, can_change_password,
+      `SELECT id, username, display_name, role, can_add_patterns, can_upload_pdf, can_create_markdown,
+              password_required, oidc_allowed, oidc_subject, oidc_provider, can_change_username, can_change_password,
               password_hash, created_at, updated_at
        FROM users ORDER BY id`
     );
@@ -6205,16 +6220,20 @@ app.post('/api/admin/backup/config/restore', authMiddleware, adminOnly, async (r
         // Check if user exists
         const existing = await pool.query('SELECT id FROM users WHERE username = $1', [user.username]);
 
+        // Support old backups that only have can_add_patterns
+        const uploadPdf = user.can_upload_pdf !== undefined ? user.can_upload_pdf : user.can_add_patterns;
+        const createMarkdown = user.can_create_markdown !== undefined ? user.can_create_markdown : user.can_add_patterns;
+
         if (existing.rows.length > 0) {
           // Update existing user
           await pool.query(
             `UPDATE users SET
-              display_name = $1, role = $2, can_add_patterns = $3, password_required = $4,
-              oidc_allowed = $5, oidc_subject = $6, oidc_provider = $7,
-              can_change_username = $8, can_change_password = $9, password_hash = $10,
+              display_name = $1, role = $2, can_upload_pdf = $3, can_create_markdown = $4,
+              password_required = $5, oidc_allowed = $6, oidc_subject = $7, oidc_provider = $8,
+              can_change_username = $9, can_change_password = $10, password_hash = $11,
               updated_at = NOW()
-             WHERE username = $11`,
-            [user.display_name, user.role, user.can_add_patterns, user.password_required,
+             WHERE username = $12`,
+            [user.display_name, user.role, uploadPdf, createMarkdown, user.password_required,
              user.oidc_allowed, user.oidc_subject, user.oidc_provider,
              user.can_change_username, user.can_change_password, user.password_hash,
              user.username]
@@ -6222,11 +6241,12 @@ app.post('/api/admin/backup/config/restore', authMiddleware, adminOnly, async (r
         } else {
           // Insert new user
           await pool.query(
-            `INSERT INTO users (username, display_name, role, can_add_patterns, password_required,
-              oidc_allowed, oidc_subject, oidc_provider, can_change_username, can_change_password, password_hash)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-            [user.username, user.display_name, user.role, user.can_add_patterns, user.password_required,
-             user.oidc_allowed, user.oidc_subject, user.oidc_provider,
+            `INSERT INTO users (username, display_name, role, can_upload_pdf, can_create_markdown,
+              password_required, oidc_allowed, oidc_subject, oidc_provider, can_change_username,
+              can_change_password, password_hash)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+            [user.username, user.display_name, user.role, uploadPdf, createMarkdown,
+             user.password_required, user.oidc_allowed, user.oidc_subject, user.oidc_provider,
              user.can_change_username, user.can_change_password, user.password_hash]
           );
         }

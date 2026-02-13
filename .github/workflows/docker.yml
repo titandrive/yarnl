@@ -33,17 +33,7 @@ jobs:
             titandrive/yarnl:latest
             titandrive/yarnl:${{ steps.version.outputs.version }}
 
-      - name: Read release notes
-        id: notes
-        run: |
-          if [ -f RELEASE.md ]; then
-            echo "has_notes=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_notes=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          body_path: ${{ steps.notes.outputs.has_notes == 'true' && 'RELEASE.md' || '' }}
-          generate_release_notes: ${{ steps.notes.outputs.has_notes != 'true' }}
+          generate_release_notes: true

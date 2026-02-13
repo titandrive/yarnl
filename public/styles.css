@@ -1452,6 +1452,49 @@ html[data-theme="nuked-dark"] .btn-primary {
         font-size: 0.8rem;
         padding: 5px 10px;
     }
+    .bulk-edit-modal-content {
+        max-width: none;
+        width: 92%;
+        padding: 16px;
+    }
+    .bulk-edit-modal-content .modal-header h2 {
+        font-size: 1.05rem;
+    }
+    .bulk-status-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr;
+        gap: 6px;
+    }
+    .bulk-status-label {
+        grid-column: 1 / -1;
+    }
+    .bulk-status-btn {
+        justify-content: center;
+        padding: 8px;
+    }
+    .bulk-status-btn svg {
+        width: 16px;
+        height: 16px;
+    }
+    .bulk-btn-label {
+        display: none;
+    }
+    .bulk-danger-actions {
+        flex-direction: column;
+    }
+    .bulk-danger-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    .bulk-edit-modal-content .modal-footer {
+        gap: 8px;
+    }
+    .bulk-edit-modal-content .modal-footer .btn {
+        flex: 1;
+        justify-content: center;
+        padding: 10px 12px;
+        font-size: 0.85rem;
+    }
 }
 
 .bulk-edit-modal-content {

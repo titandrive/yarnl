@@ -37,7 +37,7 @@
         }
     </script>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=180">
+    <link rel="stylesheet" href="styles.css?v=183">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -2728,32 +2728,32 @@ Inc in each st around (12)
                     <label>Status</label>
                     <div class="bulk-status-row">
                         <span class="bulk-status-label">Set:</span>
-                        <button class="bulk-status-btn" data-action="set" data-field="current" onclick="toggleBulkStatusBtn(this)">
+                        <button class="bulk-status-btn" data-action="set" data-field="current" onclick="toggleBulkStatusBtn(this)" title="In Progress">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                            In Progress
+                            <span class="bulk-btn-label">In Progress</span>
                         </button>
-                        <button class="bulk-status-btn" data-action="set" data-field="complete" onclick="toggleBulkStatusBtn(this)">
+                        <button class="bulk-status-btn" data-action="set" data-field="complete" onclick="toggleBulkStatusBtn(this)" title="Complete">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            Complete
+                            <span class="bulk-btn-label">Complete</span>
                         </button>
-                        <button class="bulk-status-btn" data-action="set" data-field="favorite" onclick="toggleBulkStatusBtn(this)">
+                        <button class="bulk-status-btn" data-action="set" data-field="favorite" onclick="toggleBulkStatusBtn(this)" title="Favorite">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                            Favorite
+                            <span class="bulk-btn-label">Favorite</span>
                         </button>
                     </div>
                     <div class="bulk-status-row">
                         <span class="bulk-status-label">Remove:</span>
-                        <button class="bulk-status-btn" data-action="remove" data-field="current" onclick="toggleBulkStatusBtn(this)">
+                        <button class="bulk-status-btn" data-action="remove" data-field="current" onclick="toggleBulkStatusBtn(this)" title="In Progress">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-                            In Progress
+                            <span class="bulk-btn-label">In Progress</span>
                         </button>
-                        <button class="bulk-status-btn" data-action="remove" data-field="complete" onclick="toggleBulkStatusBtn(this)">
+                        <button class="bulk-status-btn" data-action="remove" data-field="complete" onclick="toggleBulkStatusBtn(this)" title="Complete">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
-                            Complete
+                            <span class="bulk-btn-label">Complete</span>
                         </button>
-                        <button class="bulk-status-btn" data-action="remove" data-field="favorite" onclick="toggleBulkStatusBtn(this)">
+                        <button class="bulk-status-btn" data-action="remove" data-field="favorite" onclick="toggleBulkStatusBtn(this)" title="Favorite">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-                            Favorite
+                            <span class="bulk-btn-label">Favorite</span>
                         </button>
                     </div>
                 </div>

@@ -1770,9 +1770,13 @@ app.get('/api/patterns', async (req, res) => {
   try {
     let result;
     if (req.user?.role === 'admin') {
-      // Admin sees all patterns
+      // Admin sees all patterns with owner info
       result = await pool.query(
-        'SELECT * FROM patterns WHERE is_archived = false OR is_archived IS NULL ORDER BY upload_date DESC'
+        `SELECT p.*, u.display_name as owner_display_name, u.username as owner_username
+         FROM patterns p
+         LEFT JOIN users u ON p.user_id = u.id
+         WHERE p.is_archived = false OR p.is_archived IS NULL
+         ORDER BY p.upload_date DESC`
       );
     } else if (req.user?.id) {
       // Regular user sees own patterns + public patterns
@@ -2443,8 +2447,10 @@ app.get('/api/patterns/current', async (req, res) => {
   try {
     let result;
     if (req.user?.role === 'admin') {
+      // Admin current tab shows only their own current patterns
       result = await pool.query(
-        'SELECT * FROM patterns WHERE is_current = true AND (is_archived = false OR is_archived IS NULL) ORDER BY updated_at DESC'
+        'SELECT * FROM patterns WHERE is_current = true AND (is_archived = false OR is_archived IS NULL) AND user_id = $1 ORDER BY updated_at DESC',
+        [req.user.id]
       );
     } else if (req.user?.id) {
       result = await pool.query(

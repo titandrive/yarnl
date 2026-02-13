@@ -1745,6 +1745,7 @@ let highlightMode = localStorage.getItem('libraryHighlightMode') || 'none';
 let pinCurrent = localStorage.getItem('libraryPinCurrent') === 'true';
 let pinFavorites = localStorage.getItem('libraryPinFavorites') === 'true';
 let showFilter = localStorage.getItem('libraryShowFilter') || 'all';
+let ownerFilter = localStorage.getItem('libraryOwnerFilter') || 'all';
 let searchQuery = '';
 let previousTab = 'current';
 let navigationHistory = []; // Stack for UI back button
@@ -4461,8 +4462,37 @@ async function loadPatterns() {
         patternsLoaded = true;
         displayPatterns();
         updateTabCounts();
+        updateOwnerFilterSelect();
     } catch (error) {
         console.error('Error loading patterns:', error);
+    }
+}
+
+function updateOwnerFilterSelect() {
+    const select = document.getElementById('owner-filter-select');
+    if (!select || currentUser?.role !== 'admin') return;
+
+    // Build unique owners from patterns
+    const owners = new Map();
+    patterns.forEach(p => {
+        if (p.user_id && !owners.has(p.user_id)) {
+            owners.set(p.user_id, p.owner_display_name || p.owner_username || `User ${p.user_id}`);
+        }
+    });
+
+    const currentSelection = select.value || ownerFilter;
+    select.innerHTML = '<option value="all">All Users</option><option value="mine">Mine</option>' +
+        Array.from(owners.entries())
+            .filter(([id]) => id !== currentUser.id)
+            .map(([id, name]) => `<option value="${id}">${escapeHtml(name)}</option>`)
+            .join('');
+
+    // Restore selection
+    if (Array.from(select.options).some(opt => opt.value === currentSelection)) {
+        select.value = currentSelection;
+    } else {
+        select.value = 'all';
+        ownerFilter = 'all';
     }
 }
 
@@ -7756,6 +7786,21 @@ function initLibraryFilters() {
         });
     }
 
+    // Owner filter dropdown (admin only)
+    const ownerFilterSection = document.getElementById('owner-filter-section');
+    const ownerFilterSelect = document.getElementById('owner-filter-select');
+    if (currentUser?.role === 'admin' && ownerFilterSection) {
+        ownerFilterSection.style.display = '';
+        if (ownerFilterSelect) {
+            ownerFilterSelect.value = ownerFilter;
+            ownerFilterSelect.addEventListener('change', (e) => {
+                ownerFilter = e.target.value;
+                localStorage.setItem('libraryOwnerFilter', ownerFilter);
+                displayPatterns();
+            });
+        }
+    }
+
     // Mobile filter bar
     const mobileFilterBtn = document.getElementById('mobile-filter-btn');
 
@@ -7821,6 +7866,9 @@ function renderPatternCard(pattern, options = {}) {
         : '';
 
     const typeLabel = pattern.pattern_type === 'markdown' ? 'MD' : 'PDF';
+    const isAdmin = currentUser?.role === 'admin';
+    const isOwnPattern = !isAdmin || pattern.user_id === currentUser?.id;
+    const ownerName = pattern.owner_display_name || pattern.owner_username;
 
     const isSelected = selectedPatternIds.has(pattern.id);
     return `
@@ -7828,11 +7876,12 @@ function renderPatternCard(pattern, options = {}) {
             <div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleBulkSelect(${pattern.id}, this)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            ${showStatusBadge && pattern.completed ? '<span class="completed-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>' : ''}
-            ${showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>' : ''}
+            ${isOwnPattern && showStatusBadge && pattern.completed ? '<span class="completed-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>' : ''}
+            ${isOwnPattern && showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>' : ''}
             ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
             ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
-            ${showStarBadge && pattern.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
+            ${isOwnPattern && showStarBadge && pattern.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
+            ${!isOwnPattern && ownerName ? `<span class="owner-badge-overlay" style="background:${userColor(ownerName)}">${escapeHtml(ownerName)}</span>` : ''}
             ${pattern.thumbnail
                 ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
                 : `<div class="pattern-thumbnail-placeholder">
@@ -7974,6 +8023,16 @@ function displayPatterns() {
             if (showFilter === 'new') return !p.completed && !p.timer_seconds;
             return true;
         });
+    }
+
+    // Filter by owner (admin only)
+    if (currentUser?.role === 'admin' && ownerFilter !== 'all') {
+        if (ownerFilter === 'mine') {
+            filteredPatterns = filteredPatterns.filter(p => p.user_id === currentUser.id);
+        } else {
+            const ownerId = parseInt(ownerFilter);
+            filteredPatterns = filteredPatterns.filter(p => p.user_id === ownerId);
+        }
     }
 
     // Sort patterns
@@ -14090,4 +14149,13 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+function userColor(name) {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = ((hash % 360) + 360) % 360;
+    return `hsl(${hue}, 65%, 45%)`;
 }

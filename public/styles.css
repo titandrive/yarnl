@@ -8099,6 +8099,7 @@ input[type="number"].settings-input {
 /* Project Card */
 .project-card {
     position: relative;
+    padding: 8px;
 }
 
 .project-card .favorite-badge {
@@ -8106,12 +8107,12 @@ input[type="number"].settings-input {
     right: 18px;
 }
 
-.project-card .pattern-description:empty,
 .project-card .pattern-hashtags:empty {
     display: none;
 }
 
 .project-card .project-thumbnail {
+    position: relative;
     height: 150px;
     flex-shrink: 0;
     display: flex;
@@ -8137,19 +8138,29 @@ input[type="number"].settings-input {
     background: var(--input-bg);
 }
 
-/* Project Progress Mini (on cards) */
+/* Project Progress Mini (overlay on thumbnail) */
 .project-progress-mini {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
     display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin: 8px 0;
-    font-size: 0.8rem;
-    color: var(--text-muted);
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.project-progress-mini span {
+    white-space: nowrap;
 }
 
 .progress-bar-mini {
+    flex: 1;
     height: 4px;
-    background: var(--input-bg);
+    background: rgba(255, 255, 255, 0.3);
     border-radius: 2px;
     overflow: hidden;
 }
@@ -8158,6 +8169,28 @@ input[type="number"].settings-input {
     height: 100%;
     background: var(--success-color);
     transition: width 0.3s ease;
+}
+
+.project-card .pattern-description {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 0.8rem;
+    margin-bottom: 2px;
+}
+
+.project-card h3 {
+    margin-bottom: 2px;
+}
+
+.project-card .pattern-hashtags {
+    margin-bottom: 2px;
+}
+
+.project-card .pattern-actions {
+    margin-top: auto;
 }
 
 /* Project Continue Button */

@@ -1167,7 +1167,7 @@ async function deleteUserData(username) {
 }
 
 // Fallback default categories for new users (used if admin hasn't configured any)
-const FALLBACK_DEFAULT_CATEGORIES = ['Amigurumi', 'Wearables', 'Tunisian', 'Lace', 'Colorwork', 'Freeform', 'Micro', 'Other'];
+const FALLBACK_DEFAULT_CATEGORIES = ['Amigurumi', 'Wearables', 'Accessories', 'Blankets', 'Squares', 'Micro', 'Other'];
 
 // Get default categories from settings or use fallback
 async function getDefaultCategories() {

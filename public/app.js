@@ -8176,6 +8176,106 @@ function startInlineDescEdit(element, patternId) {
     element.addEventListener('blur', handleBlur, { once: true });
 }
 
+function startInlineProjectDescEdit(element, projectId) {
+    if (element.isContentEditable) return;
+
+    const maxLen = 45;
+    const currentText = element.querySelector('.add-description') ? '' : element.textContent;
+
+    element.textContent = currentText;
+    element.contentEditable = true;
+    element.classList.add('editing');
+    element.style.webkitLineClamp = 'unset';
+
+    const counter = document.createElement('span');
+    counter.className = 'inline-char-counter';
+    counter.textContent = `${currentText.length}/${maxLen}`;
+    element.parentNode.insertBefore(counter, element.nextSibling);
+
+    element.focus();
+
+    const range = document.createRange();
+    range.selectNodeContents(element);
+    range.collapse(false);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    const updateCounter = () => {
+        const len = element.textContent.length;
+        counter.textContent = `${len}/${maxLen}`;
+        counter.classList.toggle('over', len > maxLen);
+    };
+
+    const saveDesc = async () => {
+        window.getSelection().removeAllRanges();
+        element.contentEditable = false;
+        element.classList.remove('editing');
+        element.style.webkitLineClamp = '';
+        counter.remove();
+        const newDesc = element.textContent.trim().substring(0, maxLen);
+
+        if (!newDesc) {
+            element.innerHTML = '<span class="add-description">+ Add description</span>';
+        }
+
+        try {
+            const response = await fetch(`${API_URL}/api/projects/${projectId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ description: newDesc })
+            });
+            if (response.ok) {
+                await loadProjects();
+                await loadCurrentProjects();
+                displayCurrentPatterns();
+            }
+        } catch (error) {
+            console.error('Error updating project description:', error);
+            loadProjects();
+        }
+    };
+
+    const handleInput = () => {
+        if (element.textContent.length > maxLen) {
+            const selection = window.getSelection();
+            const cursorPos = selection.focusOffset;
+            element.textContent = element.textContent.substring(0, maxLen);
+            const r = document.createRange();
+            r.setStart(element.firstChild || element, Math.min(cursorPos, maxLen));
+            r.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(r);
+        }
+        updateCounter();
+    };
+
+    const handleKeydown = (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            element.blur();
+        } else if (e.key === 'Escape') {
+            element.removeEventListener('blur', handleBlur);
+            element.removeEventListener('input', handleInput);
+            element.contentEditable = false;
+            element.classList.remove('editing');
+            element.style.webkitLineClamp = '';
+            counter.remove();
+            loadProjects();
+        }
+    };
+
+    const handleBlur = () => {
+        element.removeEventListener('keydown', handleKeydown);
+        element.removeEventListener('input', handleInput);
+        saveDesc();
+    };
+
+    element.addEventListener('input', handleInput);
+    element.addEventListener('keydown', handleKeydown);
+    element.addEventListener('blur', handleBlur, { once: true });
+}
+
 function resetCardDeleteButtons() {
     document.querySelectorAll('.action-btn.delete.confirm-delete, .action-btn.archive.confirm-delete').forEach(btn => {
         btn.classList.remove('confirm-delete');
@@ -12140,20 +12240,18 @@ function renderProjectCard(project) {
                            </svg>
                        </div>`
                 }
+                <div class="project-progress-mini">
+                    <span>${project.completed_count}/${project.pattern_count}</span>
+                    <div class="progress-bar-mini">
+                        <div class="progress-fill" style="width: ${progress}%;"></div>
+                    </div>
+                    <span>${totalTime || '0h 0m'}</span>
+                </div>
             </div>
 
             <h3 title="${escapeHtml(project.name)}">${escapeHtml(project.name)}</h3>
 
-            <div class="project-progress-mini">
-                <span>${project.completed_count}/${project.pattern_count} patterns</span>
-                <div class="progress-bar-mini">
-                    <div class="progress-fill" style="width: ${progress}%;"></div>
-                </div>
-            </div>
-
-            <p class="pattern-status elapsed">${totalTime ? `Time: ${totalTime}` : 'No time tracked'}</p>
-
-            <p class="pattern-description">${project.description ? escapeHtml(project.description) : ''}</p>
+            <p class="pattern-description" onclick="event.stopPropagation(); startInlineProjectDescEdit(this, ${project.id})" title="Click to edit">${project.description ? escapeHtml(project.description) : '<span class="add-description">+ Add description</span>'}</p>
 
             <div class="pattern-hashtags">${hashtagsHtml}</div>
 
@@ -12615,6 +12713,8 @@ async function createProject() {
         hideNewProjectPanel();
         await loadPatterns();
         await loadProjects();
+        await loadCurrentProjects();
+        displayCurrentPatterns();
 
         // Open the newly created project
         openProjectView(project.id);
@@ -12934,6 +13034,8 @@ async function toggleProjectFavorite(projectId, isFavorite) {
         if (!response.ok) throw new Error('Failed to update project');
 
         await loadProjects();
+        await loadCurrentProjects();
+        displayCurrentPatterns();
     } catch (error) {
         console.error('Error toggling project favorite:', error);
     }
@@ -13225,6 +13327,8 @@ async function confirmAddPatternsToProject() {
         await loadPatterns();
         await openProjectView(currentProjectId);
         await loadProjects();
+        await loadCurrentProjects();
+        displayCurrentPatterns();
 
         const totalAdded = patternIds.length;
         showToast(`Added ${totalAdded} pattern${totalAdded !== 1 ? 's' : ''} to project`, 'success');
@@ -13378,9 +13482,11 @@ async function removePatternFromProject(patternId, btn) {
 
         if (!response.ok) throw new Error('Failed to remove pattern');
 
-        // Refresh project view
-        await openProjectView(currentProjectId);
+        // Refresh all project views (projects tab, in-progress page, detail view)
         await loadProjects();
+        await loadCurrentProjects();
+        displayCurrentPatterns();
+        await openProjectView(currentProjectId, false);
     } catch (error) {
         console.error('Error removing pattern from project:', error);
     }
@@ -13397,9 +13503,11 @@ async function updatePatternStatusInProject(patternId, status) {
 
         if (!response.ok) throw new Error('Failed to update pattern status');
 
-        // Refresh project view
-        await openProjectView(currentProjectId);
+        // Refresh all project views (projects tab, in-progress page, detail view)
         await loadProjects();
+        await loadCurrentProjects();
+        displayCurrentPatterns();
+        await openProjectView(currentProjectId, false);
     } catch (error) {
         console.error('Error updating pattern status:', error);
         alert('Error updating status: ' + error.message);
@@ -13538,7 +13646,14 @@ async function saveProjectEdits() {
         document.getElementById('edit-project-modal').style.display = 'none';
 
         await loadProjects();
-        await openProjectView(currentProjectId);
+        await loadCurrentProjects();
+        displayCurrentPatterns();
+
+        // If already viewing this project, refresh without navigation; otherwise open it
+        const projectDetailView = document.getElementById('project-detail-view');
+        if (projectDetailView && projectDetailView.style.display !== 'none') {
+            await openProjectView(currentProjectId, false);
+        }
     } catch (error) {
         console.error('Error saving project edits:', error);
         alert('Error saving project: ' + error.message);
@@ -13561,6 +13676,8 @@ async function deleteCurrentProject() {
         document.getElementById('edit-project-modal').style.display = 'none';
         closeProjectView();
         await loadProjects();
+        await loadCurrentProjects();
+        displayCurrentPatterns();
     } catch (error) {
         console.error('Error deleting project:', error);
         alert('Error deleting project: ' + error.message);

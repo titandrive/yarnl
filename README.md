@@ -43,32 +43,15 @@ Try out the [demo](https://demo.yarnl.com) yourself (username: demo, password: d
 
 ## Quick Start
 
-### Prerequisites
-- Docker and Docker Compose
+```bash
+mkdir yarnl && cd yarnl
+curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/docker-compose.yml
+docker compose up -d
+```
 
-### Setup
+Open `http://localhost:3000` and you're done. By default, Yarnl starts in single-user mode with an `admin` account and no password.
 
-1. **Create a directory and download the compose file**
-   ```bash
-   mkdir yarnl && cd yarnl
-   curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/docker-compose.yml
-   ```
-
-2. **Configure environment** (optional)
-   ```bash
-   curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/.env.example
-   cp .env.example .env
-   # Edit .env to set your preferences (passwords, timezone, etc.)
-   ```
-
-3. **Start the application**
-   ```bash
-   docker compose up -d
-   ```
-
-4. **Open your browser** to `http://localhost:3000`
-
-By default, Yarnl starts in single-user mode with an `admin` account and no password. To enable multi-user mode, set `ADMIN_PASSWORD` in your `.env` file.
+To configure passwords, timezone, and other options, download the [`.env.example`](https://raw.githubusercontent.com/titandrive/yarnl/main/.env.example) file, rename it to `.env`, and edit as needed before starting.
 
 ### Docker Compose
 

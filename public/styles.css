@@ -1430,6 +1430,7 @@ html[data-theme="nuked-dark"] .btn-primary {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-color);
+    white-space: nowrap;
     animation: bulk-toolbar-in 0.25s ease-out;
 }
 
@@ -1438,6 +1439,19 @@ html[data-theme="nuked-dark"] .btn-primary {
     align-items: center;
     gap: 6px;
     font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+    .bulk-toolbar {
+        padding: 8px 14px;
+        gap: 10px;
+        font-size: 0.85rem;
+        bottom: 16px;
+    }
+    .bulk-toolbar .btn {
+        font-size: 0.8rem;
+        padding: 5px 10px;
+    }
 }
 
 .bulk-edit-modal-content {

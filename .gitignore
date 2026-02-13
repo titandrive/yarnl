@@ -6,14 +6,13 @@ yarn-error.log*
 
 # Environment variables
 .env
-.env.*
+!.env.example
 
 # Database
 postgres-data/
 *.sqlite3
 
 # Docker
-.dockerignore
 docker-compose.override.yml
 
 # User-generated content

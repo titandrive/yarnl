@@ -1,0 +1,15 @@
+node_modules
+postgres-data
+.git
+.gitignore
+.env
+.env.*
+.claude
+README.md
+LICENSE
+docker-compose.yml
+docker-compose.override.yml
+users
+settings-reference.md
+claude-log.md
+API.md

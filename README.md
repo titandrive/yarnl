@@ -48,7 +48,7 @@ Yarnl is easy to install with the following commands. You'll be crocheting in no
 - [Docker](https://docs.docker.com/get-docker/) 
 - Docker Compose
 
-1. Open terminal and run the folloing command:
+1. Open terminal and run the following commands:
 
 ```bash
 mkdir yarnl && cd yarnl                # Create a directory for Yarnl
@@ -56,7 +56,7 @@ curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/docker-compose.y
 docker compose up -d                   # Start Yarnl and PostgreSQL
 ```
 
-2. Open your browser and naviate to `http://localhost:3000`
+2. Open your browser and navigate to `http://localhost:3000`
 
 By default, Yarnl starts in single-user mode with an `admin` account and no password.
 

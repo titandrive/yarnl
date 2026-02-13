@@ -6296,6 +6296,15 @@ async function loadLibraryStats() {
                 </div>
             ` : ''}
         `;
+        // Load version from API
+        const versionEl = document.getElementById('app-version');
+        if (versionEl) {
+            const vRes = await fetch(`${API_URL}/api/version`);
+            if (vRes.ok) {
+                const vData = await vRes.json();
+                versionEl.textContent = vData.version;
+            }
+        }
     } catch (error) {
         console.error('Error loading library stats:', error);
     }

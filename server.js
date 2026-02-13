@@ -109,6 +109,11 @@ function canCreateMarkdown(req, res, next) {
   return res.status(403).json({ error: 'Permission denied: cannot create markdown patterns' });
 }
 
+// Version endpoint (reads from package.json)
+app.get('/api/version', (req, res) => {
+  res.json({ version: require('./package.json').version });
+});
+
 // SSE endpoint for real-time notifications
 app.get('/api/events', (req, res) => {
   res.setHeader('Content-Type', 'text/event-stream');

@@ -43,6 +43,37 @@ async function initDatabase() {
       )
     `);
 
+    // Create users table for authentication (must be before categories which references it)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        username VARCHAR(100) NOT NULL UNIQUE,
+        password_hash VARCHAR(255),
+        password_required BOOLEAN DEFAULT false,
+        role VARCHAR(20) DEFAULT 'user',
+        display_name VARCHAR(255),
+        oidc_subject VARCHAR(255) UNIQUE,
+        oidc_provider VARCHAR(100),
+        can_add_patterns BOOLEAN DEFAULT true,
+        can_upload_pdf BOOLEAN DEFAULT true,
+        can_create_markdown BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_login TIMESTAMP
+      )
+    `);
+
+    // Add password_required column if it doesn't exist (migration)
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='users' AND column_name='password_required') THEN
+          ALTER TABLE users ADD COLUMN password_required BOOLEAN DEFAULT false;
+        END IF;
+      END $$;
+    `);
+
     // Create categories table (per-user categories)
     await client.query(`
       CREATE TABLE IF NOT EXISTS categories (
@@ -99,37 +130,6 @@ async function initDatabase() {
         value JSONB NOT NULL,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
-    `);
-
-    // Create users table for authentication
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        username VARCHAR(100) NOT NULL UNIQUE,
-        password_hash VARCHAR(255),
-        password_required BOOLEAN DEFAULT false,
-        role VARCHAR(20) DEFAULT 'user',
-        display_name VARCHAR(255),
-        oidc_subject VARCHAR(255) UNIQUE,
-        oidc_provider VARCHAR(100),
-        can_add_patterns BOOLEAN DEFAULT true,
-        can_upload_pdf BOOLEAN DEFAULT true,
-        can_create_markdown BOOLEAN DEFAULT true,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_login TIMESTAMP
-      )
-    `);
-
-    // Add password_required column if it doesn't exist (migration)
-    await client.query(`
-      DO $$
-      BEGIN
-        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
-                      WHERE table_name='users' AND column_name='password_required') THEN
-          ALTER TABLE users ADD COLUMN password_required BOOLEAN DEFAULT false;
-        END IF;
-      END $$;
     `);
 
     // Add oidc_allowed column if it doesn't exist (migration)

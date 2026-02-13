@@ -1,58 +1,48 @@
 services:
-#--------------------
-#  Postgres Database
-#--------------------
   postgres:
     container_name: yarnl-db
     image: postgres:16-alpine
     volumes:
       - yarnl-postgres-data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=yarnl
-      - POSTGRES_USER=yarnl
-      - POSTGRES_PASSWORD=yarnl
+      - POSTGRES_DB=${POSTGRES_DB:-yarnl}
+      - POSTGRES_USER=${POSTGRES_USER:-yarnl}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-yarnl}
     restart: unless-stopped
     networks:
-      - yarn-net
+      - yarnl
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U yarnl"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-yarnl}"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-#--------------------
-#  Yarnl Application
-#--------------------
   yarnl:
     container_name: yarnl
     build: .
-    # ports: #DO NOT UNCOMMENT PORTS
-    #   - "3000:3000"
+    ports:
+      - "${PORT:-3000}:3000"
     volumes:
       - ./users:/app/users
-      - ./public:/app/public
     environment:
       - NODE_ENV=production
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_DB=yarnl
-      - POSTGRES_USER=yarnl
-      - POSTGRES_PASSWORD=yarnl
-      - BACKUP_HOST_PATH=/opt/yarnl/users
-      - TZ=America/Los_Angeles
-      - ADMIN_USERNAME=admin
-      - ADMIN_PASSWORD=password
-      - FORCE_LOCAL_LOGIN=false  # Emergency override if OIDC is broken
+      - POSTGRES_DB=${POSTGRES_DB:-yarnl}
+      - POSTGRES_USER=${POSTGRES_USER:-yarnl}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-yarnl}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
+      - TZ=${TZ:-UTC}
     restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
     networks:
-      - yarn-net
+      - yarnl
 
 networks:
-  yarn-net:
-    external: true
+  yarnl:
 
 volumes:
   yarnl-postgres-data:

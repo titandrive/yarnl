@@ -1,8 +1,14 @@
 {
   "name": "yarnl",
   "version": "1.0.0",
-  "description": "Crochet project management app",
+  "description": "Self-hosted crochet project management app",
   "main": "server.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/titandrive/yarnl.git"
+  },
+  "author": "titandrive",
+  "license": "MIT",
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js"

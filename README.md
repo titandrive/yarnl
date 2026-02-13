@@ -44,9 +44,9 @@ Try out the [demo](https://demo.yarnl.com) yourself (username: demo, password: d
 ## Quick Start
 
 ```bash
-mkdir yarnl && cd yarnl
-curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/docker-compose.yml
-docker compose up -d
+mkdir yarnl && cd yarnl                # Create a directory for Yarnl
+curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/docker-compose.yml  # Download the compose file
+docker compose up -d                   # Start Yarnl and PostgreSQL
 ```
 
 Open `http://localhost:3000` and you're done. By default, Yarnl starts in single-user mode with an `admin` account and no password.

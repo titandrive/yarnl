@@ -2,7 +2,7 @@
 
 A self-hosted web application for managing crochet patterns, tracking project progress, and organizing your crochet library.
 
-Try out the [demo](https://demo.yarnl.com) yourself (Username: Demo, Password: Demo) or read the [docs](https://yarnl.com/docs/about) to get started.
+Try out the [demo](https://demo.yarnl.com) yourself (username: demo, password: demo) or read the [docs](https://yarnl.com/docs/about) to get started.
 
 <img src="https://yarnl.com/img/screenshots/home.png" alt="Home" width="700">
 <img src="https://yarnl.com/img/screenshots/notes.png" alt="Notes" width="700">

@@ -2617,19 +2617,36 @@ function setupMarkdownListContinuation(textarea) {
 function applyFont(fontName, customFontName = null) {
     const fontToLoad = customFontName || fontName;
 
-    // Remove existing custom font link if any
+    // Remove existing custom font link and style overrides
     const existingLink = document.getElementById('custom-google-font');
     if (existingLink) existingLink.remove();
+    const existingStyle = document.getElementById('custom-font-style');
+    if (existingStyle) existingStyle.remove();
 
-    // Load font from Google Fonts
-    const link = document.createElement('link');
-    link.id = 'custom-google-font';
-    link.rel = 'stylesheet';
-    link.href = `https://fonts.googleapis.com/css2?family=${fontToLoad.replace(/ /g, '+')}:wght@300;400;500;600;700&display=swap`;
-    document.head.appendChild(link);
+    // JetBrains Mono is bundled locally, no need to fetch from Google
+    if (fontToLoad !== 'JetBrains Mono') {
+        const encodedFont = fontToLoad.replace(/ /g, '+');
+        const link = document.createElement('link');
+        link.id = 'custom-google-font';
+        link.rel = 'stylesheet';
+        link.href = `https://fonts.googleapis.com/css2?family=${encodedFont}&display=swap`;
+        document.head.appendChild(link);
 
-    // Apply font to document
-    document.documentElement.style.setProperty('--font-family', `"${fontToLoad}", sans-serif`);
+        // Check if font actually loaded after a delay
+        if (customFontName && document.fonts) {
+            setTimeout(() => {
+                if (!document.fonts.check(`16px "${fontToLoad}"`)) {
+                    showToast(`Font "${fontToLoad}" not found. Use the exact name from Google Fonts' CSS embed code.`, 'error');
+                }
+            }, 3000);
+        }
+    }
+
+    // Apply font via injected style to ensure it overrides everything
+    const style = document.createElement('style');
+    style.id = 'custom-font-style';
+    style.textContent = `:root { --font-family: "${fontToLoad}", sans-serif !important; }`;
+    document.head.appendChild(style);
 }
 
 // Theme data for picker modal

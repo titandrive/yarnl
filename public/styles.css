@@ -1112,7 +1112,7 @@ html[data-theme="nuked-dark"] .btn-primary {
     border: 2px solid var(--border-color);
     border-radius: 8px;
     font-size: 1rem;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     background: var(--input-bg);
     color: var(--text-color);
 }
@@ -1129,7 +1129,7 @@ html[data-theme="nuked-dark"] .btn-primary {
     border: 2px solid var(--border-color);
     border-radius: 8px;
     font-size: 1rem;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     background: var(--input-bg);
     color: var(--text-color);
     resize: vertical;
@@ -1321,7 +1321,7 @@ html[data-theme="nuked-dark"] .btn-primary {
     border: 2px solid var(--border-color);
     border-radius: 8px;
     font-size: 1rem;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     background: var(--input-bg);
     color: var(--text-color);
 }
@@ -3006,7 +3006,7 @@ body.global-drag-over #current::after {
     align-items: center;
     gap: 6px;
     padding: 6px 10px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     font-size: 0.8rem;
     min-width: 90px;
     transition: all 0.2s ease;
@@ -3313,7 +3313,7 @@ body.global-drag-over #current::after {
     width: 100px;
     background: transparent;
     border: none;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     font-weight: 600;
     color: var(--text-color);
     font-size: 0.9rem;
@@ -3468,7 +3468,7 @@ body.global-drag-over #current::after {
 
 .mobile-timer-btn {
     gap: 4px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     font-size: 0.75rem;
     padding: 4px 8px;
     border-radius: 6px;
@@ -3661,7 +3661,7 @@ body.global-drag-over #current::after {
     font-weight: bold;
     color: var(--primary-color);
     font-variant-numeric: tabular-nums;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     line-height: 1.2;
 }
 
@@ -5930,7 +5930,7 @@ input[type="number"].settings-input {
     border: none;
     background: transparent;
     color: var(--text-color);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     font-size: 0.9rem;
     resize: none;
     outline: none;
@@ -5982,7 +5982,7 @@ input[type="number"].settings-input {
     background: var(--border-color);
     padding: 2px 6px;
     border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     font-size: 0.85em;
 }
 
@@ -6241,7 +6241,7 @@ input[type="number"].settings-input {
     border: none;
     background: var(--input-bg);
     color: var(--text-color);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     font-size: 0.9rem;
     resize: none;
     outline: none;
@@ -6314,7 +6314,7 @@ input[type="number"].settings-input {
     background: var(--border-color);
     padding: 2px 6px;
     border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     font-size: 0.85em;
 }
 
@@ -6514,7 +6514,7 @@ input[type="number"].settings-input {
     background: var(--border-color);
     padding: 2px 8px;
     border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     font-size: 0.9em;
 }
 
@@ -6716,7 +6716,7 @@ input[type="number"].settings-input {
     flex: 1;
     min-height: 300px;
     resize: none;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     font-size: 0.95rem;
     line-height: 1.6;
     padding: 16px;
@@ -6771,7 +6771,7 @@ input[type="number"].settings-input {
     background: var(--border-color);
     padding: 2px 6px;
     border-radius: 4px;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     font-size: 0.9em;
 }
 
@@ -8545,7 +8545,7 @@ input[type="number"].settings-input {
     border-radius: 8px;
     background: var(--input-bg);
     color: var(--text-color);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-family);
     font-size: 0.95rem;
     resize: vertical;
 }

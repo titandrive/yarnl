@@ -2566,6 +2566,36 @@ function setupImagePaste(textarea, getPatternName) {
 // Auto-continue lists in markdown editors (bullets, numbers, checkboxes)
 function setupMarkdownListContinuation(textarea) {
     textarea.addEventListener('keydown', (e) => {
+        // Tab/Shift+Tab to indent/outdent list items
+        if (e.key === 'Tab') {
+            const { selectionStart, selectionEnd, value } = textarea;
+            const lineStart = value.lastIndexOf('\n', selectionStart - 1) + 1;
+            const lineEnd = value.indexOf('\n', selectionEnd);
+            const lineEndPos = lineEnd === -1 ? value.length : lineEnd;
+            const selectedLines = value.substring(lineStart, lineEndPos);
+
+            // Only handle Tab on list lines (bullets, numbers, checkboxes)
+            if (!/^\s*([-*+]|\d+\.)\s/.test(selectedLines)) return;
+
+            e.preventDefault();
+            const lines = selectedLines.split('\n');
+            const modified = lines.map(line => {
+                if (e.shiftKey) {
+                    // Outdent: remove up to 2 leading spaces
+                    return line.replace(/^ {1,2}/, '');
+                } else {
+                    // Indent: add 2 spaces
+                    return '  ' + line;
+                }
+            });
+            const result = modified.join('\n');
+            textarea.value = value.substring(0, lineStart) + result + value.substring(lineEndPos);
+            textarea.selectionStart = lineStart;
+            textarea.selectionEnd = lineStart + result.length;
+            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+            return;
+        }
+
         if (e.key !== 'Enter') return;
 
         const { selectionStart, value } = textarea;

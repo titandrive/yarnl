@@ -6405,7 +6405,6 @@ input[type="number"].settings-input {
 
 /* Markdown images */
 .new-pattern-preview img,
-.markdown-edit-preview img,
 .markdown-content img,
 .markdown-notes-preview img {
     max-width: 100%;
@@ -6416,7 +6415,6 @@ input[type="number"].settings-input {
 
 /* Markdown tables */
 .new-pattern-preview table,
-.markdown-edit-preview table,
 .markdown-content table,
 .markdown-notes-preview table {
     width: 100%;
@@ -6426,8 +6424,6 @@ input[type="number"].settings-input {
 
 .new-pattern-preview th,
 .new-pattern-preview td,
-.markdown-edit-preview th,
-.markdown-edit-preview td,
 .markdown-content th,
 .markdown-content td,
 .markdown-notes-preview th,
@@ -6438,7 +6434,6 @@ input[type="number"].settings-input {
 }
 
 .new-pattern-preview th,
-.markdown-edit-preview th,
 .markdown-content th,
 .markdown-notes-preview th {
     background: var(--bg-color);
@@ -6447,7 +6442,6 @@ input[type="number"].settings-input {
 
 /* Markdown links */
 .new-pattern-preview a,
-.markdown-edit-preview a,
 .markdown-content a,
 .markdown-notes-preview a {
     color: var(--primary-color);
@@ -6455,7 +6449,6 @@ input[type="number"].settings-input {
 }
 
 .new-pattern-preview a:hover,
-.markdown-edit-preview a:hover,
 .markdown-content a:hover,
 .markdown-notes-preview a:hover {
     text-decoration: underline;
@@ -6463,7 +6456,6 @@ input[type="number"].settings-input {
 
 /* Markdown horizontal rules */
 .new-pattern-preview hr,
-.markdown-edit-preview hr,
 .markdown-content hr,
 .markdown-notes-preview hr {
     border: none;
@@ -6620,7 +6612,43 @@ input[type="number"].settings-input {
     width: 200px;
 }
 
-/* Large modal for markdown edit */
+/* Inline markdown editor */
+.markdown-inline-editor {
+    display: none;
+    width: 100%;
+    flex: 1;
+    resize: none;
+    font-family: var(--font-family);
+    font-size: 1rem;
+    line-height: 1.8;
+    color: var(--text-color);
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0;
+}
+
+.markdown-inline-save-bar {
+    display: flex;
+    justify-content: flex-end;
+    padding: 0 0 8px 0;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.markdown-viewer-wrapper.editing {
+    border: 2px solid var(--primary-color);
+    display: flex;
+    flex-direction: column;
+}
+
+#markdown-edit-toggle-btn.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+/* Markdown details modal */
 .markdown-viewer-container .modal {
     z-index: 2500;
     top: 0;
@@ -6630,91 +6658,28 @@ input[type="number"].settings-input {
     padding: 0;
 }
 
-.modal-large {
-    max-width: 1400px;
-    width: 95%;
-    height: 85vh;
-    max-height: calc(100vh - 40px);
+.modal-medium {
+    max-width: 500px;
+    width: 90%;
+    max-height: 85vh;
     display: flex;
     flex-direction: column;
-    padding-bottom: 20px;
-}
-
-.modal-large .modal-header {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-}
-
-.modal-large .modal-header h2 {
-    margin: 0;
-}
-
-.markdown-edit-tabs {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-left: auto;
-    margin-right: 20px;
-}
-
-.markdown-edit-tab {
-    padding: 6px 12px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    cursor: pointer;
-    border-radius: 6px;
-    font-family: inherit;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
-}
-
-.markdown-edit-tab:hover {
-    background: var(--border-color);
-    color: var(--text-color);
-}
-
-.markdown-edit-tab.active {
-    background: var(--primary-color);
-    color: white;
-}
-
-.markdown-edit-live-preview-label {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.8rem;
-    color: var(--text-muted);
-    cursor: pointer;
-    user-select: none;
-    margin-left: 12px;
-}
-
-.markdown-edit-live-preview-label .toggle-switch {
-    flex-shrink: 0;
-}
-
-.markdown-edit-live-preview-label:hover {
-    color: var(--text-color);
 }
 
 .markdown-edit-wrapper {
     display: flex;
-    gap: 20px;
+    flex-direction: column;
     flex: 1;
     min-height: 0;
     margin-bottom: 20px;
+    overflow-y: auto;
 }
 
 .markdown-edit-sidebar {
-    width: 280px;
-    flex-shrink: 0;
+    width: 100%;
     display: flex;
     flex-direction: column;
     gap: 16px;
-    overflow-y: auto;
-    padding-right: 10px;
 }
 
 .markdown-edit-sidebar .form-group {
@@ -6746,120 +6711,6 @@ input[type="number"].settings-input {
     font-size: 0.85rem;
 }
 
-.markdown-edit-main {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-}
-
-.markdown-edit-body {
-    display: flex;
-    gap: 16px;
-    flex: 1;
-    min-height: 0;
-}
-
-/* Edit mode - hide preview */
-.markdown-edit-body.edit-mode .markdown-edit-preview {
-    display: none;
-}
-
-/* Preview mode - hide editor */
-.markdown-edit-body.preview-mode textarea {
-    display: none;
-}
-
-.markdown-edit-body.preview-mode .markdown-edit-preview {
-    flex: 1;
-}
-
-/* Live preview mode - show both side by side */
-.markdown-edit-body.live-preview-mode textarea {
-    flex: 1;
-}
-
-.markdown-edit-body.live-preview-mode .markdown-edit-preview {
-    flex: 1;
-    display: block;
-}
-
-.markdown-edit-body textarea {
-    flex: 1;
-    min-height: 300px;
-    resize: none;
-    font-family: var(--font-family);
-    font-size: 0.95rem;
-    line-height: 1.6;
-    padding: 16px;
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    color: var(--text-color);
-}
-
-.markdown-edit-preview {
-    flex: 1;
-    overflow-y: auto;
-    padding: 16px;
-    background: var(--input-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 8px;
-    line-height: 1.8;
-}
-
-.markdown-edit-preview h1,
-.markdown-edit-preview h2,
-.markdown-edit-preview h3 {
-    color: var(--primary-color);
-}
-
-.markdown-edit-preview h1 {
-    font-size: 1.5rem;
-    margin-bottom: 0.75rem;
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.markdown-edit-preview h2 {
-    font-size: 1.25rem;
-    margin-top: 1.5rem;
-    margin-bottom: 0.5rem;
-}
-
-.markdown-edit-preview h3 {
-    font-size: 1.1rem;
-    margin-top: 1rem;
-    margin-bottom: 0.5rem;
-}
-
-.markdown-edit-preview ul,
-.markdown-edit-preview ol {
-    padding-left: 2em;
-    margin-bottom: 1rem;
-}
-
-.markdown-edit-preview code {
-    background: var(--border-color);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: var(--font-family);
-    font-size: 0.9em;
-}
-
-.markdown-edit-preview pre {
-    background: var(--card-bg);
-    padding: 12px;
-    border-radius: 8px;
-    overflow-x: auto;
-    margin-bottom: 1rem;
-    border: 1px solid var(--border-color);
-}
-
-.markdown-edit-preview pre code {
-    background: none;
-    padding: 0;
-}
 
 @media (max-width: 768px) {
     header {
@@ -6884,10 +6735,6 @@ input[type="number"].settings-input {
     }
 
     .new-pattern-editor-wrapper {
-        flex-direction: column;
-    }
-
-    .markdown-edit-body {
         flex-direction: column;
     }
 

@@ -113,7 +113,7 @@ volumes:
 
 ## Configuration
 
-All configuration is done through environment variables. Copy `.env.example` to `.env` and adjust as needed.
+Most configuration is done via settings once Yarnl is up and running. There are a few environment variables available to customize your installation:
 
 | Variable | Default | Description |
 |----------|---------|-------------|

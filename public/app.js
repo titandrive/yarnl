@@ -11615,6 +11615,10 @@ async function savePatternEdits() {
 // Markdown Viewer Functions
 const markdownViewerContainer = document.getElementById('markdown-viewer-container');
 let markdownNotesAutoSaveTimeout = null;
+let markdownInlineEditing = false;
+let markdownInlineEditorDirty = false;
+let markdownInlineAutoSaveTimeout = null;
+let markdownRawContent = '';
 
 async function openMarkdownViewer(pattern, pushHistory = true) {
     try {
@@ -11677,7 +11681,13 @@ async function openMarkdownViewer(pattern, pushHistory = true) {
             const data = await contentResponse.json();
             const markdownContent = document.getElementById('markdown-content');
             markdownContent.innerHTML = renderMarkdown(data.content || '');
+            // Store raw content for inline editing
+            markdownRawContent = data.content || '';
+            document.getElementById('markdown-inline-editor').value = markdownRawContent;
         }
+
+        // Reset to preview mode
+        resetInlineEditMode();
 
         // Initialize markdown viewer events
         initMarkdownViewerEvents();
@@ -11696,7 +11706,11 @@ function initMarkdownViewerEvents() {
     const notesBtn = document.getElementById('markdown-notes-btn');
     notesBtn.onclick = toggleMarkdownNotes;
 
-    // Edit button
+    // Inline edit toggle button
+    const editToggleBtn = document.getElementById('markdown-edit-toggle-btn');
+    editToggleBtn.onclick = toggleInlineEditMode;
+
+    // Details button (metadata modal)
     const editBtn = document.getElementById('markdown-edit-btn');
     editBtn.onclick = openMarkdownEditModal;
 
@@ -11735,7 +11749,25 @@ function initMarkdownViewerEvents() {
     setupMarkdownListContinuation(notesEditor);
     setupImagePaste(notesEditor, () => currentPattern?.name || 'pattern');
 
-    // Edit modal events
+    // Inline editor input handler
+    const inlineEditor = document.getElementById('markdown-inline-editor');
+    inlineEditor.oninput = handleInlineEditorInput;
+    // Setup list continuation and image paste (once, guarded)
+    if (!inlineEditor.dataset.setupDone) {
+        setupMarkdownListContinuation(inlineEditor);
+        setupImagePaste(inlineEditor, () => currentPattern?.name || 'pattern');
+        // Ctrl+S / Cmd+S to force-save
+        inlineEditor.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                if (markdownInlineAutoSaveTimeout) clearTimeout(markdownInlineAutoSaveTimeout);
+                saveInlineContent();
+            }
+        });
+        inlineEditor.dataset.setupDone = 'true';
+    }
+
+    // Details modal events
     const closeEditModalBtn = document.getElementById('close-markdown-edit-modal');
     closeEditModalBtn.onclick = closeMarkdownEditModal;
 
@@ -11752,68 +11784,163 @@ function initMarkdownViewerEvents() {
     editModal.onclick = (e) => {
         if (e.target === editModal) closeMarkdownEditModal();
     };
-
-    // Edit modal tabs
-    const editTabs = document.querySelectorAll('.markdown-edit-tab');
-    editTabs.forEach(tab => {
-        tab.onclick = () => switchMarkdownEditTab(tab.dataset.tab);
-    });
-
-    // Live preview checkbox in edit modal
-    const editLivePreviewCheckbox = document.getElementById('markdown-edit-live-preview');
-    editLivePreviewCheckbox.onchange = (e) => {
-        const body = document.querySelector('.markdown-edit-body');
-        const preview = document.getElementById('markdown-edit-preview');
-        const editContent = document.getElementById('markdown-edit-content');
-
-        if (e.target.checked) {
-            body.className = 'markdown-edit-body live-preview-mode';
-            preview.innerHTML = renderMarkdown(editContent.value);
-            // Update tabs to show neither is active
-            editTabs.forEach(t => t.classList.remove('active'));
-        } else {
-            // Return to edit mode
-            body.className = 'markdown-edit-body edit-mode';
-            editTabs.forEach(t => {
-                t.classList.toggle('active', t.dataset.tab === 'edit');
-            });
-        }
-    };
-
-    // Live preview in edit modal (update on input)
-    const editContent = document.getElementById('markdown-edit-content');
-    editContent.oninput = () => {
-        document.getElementById('markdown-edit-preview').innerHTML = renderMarkdown(editContent.value);
-    };
-    // Enable auto-continue for lists and image paste
-    setupMarkdownListContinuation(editContent);
-    setupImagePaste(editContent, () => currentPattern?.name || 'pattern');
 }
 
-function switchMarkdownEditTab(tab) {
-    const tabs = document.querySelectorAll('.markdown-edit-tab');
-    const body = document.querySelector('.markdown-edit-body');
-    const preview = document.getElementById('markdown-edit-preview');
-    const editContent = document.getElementById('markdown-edit-content');
-    const livePreviewCheckbox = document.getElementById('markdown-edit-live-preview');
+// Inline content editing
+function toggleInlineEditMode() {
+    if (markdownInlineEditing) {
+        exitInlineEditMode();
+    } else {
+        enterInlineEditMode();
+    }
+}
 
-    // Update active tab
-    tabs.forEach(t => {
-        t.classList.toggle('active', t.dataset.tab === tab);
-    });
+async function enterInlineEditMode() {
+    markdownInlineEditing = true;
+    const contentEl = document.getElementById('markdown-content');
+    const editorEl = document.getElementById('markdown-inline-editor');
+    const saveBar = document.getElementById('markdown-inline-save-bar');
+    const toggleBtn = document.getElementById('markdown-edit-toggle-btn');
+    const wrapper = document.querySelector('.markdown-viewer-wrapper');
 
-    // Uncheck live preview when switching tabs
-    livePreviewCheckbox.checked = false;
+    // Fetch content directly from API to guarantee fresh data
+    if (currentPattern) {
+        try {
+            const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/content`);
+            if (response.ok) {
+                const data = await response.json();
+                markdownRawContent = data.content || '';
+            }
+        } catch (e) {
+            console.error('Error loading content for editor:', e);
+        }
+    }
+    editorEl.value = markdownRawContent;
 
-    if (tab === 'edit') {
-        body.className = 'markdown-edit-body edit-mode';
-    } else if (tab === 'preview') {
-        body.className = 'markdown-edit-body preview-mode';
-        preview.innerHTML = renderMarkdown(editContent.value);
+    // Show editor, hide rendered content
+    contentEl.style.display = 'none';
+    editorEl.style.display = 'block';
+    saveBar.style.display = 'flex';
+    wrapper.classList.add('editing');
+
+    // Update toggle button
+    toggleBtn.classList.add('active');
+    toggleBtn.querySelector('span').textContent = 'Preview';
+
+    editorEl.focus();
+    markdownInlineEditorDirty = false;
+}
+
+function exitInlineEditMode() {
+    if (!markdownInlineEditing) return;
+    markdownInlineEditing = false;
+
+    const contentEl = document.getElementById('markdown-content');
+    const editorEl = document.getElementById('markdown-inline-editor');
+    const saveBar = document.getElementById('markdown-inline-save-bar');
+    const toggleBtn = document.getElementById('markdown-edit-toggle-btn');
+    const wrapper = document.querySelector('.markdown-viewer-wrapper');
+
+    // Save if dirty
+    if (markdownInlineEditorDirty) {
+        saveInlineContent();
+    }
+
+    // Clear pending auto-save
+    if (markdownInlineAutoSaveTimeout) {
+        clearTimeout(markdownInlineAutoSaveTimeout);
+        markdownInlineAutoSaveTimeout = null;
+    }
+
+    // Re-render preview from textarea
+    const content = editorEl.value;
+    contentEl.innerHTML = renderMarkdown(content);
+    markdownRawContent = content;
+
+    // Show rendered content, hide editor
+    contentEl.style.display = 'block';
+    editorEl.style.display = 'none';
+    saveBar.style.display = 'none';
+    wrapper.classList.remove('editing');
+
+    // Update toggle button
+    toggleBtn.classList.remove('active');
+    toggleBtn.querySelector('span').textContent = 'Edit';
+}
+
+function resetInlineEditMode() {
+    markdownInlineEditing = false;
+    markdownInlineEditorDirty = false;
+    if (markdownInlineAutoSaveTimeout) {
+        clearTimeout(markdownInlineAutoSaveTimeout);
+        markdownInlineAutoSaveTimeout = null;
+    }
+    const contentEl = document.getElementById('markdown-content');
+    const editorEl = document.getElementById('markdown-inline-editor');
+    const saveBar = document.getElementById('markdown-inline-save-bar');
+    const toggleBtn = document.getElementById('markdown-edit-toggle-btn');
+    const wrapper = document.querySelector('.markdown-viewer-wrapper');
+
+    contentEl.style.display = 'block';
+    editorEl.style.display = 'none';
+    saveBar.style.display = 'none';
+    wrapper.classList.remove('editing');
+    if (toggleBtn) {
+        toggleBtn.classList.remove('active');
+        toggleBtn.querySelector('span').textContent = 'Edit';
+    }
+}
+
+function handleInlineEditorInput() {
+    markdownInlineEditorDirty = true;
+    scheduleInlineAutoSave();
+}
+
+function scheduleInlineAutoSave() {
+    if (markdownInlineAutoSaveTimeout) {
+        clearTimeout(markdownInlineAutoSaveTimeout);
+    }
+    const statusEl = document.getElementById('markdown-inline-save-status');
+    statusEl.textContent = '';
+
+    markdownInlineAutoSaveTimeout = setTimeout(async () => {
+        await saveInlineContent();
+    }, 1500);
+}
+
+async function saveInlineContent() {
+    if (!currentPattern) return;
+    const content = document.getElementById('markdown-inline-editor').value;
+    const statusEl = document.getElementById('markdown-inline-save-status');
+
+    try {
+        statusEl.textContent = 'Saving...';
+        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/content`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content })
+        });
+
+        if (response.ok) {
+            markdownInlineEditorDirty = false;
+            markdownRawContent = content;
+            statusEl.textContent = 'Saved';
+            setTimeout(() => { if (statusEl.textContent === 'Saved') statusEl.textContent = ''; }, 2000);
+        } else {
+            statusEl.textContent = 'Error saving';
+        }
+    } catch (error) {
+        console.error('Error saving inline content:', error);
+        statusEl.textContent = 'Error saving';
     }
 }
 
 async function closeMarkdownViewer() {
+    // Save pending inline edits
+    if (markdownInlineEditing && markdownInlineEditorDirty) {
+        await saveInlineContent();
+    }
+    resetInlineEditMode();
     releaseWakeLock();
     // Save timer before closing (immediate, not debounced)
     if (currentPattern && timerSeconds > 0) {
@@ -11942,21 +12069,11 @@ async function clearMarkdownNotes() {
     switchMarkdownNotesTab('edit');
 }
 
-// Markdown edit modal
-async function openMarkdownEditModal() {
+// Markdown details modal (metadata only)
+function openMarkdownEditModal() {
     const modal = document.getElementById('markdown-edit-modal');
-    const textarea = document.getElementById('markdown-edit-content');
-    const preview = document.getElementById('markdown-edit-preview');
-    const body = document.querySelector('.markdown-edit-body');
-    const tabs = document.querySelectorAll('.markdown-edit-tab');
-    const livePreviewCheckbox = document.getElementById('markdown-edit-live-preview');
 
-    // Reset to edit mode
-    body.className = 'markdown-edit-body edit-mode';
-    tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === 'edit'));
-    livePreviewCheckbox.checked = false;
-
-    // Populate metadata sidebar
+    // Populate metadata fields
     document.getElementById('markdown-edit-name').value = currentPattern.name || '';
     document.getElementById('markdown-edit-description').value = currentPattern.description || '';
 
@@ -11978,18 +12095,6 @@ async function openMarkdownEditModal() {
 
     // Set current toggle state
     document.getElementById('markdown-edit-is-current').checked = currentPattern.is_current || false;
-
-    // Load content from file
-    try {
-        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/content`);
-        if (response.ok) {
-            const data = await response.json();
-            textarea.value = data.content || '';
-            preview.innerHTML = renderMarkdown(data.content || '');
-        }
-    } catch (error) {
-        console.error('Error loading content:', error);
-    }
 
     // Reset delete button state
     const deleteBtn = document.getElementById('delete-markdown-pattern');
@@ -12044,7 +12149,6 @@ async function deleteMarkdownPattern() {
 }
 
 async function saveMarkdownEdit() {
-    const content = document.getElementById('markdown-edit-content').value;
     const name = document.getElementById('markdown-edit-name').value;
     const category = getCategoryDropdownValue('markdown-edit-category');
     const description = document.getElementById('markdown-edit-description').value;
@@ -12090,7 +12194,6 @@ async function saveMarkdownEdit() {
 
         // Handle thumbnail upload if provided
         if (thumbnailFile) {
-            console.log('Uploading markdown edit thumbnail:', thumbnailFile.name, thumbnailFile.size, 'bytes');
             const formData = new FormData();
             formData.append('thumbnail', thumbnailFile);
 
@@ -12100,43 +12203,24 @@ async function saveMarkdownEdit() {
             });
             if (!thumbResponse.ok) {
                 console.error('Thumbnail upload failed:', await thumbResponse.text());
-            } else {
-                console.log('Thumbnail uploaded successfully');
             }
-        } else {
-            console.log('No thumbnail file for markdown edit');
         }
 
-        // Save the content
-        const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/content`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ content })
-        });
+        // Update local state
+        currentPattern.name = name;
+        currentPattern.category = category;
+        currentPattern.description = description;
+        currentPattern.is_current = isCurrent;
 
-        if (response.ok) {
-            // Update the viewer
-            document.getElementById('markdown-content').innerHTML = renderMarkdown(content);
+        // Update the viewer header
+        document.getElementById('markdown-pattern-name').textContent = name;
 
-            // Update currentPattern with new values
-            currentPattern.name = name;
-            currentPattern.category = category;
-            currentPattern.description = description;
-            currentPattern.is_current = isCurrent;
+        closeMarkdownEditModal();
 
-            // Update the viewer header
-            document.getElementById('markdown-pattern-name').textContent = name;
-
-            closeMarkdownEditModal();
-
-            // Reload patterns to reflect changes in the library
-            await loadPatterns();
-            await loadCurrentPatterns();
-            await loadCategories();
-        } else {
-            console.error('Error saving content');
-            alert('Error saving content');
-        }
+        // Reload patterns to reflect changes in the library
+        await loadPatterns();
+        await loadCurrentPatterns();
+        await loadCategories();
     } catch (error) {
         console.error('Error saving pattern:', error);
         alert('Error saving pattern: ' + error.message);

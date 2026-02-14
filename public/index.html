@@ -41,7 +41,7 @@
         }
     </script>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=189">
+    <link rel="stylesheet" href="styles.css?v=191">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -2348,8 +2348,11 @@ Inc in each st around (12)
             <div class="markdown-header-left">
                 <button id="markdown-back-btn" class="btn btn-secondary">← Back</button>
                 <button id="markdown-notes-btn" class="btn btn-secondary">Notes</button>
-                <button id="markdown-edit-btn" class="btn btn-secondary">Edit</button>
-                <button id="markdown-info-btn" class="btn btn-secondary">Info</button>
+                <button id="markdown-edit-toggle-btn" class="btn btn-secondary" title="Edit content">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                    <span>Edit</span>
+                </button>
+                <button id="markdown-edit-btn" class="btn btn-secondary" title="Pattern details">Details</button>
             </div>
             <h2 id="markdown-pattern-name"></h2>
             <div class="markdown-header-right">
@@ -2377,9 +2380,13 @@ Inc in each st around (12)
         </div>
 
         <div class="markdown-viewer-wrapper">
+            <div id="markdown-inline-save-bar" class="markdown-inline-save-bar" style="display: none;">
+                <span id="markdown-inline-save-status" class="notes-save-status"></span>
+            </div>
             <div id="markdown-content" class="markdown-content">
                 <!-- Rendered markdown content will go here -->
             </div>
+            <textarea id="markdown-inline-editor" class="markdown-inline-editor" style="display: none;" placeholder="Write your pattern content here... Markdown supported!"></textarea>
         </div>
 
         <!-- Counter overlay is shared - see #shared-counter-overlay -->
@@ -2410,22 +2417,11 @@ Inc in each st around (12)
             </div>
         </div>
 
-        <!-- Edit Pattern Content Modal -->
+        <!-- Pattern Details Modal (metadata only) -->
         <div id="markdown-edit-modal" class="modal" style="display: none;">
-            <div class="modal-content modal-large">
+            <div class="modal-content modal-medium">
                 <div class="modal-header">
-                    <h2>Edit Pattern</h2>
-                    <div class="markdown-edit-tabs">
-                        <button type="button" class="markdown-edit-tab active" data-tab="edit">Edit</button>
-                        <button type="button" class="markdown-edit-tab" data-tab="preview">Preview</button>
-                        <label class="markdown-edit-live-preview-label">
-                            <div class="toggle-switch small">
-                                <input type="checkbox" id="markdown-edit-live-preview">
-                                <span class="toggle-slider"></span>
-                            </div>
-                            <span>Live preview</span>
-                        </label>
-                    </div>
+                    <h2>Pattern Details</h2>
                     <button class="modal-close" id="close-markdown-edit-modal">&times;</button>
                 </div>
                 <div class="markdown-edit-wrapper">
@@ -2465,12 +2461,6 @@ Inc in each st around (12)
                                 <input type="checkbox" id="markdown-edit-is-current">
                                 <span class="toggle-slider"></span>
                             </label>
-                        </div>
-                    </div>
-                    <div class="markdown-edit-main">
-                        <div class="markdown-edit-body edit-mode">
-                            <textarea id="markdown-edit-content" placeholder="Edit pattern content..."></textarea>
-                            <div id="markdown-edit-preview" class="markdown-edit-preview"></div>
                         </div>
                     </div>
                 </div>
@@ -2802,6 +2792,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=172"></script>
+    <script defer src="app.js?v=174"></script>
 </body>
 </html>

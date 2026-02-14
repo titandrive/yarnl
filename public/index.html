@@ -35,8 +35,9 @@
                 document.write('<style id="early-hide-page-btns">.mobile-page-prev,.mobile-page-next{display:none!important}</style>');
             }
         } else {
-            // Not authenticated — hide app container, show login
-            document.write('<style id="early-tab-style">.container{display:none!important}</style>');
+            // Not yet authenticated — hide both login and app until JS resolves auth
+            // This prevents the login screen from flashing in single-user mode
+            document.write('<style id="early-tab-style">#login-container{display:none!important}.container{display:none!important}</style>');
         }
     </script>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>

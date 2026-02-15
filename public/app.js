@@ -1928,26 +1928,31 @@ function updateTimerDisplay() {
     const pdfDisplay = document.getElementById('pdf-timer-display');
     const markdownDisplay = document.getElementById('markdown-timer-display');
     const mobileDisplay = document.getElementById('mobile-timer-display');
+    const mdMobileDisplay = document.getElementById('md-mobile-timer-display');
     const timeString = formatTime(timerSeconds);
 
     if (pdfDisplay) pdfDisplay.textContent = timeString;
     if (markdownDisplay) markdownDisplay.textContent = timeString;
     if (mobileDisplay) mobileDisplay.textContent = timeString;
+    if (mdMobileDisplay) mdMobileDisplay.textContent = timeString;
 }
 
 function updateTimerButtonState() {
     const pdfBtn = document.getElementById('pdf-timer-btn');
     const markdownBtn = document.getElementById('markdown-timer-btn');
     const mobileBtn = document.getElementById('mobile-timer-btn');
+    const mdMobileBtn = document.getElementById('md-mobile-timer-btn');
 
     if (timerRunning) {
         if (pdfBtn) pdfBtn.classList.add('timer-running');
         if (markdownBtn) markdownBtn.classList.add('timer-running');
         if (mobileBtn) mobileBtn.classList.add('timer-running');
+        if (mdMobileBtn) mdMobileBtn.classList.add('timer-running');
     } else {
         if (pdfBtn) pdfBtn.classList.remove('timer-running');
         if (markdownBtn) markdownBtn.classList.remove('timer-running');
         if (mobileBtn) mobileBtn.classList.remove('timer-running');
+        if (mdMobileBtn) mdMobileBtn.classList.remove('timer-running');
     }
 }
 
@@ -1964,7 +1969,7 @@ function toggleAutoTimer(e) {
     if (e && e.target && e.target.type === 'checkbox') {
         autoTimerEnabled = e.target.checked;
         // Sync all other auto-timer checkboxes
-        const allIds = ['pdf-auto-timer-checkbox', 'markdown-auto-timer-checkbox', 'mobile-auto-timer-checkbox'];
+        const allIds = ['pdf-auto-timer-checkbox', 'markdown-auto-timer-checkbox', 'mobile-auto-timer-checkbox', 'md-mobile-auto-timer-checkbox'];
         allIds.forEach(id => {
             if (id !== e.target.id) {
                 const cb = document.getElementById(id);
@@ -2006,16 +2011,18 @@ function updateAutoTimerButtonState() {
     const pdfCheckbox = document.getElementById('pdf-auto-timer-checkbox');
     const markdownCheckbox = document.getElementById('markdown-auto-timer-checkbox');
     const mobileCheckbox = document.getElementById('mobile-auto-timer-checkbox');
+    const mdMobileCheckbox = document.getElementById('md-mobile-auto-timer-checkbox');
     const pdfToggle = pdfCheckbox?.closest('.auto-timer-toggle');
     const markdownToggle = markdownCheckbox?.closest('.auto-timer-toggle');
     const mobileToggle = mobileCheckbox?.closest('.mobile-menu-toggle');
+    const mdMobileToggle = mdMobileCheckbox?.closest('.mobile-menu-toggle');
 
-    [pdfCheckbox, markdownCheckbox, mobileCheckbox].forEach(checkbox => {
+    [pdfCheckbox, markdownCheckbox, mobileCheckbox, mdMobileCheckbox].forEach(checkbox => {
         if (!checkbox) return;
         checkbox.checked = autoTimerEnabled;
     });
 
-    [pdfToggle, markdownToggle, mobileToggle].forEach(toggle => {
+    [pdfToggle, markdownToggle, mobileToggle, mdMobileToggle].forEach(toggle => {
         if (!toggle) return;
         toggle.classList.remove('paused-inactive');
         if (autoTimerPausedInactive) {
@@ -2182,21 +2189,26 @@ function updateResetButtonState() {
     const pdfResetBtn = document.getElementById('pdf-timer-reset-btn');
     const markdownResetBtn = document.getElementById('markdown-timer-reset-btn');
     const mobileResetBtn = document.getElementById('mobile-timer-reset-btn');
+    const mdMobileResetBtn = document.getElementById('md-mobile-timer-reset-btn');
 
     if (timerResetConfirming) {
         if (pdfResetBtn) pdfResetBtn.classList.add('confirming');
         if (markdownResetBtn) markdownResetBtn.classList.add('confirming');
-        if (mobileResetBtn) {
-            mobileResetBtn.classList.add('confirming');
-            mobileResetBtn.textContent = 'Confirm Reset?';
-        }
+        [mobileResetBtn, mdMobileResetBtn].forEach(btn => {
+            if (btn) {
+                btn.classList.add('confirming');
+                btn.textContent = 'Confirm Reset?';
+            }
+        });
     } else {
         if (pdfResetBtn) pdfResetBtn.classList.remove('confirming');
         if (markdownResetBtn) markdownResetBtn.classList.remove('confirming');
-        if (mobileResetBtn) {
-            mobileResetBtn.classList.remove('confirming');
-            mobileResetBtn.textContent = 'Reset Timer';
-        }
+        [mobileResetBtn, mdMobileResetBtn].forEach(btn => {
+            if (btn) {
+                btn.classList.remove('confirming');
+                btn.textContent = 'Reset Timer';
+            }
+        });
     }
 }
 
@@ -11687,6 +11699,8 @@ async function openMarkdownViewer(pattern, pushHistory = true) {
 
         // Update header
         document.getElementById('markdown-pattern-name').textContent = pattern.name;
+        const mdMobileName = document.getElementById('md-mobile-pattern-name');
+        if (mdMobileName) mdMobileName.textContent = pattern.name;
 
         // Load markdown content and counters in parallel
         const [contentResponse] = await Promise.all([
@@ -11784,6 +11798,10 @@ function initMarkdownViewerEvents() {
         inlineEditor.dataset.setupDone = 'true';
     }
 
+    // Inline edit Done button (mobile)
+    const inlineDoneBtn = document.getElementById('markdown-inline-done-btn');
+    if (inlineDoneBtn) inlineDoneBtn.onclick = toggleInlineEditMode;
+
     // Details modal events
     const closeEditModalBtn = document.getElementById('close-markdown-edit-modal');
     closeEditModalBtn.onclick = closeMarkdownEditModal;
@@ -11800,6 +11818,56 @@ function initMarkdownViewerEvents() {
     const editModal = document.getElementById('markdown-edit-modal');
     editModal.onclick = (e) => {
         if (e.target === editModal) closeMarkdownEditModal();
+    };
+
+    // --- Mobile top bar for markdown viewer ---
+    const mdMobileBackBtn = document.getElementById('md-mobile-back-btn');
+    if (mdMobileBackBtn) mdMobileBackBtn.onclick = closeMarkdownViewer;
+
+    const mdMobileTimerBtn = document.getElementById('md-mobile-timer-btn');
+    if (mdMobileTimerBtn) mdMobileTimerBtn.onclick = toggleTimer;
+
+    const mdMobileMenuBtn = document.getElementById('md-mobile-menu-btn');
+    const mdMobileMenu = document.getElementById('md-mobile-menu');
+    if (mdMobileMenuBtn && mdMobileMenu) {
+        mdMobileMenuBtn.onclick = (e) => {
+            e.stopPropagation();
+            mdMobileMenu.style.display = mdMobileMenu.style.display === 'none' ? 'block' : 'none';
+        };
+        document.addEventListener('click', (e) => {
+            if (!mdMobileMenuBtn.contains(e.target) && !mdMobileMenu.contains(e.target)) {
+                mdMobileMenu.style.display = 'none';
+            }
+        });
+    }
+
+    const mdMobileNotesBtn = document.getElementById('md-mobile-notes-btn');
+    if (mdMobileNotesBtn) mdMobileNotesBtn.onclick = () => {
+        mdMobileMenu.style.display = 'none';
+        toggleMarkdownNotes();
+    };
+
+    const mdMobileEditBtn = document.getElementById('md-mobile-edit-btn');
+    if (mdMobileEditBtn) mdMobileEditBtn.onclick = () => {
+        mdMobileMenu.style.display = 'none';
+        toggleInlineEditMode();
+    };
+
+    const mdMobileDetailsBtn = document.getElementById('md-mobile-details-btn');
+    if (mdMobileDetailsBtn) mdMobileDetailsBtn.onclick = () => {
+        mdMobileMenu.style.display = 'none';
+        openMarkdownEditModal();
+    };
+
+    const mdMobileAutoTimerCheckbox = document.getElementById('md-mobile-auto-timer-checkbox');
+    if (mdMobileAutoTimerCheckbox) mdMobileAutoTimerCheckbox.onchange = toggleAutoTimer;
+
+    const mdMobileTimerResetBtn = document.getElementById('md-mobile-timer-reset-btn');
+    if (mdMobileTimerResetBtn) mdMobileTimerResetBtn.onclick = () => {
+        if (timerResetConfirming) {
+            mdMobileMenu.style.display = 'none';
+        }
+        handleTimerReset();
     };
 }
 
@@ -12231,6 +12299,8 @@ async function saveMarkdownEdit() {
 
         // Update the viewer header
         document.getElementById('markdown-pattern-name').textContent = name;
+        const mdMobileName = document.getElementById('md-mobile-pattern-name');
+        if (mdMobileName) mdMobileName.textContent = name;
 
         closeMarkdownEditModal();
 

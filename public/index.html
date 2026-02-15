@@ -2344,6 +2344,46 @@ Inc in each st around (12)
 
     <!-- Markdown Pattern Viewer -->
     <div id="markdown-viewer-container" class="markdown-viewer-container" style="display: none;">
+        <!-- Mobile Top Bar for Markdown (visible only on mobile) -->
+        <div class="md-mobile-top-bar">
+            <button id="md-mobile-back-btn" class="mobile-top-btn" title="Back">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+            <span id="md-mobile-pattern-name" class="mobile-pattern-name"></span>
+            <div class="mobile-top-right">
+                <button id="md-mobile-timer-btn" class="mobile-top-btn mobile-timer-btn" title="Toggle timer">
+                    <svg class="timer-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    <span id="md-mobile-timer-display">0:00:00</span>
+                </button>
+                <div class="mobile-menu-wrapper">
+                    <button id="md-mobile-menu-btn" class="mobile-top-btn" title="Menu">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none"></circle>
+                            <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"></circle>
+                            <circle cx="12" cy="19" r="1.5" fill="currentColor" stroke="none"></circle>
+                        </svg>
+                    </button>
+                    <div id="md-mobile-menu" class="mobile-menu" style="display: none;">
+                        <button class="mobile-menu-item" id="md-mobile-notes-btn">Notes</button>
+                        <button class="mobile-menu-item" id="md-mobile-edit-btn">Edit</button>
+                        <button class="mobile-menu-item" id="md-mobile-details-btn">Details</button>
+                        <div class="mobile-menu-divider"></div>
+                        <label class="mobile-menu-item mobile-menu-toggle">
+                            <span>Auto Timer</span>
+                            <input type="checkbox" id="md-mobile-auto-timer-checkbox">
+                            <span class="auto-timer-slider"></span>
+                        </label>
+                        <button class="mobile-menu-item mobile-menu-danger" id="md-mobile-timer-reset-btn">Reset Timer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="markdown-header">
             <div class="markdown-header-left">
                 <button id="markdown-back-btn" class="btn btn-secondary">← Back</button>
@@ -2382,6 +2422,7 @@ Inc in each st around (12)
         <div class="markdown-viewer-wrapper">
             <div id="markdown-inline-save-bar" class="markdown-inline-save-bar" style="display: none;">
                 <span id="markdown-inline-save-status" class="notes-save-status"></span>
+                <button id="markdown-inline-done-btn" class="btn btn-secondary markdown-inline-done-btn">Done</button>
             </div>
             <div id="markdown-content" class="markdown-content">
                 <!-- Rendered markdown content will go here -->

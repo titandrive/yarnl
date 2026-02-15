@@ -33,6 +33,7 @@ Try out the [demo](https://demo.yarnl.com) yourself (username: demo, password: d
 - Selective backup options (PDFs, markdown, archive, notes)
 - Auto-prune old backups by count or age
 - Pushover notifications for backup events
+- Optional `BACKUP_PATH` to store backups on an external drive or NAS — existing backups are automatically migrated when the path changes
 
 ### Customization
 - 15+ color themes with light/dark modes
@@ -126,6 +127,7 @@ Most configuration is done via settings once Yarnl is up and running. There are 
 | `ADMIN_PASSWORD` | *(empty)* | Admin password (empty = passwordless login) |
 | `PORT` | `3000` | Port exposed on the host |
 | `TZ` | `UTC` | Timezone for scheduled backups |
+| `BACKUP_PATH` | *(unset)* | Custom backup storage location (see [Backup](#backup--restore)) |
 | `FORCE_LOCAL_LOGIN` | `false` | Force local login even when OIDC/SSO is configured |
 
 ### OIDC / SSO (Optional)

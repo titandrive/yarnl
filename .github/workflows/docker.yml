@@ -37,16 +37,3 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-
-      - name: Trigger Komodo deploy
-        env:
-          WEBHOOK_URL: ${{ secrets.KOMODO_WEBHOOK_URL }}
-          WEBHOOK_SECRET: ${{ secrets.KOMODO_WEBHOOK_SECRET }}
-        run: |
-          PAYLOAD='{"ref":"refs/heads/main","repository":{"full_name":"titandrive/yarnl"}}'
-          SIGNATURE=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "$WEBHOOK_SECRET" | awk '{print "sha256="$2}')
-          curl -sf -X POST "$WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            -H "X-Hub-Signature-256: $SIGNATURE" \
-            -H "X-GitHub-Event: push" \
-            -d "$PAYLOAD"

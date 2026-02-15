@@ -22,6 +22,8 @@ services:
       - "${PORT:-3000}:3000"
     volumes:
       - ./users:/app/users
+      # Optional: mount an external path for backups
+      # - /mnt/user/drive:/backups
     environment:
       - NODE_ENV=production
       - POSTGRES_HOST=postgres
@@ -32,6 +34,8 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - TZ=${TZ:-UTC}
+      # Optional: store backups at a custom path (use with volume mount above)
+      # - BACKUP_PATH=/backups
     restart: unless-stopped
     depends_on:
       postgres:

@@ -1131,6 +1131,9 @@ function getUserNotesDir(username) {
 }
 
 function getUserBackupsDir(username) {
+  if (process.env.BACKUP_PATH) {
+    return path.join(process.env.BACKUP_PATH, 'yarnl-backups', username);
+  }
   return path.join(usersDir, username, 'backups');
 }
 
@@ -1751,6 +1754,62 @@ async function migrateExistingDataToAdmin() {
   }
 }
 
+// Migrate backups when BACKUP_PATH changes (added, removed, or changed)
+async function migrateBackupPath() {
+  try {
+    const currentPath = process.env.BACKUP_PATH || '';
+    const stored = await pool.query("SELECT value FROM settings WHERE key = 'backup_path'");
+    const previousPath = stored.rows.length > 0 ? stored.rows[0].value : '';
+
+    if (currentPath === previousPath) return;
+
+    // Get all users
+    const usersResult = await pool.query('SELECT username FROM users');
+    const usernames = usersResult.rows.map(r => r.username);
+
+    // Determine old and new backup dirs for each user
+    const getOldDir = (username) => previousPath
+      ? path.join(previousPath, 'yarnl-backups', username)
+      : path.join(usersDir, username, 'backups');
+    const getNewDir = (username) => currentPath
+      ? path.join(currentPath, 'yarnl-backups', username)
+      : path.join(usersDir, username, 'backups');
+
+    let movedCount = 0;
+    for (const username of usernames) {
+      const oldDir = getOldDir(username);
+      const newDir = getNewDir(username);
+      if (!fs.existsSync(oldDir)) continue;
+
+      const backupFiles = fs.readdirSync(oldDir).filter(f => f.endsWith('.zip'));
+      if (backupFiles.length === 0) continue;
+
+      fs.mkdirSync(newDir, { recursive: true });
+      for (const file of backupFiles) {
+        const srcPath = path.join(oldDir, file);
+        const destPath = path.join(newDir, file);
+        if (!fs.existsSync(destPath)) {
+          fs.renameSync(srcPath, destPath);
+          movedCount++;
+        }
+      }
+    }
+
+    // Store current path
+    await pool.query(
+      "INSERT INTO settings (key, value) VALUES ('backup_path', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
+      [currentPath]
+    );
+
+    if (movedCount > 0) {
+      const dest = currentPath ? `${currentPath}/yarnl-backups/` : './users/*/backups/';
+      console.log(`Migrated ${movedCount} backup(s) to ${dest}`);
+    }
+  } catch (error) {
+    console.error('Error migrating backup path:', error);
+  }
+}
+
 // Database will be initialized on startup
 initDatabase()
   .then(() => syncCategoryFolders())
@@ -1758,6 +1817,7 @@ initDatabase()
   .then(() => migratePatternOwnership())
   .then(() => migrateCategoriesToPerUser())
   .then(() => migrateExistingDataToAdmin())
+  .then(() => migrateBackupPath())
   .catch(err => {
     console.error('Failed to initialize database:', err);
     process.exit(1);
@@ -4928,7 +4988,9 @@ app.get('/api/stats', authMiddleware, async (req, res) => {
       totalCategories: patternsByCategory.length,
       totalSize,
       libraryPath: isAdmin ? './users' : `./users/${username}`,
-      backupHostPath: `./users/${username}/backups`
+      backupHostPath: process.env.BACKUP_PATH
+        ? path.join(process.env.BACKUP_PATH, 'yarnl-backups', username)
+        : `./users/${username}/backups`
     };
 
     // Admin-only stats

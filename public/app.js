@@ -11910,7 +11910,7 @@ async function enterInlineEditMode() {
 
     // Update toggle button
     toggleBtn.classList.add('active');
-    toggleBtn.querySelector('span').textContent = 'Preview';
+    toggleBtn.querySelector('span').textContent = 'Done';
 
     editorEl.focus();
     markdownInlineEditorDirty = false;

@@ -4927,8 +4927,8 @@ app.get('/api/stats', authMiddleware, async (req, res) => {
       patternsByCategory,
       totalCategories: patternsByCategory.length,
       totalSize,
-      libraryPath: isAdmin ? '/opt/yarnl/users' : `/opt/yarnl/users/${username}`,
-      backupHostPath: `/opt/yarnl/users/${username}/backups`
+      libraryPath: isAdmin ? './users' : `./users/${username}`,
+      backupHostPath: `./users/${username}/backups`
     };
 
     // Admin-only stats

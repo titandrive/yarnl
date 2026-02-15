@@ -12338,6 +12338,7 @@ async function loadCurrentProjects() {
         const response = await fetch(`${API_URL}/api/projects/current`);
         if (!response.ok) throw new Error('Failed to fetch current projects');
         currentProjects = await response.json();
+        updateTabCounts();
     } catch (error) {
         console.error('Error loading current projects:', error);
     }

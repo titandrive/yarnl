@@ -8113,8 +8113,17 @@ async function toggleCurrent(id, isCurrent) {
     const pattern = patterns.find(p => String(p.id) === String(id));
     if (pattern) {
         pattern.is_current = isCurrent;
+        // Also update currentPatterns array so the In Progress page reflects the change
+        if (isCurrent) {
+            if (!currentPatterns.find(p => String(p.id) === String(id))) {
+                currentPatterns.push(pattern);
+            }
+        } else {
+            currentPatterns = currentPatterns.filter(p => String(p.id) !== String(id));
+        }
         displayCurrentPatterns();
         displayPatterns();
+        updateTabCounts();
     }
     try {
         const response = await fetch(`${API_URL}/api/patterns/${id}/current`, {
@@ -8142,8 +8151,16 @@ async function toggleComplete(id, completed) {
     const pattern = patterns.find(p => String(p.id) === String(id));
     if (pattern) {
         pattern.completed = completed;
+        // Update currentPatterns: completed patterns leave in-progress, uncompleted+current ones rejoin
+        const inCurrent = currentPatterns.find(p => String(p.id) === String(id));
+        if (completed && inCurrent) {
+            currentPatterns = currentPatterns.filter(p => String(p.id) !== String(id));
+        } else if (!completed && pattern.is_current && !inCurrent) {
+            currentPatterns.push(pattern);
+        }
         displayCurrentPatterns();
         displayPatterns();
+        updateTabCounts();
     }
     try {
         const response = await fetch(`${API_URL}/api/patterns/${id}/complete`, {

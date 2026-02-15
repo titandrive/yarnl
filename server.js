@@ -1759,7 +1759,7 @@ async function migrateBackupPath() {
   try {
     const currentPath = process.env.BACKUP_PATH || '';
     const stored = await pool.query("SELECT value FROM settings WHERE key = 'backup_path'");
-    const previousPath = stored.rows.length > 0 ? stored.rows[0].value : '';
+    const previousPath = stored.rows.length > 0 ? String(stored.rows[0].value) : '';
 
     if (currentPath === previousPath) return;
 
@@ -1789,7 +1789,16 @@ async function migrateBackupPath() {
         const srcPath = path.join(oldDir, file);
         const destPath = path.join(newDir, file);
         if (!fs.existsSync(destPath)) {
-          fs.renameSync(srcPath, destPath);
+          try {
+            fs.renameSync(srcPath, destPath);
+          } catch (e) {
+            if (e.code === 'EXDEV') {
+              fs.copyFileSync(srcPath, destPath);
+              fs.unlinkSync(srcPath);
+            } else {
+              throw e;
+            }
+          }
           movedCount++;
         }
       }
@@ -1797,8 +1806,8 @@ async function migrateBackupPath() {
 
     // Store current path
     await pool.query(
-      "INSERT INTO settings (key, value) VALUES ('backup_path', $1) ON CONFLICT (key) DO UPDATE SET value = $1",
-      [currentPath]
+      "INSERT INTO settings (key, value) VALUES ('backup_path', $1::jsonb) ON CONFLICT (key) DO UPDATE SET value = $1::jsonb",
+      [JSON.stringify(currentPath)]
     );
 
     if (movedCount > 0) {

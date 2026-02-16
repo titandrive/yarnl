@@ -25,7 +25,6 @@ services:
       # Optional: mount an external path for backups
       # - /mnt/user/drive:/backups
     environment:
-      - NODE_ENV=production
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=${POSTGRES_DB:-yarnl}

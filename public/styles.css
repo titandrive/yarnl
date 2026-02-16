@@ -6466,18 +6466,22 @@ input[type="number"].settings-input {
     border-top: 1px solid var(--border-color);
 }
 
-.new-pattern-actions .mark-current-label {
+.thumbnail-and-toggle {
     display: flex;
     align-items: center;
-    gap: 6px;
-    margin-right: auto;
-    color: var(--text-muted);
-    font-size: 0.9rem;
-    cursor: pointer;
+    gap: 16px;
 }
 
-.new-pattern-actions .mark-current-label:hover {
-    color: var(--text-color);
+.thumbnail-and-toggle .mark-current-toggle {
+    align-items: center;
+    gap: 6px;
+    line-height: 1;
+}
+
+.thumbnail-and-toggle .mark-current-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 20px;
 }
 
 /* Markdown Pattern Viewer */
@@ -8678,25 +8682,53 @@ input[type="number"].settings-input {
     }
 
     /* --- New Pattern panel (Add Markdown) --- */
-    .new-pattern-form {
-        padding: 16px;
-        gap: 14px;
+    .new-pattern-panel {
+        padding-bottom: 60px;
     }
 
-    .new-pattern-content-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
+    .new-pattern-form {
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .new-pattern-content-group {
+        min-height: 0;
+    }
+
+    .new-pattern-editor-wrapper {
+        min-height: 300px;
+    }
+
+    .new-pattern-live-preview-label {
+        display: none !important;
+    }
+
+    .new-pattern-form .thumbnail-selector,
+    .new-pattern-form .thumbnail-selector-preview {
+        width: 80px;
+        height: 80px;
+    }
+
+    .new-pattern-form .form-hint {
+        display: none;
     }
 
     .new-pattern-actions {
-        flex-wrap: wrap;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: var(--card-bg);
+        border-top: 1px solid var(--border-color);
+        padding: 10px 16px;
         gap: 10px;
+        z-index: 110;
     }
 
     .new-pattern-actions .btn {
         flex: 1;
-        min-width: 0;
+        padding: 8px 14px;
+        font-size: 0.85rem;
     }
 
     /* project detail + add project mobile overrides are after base styles below */

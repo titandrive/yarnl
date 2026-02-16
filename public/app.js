@@ -11905,7 +11905,6 @@ async function enterInlineEditMode() {
     // Show editor, hide rendered content
     contentEl.style.display = 'none';
     editorEl.style.display = 'block';
-    saveBar.style.display = 'flex';
     wrapper.classList.add('editing');
 
     // Update toggle button
@@ -11945,7 +11944,6 @@ function exitInlineEditMode() {
     // Show rendered content, hide editor
     contentEl.style.display = 'block';
     editorEl.style.display = 'none';
-    saveBar.style.display = 'none';
     wrapper.classList.remove('editing');
 
     // Update toggle button
@@ -11968,7 +11966,6 @@ function resetInlineEditMode() {
 
     contentEl.style.display = 'block';
     editorEl.style.display = 'none';
-    saveBar.style.display = 'none';
     wrapper.classList.remove('editing');
     if (toggleBtn) {
         toggleBtn.classList.remove('active');
@@ -12000,6 +11997,7 @@ async function saveInlineContent() {
 
     try {
         statusEl.textContent = 'Saving...';
+        statusEl.className = 'notes-save-status saving';
         const response = await fetch(`${API_URL}/api/patterns/${currentPattern.id}/content`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -12010,13 +12008,16 @@ async function saveInlineContent() {
             markdownInlineEditorDirty = false;
             markdownRawContent = content;
             statusEl.textContent = 'Saved';
-            setTimeout(() => { if (statusEl.textContent === 'Saved') statusEl.textContent = ''; }, 2000);
+            statusEl.className = 'notes-save-status saved';
+            setTimeout(() => { if (statusEl.textContent === 'Saved') { statusEl.textContent = ''; statusEl.className = 'notes-save-status'; } }, 2000);
         } else {
             statusEl.textContent = 'Error saving';
+            statusEl.className = 'notes-save-status error';
         }
     } catch (error) {
         console.error('Error saving inline content:', error);
         statusEl.textContent = 'Error saving';
+        statusEl.className = 'notes-save-status error';
     }
 }
 

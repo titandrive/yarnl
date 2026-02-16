@@ -7716,18 +7716,36 @@ function initLibraryFilters() {
     }
 
     // Filter by hashtag (called when clicking a tag on a card)
-    window.filterByHashtag = function(tagName) {
+    window.filterByHashtag = function(tagName, tab) {
         const query = `#${tagName}`;
-        searchQuery = query.toLowerCase();
-        if (searchInput) {
-            searchInput.value = query;
-            if (searchClearBtn) searchClearBtn.classList.add('visible');
+
+        if (tab === 'projects') {
+            // Switch to projects tab and filter there
+            switchToTab('projects');
+            projectSearchQuery = query.toLowerCase();
+            const projSearch = document.getElementById('project-search-input');
+            const projClear = document.getElementById('project-search-clear-btn');
+            const projMobileSearch = document.getElementById('project-mobile-search-input');
+            const projMobileClear = document.getElementById('project-mobile-search-clear-btn');
+            if (projSearch) { projSearch.value = query; }
+            if (projClear) projClear.classList.add('visible');
+            if (projMobileSearch) { projMobileSearch.value = query; }
+            if (projMobileClear) projMobileClear.classList.add('visible');
+            displayProjects();
+        } else {
+            // Default: switch to library tab and filter there
+            switchToTab('library');
+            searchQuery = query.toLowerCase();
+            if (searchInput) {
+                searchInput.value = query;
+                if (searchClearBtn) searchClearBtn.classList.add('visible');
+            }
+            if (mobileSearchInput) {
+                mobileSearchInput.value = query;
+                if (mobileSearchClearBtn) mobileSearchClearBtn.classList.add('visible');
+            }
+            displayPatterns();
         }
-        if (mobileSearchInput) {
-            mobileSearchInput.value = query;
-            if (mobileSearchClearBtn) mobileSearchClearBtn.classList.add('visible');
-        }
-        displayPatterns();
     };
 
     if (sortSelect) {
@@ -12370,12 +12388,16 @@ function displayProjects() {
 
     // Search filter
     if (projectSearchQuery) {
-        const q = projectSearchQuery.toLowerCase();
-        filtered = filtered.filter(p =>
-            p.name.toLowerCase().includes(q) ||
-            (p.description && p.description.toLowerCase().includes(q)) ||
-            (p.hashtags && p.hashtags.some(h => h.name.toLowerCase().includes(q)))
-        );
+        const isHashtagSearch = projectSearchQuery.startsWith('#');
+        const q = projectSearchQuery.replace(/^#/, '').toLowerCase();
+        filtered = filtered.filter(p => {
+            if (isHashtagSearch) {
+                return p.hashtags && p.hashtags.some(h => h.name.toLowerCase().includes(q));
+            }
+            return p.name.toLowerCase().includes(q) ||
+                (p.description && p.description.toLowerCase().includes(q)) ||
+                (p.hashtags && p.hashtags.some(h => h.name.toLowerCase().includes(q)));
+        });
     }
 
     // Show filter
@@ -12523,7 +12545,7 @@ function renderProjectCard(project) {
     const totalTime = formatTimeHumanReadable(project.total_timer_seconds || 0);
 
     const hashtagsHtml = project.hashtags?.map(h =>
-        `<span class="pattern-hashtag">#${escapeHtml(h.name)}</span>`
+        `<span class="pattern-hashtag" onclick="event.stopPropagation(); filterByHashtag('${escapeHtml(h.name)}', 'projects')">#${escapeHtml(h.name)}</span>`
     ).join('') || '';
 
     return `

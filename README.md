@@ -96,7 +96,6 @@ services:
       # Optional: mount an external path for backups
       # - /mnt/user/drive:/backups
     environment:
-      - NODE_ENV=production
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=${POSTGRES_DB:-yarnl}
@@ -130,7 +129,7 @@ Most configuration is done via settings once Yarnl is up and running. There are 
 | `ADMIN_USERNAME` | `admin` | Initial admin username |
 | `ADMIN_PASSWORD` | *(empty)* | Admin password (empty = passwordless login) |
 | `PORT` | `3000` | Port exposed on the host |
-| `NODE_ENV` | `production` | Set to `production` for secure cookies over HTTPS |
+| `NODE_ENV` | `production` | Defaults to `production` in the Docker image |
 | `TZ` | `UTC` | Timezone for scheduled backups |
 | `BACKUP_PATH` | *(unset)* | Custom backup storage location (see [Backup](#backup--restore)) |
 | `FORCE_LOCAL_LOGIN` | `false` | Force local login even when OIDC/SSO is configured |

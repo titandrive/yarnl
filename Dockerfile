@@ -12,6 +12,9 @@ RUN npm install
 # Copy application files
 COPY . .
 
+# Default environment
+ENV NODE_ENV=production
+
 # Expose port
 EXPOSE 3000
 

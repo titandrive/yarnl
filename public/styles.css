@@ -2201,12 +2201,6 @@ html[data-theme="nuked-dark"] .btn-primary {
         height: 36px;
     }
 
-    /* ── Project Cards ── */
-    .project-continue-btn {
-        width: auto;
-        align-self: flex-start;
-    }
-
     /* ── Counter Section ── */
     .counter-section {
         grid-template-columns: 1fr;
@@ -8103,11 +8097,11 @@ input[type="number"].settings-input {
     position: absolute;
     top: 8px;
     left: 8px;
-    background: var(--primary-color);
+    background: var(--secondary-color);
     color: white;
-    padding: 4px 8px;
-    border-radius: 4px;
-    font-size: 0.7rem;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
     z-index: 10;
@@ -8210,27 +8204,31 @@ input[type="number"].settings-input {
     margin-top: auto;
 }
 
-/* Project Continue Button */
-.project-continue-action {
-    display: flex;
-    justify-content: center;
-    margin-top: 4px;
-}
-
-.project-continue-btn {
+/* Project Continue Overlay (centered play button on thumbnail) */
+.project-continue-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 48px;
+    height: 48px;
+    background: rgba(0, 0, 0, 0.5);
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 16px;
-    font-size: 0.85rem;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 5;
+    transition: background 0.2s, transform 0.2s;
 }
 
-.project-continue-btn svg {
-    flex-shrink: 0;
+.project-continue-overlay svg {
+    margin-left: 2px; /* Optically center the play triangle */
 }
 
-.project-continue-btn.inactive {
-    opacity: 0.4;
+.project-continue-overlay:hover {
+    background: rgba(0, 0, 0, 0.7);
+    transform: translate(-50%, -50%) scale(1.1);
 }
 
 /* Project Detail View */

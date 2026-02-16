@@ -12547,6 +12547,9 @@ function renderProjectCard(project) {
                            </svg>
                        </div>`
                 }
+                ${project.in_progress_count ? `<div class="project-continue-overlay" onclick="event.stopPropagation(); continueProject(${project.id})" title="Continue working">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+                </div>` : ''}
                 <div class="project-progress-mini">
                     <span>${project.completed_count}/${project.pattern_count}</span>
                     <div class="progress-bar-mini">
@@ -12604,14 +12607,6 @@ function renderProjectCard(project) {
                     <svg class="confirm-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                         <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
-                </button>
-            </div>
-            <div class="project-continue-action" onclick="event.stopPropagation()">
-                <button class="btn btn-primary project-continue-btn${!project.in_progress_count ? ' inactive' : ''}" onclick="continueProject(${project.id})" title="${project.in_progress_count ? 'Continue working on this project' : 'No patterns in progress'}">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
-                    Continue
                 </button>
             </div>
         </div>

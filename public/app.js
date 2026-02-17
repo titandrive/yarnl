@@ -5178,7 +5178,9 @@ function switchToSettingsSection(section, updateHistory = true) {
     }
 
     // Initialize section-specific content
-    if (section === 'archive') {
+    if (section === 'account') {
+        loadAccountInfo();
+    } else if (section === 'archive') {
         loadArchiveSettings();
     } else if (section === 'about') {
         loadLibraryStats();

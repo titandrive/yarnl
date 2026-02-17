@@ -3335,7 +3335,7 @@ function initTheme() {
     const showHeaderThemeToggle = localStorage.getItem('showHeaderThemeToggle') !== 'false';
 
     if (headerThemeToggle) {
-        headerThemeToggle.style.display = showHeaderThemeToggle ? 'flex' : 'none';
+        headerThemeToggle.style.display = (showHeaderThemeToggle && !DARK_ONLY_IDS.has(themeBase)) ? 'flex' : 'none';
 
         headerThemeToggle.addEventListener('click', () => {
             if (themeMode === 'dark') {

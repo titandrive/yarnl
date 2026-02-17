@@ -41,7 +41,7 @@
         }
     </script>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=210">
+    <link rel="stylesheet" href="styles.css?v=211">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -2831,8 +2831,23 @@ Inc in each st around (12)
         </div>
     </div>
 
+    <!-- Changelog Modal -->
+    <div id="changelog-modal" class="modal" style="display: none;">
+        <div class="modal-content changelog-modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2>What's New</h2>
+                <button class="modal-close" id="close-changelog-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="changelog-body"></div>
+            <div class="modal-footer">
+                <a href="https://github.com/titandrive/yarnl" target="_blank" class="btn btn-secondary">GitHub</a>
+                <button class="btn btn-primary" id="dismiss-changelog">Got it</button>
+            </div>
+        </div>
+    </div>
+
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=174"></script>
+    <script defer src="app.js?v=176"></script>
 </body>
 </html>

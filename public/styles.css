@@ -2521,6 +2521,52 @@ body.global-drag-over #current::after {
     margin-right: auto;
 }
 
+/* Changelog Modal */
+.changelog-modal-content {
+    max-width: 550px;
+}
+
+.changelog-modal-content .modal-header h2 {
+    font-size: 1.3rem;
+}
+
+.changelog-modal-content .modal-body {
+    max-height: 50vh;
+    overflow-y: auto;
+    font-size: 0.9rem;
+    line-height: 1.6;
+}
+
+.changelog-modal-content .modal-body h3 {
+    font-size: 0.95rem;
+    color: var(--primary-color);
+    margin: 1rem 0 0.5rem;
+}
+
+.changelog-modal-content .modal-body h3:first-child {
+    margin-top: 0;
+}
+
+.changelog-modal-content .modal-body ul {
+    padding-left: 1.2rem;
+    margin: 0.25rem 0;
+}
+
+.changelog-modal-content .modal-body li {
+    margin-bottom: 0.3rem;
+}
+
+.changelog-modal-content .modal-body code {
+    background: var(--border-color);
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-size: 0.85em;
+}
+
+.changelog-modal-content .modal-footer {
+    gap: 10px;
+}
+
 /* Mascot Modal */
 .mascot-modal-content {
     max-width: 800px;

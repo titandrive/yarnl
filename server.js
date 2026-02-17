@@ -1,4 +1,5 @@
 const express = require('express');
+const compression = require('compression');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -41,12 +42,19 @@ function broadcastEvent(type, data) {
 }
 
 // Middleware
+app.use(compression());
 app.use(cors({ credentials: true, origin: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-app.use(express.static('public'));
-app.use('/mascots', express.static('mascots'));
+// Serve index.html with no-cache so ?v= busting always works
+app.get('/', (req, res) => {
+  res.set('Cache-Control', 'no-cache');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.use(express.static('public', { maxAge: '7d' }));
+app.use('/mascots', express.static('mascots', { maxAge: '7d' }));
 
 // Auth middleware - checks session or auto-authenticates in single-user mode
 async function authMiddleware(req, res, next) {

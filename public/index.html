@@ -41,7 +41,7 @@
         }
     </script>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=208">
+    <link rel="stylesheet" href="styles.css?v=210">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -367,18 +367,9 @@
                         </div>
                         <div class="form-group">
                             <label>Thumbnail <span class="required">optional</span></label>
-                            <div class="thumbnail-and-toggle">
-                                <div class="thumbnail-selector" id="new-pattern-thumbnail-selector" data-target="new-pattern">
-                                    <div class="thumbnail-selector-preview" id="new-pattern-thumbnail-preview">
-                                        <span class="thumbnail-selector-placeholder">+</span>
-                                    </div>
-                                </div>
-                                <div class="mark-current-toggle">
-                                    <span class="mark-current-label">In progress</span>
-                                    <label class="toggle-switch small">
-                                        <input type="checkbox" id="new-pattern-is-current">
-                                        <span class="toggle-slider"></span>
-                                    </label>
+                            <div class="thumbnail-selector" id="new-pattern-thumbnail-selector" data-target="new-pattern">
+                                <div class="thumbnail-selector-preview" id="new-pattern-thumbnail-preview">
+                                    <span class="thumbnail-selector-placeholder">+</span>
                                 </div>
                             </div>
                             <small class="form-hint">Click to select or paste an image</small>
@@ -420,8 +411,15 @@ Inc in each st around (12)
                         </div>
                     </div>
                     <div class="new-pattern-actions">
+                        <div class="mark-current-toggle">
+                            <span class="mark-current-label">In progress</span>
+                            <label class="toggle-switch small">
+                                <input type="checkbox" id="new-pattern-is-current">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
                         <button type="button" id="cancel-new-pattern" class="btn btn-secondary">Cancel</button>
-                        <button type="button" id="save-new-pattern" class="btn btn-primary">Create Pattern</button>
+                        <button type="button" id="save-new-pattern" class="btn btn-primary">Create</button>
                     </div>
                 </div>
             </div>

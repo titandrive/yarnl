@@ -6466,24 +6466,6 @@ input[type="number"].settings-input {
     border-top: 1px solid var(--border-color);
 }
 
-.thumbnail-and-toggle {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-}
-
-.thumbnail-and-toggle .mark-current-toggle {
-    align-items: center;
-    gap: 6px;
-    line-height: 1;
-}
-
-.thumbnail-and-toggle .mark-current-label {
-    font-size: 0.75rem;
-    color: var(--text-muted);
-    line-height: 20px;
-}
-
 /* Markdown Pattern Viewer */
 .markdown-viewer-container {
     position: fixed;
@@ -8720,15 +8702,29 @@ input[type="number"].settings-input {
         right: 0;
         background: var(--card-bg);
         border-top: 1px solid var(--border-color);
-        padding: 10px 16px;
-        gap: 10px;
+        padding: 8px 12px;
+        gap: 8px;
+        flex-wrap: nowrap;
         z-index: 110;
     }
 
+    .new-pattern-actions .mark-current-toggle {
+        gap: 4px;
+        margin-right: auto;
+    }
+
+    .new-pattern-actions .mark-current-label {
+        font-size: 0.7rem;
+    }
+
     .new-pattern-actions .btn {
-        flex: 1;
-        padding: 8px 14px;
-        font-size: 0.85rem;
+        flex: 0;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+    }
+
+    .new-pattern-actions .btn-primary {
+        padding: 6px 20px;
     }
 
     /* project detail + add project mobile overrides are after base styles below */

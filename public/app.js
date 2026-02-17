@@ -1788,6 +1788,7 @@ let currentPageNum = 1;
 let totalPages = 0;
 let currentPattern = null;
 const pdfCacheVersions = {}; // patternId → timestamp for cache busting after annotation changes
+const pendingAnnotationSaves = {}; // patternId → Promise for in-flight annotation PUT
 let counters = [];
 let lastUsedCounterId = null;
 let pdfZoomScale = 1.0; // Current zoom scale for manual zoom
@@ -9824,8 +9825,14 @@ async function openPDFViewer(patternId, pushHistory = true) {
         const mobilePatternName = document.getElementById('mobile-pattern-name');
         if (mobilePatternName) mobilePatternName.textContent = pattern.name;
 
+        // Wait for any in-flight annotation save to finish before loading
+        if (pendingAnnotationSaves[pattern.id]) {
+            await pendingAnnotationSaves[pattern.id].catch(() => {});
+        }
+
         const cacheV = pdfCacheVersions[pattern.id];
-        const pdfUrl = `${API_URL}/api/patterns/${pattern.id}/file${cacheV ? '?v=' + cacheV : ''}`;
+        // Use absolute URL so pdf.js viewer's new URL() parsing preserves ?v= query params
+        const pdfUrl = `${window.location.origin}${API_URL}/api/patterns/${pattern.id}/file${cacheV ? '?v=' + cacheV : ''}`;
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
         // Use PDF.js full viewer in iframe for all devices
@@ -9844,13 +9851,21 @@ async function openPDFViewer(patternId, pushHistory = true) {
             pdfIframe.className = 'native-pdf-viewer';
             wrapper.prepend(pdfIframe);
         }
-        const encodedUrl = encodeURIComponent(pdfUrl);
-        pdfIframe.src = `/pdfjs/web/viewer.html?file=${encodedUrl}#page=${currentPageNum}&pagemode=none`;
+
+        // Reuse cached iframe if same pattern is already loaded
+        const canReuse = pdfIframe.dataset.patternId === String(pattern.id) && pdfIframe.contentWindow;
+        pdfIframe.style.display = '';
+        if (!canReuse) {
+            pdfIframe.dataset.patternId = String(pattern.id);
+            const encodedUrl = encodeURIComponent(pdfUrl);
+            pdfIframe.src = `/pdfjs/web/viewer.html?file=${encodedUrl}#page=${currentPageNum}&pagemode=none`;
+        }
 
         // Configure viewer and track page changes via PDF.js API
-        pdfIframe.addEventListener('load', () => {
+        if (!canReuse) pdfIframe.addEventListener('load', () => {
             const viewerApp = pdfIframe.contentWindow?.PDFViewerApplication;
             if (!viewerApp) return;
+            let userHasEdited = false;
             viewerApp.initializedPromise.then(() => {
                 // Set scroll mode from user preference (page=3, scroll=0)
                 const scrollPref = localStorage.getItem('pdfScrollMode') || 'scroll';
@@ -9931,11 +9946,12 @@ async function openPDFViewer(patternId, pushHistory = true) {
                     if (currentMode !== 0) {
                         viewerApp.pdfViewer.annotationEditorMode = { mode: currentMode };
                     }
-                    await fetch(`${API_URL}/api/patterns/${patternId}/file`, {
+                    const resp = await fetch(`${API_URL}/api/patterns/${patternId}/file`, {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/pdf' },
                         body: data
                     });
+                    if (!resp.ok) throw new Error(`Server returned ${resp.status}`);
                     pdfCacheVersions[patternId] = Date.now();
                 }
 
@@ -10063,6 +10079,7 @@ async function openPDFViewer(patternId, pushHistory = true) {
                             const origOnSetModified = storage.onSetModified;
                             storage.onSetModified = () => {
                                 if (origOnSetModified) origOnSetModified();
+                                if (!userHasEdited) return; // Skip initial load of embedded annotations
                                 clearTimeout(annotationSaveTimer);
                                 annotationSaveTimer = setTimeout(saveAnnotations, 2000);
                             };
@@ -10073,6 +10090,7 @@ async function openPDFViewer(patternId, pushHistory = true) {
                 // Also catch annotation changes via eventBus as a backup
                 viewerApp.eventBus.on('annotationeditorstateschanged', (evt) => {
                     if (evt.details?.hasSomethingToUndo) {
+                        userHasEdited = true;
                         clearTimeout(annotationSaveTimer);
                         annotationSaveTimer = setTimeout(saveAnnotations, 2000);
                     }
@@ -10418,7 +10436,7 @@ async function closePDFViewer() {
                 }
             }
         } catch (e) { /* viewer may already be unloading or timed out */ }
-        pdfObject.remove();
+        pdfObject.style.display = 'none';
         wrapper.querySelector('.pdf-page-container').style.display = '';
         const spacer = wrapper.querySelector('.pdf-scroll-spacer');
         if (spacer) spacer.style.display = '';
@@ -10463,11 +10481,14 @@ async function closePDFViewer() {
         }
         if (annotationData) {
             pdfCacheVersions[closingPattern.id] = Date.now();
-            fetch(`${API_URL}/api/patterns/${closingPattern.id}/file`, {
+            const savePromise = fetch(`${API_URL}/api/patterns/${closingPattern.id}/file`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/pdf' },
                 body: annotationData
-            }).catch(() => {});
+            }).catch(() => {}).finally(() => {
+                delete pendingAnnotationSaves[closingPattern.id];
+            });
+            pendingAnnotationSaves[closingPattern.id] = savePromise;
         }
     }
 }

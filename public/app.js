@@ -1896,10 +1896,13 @@ function initTimer() {
         document.addEventListener(event, resetInactivity, { passive: true });
     });
 
-    // Save timer when page is hidden
+    // Save timer when page is hidden, resume when returning
     document.addEventListener('visibilitychange', () => {
         if (document.hidden && timerRunning) {
             stopTimer(true);
+        } else if (!document.hidden && autoTimerEnabled && !timerRunning) {
+            startTimer();
+            resetInactivity();
         }
     });
 

@@ -2563,6 +2563,11 @@ body.global-drag-over #current::after {
     font-size: 0.85em;
 }
 
+.changelog-modal-content .modal-body a {
+    color: var(--text-color);
+    text-decoration: underline;
+}
+
 .changelog-modal-content .modal-footer {
     gap: 10px;
 }

@@ -2679,7 +2679,7 @@ class ColorManager {
   }
   convert(color) {
     const rgb = getRGB(color);
-    if (!window.matchMedia("(forced-colors: active)").matches) {
+    if (!window.matchMedia?.("(forced-colors: active)")?.matches) {
       return rgb;
     }
     for (const [name, RGB] of this._colors) {

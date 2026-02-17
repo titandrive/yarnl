@@ -2311,6 +2311,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     initAppUI();
     appInitialized = true;
+    checkForNewVersion();
     await Promise.all([loadPatterns(), loadProjects()]);
     loadCurrentPatterns();
     loadCategories();
@@ -9508,6 +9509,78 @@ function openBulkEditModal() {
 function closeBulkEditModal() {
     document.getElementById('bulk-edit-modal').style.display = 'none';
 }
+
+// Changelog modal
+let currentAppVersion = null;
+
+async function checkForNewVersion() {
+    try {
+        const res = await fetch(`${API_URL}/api/version`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const version = data.version;
+        const lastSeen = localStorage.getItem('lastSeenVersion');
+        if (lastSeen && lastSeen !== version) {
+            showChangelog(version);
+        } else if (!lastSeen) {
+            _originalSetItem('lastSeenVersion', version);
+        }
+    } catch (e) {
+        // Silently fail
+    }
+}
+
+async function showChangelog(version) {
+    currentAppVersion = version;
+    const body = document.getElementById('changelog-body');
+    const header = document.querySelector('#changelog-modal .modal-header h2');
+    if (header) header.textContent = `What's New in v${version}`;
+
+    // Fetch release notes from GitHub
+    let md = `Updated to v${version}.`;
+    try {
+        const res = await fetch('https://api.github.com/repos/titandrive/yarnl/releases/latest');
+        if (res.ok) {
+            const data = await res.json();
+            if (data.body) {
+                // Strip the version heading if present (e.g. "## v0.5.7\n\n")
+                md = data.body.replace(/^##?\s*v[\d.]+\s*\n+/, '');
+            }
+        }
+    } catch (e) {
+        // Fallback to simple message
+    }
+
+    if (body && typeof marked !== 'undefined') {
+        body.innerHTML = marked.parse(md);
+    }
+    document.getElementById('changelog-modal').style.display = 'flex';
+    document.addEventListener('keydown', handleChangelogEscape);
+}
+
+function closeChangelog() {
+    document.getElementById('changelog-modal').style.display = 'none';
+    document.removeEventListener('keydown', handleChangelogEscape);
+    if (currentAppVersion) {
+        _originalSetItem('lastSeenVersion', currentAppVersion);
+    }
+}
+
+function handleChangelogEscape(e) {
+    if (e.key === 'Escape') closeChangelog();
+}
+
+// Wire up changelog modal buttons
+document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('changelog-modal');
+    if (modal) {
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeChangelog();
+        });
+    }
+    document.getElementById('close-changelog-modal')?.addEventListener('click', closeChangelog);
+    document.getElementById('dismiss-changelog')?.addEventListener('click', closeChangelog);
+});
 
 async function applyBulkEdit() {
     const patternIds = Array.from(selectedPatternIds);

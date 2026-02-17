@@ -30,6 +30,13 @@
             if (localStorage.getItem('canCreateMarkdown') === 'false') {
                 earlyStyles += '#add-new-pattern{display:none!important}';
             }
+            if (startTab === 'settings') {
+                document.documentElement.classList.add('in-settings');
+            }
+            var themeBase = theme.replace(/-(?:dark|light)$/, '');
+            if ('synthwave dracula midnight cyberpunk halloween sunset razer nuked'.indexOf(themeBase) !== -1 || localStorage.getItem('showHeaderThemeToggle') === 'false') {
+                earlyStyles += '#header-theme-toggle{display:none!important}';
+            }
             document.write('<style id="early-tab-style">' + earlyStyles + '</style>');
             if ((localStorage.getItem('pdfScrollMode') || 'scroll') === 'scroll' && localStorage.getItem('scrollPageButtons') !== 'true') {
                 document.write('<style id="early-hide-page-btns">.mobile-page-prev,.mobile-page-next{display:none!important}</style>');
@@ -40,6 +47,11 @@
             document.write('<style id="early-tab-style">#login-container{display:none!important}.container{display:none!important}</style>');
         }
     </script>
+    <style id="settings-btn-toggle">
+        #settings-btn .settings-back-icon, #settings-btn .back-label { display: none; }
+        .in-settings #settings-btn .settings-gear-icon, .in-settings #settings-btn .settings-label { display: none; }
+        .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
+    </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="styles.css?v=211">
     <style>
@@ -88,11 +100,15 @@
         <header>
             <div class="header-btn-container header-left">
                 <button id="settings-btn" class="header-btn header-btn-labeled" aria-label="Settings">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="settings-gear-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                         <circle cx="12" cy="12" r="3"></circle>
                         <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
                     </svg>
-                    <span>Settings</span>
+                    <svg class="settings-back-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M19 12H5M12 19l-7-7 7-7"></path>
+                    </svg>
+                    <span class="settings-label">Settings</span>
+                    <span class="back-label">Back</span>
                 </button>
                 <button id="header-theme-toggle" class="header-btn header-theme-toggle" aria-label="Toggle dark mode" title="Toggle dark mode">
                     <svg class="sun-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2848,6 +2864,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=180"></script>
+    <script defer src="app.js?v=181"></script>
 </body>
 </html>

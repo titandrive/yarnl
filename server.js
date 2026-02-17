@@ -2395,8 +2395,8 @@ app.get('/api/patterns/:id/file', async (req, res) => {
     const annotatedPath = path.join(dir, annotatedName);
     const filePath = fs.existsSync(annotatedPath) ? annotatedPath : path.join(dir, pattern.filename);
 
-    // Prevent browser from serving stale cached PDFs (annotations would be lost)
-    res.set('Cache-Control', 'no-cache');
+    // Cache PDFs for 24h; client appends ?v= cache-buster after annotation saves
+    res.set('Cache-Control', 'private, max-age=86400');
     res.sendFile(filePath);
   } catch (error) {
     console.error('Error fetching pattern file:', error);

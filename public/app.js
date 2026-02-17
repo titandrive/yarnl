@@ -1787,6 +1787,7 @@ let pdfDoc = null;
 let currentPageNum = 1;
 let totalPages = 0;
 let currentPattern = null;
+const pdfCacheVersions = {}; // patternId → timestamp for cache busting after annotation changes
 let counters = [];
 let lastUsedCounterId = null;
 let pdfZoomScale = 1.0; // Current zoom scale for manual zoom
@@ -9823,7 +9824,8 @@ async function openPDFViewer(patternId, pushHistory = true) {
         const mobilePatternName = document.getElementById('mobile-pattern-name');
         if (mobilePatternName) mobilePatternName.textContent = pattern.name;
 
-        const pdfUrl = `${API_URL}/api/patterns/${pattern.id}/file`;
+        const cacheV = pdfCacheVersions[pattern.id];
+        const pdfUrl = `${API_URL}/api/patterns/${pattern.id}/file${cacheV ? '?v=' + cacheV : ''}`;
         const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
         // Use PDF.js full viewer in iframe for all devices
@@ -9934,6 +9936,7 @@ async function openPDFViewer(patternId, pushHistory = true) {
                         headers: { 'Content-Type': 'application/pdf' },
                         body: data
                     });
+                    pdfCacheVersions[patternId] = Date.now();
                 }
 
                 // Wire up the Revert button (inside Edit modal) — click-to-confirm pattern
@@ -9961,6 +9964,7 @@ async function openPDFViewer(patternId, pushHistory = true) {
                         const resp = await fetch(`${API_URL}/api/patterns/${patternId}/annotations`, { method: 'DELETE' });
                         const result = await resp.json();
                         if (result.reverted) {
+                            pdfCacheVersions[patternId] = Date.now();
                             document.getElementById('pdf-edit-modal').style.display = 'none';
                             const iframe = wrapper.querySelector('.native-pdf-viewer');
                             if (iframe) iframe.remove();
@@ -10458,6 +10462,7 @@ async function closePDFViewer() {
             }).catch(() => {});
         }
         if (annotationData) {
+            pdfCacheVersions[closingPattern.id] = Date.now();
             fetch(`${API_URL}/api/patterns/${closingPattern.id}/file`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/pdf' },

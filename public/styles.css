@@ -890,6 +890,12 @@ header {
     display: flex;
     gap: 8px;
     align-items: center;
+    flex-basis: 0;
+    flex-grow: 1;
+}
+
+.header-btn-container.header-right {
+    justify-content: flex-end;
 }
 
 .header-btn {

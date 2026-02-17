@@ -9522,10 +9522,8 @@ async function checkForNewVersion() {
         const data = await res.json();
         const version = data.version;
         const lastSeen = localStorage.getItem('lastSeenVersion');
-        if (lastSeen && lastSeen !== version) {
+        if (!lastSeen || lastSeen !== version) {
             showChangelog(version);
-        } else if (!lastSeen) {
-            _originalSetItem('lastSeenVersion', version);
         }
     } catch (e) {
         // Silently fail

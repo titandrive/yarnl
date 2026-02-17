@@ -24,6 +24,9 @@
         if (localStorage.getItem('authenticated') === 'true') {
             var startTab = localStorage.getItem('activeTab') || localStorage.getItem('defaultPage') || 'current';
             var earlyStyles = '#login-container{display:none!important}.container{display:block!important}.tab-content{display:none!important}.tab-content#' + startTab + '{display:block!important}';
+            if (startTab !== 'current') {
+                earlyStyles += '.tab-btn.active{color:inherit;background:transparent;border-bottom-color:transparent}.tab-btn[data-tab="' + startTab + '"]{color:var(--primary-color);background:var(--card-bg);border-bottom:3px solid var(--primary-color)}';
+            }
             if (localStorage.getItem('canUploadPdf') === 'false') {
                 earlyStyles += '#add-upload-pdf{display:none!important}';
             }
@@ -53,7 +56,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=211">
+    <link rel="stylesheet" href="styles.css?v=212">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,

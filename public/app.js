@@ -2885,12 +2885,19 @@ function initTheme() {
     // Update UI states
     function updateUI() {
         const currentEffective = getEffectiveMode();
+        const isDarkOnly = DARK_ONLY_IDS.has(themeBase);
         if (themeModeLightBtn && themeModeDarkBtn) {
-            const isDarkOnly = DARK_ONLY_IDS.has(themeBase);
             themeModeLightBtn.classList.toggle('active', currentEffective === 'light' && !isDarkOnly);
             themeModeLightBtn.classList.toggle('disabled', isDarkOnly);
             themeModeLightBtn.disabled = isDarkOnly;
             themeModeDarkBtn.classList.toggle('active', currentEffective === 'dark' || isDarkOnly);
+            const modeToggle = themeModeLightBtn.closest('.theme-mode-toggle');
+            if (modeToggle) modeToggle.style.display = isDarkOnly ? 'none' : '';
+        }
+        const hdrToggle = document.getElementById('header-theme-toggle');
+        if (hdrToggle) {
+            const userWantsToggle = localStorage.getItem('showHeaderThemeToggle') !== 'false';
+            hdrToggle.style.display = (!isDarkOnly && userWantsToggle) ? 'flex' : 'none';
         }
         if (autoModeCheckbox) {
             autoModeCheckbox.checked = autoEnabled;
@@ -3356,7 +3363,7 @@ function initTheme() {
             const show = showHeaderThemeToggleCheckbox.checked;
             localStorage.setItem('showHeaderThemeToggle', show);
             if (headerThemeToggle) {
-                headerThemeToggle.style.display = show ? 'flex' : 'none';
+                headerThemeToggle.style.display = (show && !DARK_ONLY_IDS.has(themeBase)) ? 'flex' : 'none';
             }
             showToast(show ? 'Theme toggle shown' : 'Theme toggle hidden');
         });

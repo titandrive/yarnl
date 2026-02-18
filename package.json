@@ -1,6 +1,6 @@
 {
   "name": "yarnl",
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Self-hosted crochet project management app",
   "main": "server.js",
   "repository": {

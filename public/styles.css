@@ -3489,7 +3489,6 @@ body.global-drag-over #current::after {
 }
 
 .mobile-pattern-name {
-    flex: 1;
     font-size: 0.9rem;
     font-weight: 600;
     color: var(--primary-color);
@@ -3497,22 +3496,23 @@ body.global-drag-over #current::after {
     text-overflow: ellipsis;
     white-space: nowrap;
     min-width: 0;
+    max-width: 40%;
 }
 
 .mobile-page-info {
+    flex: 1;
     font-size: 0.8rem;
     font-weight: 600;
     color: var(--text-muted);
     text-align: center;
     font-variant-numeric: tabular-nums;
-    flex-shrink: 0;
 }
 
 .mobile-top-right {
-    flex: 1;
     display: flex;
     align-items: center;
     justify-content: flex-end;
+    flex-shrink: 0;
     gap: 6px;
     min-width: 0;
 }

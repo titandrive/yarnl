@@ -28,7 +28,7 @@ const SYNCED_SETTING_KEYS = [
     // Projects
     'projectSort', 'projectShowFilter',
     // Behavior
-    'showWhatsNew', 'autoCurrentOnTimer', 'autoTimerDefault', 'defaultCategory',
+    'showWhatsNew', 'autoCurrentOnTimer', 'autoTimerDefault', 'inactivityTimeout', 'defaultCategory',
     'enableDirectDelete', 'hapticFeedback', 'wakeLock', 'keyboardShortcuts',
     // Notes
     'notesLivePreview', 'notesPopoverSize',
@@ -1760,7 +1760,7 @@ let autoTimerDefault = localStorage.getItem('autoTimerDefault') === 'true';
 let autoTimerEnabled = false;
 let autoTimerPausedInactive = false;
 let inactivityTimeout = null;
-const INACTIVITY_DELAY = 5 * 60 * 1000; // 5 minutes
+let inactivityDelay = parseInt(localStorage.getItem('inactivityTimeout') || '5', 10) * 60 * 1000;
 let defaultCategory = localStorage.getItem('defaultCategory') || 'Amigurumi';
 let enableDirectDelete = localStorage.getItem('enableDirectDelete') === 'true';
 
@@ -1881,13 +1881,15 @@ function initTimer() {
             if (inactivityTimeout) {
                 clearTimeout(inactivityTimeout);
             }
-            inactivityTimeout = setTimeout(() => {
-                if (autoTimerEnabled && timerRunning) {
-                    autoTimerPausedInactive = true;
-                    stopTimer();
-                    updateAutoTimerButtonState();
-                }
-            }, INACTIVITY_DELAY);
+            if (inactivityDelay > 0) {
+                inactivityTimeout = setTimeout(() => {
+                    if (autoTimerEnabled && timerRunning) {
+                        autoTimerPausedInactive = true;
+                        stopTimer();
+                        updateAutoTimerButtonState();
+                    }
+                }, inactivityDelay);
+            }
         }
     };
 
@@ -1999,13 +2001,15 @@ function toggleAutoTimer(e) {
         if (inactivityTimeout) {
             clearTimeout(inactivityTimeout);
         }
-        inactivityTimeout = setTimeout(() => {
-            if (autoTimerEnabled && timerRunning) {
-                autoTimerPausedInactive = true;
-                stopTimer();
-                updateAutoTimerButtonState();
-            }
-        }, INACTIVITY_DELAY);
+        if (inactivityDelay > 0) {
+            inactivityTimeout = setTimeout(() => {
+                if (autoTimerEnabled && timerRunning) {
+                    autoTimerPausedInactive = true;
+                    stopTimer();
+                    updateAutoTimerButtonState();
+                }
+            }, inactivityDelay);
+        }
     } else {
         // Stop inactivity tracking
         if (inactivityTimeout) {
@@ -4864,6 +4868,27 @@ function initSettings() {
             autoTimerDefault = autoTimerDefaultCheckbox.checked;
             localStorage.setItem('autoTimerDefault', autoTimerDefault);
             showToast(autoTimerDefault ? 'Auto timer will be enabled by default' : 'Auto timer disabled by default');
+        });
+    }
+
+    // Inactivity timeout setting
+    const inactivityTimeoutInput = document.getElementById('inactivity-timeout-input');
+    if (inactivityTimeoutInput) {
+        const savedTimeout = localStorage.getItem('inactivityTimeout') || '5';
+        inactivityTimeoutInput.value = savedTimeout;
+
+        const applyInactivityTimeout = () => {
+            const minutes = Math.max(0, Math.floor(parseInt(inactivityTimeoutInput.value, 10) || 0));
+            inactivityTimeoutInput.value = minutes;
+            localStorage.setItem('inactivityTimeout', minutes);
+            inactivityDelay = minutes * 60 * 1000;
+            showToast(minutes === 0 ? 'Auto timer will never pause' : `Auto timer will pause after ${minutes} minute${minutes === 1 ? '' : 's'}`);
+        };
+        inactivityTimeoutInput.addEventListener('change', applyInactivityTimeout);
+        inactivityTimeoutInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                inactivityTimeoutInput.blur();
+            }
         });
     }
 
@@ -9818,13 +9843,15 @@ async function openPDFViewer(patternId, pushHistory = true) {
             // Start timer and inactivity tracking
             startTimer();
             if (inactivityTimeout) clearTimeout(inactivityTimeout);
-            inactivityTimeout = setTimeout(() => {
-                if (autoTimerEnabled && timerRunning) {
-                    autoTimerPausedInactive = true;
-                    stopTimer();
-                    updateAutoTimerButtonState();
-                }
-            }, INACTIVITY_DELAY);
+            if (inactivityDelay > 0) {
+                inactivityTimeout = setTimeout(() => {
+                    if (autoTimerEnabled && timerRunning) {
+                        autoTimerPausedInactive = true;
+                        stopTimer();
+                        updateAutoTimerButtonState();
+                    }
+                }, inactivityDelay);
+            }
         }
 
         // Clear old counters and move overlay before showing viewer
@@ -11826,13 +11853,15 @@ async function openMarkdownViewer(pattern, pushHistory = true) {
             // Start timer and inactivity tracking
             startTimer();
             if (inactivityTimeout) clearTimeout(inactivityTimeout);
-            inactivityTimeout = setTimeout(() => {
-                if (autoTimerEnabled && timerRunning) {
-                    autoTimerPausedInactive = true;
-                    stopTimer();
-                    updateAutoTimerButtonState();
-                }
-            }, INACTIVITY_DELAY);
+            if (inactivityDelay > 0) {
+                inactivityTimeout = setTimeout(() => {
+                    if (autoTimerEnabled && timerRunning) {
+                        autoTimerPausedInactive = true;
+                        stopTimer();
+                        updateAutoTimerButtonState();
+                    }
+                }, inactivityDelay);
+            }
         }
 
         // Clear old counters and move overlay before showing viewer

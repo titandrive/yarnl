@@ -28,7 +28,7 @@ const SYNCED_SETTING_KEYS = [
     // Projects
     'projectSort', 'projectShowFilter',
     // Behavior
-    'autoCurrentOnTimer', 'autoTimerDefault', 'defaultCategory',
+    'showWhatsNew', 'autoCurrentOnTimer', 'autoTimerDefault', 'defaultCategory',
     'enableDirectDelete', 'hapticFeedback', 'wakeLock', 'keyboardShortcuts',
     // Notes
     'notesLivePreview', 'notesPopoverSize',
@@ -1985,6 +1985,9 @@ function toggleAutoTimer(e) {
         autoTimerEnabled = !autoTimerEnabled;
     }
     autoTimerPausedInactive = false;
+    if (currentPattern) {
+        sessionStorage.setItem(`autoTimer_${currentPattern.id}`, autoTimerEnabled);
+    }
     updateAutoTimerButtonState();
 
     if (autoTimerEnabled) {
@@ -2074,6 +2077,11 @@ function stopTimer(sync = false) {
         timerInterval = null;
     }
 
+    // Stash in sessionStorage so reloads don't lose seconds to server lag
+    if (currentPattern) {
+        sessionStorage.setItem(`timerSeconds_${currentPattern.id}`, timerSeconds);
+    }
+
     // Save timer to database
     if (sync) {
         // Synchronous save for beforeunload
@@ -2101,6 +2109,7 @@ async function saveTimer() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ timer_seconds: timerSeconds })
             });
+            sessionStorage.removeItem(`timerSeconds_${currentPattern.id}`);
         } catch (error) {
             console.error('Error saving timer:', error);
         }
@@ -2218,8 +2227,8 @@ function updateResetButtonState() {
 }
 
 function loadPatternTimer(pattern) {
-    console.log('loadPatternTimer called, pattern.timer_seconds:', pattern.timer_seconds);
-    timerSeconds = pattern.timer_seconds || 0;
+    const sessionSeconds = sessionStorage.getItem(`timerSeconds_${pattern.id}`);
+    timerSeconds = sessionSeconds !== null ? parseInt(sessionSeconds, 10) : (pattern.timer_seconds || 0);
     timerRunning = false;
     updateTimerDisplay();
     updateTimerButtonState();
@@ -3412,6 +3421,20 @@ function initTheme() {
             const enabled = hapticCheckbox.checked;
             localStorage.setItem('hapticFeedback', enabled);
             showToast(enabled ? 'Haptic feedback enabled' : 'Haptic feedback disabled');
+        });
+    }
+
+    // What's New popup setting
+    const whatsNewCheckbox = document.getElementById('whats-new-checkbox');
+    const whatsNewEnabled = localStorage.getItem('showWhatsNew') !== 'false';
+
+    if (whatsNewCheckbox) {
+        whatsNewCheckbox.checked = whatsNewEnabled;
+
+        whatsNewCheckbox.addEventListener('change', () => {
+            const enabled = whatsNewCheckbox.checked;
+            localStorage.setItem('showWhatsNew', enabled);
+            showToast(enabled ? 'What\'s New popup enabled' : 'What\'s New popup disabled');
         });
     }
 
@@ -9519,7 +9542,11 @@ async function checkForNewVersion() {
         const version = data.version;
         const lastSeen = localStorage.getItem('lastSeenVersion');
         if (!lastSeen || lastSeen !== version) {
-            showChangelog(version);
+            if (localStorage.getItem('showWhatsNew') === 'false') {
+                _originalSetItem('lastSeenVersion', version);
+            } else {
+                showChangelog(version);
+            }
         }
     } catch (e) {
         // Silently fail
@@ -9782,8 +9809,9 @@ async function openPDFViewer(patternId, pushHistory = true) {
         // Load timer state
         loadPatternTimer(pattern);
 
-        // Initialize auto timer based on default setting
-        autoTimerEnabled = autoTimerDefault;
+        // Initialize auto timer: restore per-pattern session state, else use default
+        const savedAutoTimer = sessionStorage.getItem(`autoTimer_${pattern.id}`);
+        autoTimerEnabled = savedAutoTimer !== null ? savedAutoTimer === 'true' : autoTimerDefault;
         autoTimerPausedInactive = false;
         updateAutoTimerButtonState();
         if (autoTimerEnabled) {
@@ -10399,6 +10427,11 @@ async function closePDFViewer() {
     const closingPage = currentPageNum;
     const closingTimerSeconds = timerSeconds;
 
+    // Stash timer in sessionStorage so reopening doesn't lose seconds to server lag
+    if (closingPattern && closingTimerSeconds > 0) {
+        sessionStorage.setItem(`timerSeconds_${closingPattern.id}`, closingTimerSeconds);
+    }
+
     // Stop timer
     if (closingPattern && closingTimerSeconds > 0 && timerRunning) {
         timerRunning = false;
@@ -10464,7 +10497,11 @@ async function closePDFViewer() {
     // Save timer, page, and annotations in the background
     if (closingPattern) {
         if (closingTimerSeconds > 0) {
-            saveTimerImmediate().catch(() => {});
+            fetch(`${API_URL}/api/patterns/${closingPattern.id}/timer`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ timer_seconds: closingTimerSeconds })
+            }).catch(() => {});
         }
         if (closingPage) {
             fetch(`${API_URL}/api/patterns/${closingPattern.id}/page`, {
@@ -11780,8 +11817,9 @@ async function openMarkdownViewer(pattern, pushHistory = true) {
         // Load timer state
         loadPatternTimer(pattern);
 
-        // Initialize auto timer based on default setting
-        autoTimerEnabled = autoTimerDefault;
+        // Initialize auto timer: restore per-pattern session state, else use default
+        const savedAutoTimer = sessionStorage.getItem(`autoTimer_${pattern.id}`);
+        autoTimerEnabled = savedAutoTimer !== null ? savedAutoTimer === 'true' : autoTimerDefault;
         autoTimerPausedInactive = false;
         updateAutoTimerButtonState();
         if (autoTimerEnabled) {
@@ -12139,6 +12177,10 @@ async function closeMarkdownViewer() {
     }
     resetInlineEditMode();
     releaseWakeLock();
+    // Stash timer in sessionStorage so reopening doesn't lose seconds to server lag
+    if (currentPattern && timerSeconds > 0) {
+        sessionStorage.setItem(`timerSeconds_${currentPattern.id}`, timerSeconds);
+    }
     // Save timer before closing (immediate, not debounced)
     if (currentPattern && timerSeconds > 0) {
         if (timerRunning) {

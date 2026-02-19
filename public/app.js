@@ -9614,6 +9614,14 @@ function closeChangelog() {
     }
 }
 
+function disableChangelog() {
+    localStorage.setItem('showWhatsNew', 'false');
+    const whatsNewCheckbox = document.getElementById('whats-new-checkbox');
+    if (whatsNewCheckbox) whatsNewCheckbox.checked = false;
+    closeChangelog();
+    showToast('What\'s New popup disabled — re-enable in Settings');
+}
+
 function handleChangelogEscape(e) {
     if (e.key === 'Escape') closeChangelog();
 }

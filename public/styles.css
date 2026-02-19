@@ -2576,6 +2576,25 @@ body.global-drag-over #current::after {
 
 .changelog-modal-content .modal-footer {
     gap: 10px;
+    justify-content: space-between;
+}
+
+.changelog-modal-content .modal-footer-right {
+    display: flex;
+    gap: 10px;
+}
+
+.changelog-disable-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    padding: 0;
+}
+
+.changelog-disable-btn:hover {
+    color: var(--text-color);
 }
 
 /* Mascot Modal */

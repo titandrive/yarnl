@@ -5832,6 +5832,8 @@ function switchNewPatternTab(mode) {
     }
 }
 
+let newPatternScrollSyncCleanup = null;
+
 function toggleNewPatternLivePreview(enabled) {
     const editorWrapper = document.querySelector('.new-pattern-editor-wrapper');
     const tabs = document.querySelectorAll('.new-pattern-tab');
@@ -5839,12 +5841,24 @@ function toggleNewPatternLivePreview(enabled) {
     // Remove all mode classes
     editorWrapper.classList.remove('edit-mode', 'preview-mode', 'live-preview-mode');
 
+    // Clean up previous scroll sync
+    if (newPatternScrollSyncCleanup) {
+        newPatternScrollSyncCleanup();
+        newPatternScrollSyncCleanup = null;
+    }
+
     if (enabled) {
         // Enable live preview - show both panes
         editorWrapper.classList.add('live-preview-mode');
         // Hide tabs when in live preview
         tabs.forEach(tab => tab.style.display = 'none');
         updateNewPatternPreview();
+        // Set up scroll sync
+        const editor = document.getElementById('new-pattern-content');
+        const preview = document.getElementById('new-pattern-preview');
+        if (editor && preview) {
+            newPatternScrollSyncCleanup = setupScrollSync(editor, preview);
+        }
     } else {
         // Disable live preview - go back to edit mode
         editorWrapper.classList.add('edit-mode');
@@ -5866,6 +5880,11 @@ function updateNewPatternPreview() {
         preview.innerHTML = content
             ? renderMarkdown(content)
             : '<p style="color: var(--text-muted);">Preview will appear here...</p>';
+        // Auto-scroll preview to bottom when editor is near the bottom
+        const editorNearBottom = contentEditor.scrollHeight - contentEditor.scrollTop - contentEditor.clientHeight < 50;
+        if (editorNearBottom) {
+            preview.scrollTop = preview.scrollHeight;
+        }
     }
 }
 
@@ -11582,6 +11601,8 @@ function scheduleNotesAutoSave() {
     updateLivePreview();
 }
 
+let notesScrollSyncCleanup = null;
+
 function toggleLivePreview() {
     const checkbox = document.getElementById('notes-live-preview');
     const body = document.querySelector('.notes-popover-body');
@@ -11589,10 +11610,22 @@ function toggleLivePreview() {
 
     localStorage.setItem('notesLivePreview', checkbox.checked);
 
+    // Clean up previous scroll sync
+    if (notesScrollSyncCleanup) {
+        notesScrollSyncCleanup();
+        notesScrollSyncCleanup = null;
+    }
+
     if (checkbox.checked) {
         body.classList.add('live-preview');
         tabs.style.display = 'none';
         updateLivePreview();
+        // Set up scroll sync
+        const editor = document.getElementById('notes-editor');
+        const preview = document.getElementById('notes-preview');
+        if (editor && preview) {
+            notesScrollSyncCleanup = setupScrollSync(editor, preview);
+        }
     } else {
         body.classList.remove('live-preview');
         tabs.style.display = 'flex';
@@ -11608,6 +11641,11 @@ function updateLivePreview() {
     const editor = document.getElementById('notes-editor');
     const preview = document.getElementById('notes-preview');
     preview.innerHTML = renderMarkdown(editor.value);
+    // Auto-scroll preview to bottom when editor is near the bottom
+    const editorNearBottom = editor.scrollHeight - editor.scrollTop - editor.clientHeight < 50;
+    if (editorNearBottom) {
+        preview.scrollTop = preview.scrollHeight;
+    }
 }
 
 function clearNotes() {
@@ -11655,6 +11693,34 @@ function renderMarkdown(text) {
 
     // Fallback if marked not loaded
     return '<p>' + escapeHtml(text).replace(/\n/g, '<br>') + '</p>';
+}
+
+// Scroll sync between editor textarea and preview pane
+function setupScrollSync(editorEl, previewEl) {
+    let syncing = false;
+
+    function syncScroll(source, target) {
+        if (syncing) return;
+        syncing = true;
+        const maxScroll = source.scrollHeight - source.clientHeight;
+        const ratio = maxScroll > 0 ? source.scrollTop / maxScroll : 0;
+        const targetMax = target.scrollHeight - target.clientHeight;
+        target.scrollTop = ratio * targetMax;
+        // Reset flag after browser paints the scroll
+        requestAnimationFrame(() => { syncing = false; });
+    }
+
+    function onEditorScroll() { syncScroll(editorEl, previewEl); }
+    function onPreviewScroll() { syncScroll(previewEl, editorEl); }
+
+    editorEl.addEventListener('scroll', onEditorScroll);
+    previewEl.addEventListener('scroll', onPreviewScroll);
+
+    // Return cleanup function
+    return function cleanup() {
+        editorEl.removeEventListener('scroll', onEditorScroll);
+        previewEl.removeEventListener('scroll', onPreviewScroll);
+    };
 }
 
 // Edit modal functionality
@@ -11953,10 +12019,8 @@ function initMarkdownViewerEvents() {
 
     // Notes live preview checkbox
     const livePreviewCheckbox = document.getElementById('markdown-notes-live-preview');
-    livePreviewCheckbox.onchange = (e) => {
-        if (e.target.checked) {
-            switchMarkdownNotesTab('preview');
-        }
+    livePreviewCheckbox.onchange = () => {
+        toggleMarkdownNotesLivePreview(livePreviewCheckbox.checked);
     };
 
     // Notes editor auto-save
@@ -11982,6 +12046,14 @@ function initMarkdownViewerEvents() {
             }
         });
         inlineEditor.dataset.setupDone = 'true';
+    }
+
+    // Inline live preview toggle
+    const inlineLivePreview = document.getElementById('inline-live-preview');
+    if (inlineLivePreview) {
+        inlineLivePreview.onchange = () => {
+            toggleInlineLivePreview(inlineLivePreview.checked);
+        };
     }
 
     // Inline edit Done button (mobile)
@@ -12127,6 +12199,15 @@ function exitInlineEditMode() {
     contentEl.innerHTML = renderMarkdown(content);
     markdownRawContent = content;
 
+    // Clean up inline live preview
+    if (inlineScrollSyncCleanup) {
+        inlineScrollSyncCleanup();
+        inlineScrollSyncCleanup = null;
+    }
+    wrapper.classList.remove('inline-live-preview');
+    const inlineLivePreview = document.getElementById('inline-live-preview');
+    if (inlineLivePreview) inlineLivePreview.checked = false;
+
     // Show rendered content, hide editor
     contentEl.style.display = 'block';
     editorEl.style.display = 'none';
@@ -12150,6 +12231,15 @@ function resetInlineEditMode() {
     const toggleBtn = document.getElementById('markdown-edit-toggle-btn');
     const wrapper = document.querySelector('.markdown-viewer-wrapper');
 
+    // Clean up inline live preview
+    if (inlineScrollSyncCleanup) {
+        inlineScrollSyncCleanup();
+        inlineScrollSyncCleanup = null;
+    }
+    wrapper.classList.remove('inline-live-preview');
+    const inlineLivePreview = document.getElementById('inline-live-preview');
+    if (inlineLivePreview) inlineLivePreview.checked = false;
+
     contentEl.style.display = 'block';
     editorEl.style.display = 'none';
     wrapper.classList.remove('editing');
@@ -12159,8 +12249,44 @@ function resetInlineEditMode() {
     }
 }
 
+let inlineScrollSyncCleanup = null;
+
+function toggleInlineLivePreview(enabled) {
+    const wrapper = document.querySelector('.markdown-viewer-wrapper');
+    const contentEl = document.getElementById('markdown-content');
+    const editorEl = document.getElementById('markdown-inline-editor');
+
+    // Clean up previous scroll sync
+    if (inlineScrollSyncCleanup) {
+        inlineScrollSyncCleanup();
+        inlineScrollSyncCleanup = null;
+    }
+
+    if (enabled) {
+        wrapper.classList.add('inline-live-preview');
+        contentEl.style.display = 'block';
+        contentEl.innerHTML = renderMarkdown(editorEl.value);
+        inlineScrollSyncCleanup = setupScrollSync(editorEl, contentEl);
+    } else {
+        wrapper.classList.remove('inline-live-preview');
+        contentEl.style.display = 'none';
+    }
+}
+
 function handleInlineEditorInput() {
     markdownInlineEditorDirty = true;
+    // Update live preview if enabled
+    const livePreview = document.getElementById('inline-live-preview');
+    if (livePreview && livePreview.checked) {
+        const editorEl = document.getElementById('markdown-inline-editor');
+        const contentEl = document.getElementById('markdown-content');
+        contentEl.innerHTML = renderMarkdown(editorEl.value);
+        // Auto-scroll preview to bottom when editor is near the bottom
+        const editorNearBottom = editorEl.scrollHeight - editorEl.scrollTop - editorEl.clientHeight < 50;
+        if (editorNearBottom) {
+            contentEl.scrollTop = contentEl.scrollHeight;
+        }
+    }
     scheduleInlineAutoSave();
 }
 
@@ -12279,6 +12405,38 @@ document.addEventListener('click', (e) => {
     }
 });
 
+let markdownNotesScrollSyncCleanup = null;
+
+function toggleMarkdownNotesLivePreview(enabled) {
+    const body = document.querySelector('#markdown-notes-popover .notes-popover-body');
+    const tabs = document.querySelector('#markdown-notes-popover .notes-tabs');
+    const editor = document.getElementById('markdown-notes-editor');
+    const preview = document.getElementById('markdown-notes-preview');
+
+    // Clean up previous scroll sync
+    if (markdownNotesScrollSyncCleanup) {
+        markdownNotesScrollSyncCleanup();
+        markdownNotesScrollSyncCleanup = null;
+    }
+
+    if (enabled) {
+        body.classList.add('live-preview');
+        tabs.style.display = 'none';
+        editor.style.display = 'block';
+        preview.style.display = 'block';
+        preview.innerHTML = renderMarkdown(editor.value);
+        // Set up scroll sync
+        if (editor && preview) {
+            markdownNotesScrollSyncCleanup = setupScrollSync(editor, preview);
+        }
+    } else {
+        body.classList.remove('live-preview');
+        tabs.style.display = 'flex';
+        // Reset to edit tab
+        switchMarkdownNotesTab('edit');
+    }
+}
+
 function switchMarkdownNotesTab(tab) {
     const tabs = document.querySelectorAll('#markdown-notes-popover .notes-tab');
     const editor = document.getElementById('markdown-notes-editor');
@@ -12300,7 +12458,13 @@ function handleMarkdownNotesInput() {
     const livePreview = document.getElementById('markdown-notes-live-preview').checked;
     if (livePreview) {
         const editor = document.getElementById('markdown-notes-editor');
-        document.getElementById('markdown-notes-preview').innerHTML = renderMarkdown(editor.value);
+        const preview = document.getElementById('markdown-notes-preview');
+        preview.innerHTML = renderMarkdown(editor.value);
+        // Auto-scroll preview to bottom when editor is near the bottom
+        const editorNearBottom = editor.scrollHeight - editor.scrollTop - editor.clientHeight < 50;
+        if (editorNearBottom) {
+            preview.scrollTop = preview.scrollHeight;
+        }
     }
     scheduleMarkdownNotesAutoSave();
 }

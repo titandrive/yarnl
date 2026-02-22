@@ -647,6 +647,56 @@
     --upload-bg: #27272a;
 }
 
+/* Theme: Catppuccin Latte (Light) */
+[data-theme="catppuccin-light"] {
+    --primary-color: #8839ef;
+    --secondary-color: #ea76cb;
+    --danger-color: #d20f39;
+    --success-color: #40a02b;
+    --warning-color: #df8e1d;
+    --bg-color: #eff1f5;
+    --card-bg: #e6e9ef;
+    --text-color: #4c4f69;
+    --text-muted: #6c6f85;
+    --border-color: #ccd0da;
+    --shadow: 0 4px 6px -1px rgba(76, 79, 105, 0.08), 0 2px 4px -1px rgba(76, 79, 105, 0.04);
+    --tab-bg: #e6e9ef;
+    --input-bg: #e6e9ef;
+    --hover-bg: #dce0e8;
+    --counter-card-bg: linear-gradient(135deg, #e6e9ef 0%, #dce0e8 100%);
+    --upload-bg: #e6e9ef;
+    --counter-minus-bg: #6c6f85;
+    --counter-minus-hover: #5c5f77;
+    --counter-plus-bg: var(--primary-color);
+    --counter-plus-hover: #7287fd;
+    --counter-reset-bg: #1e66f5;
+    --counter-reset-hover: #1759d1;
+    --counter-reset-confirm: #1253b5;
+    --counter-delete-bg: var(--danger-color);
+    --counter-delete-hover: #b50d30;
+    --counter-delete-confirm: #960a28;
+}
+
+/* Theme: Catppuccin Mocha (Dark) */
+[data-theme="catppuccin-dark"] {
+    --primary-color: #cba6f7;
+    --secondary-color: #f5c2e7;
+    --danger-color: #f38ba8;
+    --success-color: #a6e3a1;
+    --warning-color: #f9e2af;
+    --bg-color: #1e1e2e;
+    --card-bg: #313244;
+    --text-color: #cdd6f4;
+    --text-muted: #a6adc8;
+    --border-color: #45475a;
+    --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+    --tab-bg: #313244;
+    --input-bg: #45475a;
+    --hover-bg: #45475a;
+    --counter-card-bg: linear-gradient(135deg, #313244 0%, #45475a 100%);
+    --upload-bg: #313244;
+}
+
 /* Theme: Halloween - Light */
 [data-theme="halloween-light"] {
     --primary-color: #f97316;

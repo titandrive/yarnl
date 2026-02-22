@@ -2746,13 +2746,14 @@ const THEME_DATA = {
     standard: [
         { id: 'lavender', name: 'Lavender', primary: '#a78bfa', secondary: '#f472b6' },
         { id: 'ocean', name: 'Ocean', primary: '#38bdf8', secondary: '#22d3ee' },
-        { id: 'forest', name: 'Forest', primary: '#4ade80', secondary: '#a3e635' },
+        // { id: 'forest', name: 'Forest', primary: '#4ade80', secondary: '#a3e635' },
         { id: 'rose', name: 'Rose', primary: '#fb7185', secondary: '#db2777' },
         { id: 'slate', name: 'Slate', primary: '#818cf8', secondary: '#94a3b8' },
         { id: 'aqua', name: 'Aqua', primary: '#22d3ee', secondary: '#2dd4bf' },
         // { id: 'coffee', name: 'Coffee', primary: '#c9a26d', secondary: '#d4a574' },
         { id: 'nasa', name: 'NASA', primary: '#105bd8', secondary: '#0b3d91' },
         { id: 'minimal', name: 'Minimal', primary: '#9ca3af', secondary: '#d1d5db' },
+        { id: 'catppuccin', name: 'Catppuccin', primary: '#cba6f7', secondary: '#f5c2e7' },
     ],
     darkOnly: [
         { id: 'synthwave', name: 'Synthwave', primary: '#e879f9', secondary: '#22d3ee' },

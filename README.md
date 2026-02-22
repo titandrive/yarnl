@@ -52,10 +52,18 @@ Yarnl is easy to get up and running with Docker. You'll be crocheting in no time
 
 1. Open terminal and run the following commands:
 
+**Linux / macOS**
 ```bash
-mkdir yarnl && cd yarnl                # Create a directory for Yarnl
-curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/docker-compose.yml  # Download the compose file
-docker compose up -d                   # Start Yarnl and PostgreSQL
+mkdir yarnl && cd yarnl
+curl -O https://raw.githubusercontent.com/titandrive/yarnl/main/docker-compose.yml
+docker compose up -d
+```
+
+**Windows (PowerShell)**
+```powershell
+mkdir yarnl; cd yarnl
+Invoke-WebRequest -Uri "https://raw.githubusercontent.com/titandrive/yarnl/main/docker-compose.yml" -OutFile "docker-compose.yml"
+docker compose up -d
 ```
 
 2. Open your browser and navigate to `http://localhost:3000`

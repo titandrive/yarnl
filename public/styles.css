@@ -6681,6 +6681,12 @@ input[type="number"].settings-input {
     width: 200px;
 }
 
+/* Image drag-over indicator for textareas */
+textarea.image-drag-over {
+    outline: 2px dashed var(--primary-color) !important;
+    outline-offset: -2px;
+}
+
 /* Inline markdown editor */
 .markdown-inline-editor {
     display: none;

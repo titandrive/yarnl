@@ -2542,6 +2542,45 @@ async function handleInitialNavigation() {
 // Setup image paste handler for markdown textareas
 // getPatternName is a function that returns the current pattern name for the context
 function setupImagePaste(textarea, getPatternName) {
+    async function insertImage(file) {
+        // Show uploading indicator
+        const cursorPos = textarea.selectionStart;
+        const placeholder = '![Uploading image...]()';
+        const before = textarea.value.substring(0, cursorPos);
+        const after = textarea.value.substring(textarea.selectionEnd);
+        textarea.value = before + placeholder + after;
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+
+        try {
+            // Upload the image with pattern name for organization
+            const formData = new FormData();
+            formData.append('image', file);
+            formData.append('patternName', getPatternName ? getPatternName() : 'image');
+
+            const response = await fetch(`${API_URL}/api/images`, {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                // Replace placeholder with actual image markdown
+                const imageMarkdown = `![image](${data.url})`;
+                textarea.value = textarea.value.replace(placeholder, imageMarkdown);
+                textarea.selectionStart = textarea.selectionEnd = cursorPos + imageMarkdown.length;
+            } else {
+                // Remove placeholder on error
+                textarea.value = textarea.value.replace(placeholder, '');
+            }
+        } catch (error) {
+            console.error('Error uploading image:', error);
+            textarea.value = textarea.value.replace(placeholder, '');
+        }
+
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+
+    // Paste support
     textarea.addEventListener('paste', async (e) => {
         const items = e.clipboardData?.items;
         if (!items) return;
@@ -2549,45 +2588,36 @@ function setupImagePaste(textarea, getPatternName) {
         for (const item of items) {
             if (item.type.startsWith('image/')) {
                 e.preventDefault();
-
                 const file = item.getAsFile();
-                if (!file) return;
+                if (file) insertImage(file);
+                return;
+            }
+        }
+    });
 
-                // Show uploading indicator
-                const cursorPos = textarea.selectionStart;
-                const placeholder = '![Uploading image...]()';
-                const before = textarea.value.substring(0, cursorPos);
-                const after = textarea.value.substring(textarea.selectionEnd);
-                textarea.value = before + placeholder + after;
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+    // Drag-and-drop support
+    textarea.addEventListener('dragover', (e) => {
+        if ([...e.dataTransfer.types].includes('Files')) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            textarea.classList.add('image-drag-over');
+        }
+    });
 
-                try {
-                    // Upload the image with pattern name for organization
-                    const formData = new FormData();
-                    formData.append('image', file);
-                    formData.append('patternName', getPatternName ? getPatternName() : 'image');
+    textarea.addEventListener('dragleave', () => {
+        textarea.classList.remove('image-drag-over');
+    });
 
-                    const response = await fetch(`${API_URL}/api/images`, {
-                        method: 'POST',
-                        body: formData
-                    });
+    textarea.addEventListener('drop', async (e) => {
+        textarea.classList.remove('image-drag-over');
+        const files = e.dataTransfer?.files;
+        if (!files) return;
 
-                    if (response.ok) {
-                        const data = await response.json();
-                        // Replace placeholder with actual image markdown
-                        const imageMarkdown = `![image](${data.url})`;
-                        textarea.value = textarea.value.replace(placeholder, imageMarkdown);
-                        textarea.selectionStart = textarea.selectionEnd = cursorPos + imageMarkdown.length;
-                    } else {
-                        // Remove placeholder on error
-                        textarea.value = textarea.value.replace(placeholder, '');
-                    }
-                } catch (error) {
-                    console.error('Error uploading image:', error);
-                    textarea.value = textarea.value.replace(placeholder, '');
-                }
-
-                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+        for (const file of files) {
+            if (file.type.startsWith('image/')) {
+                e.preventDefault();
+                e.stopPropagation();
+                insertImage(file);
                 return;
             }
         }
@@ -9163,8 +9193,9 @@ function initPDFViewer() {
     // Notes auto-save on input
     const notesEditor = document.getElementById('notes-editor');
     notesEditor.addEventListener('input', scheduleNotesAutoSave);
-    // Enable auto-continue for lists
+    // Enable auto-continue for lists and image paste
     setupMarkdownListContinuation(notesEditor);
+    setupImagePaste(notesEditor, () => currentPattern?.name || 'pattern');
 
     // Notes clear button
     const notesClearBtn = document.getElementById('notes-clear-btn');

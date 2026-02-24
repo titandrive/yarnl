@@ -1138,9 +1138,16 @@ function getUserNotesDir(username) {
   return path.join(usersDir, username, 'notes');
 }
 
+function getBackupBasePath() {
+  const val = process.env.BACKUP_PATH;
+  if (val === 'true' || val === '/backups') return '/backups';
+  return null;
+}
+
 function getUserBackupsDir(username) {
-  if (process.env.BACKUP_PATH) {
-    return path.join(process.env.BACKUP_PATH, 'yarnl-backups', username);
+  const basePath = getBackupBasePath();
+  if (basePath) {
+    return path.join(basePath, 'yarnl-backups', username);
   }
   return path.join(usersDir, username, 'backups');
 }
@@ -1765,7 +1772,7 @@ async function migrateExistingDataToAdmin() {
 // Migrate backups when BACKUP_PATH changes (added, removed, or changed)
 async function migrateBackupPath() {
   try {
-    const currentPath = process.env.BACKUP_PATH || '';
+    const currentPath = getBackupBasePath() || '';
     const stored = await pool.query("SELECT value FROM settings WHERE key = 'backup_path'");
     const previousPath = stored.rows.length > 0 ? String(stored.rows[0].value) : '';
 
@@ -5008,8 +5015,8 @@ app.get('/api/stats', authMiddleware, async (req, res) => {
       totalCategories: patternsByCategory.length,
       totalSize,
       libraryPath: isAdmin ? './users' : `./users/${username}`,
-      backupHostPath: process.env.BACKUP_PATH
-        ? path.join(process.env.BACKUP_PATH, 'yarnl-backups', username)
+      backupHostPath: getBackupBasePath()
+        ? path.join(getBackupBasePath(), 'yarnl-backups', username)
         : `./users/${username}/backups`
     };
 

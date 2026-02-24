@@ -147,10 +147,13 @@ app.get('/api/auth/mode', async (req, res) => {
   try {
     const mode = await getAuthMode();
     const admin = await getAdminUser();
+    const forceLocalLogin = process.env.FORCE_LOCAL_LOGIN === 'true';
     res.json({
       mode,
       hasAdmin: !!admin,
-      adminUsername: admin?.username || null
+      adminUsername: admin?.username || null,
+      forceLocalLogin,
+      adminHasPassword: !!admin?.password_hash
     });
   } catch (error) {
     console.error('Error getting auth mode:', error);
@@ -192,9 +195,8 @@ app.post('/api/auth/login', async (req, res) => {
     // Check if local login is disabled (unless FORCE_LOCAL_LOGIN env is set)
     const forceLocalLogin = process.env.FORCE_LOCAL_LOGIN === 'true';
     if (!forceLocalLogin) {
-      const oidcSettings = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
-      const oidc = oidcSettings.rows[0]?.value;
-      if (oidc?.enabled && oidc?.disableLocalLogin) {
+      const oidc = await getOIDCSettings();
+      if (oidc.enabled && oidc.disableLocalLogin) {
         return res.status(403).json({ error: 'Local login is disabled - please use SSO' });
       }
     }
@@ -689,22 +691,52 @@ app.post('/api/auth/change-password', authMiddleware, async (req, res) => {
 });
 
 // ============================================
+// OIDC helpers
+// ============================================
+
+async function getOIDCSettings() {
+  // Check if OIDC is configured via environment variables
+  const envIssuer = process.env.OIDC_ISSUER;
+  const envClientId = process.env.OIDC_CLIENT_ID;
+  const envClientSecret = process.env.OIDC_CLIENT_SECRET;
+
+  if (envIssuer && envClientId && envClientSecret) {
+    return {
+      source: 'env',
+      enabled: true,
+      issuer: envIssuer,
+      clientId: envClientId,
+      clientSecret: envClientSecret,
+      disableLocalLogin: process.env.OIDC_DISABLE_LOCAL_LOGIN === 'true',
+      autoCreateUsers: process.env.OIDC_AUTO_CREATE_USERS !== 'false',
+      defaultRole: process.env.OIDC_DEFAULT_ROLE || 'user',
+      providerName: process.env.OIDC_PROVIDER_NAME || '',
+      iconUrl: process.env.OIDC_ICON_URL || ''
+    };
+  }
+
+  // Fall back to database settings
+  const result = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
+  const settings = result.rows[0]?.value || {
+    enabled: false,
+    issuer: '',
+    clientId: '',
+    clientSecret: '',
+    disableLocalLogin: false,
+    autoCreateUsers: true,
+    defaultRole: 'user'
+  };
+  return { source: 'db', ...settings };
+}
+
+// ============================================
 // OIDC endpoints
 // ============================================
 
 // Get OIDC settings (admin only)
 app.get('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) => {
   try {
-    const result = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
-    const settings = result.rows[0]?.value || {
-      enabled: false,
-      issuer: '',
-      clientId: '',
-      clientSecret: '',
-      disableLocalLogin: false,
-      autoCreateUsers: true,
-      defaultRole: 'user'
-    };
+    const settings = await getOIDCSettings();
     // Don't expose client secret
     res.json({ ...settings, clientSecret: settings.clientSecret ? '********' : '' });
   } catch (error) {
@@ -716,6 +748,10 @@ app.get('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) =
 // Save OIDC settings (admin only)
 app.post('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) => {
   try {
+    const current = await getOIDCSettings();
+    if (current.source === 'env') {
+      return res.status(400).json({ error: 'OIDC is configured via environment variables and cannot be changed from the UI' });
+    }
     console.log('OIDC settings save request:', JSON.stringify(req.body));
     const { enabled, issuer, clientId, clientSecret, disableLocalLogin, autoCreateUsers, defaultRole, providerName, iconUrl } = req.body;
 
@@ -752,6 +788,10 @@ app.post('/api/auth/oidc/settings', authMiddleware, adminOnly, async (req, res) 
 // Reset OIDC configuration (admin only)
 app.post('/api/auth/oidc/reset', authMiddleware, adminOnly, async (req, res) => {
   try {
+    const current = await getOIDCSettings();
+    if (current.source === 'env') {
+      return res.status(400).json({ error: 'OIDC is configured via environment variables and cannot be reset from the UI' });
+    }
     // Delete OIDC settings
     await pool.query("DELETE FROM settings WHERE key = 'oidc'");
 
@@ -770,6 +810,10 @@ app.post('/api/auth/oidc/reset', authMiddleware, adminOnly, async (req, res) => 
 // Toggle OIDC enabled/disabled (admin only)
 app.post('/api/auth/oidc/toggle', authMiddleware, adminOnly, async (req, res) => {
   try {
+    const current = await getOIDCSettings();
+    if (current.source === 'env') {
+      return res.status(400).json({ error: 'OIDC is configured via environment variables and cannot be changed from the UI' });
+    }
     const { enabled } = req.body;
 
     // Get existing settings and just update enabled
@@ -798,6 +842,10 @@ app.post('/api/auth/oidc/toggle', authMiddleware, adminOnly, async (req, res) =>
 // OIDC issuer discovery
 app.post('/api/auth/oidc/discover', authMiddleware, adminOnly, async (req, res) => {
   try {
+    const current = await getOIDCSettings();
+    if (current.source === 'env') {
+      return res.status(400).json({ error: 'OIDC is configured via environment variables and cannot be changed from the UI' });
+    }
     const { issuer: issuerUrl } = req.body;
 
     if (!issuerUrl) {
@@ -846,10 +894,9 @@ app.post('/api/auth/oidc/discover', authMiddleware, adminOnly, async (req, res) 
 // OIDC login initiation
 app.get('/api/auth/oidc/login', async (req, res) => {
   try {
-    const result = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
-    const settings = result.rows[0]?.value;
+    const settings = await getOIDCSettings();
 
-    if (!settings?.enabled || !settings?.issuer || !settings?.clientId) {
+    if (!settings.enabled || !settings.issuer || !settings.clientId) {
       return res.status(400).json({ error: 'OIDC not configured' });
     }
 
@@ -902,10 +949,9 @@ app.get('/api/auth/oidc/callback', async (req, res) => {
       return res.status(400).send('State mismatch - possible CSRF attack');
     }
 
-    const result = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
-    const settings = result.rows[0]?.value;
+    const settings = await getOIDCSettings();
 
-    if (!settings?.enabled) {
+    if (!settings.enabled) {
       return res.status(400).send('OIDC not enabled');
     }
 
@@ -952,23 +998,34 @@ app.get('/api/auth/oidc/callback', async (req, res) => {
     let user = await pool.query('SELECT * FROM users WHERE oidc_subject = $1', [claims.sub]);
 
     if (user.rows.length === 0) {
-      if (!settings.autoCreateUsers) {
-        return res.status(403).send('User not found and auto-creation is disabled');
-      }
-
-      // Create new user from OIDC claims
+      // No linked account — try to match by username and auto-link
       const username = claims.preferred_username || claims.email || claims.sub;
-      const displayName = claims.name || username;
+      const existingByUsername = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
 
-      user = await pool.query(
-        `INSERT INTO users (username, display_name, role, oidc_subject, oidc_provider)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING *`,
-        [username, displayName, settings.defaultRole || 'user', claims.sub, settings.providerName || 'oidc']
-      );
+      if (existingByUsername.rows.length > 0) {
+        // Auto-link to existing account
+        const providerName = settings.providerName || new URL(settings.issuer).hostname;
+        await pool.query(
+          `UPDATE users SET oidc_subject = $1, oidc_provider = $2, updated_at = NOW() WHERE id = $3`,
+          [claims.sub, providerName, existingByUsername.rows[0].id]
+        );
+        user = existingByUsername;
+      } else if (!settings.autoCreateUsers) {
+        return res.status(403).send('User not found and auto-creation is disabled');
+      } else {
+        // Create new user from OIDC claims
+        const displayName = claims.name || username;
 
-      // Create default categories for new OIDC user
-      await createDefaultCategoriesForUser(user.rows[0].id);
+        user = await pool.query(
+          `INSERT INTO users (username, display_name, role, oidc_subject, oidc_provider)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING *`,
+          [username, displayName, settings.defaultRole || 'user', claims.sub, settings.providerName || 'oidc']
+        );
+
+        // Create default categories for new OIDC user
+        await createDefaultCategoriesForUser(user.rows[0].id);
+      }
     }
 
     const userData = user.rows[0];
@@ -996,14 +1053,13 @@ app.get('/api/auth/oidc/callback', async (req, res) => {
 // Check if OIDC is enabled (public)
 app.get('/api/auth/oidc/enabled', async (req, res) => {
   try {
-    const result = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
-    const settings = result.rows[0]?.value;
+    const settings = await getOIDCSettings();
     const forceLocalLogin = process.env.FORCE_LOCAL_LOGIN === 'true';
     res.json({
-      enabled: settings?.enabled === true,
-      disableLocalLogin: settings?.disableLocalLogin === true && !forceLocalLogin,
-      providerName: settings?.providerName || 'SSO',
-      iconUrl: settings?.iconUrl || ''
+      enabled: settings.enabled === true,
+      disableLocalLogin: settings.disableLocalLogin === true && !forceLocalLogin,
+      providerName: settings.providerName || 'SSO',
+      iconUrl: settings.iconUrl || ''
     });
   } catch (error) {
     res.json({ enabled: false, disableLocalLogin: false, providerName: 'SSO', iconUrl: '' });
@@ -1013,10 +1069,9 @@ app.get('/api/auth/oidc/enabled', async (req, res) => {
 // OIDC account linking - initiate linking for logged-in user
 app.get('/api/auth/oidc/link', authMiddleware, async (req, res) => {
   try {
-    const result = await pool.query("SELECT value FROM settings WHERE key = 'oidc'");
-    const settings = result.rows[0]?.value;
+    const settings = await getOIDCSettings();
 
-    if (!settings?.enabled || !settings?.issuer || !settings?.clientId) {
+    if (!settings.enabled || !settings.issuer || !settings.clientId) {
       return res.status(400).json({ error: 'OIDC not configured' });
     }
 

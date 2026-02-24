@@ -164,6 +164,22 @@ async function checkAuth() {
             return true;
         }
 
+        // Recovery mode: auto-login passwordless admin when FORCE_LOCAL_LOGIN is set
+        if (modeData.forceLocalLogin && !modeData.adminHasPassword && modeData.adminUsername) {
+            const loginResponse = await fetch(`${API_URL}/api/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: modeData.adminUsername, password: '' })
+            });
+            if (loginResponse.ok) {
+                const meResponse = await fetch(`${API_URL}/api/auth/me`);
+                if (meResponse.ok) {
+                    currentUser = await meResponse.json();
+                    return true;
+                }
+            }
+        }
+
         // No valid session
         return false;
     } catch (error) {
@@ -1256,6 +1272,29 @@ async function loadOIDCSettings() {
             // Show discovery status if issuer is configured
             if (settings.issuer && settings.discoveredAt) {
                 showDiscoveryStatus('success', `Discovered from ${settings.issuer}`);
+            }
+
+            // Handle env-controlled OIDC
+            const envNotice = document.getElementById('oidc-env-notice');
+            if (settings.source === 'env') {
+                // Show notice
+                if (envNotice) {
+                    envNotice.style.display = 'block';
+                }
+                // Show config fields (they're enabled via env)
+                document.getElementById('oidc-config-fields').style.display = 'block';
+                // Disable all inputs and buttons
+                const configFields = document.getElementById('oidc-config-fields');
+                configFields.querySelectorAll('input, select, button').forEach(el => el.disabled = true);
+                document.getElementById('oidc-enabled-toggle').disabled = true;
+                const saveBtn = document.getElementById('save-oidc-btn');
+                const resetBtn = document.getElementById('reset-oidc-btn');
+                if (saveBtn) saveBtn.style.display = 'none';
+                if (resetBtn) resetBtn.style.display = 'none';
+            } else {
+                if (envNotice) {
+                    envNotice.style.display = 'none';
+                }
             }
         }
     } catch (error) {

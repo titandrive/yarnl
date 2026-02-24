@@ -4587,6 +4587,17 @@ body.global-drag-over #current::after {
     border-top: none;
 }
 
+.env-notice {
+    background: var(--hover-bg);
+    border: 1px solid var(--border-color);
+    border-left: 3px solid var(--primary-color);
+    padding: 10px 14px;
+    margin-bottom: 12px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
 .backup-estimate {
     margin: 4px 0 0 0;
     font-size: 0.85rem;

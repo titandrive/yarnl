@@ -144,7 +144,29 @@ Most configuration is done via settings once Yarnl is up and running. There are 
 
 ### OIDC / SSO (Optional)
 
-OIDC is configured through the admin settings panel in the app (Settings > Admin > SSO). Yarnl supports any OpenID Connect provider with auto-discovery. If SSO is misconfigured and you get locked out, set `FORCE_LOCAL_LOGIN=true` to bypass SSO and log in with your local credentials.
+OIDC can be configured through the admin settings panel (Settings > Admin > SSO) or via environment variables. Yarnl supports any OpenID Connect provider with auto-discovery.
+
+To configure OIDC via environment variables, set all three required values. When set, these override any settings configured in the admin UI, and the SSO settings page becomes read-only.
+
+**Required** (all three must be set to enable env-based OIDC):
+
+| Variable | Description |
+|----------|-------------|
+| `OIDC_ISSUER` | Issuer URL (e.g., `https://auth.example.com`) |
+| `OIDC_CLIENT_ID` | Client ID |
+| `OIDC_CLIENT_SECRET` | Client secret |
+
+**Optional:**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OIDC_PROVIDER_NAME` | *(issuer hostname)* | Display name on the login button |
+| `OIDC_ICON_URL` | *(empty)* | Icon URL for the login button |
+| `OIDC_DISABLE_LOCAL_LOGIN` | `false` | Hide the local login form when SSO is enabled |
+| `OIDC_AUTO_CREATE_USERS` | `true` | Automatically create accounts for new SSO users |
+| `OIDC_DEFAULT_ROLE` | `user` | Default role for auto-created users (`user` or `admin`) |
+
+If SSO is misconfigured and you get locked out, set `FORCE_LOCAL_LOGIN=true` to bypass SSO and log in with your local credentials.
 
 ## Data Persistence
 

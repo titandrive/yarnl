@@ -2227,6 +2227,7 @@ app.post('/api/patterns/bulk/current', async (req, res) => {
         `UPDATE patterns
          SET is_current = $1,
              completed = CASE WHEN $1 = true THEN false ELSE completed END,
+             started_date = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE started_date END,
              updated_at = CURRENT_TIMESTAMP
          WHERE id = $2`,
         [isCurrent, patternId]
@@ -2755,6 +2756,7 @@ app.get('/api/patterns/:id/info', async (req, res) => {
       completed_date: pattern.completed_date,
       timer_seconds: pattern.timer_seconds,
       is_current: pattern.is_current,
+      started_date: pattern.started_date,
       file_size: fileSize,
       file_path: filePath,
       pdf_metadata: pdfMetadata
@@ -4489,6 +4491,7 @@ app.patch('/api/patterns/:id/current', async (req, res) => {
       `UPDATE patterns
        SET is_current = $1,
            completed = CASE WHEN $1 = true THEN false ELSE completed END,
+           started_date = CASE WHEN $1 = true THEN CURRENT_TIMESTAMP ELSE started_date END,
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $2 RETURNING *`,
       [isCurrent, req.params.id]

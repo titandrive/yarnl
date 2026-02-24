@@ -10737,6 +10737,7 @@ async function openPatternInfoModal() {
             { label: 'Category', value: info.category || 'Uncategorized' },
             { label: 'Type', value: info.pattern_type === 'markdown' ? 'Markdown' : 'PDF' },
             { label: 'Date Added', value: new Date(info.upload_date).toLocaleDateString() },
+            { label: 'Date Started', value: info.started_date ? new Date(info.started_date).toLocaleDateString() : '—' },
             { label: 'Time Elapsed', value: formatTime(info.timer_seconds || 0) },
             { label: 'Completed', value: info.completed ? `Yes ${info.completed_date ? '(' + new Date(info.completed_date).toLocaleDateString() + ')' : ''}` : 'No' },
             { label: 'In Progress', value: info.is_current ? 'Yes' : 'No' },

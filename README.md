@@ -112,8 +112,8 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - TZ=${TZ:-UTC}
-      # Optional: store backups at a custom path (use with volume mount above)
-      # - BACKUP_PATH=/backups
+      # Optional: store backups on external drive (use with volume mount above)
+      # - BACKUP_PATH=true
     restart: unless-stopped
     depends_on:
       postgres:
@@ -139,7 +139,7 @@ Most configuration is done via settings once Yarnl is up and running. There are 
 | `PORT` | `3000` | Port exposed on the host |
 | `NODE_ENV` | `production` | Defaults to `production` in the Docker image |
 | `TZ` | `UTC` | Timezone for scheduled backups |
-| `BACKUP_PATH` | *(unset)* | Custom backup storage location (see [Backup](#backup--restore)) |
+| `BACKUP_PATH` | *(unset)* | `true` to use `/backups` mount, or a custom path |
 | `FORCE_LOCAL_LOGIN` | `false` | Force local login even when OIDC/SSO is configured |
 
 ### OIDC / SSO (Optional)

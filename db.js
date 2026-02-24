@@ -360,6 +360,12 @@ async function initDatabase() {
                       WHERE table_name='projects' AND column_name='last_opened_at') THEN
           ALTER TABLE projects ADD COLUMN last_opened_at TIMESTAMP;
         END IF;
+
+        -- Add started_date for tracking when patterns were marked in progress
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='started_date') THEN
+          ALTER TABLE patterns ADD COLUMN started_date TIMESTAMP;
+        END IF;
       END $$;
     `);
 

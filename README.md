@@ -139,7 +139,7 @@ Most configuration is done via settings once Yarnl is up and running. There are 
 | `PORT` | `3000` | Port exposed on the host |
 | `NODE_ENV` | `production` | Defaults to `production` in the Docker image |
 | `TZ` | `UTC` | Timezone for scheduled backups |
-| `BACKUP_PATH` | *(unset)* | `true` to use `/backups` mount, or a custom path |
+| `BACKUP_PATH` | *(unset)* | Set to `true` to store backups at `/backups` mount |
 | `FORCE_LOCAL_LOGIN` | `false` | Force local login even when OIDC/SSO is configured |
 
 ### OIDC / SSO (Optional)

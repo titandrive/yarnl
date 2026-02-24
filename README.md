@@ -48,7 +48,7 @@ Yarnl is easy to get up and running with Docker. You'll be crocheting in no time
 
 **Prerequisites:** 
 - [Docker](https://docs.docker.com/get-docker/) 
-- Docker Compose
+- [Docker Compose](https://docs.docker.com/compose/install/)
 
 1. Open terminal and run the following commands:
 

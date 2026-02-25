@@ -57,6 +57,12 @@ app.get('/', (req, res) => {
 app.use(express.static('public', { maxAge: '7d' }));
 app.use('/mascots', express.static('mascots', { maxAge: '7d' }));
 
+// Prevent caching of API responses
+app.use('/api', (req, res, next) => {
+  res.set('Cache-Control', 'no-store');
+  next();
+});
+
 // Auth middleware - checks session or auto-authenticates in single-user mode
 async function authMiddleware(req, res, next) {
   try {

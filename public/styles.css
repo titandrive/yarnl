@@ -695,6 +695,16 @@
     --hover-bg: #45475a;
     --counter-card-bg: linear-gradient(135deg, #313244 0%, #45475a 100%);
     --upload-bg: #313244;
+    --counter-minus-bg: #6c7086;
+    --counter-minus-hover: #585b70;
+    --counter-plus-bg: var(--primary-color);
+    --counter-plus-hover: #b4befe;
+    --counter-reset-bg: #89b4fa;
+    --counter-reset-hover: #74c7ec;
+    --counter-reset-confirm: #89dceb;
+    --counter-delete-bg: var(--danger-color);
+    --counter-delete-hover: #eba0ac;
+    --counter-delete-confirm: #f38ba8;
 }
 
 /* Theme: Halloween - Light */

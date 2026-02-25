@@ -28,7 +28,6 @@ const {
 } = require('./auth');
 
 const app = express();
-app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // Server-sent events for real-time notifications
@@ -56,12 +55,6 @@ app.get('/', (req, res) => {
 
 app.use(express.static('public', { maxAge: '7d' }));
 app.use('/mascots', express.static('mascots', { maxAge: '7d' }));
-
-// Prevent caching of API responses
-app.use('/api', (req, res, next) => {
-  res.set('Cache-Control', 'no-store');
-  next();
-});
 
 // Auth middleware - checks session or auto-authenticates in single-user mode
 async function authMiddleware(req, res, next) {
@@ -230,7 +223,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     res.cookie('session_id', sessionId, {
       httpOnly: true,
-      secure: req.protocol === 'https',
+      secure: process.env.SECURE_COOKIES === 'true',
       sameSite: 'lax',
       expires: expiresAt
     });
@@ -988,7 +981,7 @@ app.get('/api/auth/oidc/callback', async (req, res) => {
 
     res.cookie('session_id', sessionId, {
       httpOnly: true,
-      secure: req.protocol === 'https',
+      secure: process.env.SECURE_COOKIES === 'true',
       sameSite: 'lax',
       expires: expiresAt
     });

@@ -276,7 +276,7 @@ app.get('/api/user/settings', authMiddleware, async (req, res) => {
   }
 });
 
-app.put('/api/user/settings', authMiddleware, async (req, res) => {
+const saveUserSettings = async (req, res) => {
   try {
     const settings = req.body;
     if (typeof settings !== 'object' || Array.isArray(settings)) {
@@ -295,7 +295,9 @@ app.put('/api/user/settings', authMiddleware, async (req, res) => {
     console.error('Error saving user settings:', error);
     res.status(500).json({ error: 'Failed to save settings' });
   }
-});
+};
+app.put('/api/user/settings', authMiddleware, saveUserSettings);
+app.post('/api/user/settings', authMiddleware, saveUserSettings);
 
 // ============================================
 // User management endpoints (admin only)

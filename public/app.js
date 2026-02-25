@@ -64,6 +64,18 @@ async function syncSettingsToServer() {
     }
 }
 
+// Flush pending settings sync before page unload
+window.addEventListener('beforeunload', () => {
+    if (_settingsSyncTimer) {
+        clearTimeout(_settingsSyncTimer);
+        const settings = getClientSettings();
+        navigator.sendBeacon(
+            `${API_URL}/api/user/settings`,
+            new Blob([JSON.stringify(settings)], { type: 'application/json' })
+        );
+    }
+});
+
 // Monkey-patch localStorage to auto-sync setting changes
 localStorage.setItem = function(key, value) {
     _originalSetItem(key, value);
@@ -3007,6 +3019,7 @@ function initTheme() {
             if (e.target === themeModal) {
                 themeModal.style.display = 'none';
                 document.body.style.overflow = '';
+                syncSettingsToServer();
             }
         });
     }
@@ -3014,6 +3027,7 @@ function initTheme() {
         closeThemeModalBtn.addEventListener('click', () => {
             themeModal.style.display = 'none';
             document.body.style.overflow = '';
+            syncSettingsToServer();
         });
     }
 

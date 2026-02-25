@@ -28,6 +28,7 @@ const {
 } = require('./auth');
 
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // Server-sent events for real-time notifications
@@ -223,7 +224,7 @@ app.post('/api/auth/login', async (req, res) => {
 
     res.cookie('session_id', sessionId, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: req.protocol === 'https',
       sameSite: 'lax',
       expires: expiresAt
     });
@@ -981,7 +982,7 @@ app.get('/api/auth/oidc/callback', async (req, res) => {
 
     res.cookie('session_id', sessionId, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: req.protocol === 'https',
       sameSite: 'lax',
       expires: expiresAt
     });

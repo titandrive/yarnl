@@ -140,6 +140,7 @@ Most configuration is done via settings once Yarnl is up and running. There are 
 | `NODE_ENV` | `production` | Defaults to `production` in the Docker image |
 | `TZ` | `UTC` | Timezone for scheduled backups |
 | `BACKUP_PATH` | *(unset)* | Set to `true` to use an external backup path (requires `/backups` volume mount) |
+| `SECURE_COOKIES` | `false` | Set to `true` to mark session cookies as HTTPS-only |
 | `FORCE_LOCAL_LOGIN` | `false` | Force local login even when OIDC/SSO is configured |
 
 ### OIDC / SSO (Optional)

@@ -33,7 +33,7 @@ Try out the [demo](https://demo.yarnl.com) yourself (username: demo, password: d
 - Selective backup options (PDFs, markdown, archive, notes)
 - Auto-prune old backups by count or age
 - Pushover notifications for backup events
-- Optional `BACKUP_PATH` to store backups on an external drive or NAS — existing backups are automatically migrated when the path changes
+- Optional external backup storage — just mount a volume to `:/backups` and Yarnl automatically detects it
 
 ### Customization
 - 15+ color themes with light/dark modes
@@ -112,8 +112,6 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - TZ=${TZ:-UTC}
-      # Optional: store backups on external drive (use with volume mount above)
-      # - BACKUP_PATH=true
     restart: unless-stopped
     depends_on:
       postgres:
@@ -139,7 +137,6 @@ Most configuration is done via settings once Yarnl is up and running. There are 
 | `PORT` | `3000` | Port exposed on the host |
 | `NODE_ENV` | `production` | Defaults to `production` in the Docker image |
 | `TZ` | `UTC` | Timezone for scheduled backups |
-| `BACKUP_PATH` | *(unset)* | Set to `true` to use an external backup path (requires `/backups` volume mount) |
 | `SECURE_COOKIES` | `false` | Set to `true` to mark session cookies as HTTPS-only |
 | `FORCE_LOCAL_LOGIN` | `false` | Force local login even when OIDC/SSO is configured |
 

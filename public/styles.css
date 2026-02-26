@@ -1507,7 +1507,7 @@ html[data-theme="nuked-dark"] .btn-primary {
     font-size: 0.95rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
     .bulk-toolbar {
         padding: 8px 14px;
         gap: 10px;
@@ -2086,7 +2086,7 @@ html[data-theme="nuked-dark"] .btn-primary {
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
     body {
         padding: 0;
     }
@@ -2797,7 +2797,7 @@ body.global-drag-over #current::after {
     line-height: 1.2;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
     .theme-grid {
         grid-template-columns: repeat(4, 1fr);
         gap: 6px;
@@ -3260,7 +3260,7 @@ body.global-drag-over #current::after {
     cursor: default;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
     .desktop-page-arrow {
         display: none !important;
     }
@@ -3920,7 +3920,7 @@ body.global-drag-over #current::after {
 }
 
 /* Responsive */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
     .counter-header {
         flex-direction: column;
     }
@@ -3997,6 +3997,26 @@ body.global-drag-over #current::after {
 
     .pdf-scroll-spacer {
         display: none;
+    }
+}
+
+/* Landscape phone: compact bars to maximize PDF space */
+@media (max-height: 500px) and (max-width: 1024px) {
+    .mobile-top-bar {
+        padding: 4px 12px;
+    }
+
+    .mobile-bottom-bar {
+        padding: 4px 12px;
+    }
+
+    .mobile-bar-btn {
+        height: 28px;
+        width: 28px;
+    }
+
+    .pdf-viewer-wrapper {
+        padding-bottom: 40px;
     }
 }
 
@@ -4403,7 +4423,7 @@ body.global-drag-over #current::after {
 }
 
 /* Responsive for staging area */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
     .staging-header {
         flex-direction: column;
         gap: 15px;
@@ -4777,7 +4797,7 @@ body.global-drag-over #current::after {
 }
 
 /* Settings responsive - mobile sidebar becomes horizontal tabs */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
     .settings-layout {
         flex-direction: column;
         gap: 16px;
@@ -5839,7 +5859,7 @@ input[type="number"].settings-input {
     font-weight: 500;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
     .user-breakdown-header,
     .user-breakdown-row {
         grid-template-columns: 1.2fr 0.8fr 0.8fr 1fr;
@@ -6920,7 +6940,7 @@ textarea.image-drag-over {
     display: none;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
     header {
         padding: 15px 20px 42px;
         flex-direction: row;
@@ -8836,7 +8856,7 @@ textarea.image-drag-over {
 }
 
 /* Mobile responsive */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
 
     /* --- Upload panel (Add PDF) --- */
     .upload-panel-header,
@@ -9342,7 +9362,7 @@ textarea.image-drag-over {
 }
 
 /* Mobile responsive - must come after base styles above */
-@media (max-width: 768px) {
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
     /* --- Add Project panel mobile --- */
     #new-project-panel .new-pattern-header {
         padding: 12px 16px;

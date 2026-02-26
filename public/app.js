@@ -9103,7 +9103,7 @@ function initPDFViewer() {
     let swipeStartTime = null;
     const SWIPE_THRESHOLD = 50; // Minimum distance for a swipe
     const SWIPE_TIME_LIMIT = 300; // Maximum time in ms for a swipe
-    const isMobileViewport = () => window.matchMedia('(max-width: 768px)').matches;
+    const isMobileViewport = () => window.matchMedia('(max-width: 768px), (max-height: 500px) and (max-width: 1024px)').matches;
 
     pdfWrapper.addEventListener('touchstart', (e) => {
         if (isMobileViewport()) return;
@@ -9955,7 +9955,7 @@ async function openPDFViewer(patternId, pushHistory = true) {
         const cacheV = pdfCacheVersions[pattern.id];
         // Use absolute URL so pdf.js viewer's new URL() parsing preserves ?v= query params
         const pdfUrl = `${window.location.origin}${API_URL}/api/patterns/${pattern.id}/file${cacheV ? '?v=' + cacheV : ''}`;
-        const isMobile = window.matchMedia('(max-width: 768px)').matches;
+        const isMobile = window.matchMedia('(max-width: 768px), (max-height: 500px) and (max-width: 1024px)').matches;
 
         // Use PDF.js full viewer in iframe for all devices
         const wrapper = document.querySelector('.pdf-viewer-wrapper');
@@ -10975,7 +10975,7 @@ const mobileBar = (() => {
     let currentIndex = 0;
 
     function isMobile() {
-        return window.matchMedia('(max-width: 768px)').matches;
+        return window.matchMedia('(max-width: 768px), (max-height: 500px) and (max-width: 1024px)').matches;
     }
 
     function update() {

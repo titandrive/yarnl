@@ -11150,9 +11150,12 @@ const mobileBar = (() => {
                 if (counters[currentIndex]) decrementCounter(counters[currentIndex].id);
             });
 
-            // Counter label tap → edit
+            // Counter label tap → toggle edit
             bar.querySelector('.mobile-bar-counter-label').addEventListener('click', () => {
-                if (counters.length > 0) toggleEdit(true);
+                if (counters.length > 0) {
+                    const editPanel = bar.querySelector('.mobile-bar-edit');
+                    toggleEdit(editPanel.style.display === 'none');
+                }
             });
 
             // Edit panel

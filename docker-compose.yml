@@ -33,8 +33,6 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - TZ=${TZ:-UTC}
-      # Optional: store backups on external drive (use with volume mount above)
-      # - BACKUP_PATH=true
     restart: unless-stopped
     depends_on:
       postgres:

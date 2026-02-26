@@ -1141,8 +1141,9 @@ function getUserNotesDir(username) {
 }
 
 function getBackupBasePath() {
-  const val = process.env.BACKUP_PATH;
-  if (val === 'true' || val === '/backups') return '/backups';
+  try {
+    if (fs.existsSync('/backups') && fs.statSync('/backups').isDirectory()) return '/backups';
+  } catch (_) {}
   return null;
 }
 
@@ -1771,7 +1772,7 @@ async function migrateExistingDataToAdmin() {
   }
 }
 
-// Migrate backups when BACKUP_PATH changes (added, removed, or changed)
+// Migrate backups when /backups mount is added or removed
 async function migrateBackupPath() {
   try {
     const currentPath = getBackupBasePath() || '';

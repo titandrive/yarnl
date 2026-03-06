@@ -38,6 +38,7 @@ async function initDatabase() {
         name VARCHAR(255) NOT NULL,
         value INTEGER DEFAULT 0,
         max_value INTEGER,
+        is_main BOOLEAN DEFAULT false,
         position INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -372,6 +373,12 @@ async function initDatabase() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                       WHERE table_name='counters' AND column_name='max_value') THEN
           ALTER TABLE counters ADD COLUMN max_value INTEGER;
+        END IF;
+
+        -- Add is_main for linked counters
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='counters' AND column_name='is_main') THEN
+          ALTER TABLE counters ADD COLUMN is_main BOOLEAN DEFAULT false;
         END IF;
       END $$;
     `);

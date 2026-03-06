@@ -3412,6 +3412,7 @@ function initTheme() {
             }
             autoEnabled = false;
             applyTheme();
+            syncSettingsToServer();
             if (autoModeCheckbox) autoModeCheckbox.checked = false;
             showToast(themeMode === 'dark' ? 'Dark mode enabled' : 'Light mode enabled');
         });

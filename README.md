@@ -181,10 +181,13 @@ Then run `docker compose up -d --build`.
 ## Tech Stack
 
 - **Backend:** Node.js, Express
-- **Database:** PostgreSQL 16
+- **Database:** PostgreSQL 16 (pg)
 - **Frontend:** Vanilla JavaScript, HTML5, CSS3
-- **PDF:** PDF.js (viewing), Sharp (thumbnails), Poppler (processing)
+- **Markdown:** Marked.js (rendering)
+- **PDF:** PDF.js (viewing), Sharp (thumbnails), Poppler (processing), pdf-parse (text extraction)
+- **Uploads:** multer
 - **Auth:** bcrypt, openid-client
+- **Backup:** archiver, unzipper, node-cron (scheduling)
 - **Containerization:** Docker & Docker Compose
 
 ## License

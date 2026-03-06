@@ -10931,13 +10931,12 @@ function displayCounters() {
     countersList.innerHTML = counters.map(counter => `
         <div class="counter-item${lastUsedCounterId === counter.id ? ' active' : ''}" data-counter-id="${counter.id}" onclick="selectCounter(${counter.id})">
             <div class="counter-name">
-                <input type="text" value="${escapeHtml(counter.name)}"
+                <input type="text" value="${escapeHtml(counter.name)}" class="${counter.is_main ? 'is-main' : ''}"
                        onchange="updateCounterName(${counter.id}, this.value)"
                        onkeydown="if(event.key==='Enter'){this.blur()}"
                        onclick="event.stopPropagation(); selectCounter(${counter.id})"
                        onfocus="selectCounter(${counter.id})"
                        placeholder="Counter name">
-                ${counter.is_main ? '<span class="counter-main-badge">Main</span>' : ''}
             </div>
             <div class="counter-main">
                 <div class="counter-value">${counter.value}${counter.max_value ? `<span class="counter-max"> / ${counter.max_value}</span>` : ''}</div>
@@ -10975,13 +10974,13 @@ function displayCounters() {
                         <span class="toggle-slider"></span>
                     </div>
                 </label>
-                <label class="counter-settings-repeat" style="display: ${counter.max_value ? 'flex' : 'none'};">
-                    every
+                <div class="counter-settings-repeat" style="display: ${counter.max_value ? 'flex' : 'none'};" onclick="event.stopPropagation()">
+                    <button class="repeat-step" onclick="stepRepeatValue(${counter.id}, -1)">−</button>
                     <input type="number" min="2" value="${counter.max_value || ''}" placeholder="—"
-                           onchange="updateCounterMaxValue(${counter.id}, this.value)"
-                           onclick="event.stopPropagation()">
-                    rows
-                </label>
+                           onchange="updateCounterMaxValue(${counter.id}, this.value)">
+                    <button class="repeat-step" onclick="stepRepeatValue(${counter.id}, 1)">+</button>
+                    <span class="repeat-label">rows</span>
+                </div>
                 <span class="counter-settings-spacer"></span>
                 <button class="counter-settings-done" onclick="event.stopPropagation(); toggleCounterSettings(${counter.id})">Done</button>
                 <button class="counter-settings-delete" onclick="selectCounter(${counter.id}); handleCounterDelete(event, ${counter.id})" title="Click twice to delete">Delete</button>
@@ -10995,6 +10994,7 @@ function displayCounters() {
 function toggleCounterSettings(counterId) {
     const item = document.querySelector(`.counter-item[data-counter-id="${counterId}"]`);
     if (!item) return;
+    const name = item.querySelector('.counter-name');
     const main = item.querySelector('.counter-main');
     const pane = item.querySelector('.counter-settings-pane');
     if (!main || !pane) return;
@@ -11002,12 +11002,15 @@ function toggleCounterSettings(counterId) {
     // Close any other open settings panes first
     document.querySelectorAll('.counter-item').forEach(el => {
         if (el !== item) {
+            const n = el.querySelector('.counter-name');
             const m = el.querySelector('.counter-main');
             const p = el.querySelector('.counter-settings-pane');
+            if (n) n.style.display = '';
             if (m) m.style.display = '';
             if (p) p.style.display = 'none';
         }
     });
+    if (name) name.style.display = showing ? 'none' : '';
     main.style.display = showing ? 'none' : '';
     pane.style.display = showing ? '' : 'none';
 }
@@ -11024,7 +11027,13 @@ async function toggleCounterMain(counterId, enabled) {
             counters.forEach(c => c.is_main = false);
             const counter = counters.find(c => c.id === counterId);
             if (counter) counter.is_main = enabled;
-            displayCounters();
+            // Update name colors in-place without re-rendering
+            document.querySelectorAll('.counter-item').forEach(el => {
+                const cId = parseInt(el.dataset.counterId);
+                const nameInput = el.querySelector('.counter-name input');
+                if (nameInput) nameInput.classList.toggle('is-main', cId === counterId && enabled);
+            });
+            mobileBar.update();
         }
     } catch (error) {
         console.error('Error toggling main counter:', error);
@@ -11036,9 +11045,24 @@ function toggleCounterRepeat(counterId, enabled) {
     if (!item) return;
     const repeatLabel = item.querySelector('.counter-settings-repeat');
     if (repeatLabel) repeatLabel.style.display = enabled ? 'flex' : 'none';
-    if (!enabled) {
+    if (enabled) {
+        const input = item.querySelector('.counter-settings-repeat input');
+        if (input && !input.value) input.value = 2;
+        updateCounterMaxValue(counterId, 2);
+    } else {
         updateCounterMaxValue(counterId, '');
     }
+}
+
+function stepRepeatValue(counterId, delta) {
+    const item = document.querySelector(`.counter-item[data-counter-id="${counterId}"]`);
+    if (!item) return;
+    const input = item.querySelector('.counter-settings-repeat input');
+    if (!input) return;
+    const current = parseInt(input.value) || 2;
+    const newVal = Math.max(2, current + delta);
+    input.value = newVal;
+    updateCounterMaxValue(counterId, newVal);
 }
 
 async function updateCounterMaxValue(counterId, value) {

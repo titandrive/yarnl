@@ -3535,6 +3535,98 @@ body.global-drag-over #current::after {
     background: var(--counter-delete-confirm);
 }
 
+.counter-max {
+    font-size: 0.85rem;
+    font-weight: normal;
+    color: var(--text-muted);
+}
+
+.counter-btn-settings {
+    background: var(--text-muted);
+    color: white;
+}
+
+.counter-btn-settings:hover {
+    background: var(--primary-color);
+}
+
+.counter-main {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.counter-settings-pane {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 32px;
+}
+
+.counter-settings-spacer {
+    flex: 1;
+}
+
+.counter-settings-delete,
+.counter-settings-done {
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.counter-settings-delete {
+    background: var(--danger-color);
+    color: white;
+}
+
+.counter-settings-delete.confirming {
+    animation: pulse-warning 0.6s ease-in-out infinite;
+}
+
+.counter-settings-done {
+    background: var(--primary-color);
+    color: white;
+}
+
+.counter-settings-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.counter-settings-repeat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.counter-settings-repeat input {
+    width: 45px;
+    background: var(--upload-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-color);
+    font-size: 0.8rem;
+    padding: 4px 6px;
+    text-align: center;
+    font-family: inherit;
+}
+
+.counter-settings-repeat input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
 .counter-actions {
     flex-shrink: 0;
 }
@@ -3917,6 +4009,31 @@ body.global-drag-over #current::after {
 .mobile-bar-edit-btn-small {
     flex: 0.5;
     font-size: 0.7rem;
+}
+
+.mobile-edit-repeat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.mobile-edit-repeat input {
+    width: 50px;
+    background: var(--upload-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    color: var(--text-color);
+    font-size: 0.9rem;
+    padding: 6px 8px;
+    text-align: center;
+    font-family: inherit;
+    outline: none;
+}
+
+.mobile-edit-repeat input:focus {
+    border-color: var(--primary-color);
 }
 
 /* Responsive */

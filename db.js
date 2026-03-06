@@ -37,6 +37,7 @@ async function initDatabase() {
         pattern_id INTEGER NOT NULL REFERENCES patterns(id) ON DELETE CASCADE,
         name VARCHAR(255) NOT NULL,
         value INTEGER DEFAULT 0,
+        max_value INTEGER,
         position INTEGER DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -365,6 +366,12 @@ async function initDatabase() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                       WHERE table_name='patterns' AND column_name='started_date') THEN
           ALTER TABLE patterns ADD COLUMN started_date TIMESTAMP;
+        END IF;
+
+        -- Add max_value for repeatable counters
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='counters' AND column_name='max_value') THEN
+          ALTER TABLE counters ADD COLUMN max_value INTEGER;
         END IF;
       END $$;
     `);

@@ -10938,27 +10938,100 @@ function displayCounters() {
                        onfocus="selectCounter(${counter.id})"
                        placeholder="Counter name">
             </div>
-            <div class="counter-value">${counter.value}</div>
-            <div class="counter-controls">
-                <button class="counter-btn counter-btn-minus" onclick="event.stopPropagation(); selectCounter(${counter.id}); decrementCounter(${counter.id})">−</button>
-                <button class="counter-btn counter-btn-plus" onclick="event.stopPropagation(); selectCounter(${counter.id}); incrementCounter(${counter.id})">+</button>
-                <button class="counter-btn counter-btn-reset" onclick="selectCounter(${counter.id}); handleCounterReset(event, ${counter.id})" title="Click twice to reset">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-                        <path d="M3 3v5h5"/>
-                    </svg>
-                </button>
-                <button class="counter-btn counter-btn-delete" onclick="selectCounter(${counter.id}); handleCounterDelete(event, ${counter.id})" title="Click twice to delete">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
-                </button>
+            <div class="counter-main">
+                <div class="counter-value">${counter.value}${counter.max_value ? `<span class="counter-max"> / ${counter.max_value}</span>` : ''}</div>
+                <div class="counter-controls">
+                    <button class="counter-btn counter-btn-minus" onclick="event.stopPropagation(); selectCounter(${counter.id}); decrementCounter(${counter.id})">−</button>
+                    <button class="counter-btn counter-btn-plus" onclick="event.stopPropagation(); selectCounter(${counter.id}); incrementCounter(${counter.id})">+</button>
+                    <button class="counter-btn counter-btn-reset" onclick="selectCounter(${counter.id}); handleCounterReset(event, ${counter.id})" title="Click twice to reset">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+                            <path d="M3 3v5h5"/>
+                        </svg>
+                    </button>
+                    <button class="counter-btn counter-btn-settings" onclick="event.stopPropagation(); toggleCounterSettings(${counter.id})" title="Counter settings">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="3"></circle>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <div class="counter-settings-pane" style="display: none;">
+                <label class="counter-settings-toggle" onclick="event.stopPropagation()">
+                    <span>Repeat</span>
+                    <div class="toggle-switch small">
+                        <input type="checkbox" class="counter-repeat-toggle" ${counter.max_value ? 'checked' : ''}
+                               onchange="toggleCounterRepeat(${counter.id}, this.checked)">
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+                <label class="counter-settings-repeat" style="display: ${counter.max_value ? 'flex' : 'none'};">
+                    every
+                    <input type="number" min="2" value="${counter.max_value || ''}" placeholder="—"
+                           onchange="updateCounterMaxValue(${counter.id}, this.value)"
+                           onclick="event.stopPropagation()">
+                    rows
+                </label>
+                <span class="counter-settings-spacer"></span>
+                <button class="counter-settings-done" onclick="event.stopPropagation(); toggleCounterSettings(${counter.id})">Done</button>
+                <button class="counter-settings-delete" onclick="selectCounter(${counter.id}); handleCounterDelete(event, ${counter.id})" title="Click twice to delete">Delete</button>
             </div>
         </div>
     `).join('');
 
     mobileBar.update();
+}
+
+function toggleCounterSettings(counterId) {
+    const item = document.querySelector(`.counter-item[data-counter-id="${counterId}"]`);
+    if (!item) return;
+    const main = item.querySelector('.counter-main');
+    const pane = item.querySelector('.counter-settings-pane');
+    if (!main || !pane) return;
+    const showing = pane.style.display === 'none';
+    // Close any other open settings panes first
+    document.querySelectorAll('.counter-item').forEach(el => {
+        if (el !== item) {
+            const m = el.querySelector('.counter-main');
+            const p = el.querySelector('.counter-settings-pane');
+            if (m) m.style.display = '';
+            if (p) p.style.display = 'none';
+        }
+    });
+    main.style.display = showing ? 'none' : '';
+    pane.style.display = showing ? '' : 'none';
+}
+
+function toggleCounterRepeat(counterId, enabled) {
+    const item = document.querySelector(`.counter-item[data-counter-id="${counterId}"]`);
+    if (!item) return;
+    const repeatLabel = item.querySelector('.counter-settings-repeat');
+    if (repeatLabel) repeatLabel.style.display = enabled ? 'flex' : 'none';
+    if (!enabled) {
+        updateCounterMaxValue(counterId, '');
+    }
+}
+
+async function updateCounterMaxValue(counterId, value) {
+    const maxValue = parseInt(value) >= 2 ? parseInt(value) : null;
+    try {
+        const response = await fetch(`${API_URL}/api/counters/${counterId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ max_value: maxValue })
+        });
+        if (response.ok) {
+            const updated = await response.json();
+            const counter = counters.find(c => c.id === counterId);
+            if (counter) {
+                counter.max_value = updated.max_value;
+                updateCounterDisplay(counterId);
+            }
+        }
+    } catch (error) {
+        console.error('Error updating counter max value:', error);
+    }
 }
 
 function selectCounter(counterId) {
@@ -11009,7 +11082,7 @@ const mobileBar = (() => {
         const counter = counters[currentIndex];
 
         bar.querySelector('.mobile-counter-name').textContent = counter.name || 'Counter';
-        bar.querySelector('.mobile-counter-value').textContent = counter.value;
+        bar.querySelector('.mobile-counter-value').textContent = counter.max_value ? `${counter.value} / ${counter.max_value}` : counter.value;
 
         // Show/hide nav arrows
         const prev = bar.querySelector('.mobile-counter-prev');
@@ -11047,19 +11120,30 @@ const mobileBar = (() => {
         const bar = document.getElementById('mobile-bottom-bar');
         if (!bar) return;
         const editPanel = bar.querySelector('.mobile-bar-edit');
+        const maxValueInput = bar.querySelector('.mobile-edit-max-value');
         if (show) {
             const counter = counters[currentIndex];
             if (!counter) return;
             bar.querySelector('.mobile-edit-name').value = counter.name || '';
+            if (maxValueInput) maxValueInput.value = counter.max_value || '';
             bar.querySelector('.mobile-edit-pos').textContent = `${currentIndex + 1} / ${counters.length}`;
             editPanel.style.display = '';
         } else {
-            // Save name if changed before closing
-            const nameInput = bar.querySelector('.mobile-edit-name');
             const counter = counters[currentIndex];
-            if (counter && nameInput.value !== counter.name) {
-                counter.name = nameInput.value;
-                updateCounterName(counter.id, nameInput.value);
+            if (counter) {
+                // Save name if changed
+                const nameInput = bar.querySelector('.mobile-edit-name');
+                if (nameInput.value !== counter.name) {
+                    counter.name = nameInput.value;
+                    updateCounterName(counter.id, nameInput.value);
+                }
+                // Save max_value if changed
+                if (maxValueInput) {
+                    const newMax = parseInt(maxValueInput.value) >= 2 ? parseInt(maxValueInput.value) : null;
+                    if (newMax !== counter.max_value) {
+                        updateCounterMaxValue(counter.id, maxValueInput.value);
+                    }
+                }
             }
             editPanel.style.display = 'none';
             update();
@@ -11244,6 +11328,19 @@ async function addCounter(defaultName = 'New Counter') {
     }
 }
 
+function updateCounterDisplay(counterId) {
+    const counter = counters.find(c => c.id === counterId);
+    if (!counter) return;
+    // Update desktop value in-place
+    const item = document.querySelector(`.counter-item[data-counter-id="${counterId}"]`);
+    if (item) {
+        const valEl = item.querySelector('.counter-value');
+        if (valEl) valEl.innerHTML = counter.max_value ? `${counter.value}<span class="counter-max"> / ${counter.max_value}</span>` : `${counter.value}`;
+    }
+    // Update mobile bar
+    mobileBar.update();
+}
+
 async function incrementCounter(counterId) {
     try {
         lastUsedCounterId = counterId;
@@ -11256,7 +11353,7 @@ async function incrementCounter(counterId) {
             const counter = counters.find(c => c.id === counterId);
             if (counter) {
                 counter.value = updated.value;
-                displayCounters();
+                updateCounterDisplay(counterId);
             }
         }
     } catch (error) {
@@ -11276,7 +11373,7 @@ async function decrementCounter(counterId) {
             const counter = counters.find(c => c.id === counterId);
             if (counter) {
                 counter.value = updated.value;
-                displayCounters();
+                updateCounterDisplay(counterId);
             }
         }
     } catch (error) {
@@ -11352,7 +11449,7 @@ function handleCounterDelete(event, counterId) {
         btn.classList.remove('confirming');
         deleteCounter(counterId);
     } else {
-        document.querySelectorAll('.counter-btn-reset.confirming, .counter-btn-delete.confirming').forEach(b => {
+        document.querySelectorAll('.counter-btn-reset.confirming, .counter-btn-delete.confirming, .counter-settings-delete.confirming').forEach(b => {
             b.classList.remove('confirming');
         });
         btn.classList.add('confirming');

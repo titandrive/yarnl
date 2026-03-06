@@ -4741,7 +4741,7 @@ app.get('/api/patterns/:id/counters', async (req, res) => {
 // Create a new counter for a pattern
 app.post('/api/patterns/:id/counters', async (req, res) => {
   try {
-    const { name, value = 0 } = req.body;
+    const { name, value = 0, max_value = null } = req.body;
 
     // Verify ownership before allowing modification
     const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
@@ -4757,10 +4757,10 @@ app.post('/api/patterns/:id/counters', async (req, res) => {
     const position = maxPosResult.rows[0].max_pos + 1;
 
     const result = await pool.query(
-      `INSERT INTO counters (pattern_id, name, value, position)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO counters (pattern_id, name, value, max_value, position)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [req.params.id, name, value, position]
+      [req.params.id, name, value, max_value, position]
     );
 
     res.json(result.rows[0]);
@@ -4779,7 +4779,7 @@ app.patch('/api/counters/:id', async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to modify this counter' });
     }
 
-    const { value, name } = req.body;
+    const { value, name, max_value } = req.body;
     const updates = [];
     const values = [];
     let paramCount = 1;
@@ -4791,6 +4791,10 @@ app.patch('/api/counters/:id', async (req, res) => {
     if (name !== undefined) {
       updates.push(`name = $${paramCount++}`);
       values.push(name);
+    }
+    if (max_value !== undefined) {
+      updates.push(`max_value = $${paramCount++}`);
+      values.push(max_value);
     }
 
     if (updates.length === 0) {
@@ -4831,7 +4835,11 @@ app.post('/api/counters/:id/increment', async (req, res) => {
 
     const result = await pool.query(
       `UPDATE counters
-       SET value = value + 1, updated_at = CURRENT_TIMESTAMP
+       SET value = CASE
+         WHEN max_value IS NOT NULL AND value >= max_value THEN 1
+         ELSE value + 1
+       END,
+       updated_at = CURRENT_TIMESTAMP
        WHERE id = $1
        RETURNING *`,
       [req.params.id]

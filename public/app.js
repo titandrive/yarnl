@@ -24,7 +24,7 @@ const SYNCED_SETTING_KEYS = [
     'libraryCategoryFilter',
     // Navigation & PDF
     'defaultPage', 'defaultPdfZoom', 'pdfScrollMode', 'arrowKeysScroll',
-    'scrollPageButtons',
+    'scrollPageButtons', 'counterLayout',
     // Projects
     'projectSort', 'projectShowFilter',
     // Behavior
@@ -3503,6 +3503,17 @@ function initTheme() {
         });
     }
 
+    // Counter layout setting
+    const counterLayoutSelect = document.getElementById('counter-layout-select');
+    const savedCounterLayout = localStorage.getItem('counterLayout') || 'stack';
+    if (counterLayoutSelect) {
+        counterLayoutSelect.value = savedCounterLayout;
+        counterLayoutSelect.addEventListener('change', () => {
+            localStorage.setItem('counterLayout', counterLayoutSelect.value);
+            applyCounterLayout();
+        });
+    }
+
     // Font selection
     const fontSelect = document.getElementById('font-select');
     const customFontContainer = document.getElementById('custom-font-container');
@@ -3752,6 +3763,12 @@ function initTheme() {
             localStorage.setItem('whatsNewEnabled', 'true');
             const whatsNewCheckbox = document.getElementById('whats-new-checkbox');
             if (whatsNewCheckbox) whatsNewCheckbox.checked = true;
+
+            // Reset counter layout
+            localStorage.setItem('counterLayout', 'stack');
+            const counterLayoutSelect = document.getElementById('counter-layout-select');
+            if (counterLayoutSelect) counterLayoutSelect.value = 'stack';
+            applyCounterLayout();
 
             // Reset wake lock
             localStorage.setItem('wakeLockEnabled', 'false');
@@ -10959,6 +10976,13 @@ async function loadCounters(patternId) {
     }
 }
 
+function applyCounterLayout() {
+    const countersList = document.getElementById('counters-list');
+    if (!countersList) return;
+    const layout = localStorage.getItem('counterLayout') || 'stack';
+    countersList.classList.toggle('scroll-layout', layout === 'scroll');
+}
+
 function displayCounters() {
     const countersList = document.getElementById('counters-list');
 
@@ -11037,6 +11061,7 @@ function displayCounters() {
         </div>
     `).join('');
 
+    applyCounterLayout();
     mobileBar.update();
 }
 

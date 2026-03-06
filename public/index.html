@@ -56,7 +56,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=214">
+    <link rel="stylesheet" href="styles.css?v=215">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -1204,6 +1204,16 @@ Inc in each st around (12)
                         </div>
 
                         <h4 class="settings-subheading">Pattern Viewer</h4>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Counter Layout</label>
+                                <p class="setting-description">How counters are arranged on desktop</p>
+                            </div>
+                            <select id="counter-layout-select" class="settings-select">
+                                <option value="stack">Stack</option>
+                                <option value="scroll">Scroll</option>
+                            </select>
+                        </div>
                         <div class="setting-item">
                             <div class="setting-info">
                                 <label>Keep Screen Awake</label>
@@ -2939,6 +2949,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=184"></script>
+    <script defer src="app.js?v=185"></script>
 </body>
 </html>

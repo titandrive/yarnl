@@ -3411,6 +3411,11 @@ body.global-drag-over #current::after {
     flex: 1;
 }
 
+.counters-list.scroll-layout {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+}
+
 .counter-item {
     background: var(--upload-bg);
     border: 2px solid var(--border-color);

@@ -4849,7 +4849,7 @@ app.post('/api/counters/:id/increment', async (req, res) => {
     const result = await pool.query(
       `UPDATE counters
        SET value = CASE
-         WHEN max_value IS NOT NULL AND value >= max_value THEN 1
+         WHEN max_value IS NOT NULL AND value >= max_value THEN 0
          ELSE value + 1
        END,
        updated_at = CURRENT_TIMESTAMP
@@ -4866,7 +4866,7 @@ app.post('/api/counters/:id/increment', async (req, res) => {
       const mainResult = await pool.query(
         `UPDATE counters
          SET value = CASE
-           WHEN max_value IS NOT NULL AND value >= max_value THEN 1
+           WHEN max_value IS NOT NULL AND value >= max_value THEN 0
            ELSE value + 1
          END,
          updated_at = CURRENT_TIMESTAMP

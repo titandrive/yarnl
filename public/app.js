@@ -10976,6 +10976,16 @@ function displayCounters() {
                         <span class="toggle-slider"></span>
                     </div>
                 </label>
+                ${!counter.is_main && counters.some(c => c.is_main) ? `
+                <label class="counter-settings-toggle" onclick="event.stopPropagation()">
+                    <span>Unlink</span>
+                    <div class="toggle-switch small">
+                        <input type="checkbox" class="counter-unlink-toggle" ${counter.unlinked ? 'checked' : ''}
+                               onchange="toggleCounterUnlink(${counter.id}, this.checked)">
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
+                ` : ''}
                 <div class="counter-settings-repeat" style="display: ${counter.max_value ? 'flex' : 'none'};" onclick="event.stopPropagation()">
                     <button class="repeat-step" onclick="stepRepeatValue(${counter.id}, -1)">−</button>
                     <input type="number" min="2" value="${counter.max_value || ''}" placeholder="—"
@@ -11034,6 +11044,22 @@ async function toggleCounterMain(counterId, enabled) {
         }
     } catch (error) {
         console.error('Error toggling main counter:', error);
+    }
+}
+
+async function toggleCounterUnlink(counterId, enabled) {
+    try {
+        const response = await fetch(`${API_URL}/api/counters/${counterId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ unlinked: enabled })
+        });
+        if (response.ok) {
+            const counter = counters.find(c => c.id === counterId);
+            if (counter) counter.unlinked = enabled;
+        }
+    } catch (error) {
+        console.error('Error toggling counter unlink:', error);
     }
 }
 
@@ -11190,6 +11216,12 @@ const mobileBar = (() => {
                     mainLabel.title = otherIsMain ? `'${counters.find(c => c.is_main).name}' is already the main counter` : '';
                 }
             }
+            // Unlink toggle — show only on non-main counters when a main exists
+            const unlinkToggle = bar.querySelector('.mobile-edit-unlink');
+            const unlinkLabel = bar.querySelector('.mobile-edit-unlink-label');
+            const showUnlink = !counter.is_main && counters.some(c => c.is_main);
+            if (unlinkLabel) unlinkLabel.style.display = showUnlink ? 'flex' : 'none';
+            if (unlinkToggle) unlinkToggle.checked = !!counter.unlinked;
             if (repeatToggle) repeatToggle.checked = !!counter.max_value;
             if (repeatLabel) repeatLabel.style.display = counter.max_value ? 'flex' : 'none';
             const posEl = bar.querySelector('.mobile-edit-pos');
@@ -11214,6 +11246,11 @@ const mobileBar = (() => {
                 // Save is_main if changed
                 if (mainToggle && mainToggle.checked !== !!counter.is_main) {
                     toggleCounterMain(counter.id, mainToggle.checked);
+                }
+                // Save unlinked if changed
+                const unlinkToggle = bar.querySelector('.mobile-edit-unlink');
+                if (unlinkToggle && unlinkToggle.checked !== !!counter.unlinked) {
+                    toggleCounterUnlink(counter.id, unlinkToggle.checked);
                 }
             }
             editPanel.style.display = 'none';

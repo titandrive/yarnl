@@ -4779,7 +4779,7 @@ app.patch('/api/counters/:id', async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to modify this counter' });
     }
 
-    const { value, name, max_value, is_main } = req.body;
+    const { value, name, max_value, is_main, unlinked } = req.body;
     const updates = [];
     const values = [];
     let paramCount = 1;
@@ -4799,6 +4799,10 @@ app.patch('/api/counters/:id', async (req, res) => {
     if (is_main !== undefined) {
       updates.push(`is_main = $${paramCount++}`);
       values.push(is_main);
+    }
+    if (unlinked !== undefined) {
+      updates.push(`unlinked = $${paramCount++}`);
+      values.push(unlinked);
     }
 
     if (updates.length === 0) {
@@ -4861,8 +4865,8 @@ app.post('/api/counters/:id/increment', async (req, res) => {
     const updated = result.rows[0];
     let mainCounter = null;
 
-    // If this is not the main counter, also increment the main counter
-    if (!updated.is_main) {
+    // If this is not the main counter and not unlinked, also increment the main counter
+    if (!updated.is_main && !updated.unlinked) {
       const mainResult = await pool.query(
         `UPDATE counters
          SET value = CASE
@@ -4904,8 +4908,8 @@ app.post('/api/counters/:id/decrement', async (req, res) => {
     const updated = result.rows[0];
     let mainCounter = null;
 
-    // If this is not the main counter, also decrement the main counter
-    if (!updated.is_main) {
+    // If this is not the main counter and not unlinked, also decrement the main counter
+    if (!updated.is_main && !updated.unlinked) {
       const mainResult = await pool.query(
         `UPDATE counters
          SET value = GREATEST(value - 1, 0), updated_at = CURRENT_TIMESTAMP

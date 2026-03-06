@@ -10939,7 +10939,7 @@ function displayCounters() {
                        placeholder="Counter name">
             </div>
             <div class="counter-main">
-                <div class="counter-value">${counter.value}${counter.max_value ? `<span class="counter-max"> / ${counter.max_value}</span>` : ''}</div>
+                <div class="counter-value">${counter.value}${counter.max_value ? `<span class="counter-max">/${counter.max_value}</span>` : ''}</div>
                 <div class="counter-controls">
                     <button class="counter-btn counter-btn-minus" onclick="event.stopPropagation(); selectCounter(${counter.id}); decrementCounter(${counter.id})">−</button>
                     <button class="counter-btn counter-btn-plus" onclick="event.stopPropagation(); selectCounter(${counter.id}); incrementCounter(${counter.id})">+</button>
@@ -10958,10 +10958,12 @@ function displayCounters() {
                 </div>
             </div>
             <div class="counter-settings-pane" style="display: none;">
-                <label class="counter-settings-toggle" onclick="event.stopPropagation()">
+                <label class="counter-settings-toggle${!counter.is_main && counters.some(c => c.is_main) ? ' disabled' : ''}" onclick="event.stopPropagation()"
+                       ${!counter.is_main && counters.some(c => c.is_main) ? `title="'${escapeHtml(counters.find(c => c.is_main).name)}' is already the main counter"` : ''}>
                     <span>Main</span>
                     <div class="toggle-switch small">
                         <input type="checkbox" class="counter-main-toggle" ${counter.is_main ? 'checked' : ''}
+                               ${!counter.is_main && counters.some(c => c.is_main) ? 'disabled' : ''}
                                onchange="toggleCounterMain(${counter.id}, this.checked)">
                         <span class="toggle-slider"></span>
                     </div>
@@ -11027,13 +11029,8 @@ async function toggleCounterMain(counterId, enabled) {
             counters.forEach(c => c.is_main = false);
             const counter = counters.find(c => c.id === counterId);
             if (counter) counter.is_main = enabled;
-            // Update name colors in-place without re-rendering
-            document.querySelectorAll('.counter-item').forEach(el => {
-                const cId = parseInt(el.dataset.counterId);
-                const nameInput = el.querySelector('.counter-name input');
-                if (nameInput) nameInput.classList.toggle('is-main', cId === counterId && enabled);
-            });
-            mobileBar.update();
+            // Re-render to update disabled states on other counters' Main toggles
+            displayCounters();
         }
     } catch (error) {
         console.error('Error toggling main counter:', error);
@@ -11133,8 +11130,10 @@ const mobileBar = (() => {
 
         const counter = counters[currentIndex];
 
-        bar.querySelector('.mobile-counter-name').textContent = counter.name || 'Counter';
-        bar.querySelector('.mobile-counter-value').textContent = counter.max_value ? `${counter.value} / ${counter.max_value}` : counter.value;
+        const nameEl = bar.querySelector('.mobile-counter-name');
+        nameEl.textContent = counter.name || 'Counter';
+        nameEl.style.color = counter.is_main ? 'var(--secondary-color)' : '';
+        bar.querySelector('.mobile-counter-value').innerHTML = counter.max_value ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>` : counter.value;
 
         // Show/hide nav arrows
         const prev = bar.querySelector('.mobile-counter-prev');
@@ -11181,10 +11180,20 @@ const mobileBar = (() => {
             if (!counter) return;
             bar.querySelector('.mobile-edit-name').value = counter.name || '';
             if (maxValueInput) maxValueInput.value = counter.max_value || '';
-            if (mainToggle) mainToggle.checked = !!counter.is_main;
+            if (mainToggle) {
+                mainToggle.checked = !!counter.is_main;
+                const otherIsMain = !counter.is_main && counters.some(c => c.is_main);
+                mainToggle.disabled = otherIsMain;
+                const mainLabel = bar.querySelector('.mobile-edit-main-label');
+                if (mainLabel) {
+                    mainLabel.classList.toggle('disabled', otherIsMain);
+                    mainLabel.title = otherIsMain ? `'${counters.find(c => c.is_main).name}' is already the main counter` : '';
+                }
+            }
             if (repeatToggle) repeatToggle.checked = !!counter.max_value;
             if (repeatLabel) repeatLabel.style.display = counter.max_value ? 'flex' : 'none';
-            bar.querySelector('.mobile-edit-pos').textContent = `${currentIndex + 1} / ${counters.length}`;
+            const posEl = bar.querySelector('.mobile-edit-pos');
+            if (posEl) posEl.textContent = counters.length > 1 ? `${currentIndex + 1}/${counters.length}` : '';
             editPanel.style.display = '';
         } else {
             const counter = counters[currentIndex];
@@ -11286,8 +11295,16 @@ const mobileBar = (() => {
             });
 
             // Counter navigation
-            bar.querySelector('.mobile-counter-prev').addEventListener('click', () => nav(-1));
-            bar.querySelector('.mobile-counter-next').addEventListener('click', () => nav(1));
+            bar.querySelector('.mobile-counter-prev').addEventListener('click', () => {
+                nav(-1);
+                const editPanel = bar.querySelector('.mobile-bar-edit');
+                if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
+            });
+            bar.querySelector('.mobile-counter-next').addEventListener('click', () => {
+                nav(1);
+                const editPanel = bar.querySelector('.mobile-bar-edit');
+                if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
+            });
 
             // Counter increment/decrement
             bar.querySelector('.mobile-counter-inc').addEventListener('click', () => {
@@ -11315,9 +11332,25 @@ const mobileBar = (() => {
             if (mobileRepeatToggle) {
                 mobileRepeatToggle.addEventListener('change', () => {
                     if (mobileRepeatLabel) mobileRepeatLabel.style.display = mobileRepeatToggle.checked ? 'flex' : 'none';
-                    if (!mobileRepeatToggle.checked && mobileMaxInput) mobileMaxInput.value = '';
+                    if (mobileRepeatToggle.checked) {
+                        if (mobileMaxInput && !mobileMaxInput.value) mobileMaxInput.value = 2;
+                    } else {
+                        if (mobileMaxInput) mobileMaxInput.value = '';
+                    }
                 });
             }
+            // Repeat stepper buttons
+            bar.querySelector('.mobile-edit-repeat-dec')?.addEventListener('click', () => {
+                if (mobileMaxInput) {
+                    const val = Math.max(2, (parseInt(mobileMaxInput.value) || 2) - 1);
+                    mobileMaxInput.value = val;
+                }
+            });
+            bar.querySelector('.mobile-edit-repeat-inc')?.addEventListener('click', () => {
+                if (mobileMaxInput) {
+                    mobileMaxInput.value = (parseInt(mobileMaxInput.value) || 2) + 1;
+                }
+            });
             bar.querySelector('.mobile-edit-add').addEventListener('click', async () => {
                 await addCounter('Counter');
                 toggleEdit(false);
@@ -11342,14 +11375,6 @@ const mobileBar = (() => {
             bar.querySelector('.mobile-edit-name').addEventListener('change', (e) => {
                 const counter = counters[currentIndex];
                 if (counter) updateCounterName(counter.id, e.target.value);
-            });
-            bar.querySelector('.mobile-edit-prev').addEventListener('click', () => {
-                nav(-1);
-                toggleEdit(true);
-            });
-            bar.querySelector('.mobile-edit-next').addEventListener('click', () => {
-                nav(1);
-                toggleEdit(true);
             });
         }
 
@@ -11408,7 +11433,7 @@ function updateCounterDisplay(counterId) {
     const item = document.querySelector(`.counter-item[data-counter-id="${counterId}"]`);
     if (item) {
         const valEl = item.querySelector('.counter-value');
-        if (valEl) valEl.innerHTML = counter.max_value ? `${counter.value}<span class="counter-max"> / ${counter.max_value}</span>` : `${counter.value}`;
+        if (valEl) valEl.innerHTML = counter.max_value ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>` : `${counter.value}`;
     }
     // Update mobile bar
     mobileBar.update();

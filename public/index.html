@@ -2266,14 +2266,10 @@ Inc in each st around (12)
                 </button>
                 <!-- Counter Edit Panel (slides up) -->
                 <div class="mobile-bar-edit" style="display: none;">
-                    <div class="mobile-bar-edit-row">
-                        <button class="mobile-bar-edit-nav mobile-edit-prev">‹</button>
-                        <span class="mobile-edit-pos">1 / 1</span>
-                        <button class="mobile-bar-edit-nav mobile-edit-next">›</button>
-                    </div>
+                    <span class="mobile-edit-pos"></span>
                     <input type="text" class="mobile-edit-name" placeholder="Counter name">
                     <div class="mobile-edit-toggles">
-                        <label class="mobile-edit-toggle-label">
+                        <label class="mobile-edit-toggle-label mobile-edit-main-label">
                             <span>Main</span>
                             <div class="toggle-switch small">
                                 <input type="checkbox" class="mobile-edit-main">
@@ -2287,11 +2283,12 @@ Inc in each st around (12)
                                 <span class="toggle-slider"></span>
                             </div>
                         </label>
-                        <label class="mobile-edit-repeat" style="display: none;">
-                            every
+                        <div class="mobile-edit-repeat" style="display: none;">
+                            <button class="repeat-step mobile-edit-repeat-dec">−</button>
                             <input type="number" class="mobile-edit-max-value" min="2" placeholder="—">
-                            rows
-                        </label>
+                            <button class="repeat-step mobile-edit-repeat-inc">+</button>
+                            <span class="repeat-label">rows</span>
+                        </div>
                     </div>
                     <div class="mobile-bar-edit-actions">
                         <button class="mobile-bar-edit-btn mobile-edit-done">Done</button>

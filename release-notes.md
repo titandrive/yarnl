@@ -1,5 +1,24 @@
 # Yarnl Release Notes
 
+## v0.6.9
+
+### Features
+- **Repeatable counters** — counters can now cycle back to 1 after reaching a set limit. Open the settings cog on any counter and toggle **Repeat** on, then set the row count. When the counter reaches the limit, the next increment resets it to 1. Useful for tracking repeating stitch patterns (e.g., a 10-row repeat on a dishcloth).
+- **Linked main counter** — one counter per pattern can be designated as the **Main** counter. When any other counter is incremented or decremented, the main counter automatically follows. This lets you track both overall row count and repeat position at the same time. The main counter itself increments normally without double-counting.
+- **Counter settings pane** — the delete button on counters has been replaced with a settings cog. Clicking it reveals an inline settings view with Main and Repeat toggles, a Done button, and a Delete button (requires two clicks to confirm). The counter name hides while settings are open to keep the layout compact.
+- **Main counter color indicator** — the main counter's name is displayed in the accent color so you can tell at a glance which counter is linked, without taking up extra space with a badge.
+
+### UI Polish
+- **Custom repeat stepper** — the repeat value input uses styled −/+ buttons instead of native browser spinners, matching the rest of the UI
+- **Compact counter-max display** — when a repeat limit is set, the counter shows the value as `11/2` with the max in a smaller, muted font
+- **Mobile counter nav in edit mode** — the bottom navigation arrows now update the edit panel when it's open, removing the need for the redundant upper navigation row
+- **Disabled main toggle** — when one counter is already set as main, the Main toggle on other counters is greyed out with a tooltip explaining which counter holds the main role
+
+### Bug Fixes
+- **Header theme toggle not saving** — the light/dark toggle in the header now syncs to the server immediately, matching the behavior of the settings picker
+
+---
+
 ## v0.6.8
 
 ### Features

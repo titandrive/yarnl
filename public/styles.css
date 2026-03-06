@@ -3541,12 +3541,8 @@ body.global-drag-over #current::after {
     color: var(--text-muted);
 }
 
-.counter-main-badge {
-    font-size: 0.6rem;
-    font-weight: 600;
-    color: var(--primary-color);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+.counter-name input.is-main {
+    color: var(--secondary-color);
 }
 
 .counter-btn-settings {
@@ -3612,27 +3608,67 @@ body.global-drag-over #current::after {
 .counter-settings-repeat {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 2px;
     font-size: 0.8rem;
     color: var(--text-muted);
     white-space: nowrap;
 }
 
 .counter-settings-repeat input {
-    width: 45px;
+    width: 36px;
     background: var(--upload-bg);
     border: 1px solid var(--border-color);
-    border-radius: 6px;
+    border-radius: 0;
     color: var(--text-color);
     font-size: 0.8rem;
-    padding: 4px 6px;
+    padding: 3px 4px;
     text-align: center;
     font-family: inherit;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.counter-settings-repeat input::-webkit-inner-spin-button,
+.counter-settings-repeat input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .counter-settings-repeat input:focus {
     outline: none;
     border-color: var(--primary-color);
+}
+
+.repeat-step {
+    background: var(--upload-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    width: 22px;
+    height: 24px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+
+.repeat-step:first-child {
+    border-radius: 6px 0 0 6px;
+}
+
+.repeat-step:last-of-type {
+    border-radius: 0 6px 6px 0;
+}
+
+.repeat-step:hover {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.repeat-label {
+    margin-left: 4px;
 }
 
 .counter-actions {
@@ -4052,6 +4088,14 @@ body.global-drag-over #current::after {
     text-align: center;
     font-family: inherit;
     outline: none;
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+
+.mobile-edit-repeat input::-webkit-inner-spin-button,
+.mobile-edit-repeat input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
 }
 
 .mobile-edit-repeat input:focus {

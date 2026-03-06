@@ -84,12 +84,12 @@ services:
     volumes:
       - yarnl-postgres-data:/var/lib/postgresql/data
     environment:
-      - POSTGRES_DB=${POSTGRES_DB:-yarnl}
-      - POSTGRES_USER=${POSTGRES_USER:-yarnl}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-yarnl}
+      - POSTGRES_DB=yarnl
+      - POSTGRES_USER=yarnl
+      - POSTGRES_PASSWORD=yarnl
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-yarnl}"]
+      test: ["CMD-SHELL", "pg_isready -U yarnl"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -98,7 +98,7 @@ services:
     container_name: yarnl
     image: titandrive/yarnl:latest
     ports:
-      - "${PORT:-3000}:3000"
+      - "3000:3000"
     volumes:
       - ./users:/app/users
       # Optional: mount an external path for backups
@@ -106,12 +106,12 @@ services:
     environment:
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
-      - POSTGRES_DB=${POSTGRES_DB:-yarnl}
-      - POSTGRES_USER=${POSTGRES_USER:-yarnl}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-yarnl}
-      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
-      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
-      - TZ=${TZ:-UTC}
+      - POSTGRES_DB=yarnl
+      - POSTGRES_USER=yarnl
+      - POSTGRES_PASSWORD=yarnl
+      - ADMIN_USERNAME=admin
+      - ADMIN_PASSWORD=
+      - TZ=UTC
     restart: unless-stopped
     depends_on:
       postgres:

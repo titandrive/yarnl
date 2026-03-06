@@ -3539,6 +3539,8 @@ body.global-drag-over #current::after {
     font-size: 0.85rem;
     font-weight: normal;
     color: var(--text-muted);
+    padding: 0 1px;
+    vertical-align: 2px;
 }
 
 .counter-name input.is-main {
@@ -3603,6 +3605,11 @@ body.global-drag-over #current::after {
     font-size: 0.8rem;
     color: var(--text-muted);
     cursor: pointer;
+}
+
+.counter-settings-toggle.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
 }
 
 .counter-settings-repeat {
@@ -3904,7 +3911,7 @@ body.global-drag-over #current::after {
     display: flex;
     flex-direction: column;
     align-items: center;
-    width: 64px;
+    min-width: 64px;
     flex-shrink: 0;
     overflow: hidden;
     cursor: pointer;
@@ -3929,6 +3936,7 @@ body.global-drag-over #current::after {
     font-variant-numeric: tabular-nums;
     font-family: var(--font-family);
     line-height: 1.2;
+    white-space: nowrap;
 }
 
 .mobile-counter-dec {
@@ -4002,6 +4010,12 @@ body.global-drag-over #current::after {
     font-weight: 600;
 }
 
+.mobile-edit-pos {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
 .mobile-edit-name {
     width: 100%;
     background: var(--upload-bg);
@@ -4059,6 +4073,7 @@ body.global-drag-over #current::after {
     display: flex;
     align-items: center;
     gap: 12px;
+    height: 28px;
 }
 
 .mobile-edit-toggle-label {
@@ -4069,27 +4084,33 @@ body.global-drag-over #current::after {
     color: var(--text-muted);
 }
 
+.mobile-edit-toggle-label.disabled {
+    opacity: 0.35;
+}
+
 .mobile-edit-repeat {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 2px;
     font-size: 0.8rem;
     color: var(--text-muted);
 }
 
 .mobile-edit-repeat input {
-    width: 50px;
+    width: 36px;
     background: var(--upload-bg);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 0;
     color: var(--text-color);
-    font-size: 0.9rem;
-    padding: 6px 8px;
+    font-size: 0.8rem;
+    padding: 3px 4px;
     text-align: center;
     font-family: inherit;
     outline: none;
     -moz-appearance: textfield;
     appearance: textfield;
+    height: 24px;
+    box-sizing: border-box;
 }
 
 .mobile-edit-repeat input::-webkit-inner-spin-button,

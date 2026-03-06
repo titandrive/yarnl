@@ -11236,22 +11236,6 @@ const mobileBar = (() => {
                     counter.name = nameInput.value;
                     updateCounterName(counter.id, nameInput.value);
                 }
-                // Save max_value if changed
-                if (maxValueInput) {
-                    const newMax = parseInt(maxValueInput.value) >= 2 ? parseInt(maxValueInput.value) : null;
-                    if (newMax !== counter.max_value) {
-                        updateCounterMaxValue(counter.id, maxValueInput.value);
-                    }
-                }
-                // Save is_main if changed
-                if (mainToggle && mainToggle.checked !== !!counter.is_main) {
-                    toggleCounterMain(counter.id, mainToggle.checked);
-                }
-                // Save unlinked if changed
-                const unlinkToggle = bar.querySelector('.mobile-edit-unlink');
-                if (unlinkToggle && unlinkToggle.checked !== !!counter.unlinked) {
-                    toggleCounterUnlink(counter.id, unlinkToggle.checked);
-                }
             }
             editPanel.style.display = 'none';
             update();
@@ -11362,32 +11346,58 @@ const mobileBar = (() => {
             // Edit panel
             bar.querySelector('.mobile-edit-done').addEventListener('click', () => toggleEdit(false));
 
+            // Main toggle — save immediately
+            bar.querySelector('.mobile-edit-main')?.addEventListener('change', (e) => {
+                const counter = counters[currentIndex];
+                if (counter) toggleCounterMain(counter.id, e.target.checked);
+            });
+
+            // Unlink toggle — save immediately
+            bar.querySelector('.mobile-edit-unlink')?.addEventListener('change', (e) => {
+                const counter = counters[currentIndex];
+                if (counter) toggleCounterUnlink(counter.id, e.target.checked);
+            });
+
             // Repeat toggle shows/hides the repeat input
             const mobileRepeatToggle = bar.querySelector('.mobile-edit-repeat-toggle');
             const mobileRepeatLabel = bar.querySelector('.mobile-edit-repeat');
             const mobileMaxInput = bar.querySelector('.mobile-edit-max-value');
             if (mobileRepeatToggle) {
                 mobileRepeatToggle.addEventListener('change', () => {
+                    const counter = counters[currentIndex];
                     if (mobileRepeatLabel) mobileRepeatLabel.style.display = mobileRepeatToggle.checked ? 'flex' : 'none';
                     if (mobileRepeatToggle.checked) {
                         if (mobileMaxInput && !mobileMaxInput.value) mobileMaxInput.value = 2;
+                        if (counter) updateCounterMaxValue(counter.id, 2);
                     } else {
                         if (mobileMaxInput) mobileMaxInput.value = '';
+                        if (counter) updateCounterMaxValue(counter.id, '');
                     }
                 });
             }
             // Repeat stepper buttons
             bar.querySelector('.mobile-edit-repeat-dec')?.addEventListener('click', () => {
+                const counter = counters[currentIndex];
                 if (mobileMaxInput) {
                     const val = Math.max(2, (parseInt(mobileMaxInput.value) || 2) - 1);
                     mobileMaxInput.value = val;
+                    if (counter) updateCounterMaxValue(counter.id, val);
                 }
             });
             bar.querySelector('.mobile-edit-repeat-inc')?.addEventListener('click', () => {
+                const counter = counters[currentIndex];
                 if (mobileMaxInput) {
-                    mobileMaxInput.value = (parseInt(mobileMaxInput.value) || 2) + 1;
+                    const val = (parseInt(mobileMaxInput.value) || 2) + 1;
+                    mobileMaxInput.value = val;
+                    if (counter) updateCounterMaxValue(counter.id, val);
                 }
             });
+            if (mobileMaxInput) {
+                mobileMaxInput.addEventListener('change', () => {
+                    const counter = counters[currentIndex];
+                    if (counter) updateCounterMaxValue(counter.id, mobileMaxInput.value);
+                });
+            }
             bar.querySelector('.mobile-edit-add').addEventListener('click', async () => {
                 await addCounter('Counter');
                 toggleEdit(false);

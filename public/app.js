@@ -3658,6 +3658,44 @@ function initTheme() {
             if (customFontContainer) customFontContainer.style.display = 'none';
             if (customFontInput) customFontInput.value = '';
 
+            // Reset mascot
+            localStorage.removeItem('selectedMascot');
+            localStorage.setItem('themeMascotEnabled', 'false');
+            const themeMascotCheckbox = document.getElementById('theme-mascot-checkbox');
+            if (themeMascotCheckbox) themeMascotCheckbox.checked = false;
+            // Set mascot to default (first in list)
+            fetch('/api/mascots')
+                .then(res => res.ok ? res.json() : Promise.reject('Failed to load mascots'))
+                .then(mascots => {
+                    if (mascots.length > 0) {
+                        const defaultMascot = mascots[0].url;
+                        localStorage.setItem('selectedMascot', defaultMascot);
+                        const mascotImg = document.getElementById('header-mascot-img');
+                        if (mascotImg) mascotImg.src = defaultMascot;
+                        // Update button name
+                        const nameSpan = document.getElementById('current-mascot-name');
+                        if (nameSpan) {
+                            const displayName = mascots[0].filename
+                                .replace(/\.[^/.]+$/, '')
+                                .replace(/-/g, ' ')
+                                .replace(/\b\w/g, c => c.toUpperCase());
+                            nameSpan.textContent = displayName;
+                        }
+                        // Update grid selection if visible
+                        document.querySelectorAll('.mascot-item').forEach(item => {
+                            item.classList.toggle('selected', item.dataset.url === defaultMascot);
+                        });
+                    }
+                });
+
+            showToast('Appearance reset to defaults');
+        });
+    }
+
+    // Reset behavior to defaults
+    const resetBehaviorBtn = document.getElementById('reset-behavior-btn');
+    if (resetBehaviorBtn) {
+        resetBehaviorBtn.addEventListener('click', () => {
             // Reset tab counts
             localStorage.setItem('showTabCounts', 'true');
             showTabCounts = true;
@@ -3697,42 +3735,43 @@ function initTheme() {
             const typeBadgeCheckbox = document.getElementById('badge-type-checkbox');
             const statusBadgeCheckbox = document.getElementById('badge-status-checkbox');
             const categoryBadgeCheckbox = document.getElementById('badge-category-checkbox');
+            localStorage.setItem('showStarBadge', 'true');
+            showStarBadge = true;
+            const starBadgeCheckbox = document.getElementById('badge-star-checkbox');
             if (typeBadgeCheckbox) typeBadgeCheckbox.checked = true;
             if (statusBadgeCheckbox) statusBadgeCheckbox.checked = true;
             if (categoryBadgeCheckbox) categoryBadgeCheckbox.checked = true;
+            if (starBadgeCheckbox) starBadgeCheckbox.checked = true;
+
+            // Reset haptic
+            localStorage.setItem('hapticEnabled', 'true');
+            const hapticCheckbox = document.getElementById('haptic-checkbox');
+            if (hapticCheckbox) hapticCheckbox.checked = true;
+
+            // Reset what's new
+            localStorage.setItem('whatsNewEnabled', 'true');
+            const whatsNewCheckbox = document.getElementById('whats-new-checkbox');
+            if (whatsNewCheckbox) whatsNewCheckbox.checked = true;
+
+            // Reset wake lock
+            localStorage.setItem('wakeLockEnabled', 'false');
+            const wakeLockCheckbox = document.getElementById('wake-lock-checkbox');
+            if (wakeLockCheckbox) wakeLockCheckbox.checked = false;
+
+            // Reset page mode
+            localStorage.setItem('pdfScrollMode', 'page');
+            const pdfScrollModeSelect = document.getElementById('pdf-scroll-mode-select');
+            if (pdfScrollModeSelect) pdfScrollModeSelect.value = 'page';
+            const scrollPageButtonsContainer = document.getElementById('scroll-page-buttons-container');
+            if (scrollPageButtonsContainer) scrollPageButtonsContainer.style.display = 'none';
+
+            // Reset inactivity timeout
+            localStorage.setItem('inactivityTimeout', '5');
+            const inactivityTimeoutInput = document.getElementById('inactivity-timeout-input');
+            if (inactivityTimeoutInput) inactivityTimeoutInput.value = '5';
+
             displayPatterns();
-
-            // Reset mascot
-            localStorage.removeItem('selectedMascot');
-            localStorage.setItem('themeMascotEnabled', 'false');
-            const themeMascotCheckbox = document.getElementById('theme-mascot-checkbox');
-            if (themeMascotCheckbox) themeMascotCheckbox.checked = false;
-            // Set mascot to default (first in list)
-            fetch('/api/mascots')
-                .then(res => res.ok ? res.json() : Promise.reject('Failed to load mascots'))
-                .then(mascots => {
-                    if (mascots.length > 0) {
-                        const defaultMascot = mascots[0].url;
-                        localStorage.setItem('selectedMascot', defaultMascot);
-                        const mascotImg = document.getElementById('header-mascot-img');
-                        if (mascotImg) mascotImg.src = defaultMascot;
-                        // Update button name
-                        const nameSpan = document.getElementById('current-mascot-name');
-                        if (nameSpan) {
-                            const displayName = mascots[0].filename
-                                .replace(/\.[^/.]+$/, '')
-                                .replace(/-/g, ' ')
-                                .replace(/\b\w/g, c => c.toUpperCase());
-                            nameSpan.textContent = displayName;
-                        }
-                        // Update grid selection if visible
-                        document.querySelectorAll('.mascot-item').forEach(item => {
-                            item.classList.toggle('selected', item.dataset.url === defaultMascot);
-                        });
-                    }
-                });
-
-            showToast('Settings reset to defaults');
+            showToast('Behavior reset to defaults');
         });
     }
 }

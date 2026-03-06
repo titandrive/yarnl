@@ -3545,6 +3545,7 @@ body.global-drag-over #current::after {
 
 .counter-name input.is-main {
     color: var(--secondary-color);
+    font-weight: 800;
 }
 
 .counter-btn-settings {

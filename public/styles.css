@@ -307,8 +307,8 @@
     --upload-bg: #27272a;
 }
 
-/* Theme: Razer (Green) - Light */
-[data-theme="razer-light"] {
+/* Theme: Gamer (Green) - Light */
+[data-theme="gamer-light"] {
     --primary-color: #00ff00;
     --secondary-color: #22c55e;
     --danger-color: #ef4444;
@@ -327,8 +327,8 @@
     --upload-bg: #dcfce7;
 }
 
-/* Theme: Razer (Green) - Dark */
-[data-theme="razer-dark"] {
+/* Theme: Gamer (Green) - Dark */
+[data-theme="gamer-dark"] {
     --primary-color: #00ff00;
     --secondary-color: #22c55e;
     --danger-color: #ef4444;

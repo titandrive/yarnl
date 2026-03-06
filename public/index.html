@@ -37,7 +37,7 @@
                 document.documentElement.classList.add('in-settings');
             }
             var themeBase = theme.replace(/-(?:dark|light)$/, '');
-            if ('synthwave dracula midnight cyberpunk halloween sunset razer nuked'.indexOf(themeBase) !== -1 || localStorage.getItem('showHeaderThemeToggle') === 'false') {
+            if ('synthwave dracula midnight cyberpunk halloween sunset gamer nuked'.indexOf(themeBase) !== -1 || localStorage.getItem('showHeaderThemeToggle') === 'false') {
                 earlyStyles += '#header-theme-toggle{display:none!important}';
             }
             document.write('<style id="early-tab-style">' + earlyStyles + '</style>');

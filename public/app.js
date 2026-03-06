@@ -2774,7 +2774,7 @@ const THEME_DATA = {
         { id: 'cyberpunk', name: 'Cyberpink', primary: '#ff00ff', secondary: '#00f0ff' },
         { id: 'halloween', name: 'Halloween', primary: '#f97316', secondary: '#22c55e' },
         { id: 'sunset', name: 'Sunset', primary: '#fb923c', secondary: '#facc15' },
-        { id: 'razer', name: 'Razer', primary: '#00ff00', secondary: '#141414' },
+        { id: 'gamer', name: 'Gamer', primary: '#00ff00', secondary: '#141414' },
         { id: 'nuked', name: 'Nuked', primary: '#1aff80', secondary: '#10b860' },
     ]
 };

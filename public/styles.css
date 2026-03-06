@@ -4019,6 +4019,20 @@ body.global-drag-over #current::after {
     font-size: 0.7rem;
 }
 
+.mobile-edit-toggles {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mobile-edit-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
 .mobile-edit-repeat {
     display: flex;
     align-items: center;

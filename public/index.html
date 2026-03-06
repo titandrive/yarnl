@@ -2272,11 +2272,27 @@ Inc in each st around (12)
                         <button class="mobile-bar-edit-nav mobile-edit-next">›</button>
                     </div>
                     <input type="text" class="mobile-edit-name" placeholder="Counter name">
-                    <label class="mobile-edit-repeat">
-                        Repeat every
-                        <input type="number" class="mobile-edit-max-value" min="2" placeholder="—">
-                        rows
-                    </label>
+                    <div class="mobile-edit-toggles">
+                        <label class="mobile-edit-toggle-label">
+                            <span>Main</span>
+                            <div class="toggle-switch small">
+                                <input type="checkbox" class="mobile-edit-main">
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
+                        <label class="mobile-edit-toggle-label">
+                            <span>Repeat</span>
+                            <div class="toggle-switch small">
+                                <input type="checkbox" class="mobile-edit-repeat-toggle">
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
+                        <label class="mobile-edit-repeat" style="display: none;">
+                            every
+                            <input type="number" class="mobile-edit-max-value" min="2" placeholder="—">
+                            rows
+                        </label>
+                    </div>
                     <div class="mobile-bar-edit-actions">
                         <button class="mobile-bar-edit-btn mobile-edit-done">Done</button>
                         <button class="mobile-bar-edit-btn mobile-edit-add">Add</button>

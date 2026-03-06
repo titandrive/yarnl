@@ -10977,14 +10977,12 @@ function displayCounters() {
                     </div>
                 </label>
                 ${!counter.is_main && counters.some(c => c.is_main) ? `
-                <label class="counter-settings-toggle" onclick="event.stopPropagation()">
-                    <span>Unlink</span>
-                    <div class="toggle-switch small">
-                        <input type="checkbox" class="counter-unlink-toggle" ${counter.unlinked ? 'checked' : ''}
-                               onchange="toggleCounterUnlink(${counter.id}, this.checked)">
-                        <span class="toggle-slider"></span>
-                    </div>
-                </label>
+                <button class="counter-link-btn ${counter.unlinked ? 'unlinked' : ''}" onclick="event.stopPropagation(); toggleCounterUnlink(${counter.id}, !${counter.unlinked})" title="${counter.unlinked ? 'Click to link to main counter' : 'Click to unlink from main counter'}">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/>
+                        <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>
+                    </svg>
+                </button>
                 ` : ''}
                 <div class="counter-settings-repeat" style="display: ${counter.max_value ? 'flex' : 'none'};" onclick="event.stopPropagation()">
                     <button class="repeat-step" onclick="stepRepeatValue(${counter.id}, -1)">−</button>
@@ -11057,6 +11055,16 @@ async function toggleCounterUnlink(counterId, enabled) {
         if (response.ok) {
             const counter = counters.find(c => c.id === counterId);
             if (counter) counter.unlinked = enabled;
+            // Update button state in-place
+            const item = document.querySelector(`.counter-item[data-counter-id="${counterId}"]`);
+            if (item) {
+                const btn = item.querySelector('.counter-link-btn');
+                if (btn) {
+                    btn.classList.toggle('unlinked', enabled);
+                    btn.title = enabled ? 'Click to link to main counter' : 'Click to unlink from main counter';
+                    btn.setAttribute('onclick', `event.stopPropagation(); toggleCounterUnlink(${counterId}, ${!enabled})`);
+                }
+            }
         }
     } catch (error) {
         console.error('Error toggling counter unlink:', error);
@@ -11216,12 +11224,14 @@ const mobileBar = (() => {
                     mainLabel.title = otherIsMain ? `'${counters.find(c => c.is_main).name}' is already the main counter` : '';
                 }
             }
-            // Unlink toggle — show only on non-main counters when a main exists
-            const unlinkToggle = bar.querySelector('.mobile-edit-unlink');
-            const unlinkLabel = bar.querySelector('.mobile-edit-unlink-label');
+            // Unlink button — show only on non-main counters when a main exists
+            const unlinkBtn = bar.querySelector('.mobile-edit-unlink-btn');
             const showUnlink = !counter.is_main && counters.some(c => c.is_main);
-            if (unlinkLabel) unlinkLabel.style.display = showUnlink ? 'flex' : 'none';
-            if (unlinkToggle) unlinkToggle.checked = !!counter.unlinked;
+            if (unlinkBtn) {
+                unlinkBtn.style.display = showUnlink ? 'flex' : 'none';
+                unlinkBtn.classList.toggle('unlinked', !!counter.unlinked);
+                unlinkBtn.title = counter.unlinked ? 'Click to link to main counter' : 'Click to unlink from main counter';
+            }
             if (repeatToggle) repeatToggle.checked = !!counter.max_value;
             if (repeatLabel) repeatLabel.style.display = counter.max_value ? 'flex' : 'none';
             const posEl = bar.querySelector('.mobile-edit-pos');
@@ -11352,10 +11362,17 @@ const mobileBar = (() => {
                 if (counter) toggleCounterMain(counter.id, e.target.checked);
             });
 
-            // Unlink toggle — save immediately
-            bar.querySelector('.mobile-edit-unlink')?.addEventListener('change', (e) => {
+            // Unlink button — save immediately
+            bar.querySelector('.mobile-edit-unlink-btn')?.addEventListener('click', () => {
                 const counter = counters[currentIndex];
-                if (counter) toggleCounterUnlink(counter.id, e.target.checked);
+                if (counter) {
+                    toggleCounterUnlink(counter.id, !counter.unlinked);
+                    const btn = bar.querySelector('.mobile-edit-unlink-btn');
+                    if (btn) {
+                        btn.classList.toggle('unlinked', counter.unlinked);
+                        btn.title = counter.unlinked ? 'Click to link to main counter' : 'Click to unlink from main counter';
+                    }
+                }
             });
 
             // Repeat toggle shows/hides the repeat input

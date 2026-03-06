@@ -4779,7 +4779,7 @@ app.patch('/api/counters/:id', async (req, res) => {
       return res.status(403).json({ error: 'Not authorized to modify this counter' });
     }
 
-    const { value, name, max_value } = req.body;
+    const { value, name, max_value, is_main } = req.body;
     const updates = [];
     const values = [];
     let paramCount = 1;
@@ -4795,6 +4795,10 @@ app.patch('/api/counters/:id', async (req, res) => {
     if (max_value !== undefined) {
       updates.push(`max_value = $${paramCount++}`);
       values.push(max_value);
+    }
+    if (is_main !== undefined) {
+      updates.push(`is_main = $${paramCount++}`);
+      values.push(is_main);
     }
 
     if (updates.length === 0) {
@@ -4817,7 +4821,16 @@ app.patch('/api/counters/:id', async (req, res) => {
       return res.status(404).json({ error: 'Counter not found' });
     }
 
-    res.json(result.rows[0]);
+    // If setting as main, clear is_main on all other counters for this pattern
+    const updated = result.rows[0];
+    if (is_main === true) {
+      await pool.query(
+        'UPDATE counters SET is_main = false WHERE pattern_id = $1 AND id != $2',
+        [updated.pattern_id, updated.id]
+      );
+    }
+
+    res.json(updated);
   } catch (error) {
     console.error('Error updating counter:', error);
     res.status(500).json({ error: error.message });
@@ -4845,7 +4858,26 @@ app.post('/api/counters/:id/increment', async (req, res) => {
       [req.params.id]
     );
 
-    res.json(result.rows[0]);
+    const updated = result.rows[0];
+    let mainCounter = null;
+
+    // If this is not the main counter, also increment the main counter
+    if (!updated.is_main) {
+      const mainResult = await pool.query(
+        `UPDATE counters
+         SET value = CASE
+           WHEN max_value IS NOT NULL AND value >= max_value THEN 1
+           ELSE value + 1
+         END,
+         updated_at = CURRENT_TIMESTAMP
+         WHERE pattern_id = $1 AND is_main = true AND id != $2
+         RETURNING *`,
+        [updated.pattern_id, updated.id]
+      );
+      if (mainResult.rows.length > 0) mainCounter = mainResult.rows[0];
+    }
+
+    res.json({ counter: updated, main_counter: mainCounter });
   } catch (error) {
     console.error('Error incrementing counter:', error);
     res.status(500).json({ error: error.message });
@@ -4869,7 +4901,22 @@ app.post('/api/counters/:id/decrement', async (req, res) => {
       [req.params.id]
     );
 
-    res.json(result.rows[0]);
+    const updated = result.rows[0];
+    let mainCounter = null;
+
+    // If this is not the main counter, also decrement the main counter
+    if (!updated.is_main) {
+      const mainResult = await pool.query(
+        `UPDATE counters
+         SET value = GREATEST(value - 1, 0), updated_at = CURRENT_TIMESTAMP
+         WHERE pattern_id = $1 AND is_main = true AND id != $2
+         RETURNING *`,
+        [updated.pattern_id, updated.id]
+      );
+      if (mainResult.rows.length > 0) mainCounter = mainResult.rows[0];
+    }
+
+    res.json({ counter: updated, main_counter: mainCounter });
   } catch (error) {
     console.error('Error decrementing counter:', error);
     res.status(500).json({ error: error.message });

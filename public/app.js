@@ -10937,6 +10937,7 @@ function displayCounters() {
                        onclick="event.stopPropagation(); selectCounter(${counter.id})"
                        onfocus="selectCounter(${counter.id})"
                        placeholder="Counter name">
+                ${counter.is_main ? '<span class="counter-main-badge">Main</span>' : ''}
             </div>
             <div class="counter-main">
                 <div class="counter-value">${counter.value}${counter.max_value ? `<span class="counter-max"> / ${counter.max_value}</span>` : ''}</div>
@@ -10958,6 +10959,14 @@ function displayCounters() {
                 </div>
             </div>
             <div class="counter-settings-pane" style="display: none;">
+                <label class="counter-settings-toggle" onclick="event.stopPropagation()">
+                    <span>Main</span>
+                    <div class="toggle-switch small">
+                        <input type="checkbox" class="counter-main-toggle" ${counter.is_main ? 'checked' : ''}
+                               onchange="toggleCounterMain(${counter.id}, this.checked)">
+                        <span class="toggle-slider"></span>
+                    </div>
+                </label>
                 <label class="counter-settings-toggle" onclick="event.stopPropagation()">
                     <span>Repeat</span>
                     <div class="toggle-switch small">
@@ -11001,6 +11010,25 @@ function toggleCounterSettings(counterId) {
     });
     main.style.display = showing ? 'none' : '';
     pane.style.display = showing ? '' : 'none';
+}
+
+async function toggleCounterMain(counterId, enabled) {
+    try {
+        const response = await fetch(`${API_URL}/api/counters/${counterId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_main: enabled })
+        });
+        if (response.ok) {
+            // Clear is_main on all counters locally, then set on this one
+            counters.forEach(c => c.is_main = false);
+            const counter = counters.find(c => c.id === counterId);
+            if (counter) counter.is_main = enabled;
+            displayCounters();
+        }
+    } catch (error) {
+        console.error('Error toggling main counter:', error);
+    }
 }
 
 function toggleCounterRepeat(counterId, enabled) {
@@ -11349,11 +11377,19 @@ async function incrementCounter(counterId) {
         });
 
         if (response.ok) {
-            const updated = await response.json();
+            const data = await response.json();
+            const updated = data.counter || data;
             const counter = counters.find(c => c.id === counterId);
             if (counter) {
                 counter.value = updated.value;
                 updateCounterDisplay(counterId);
+            }
+            if (data.main_counter) {
+                const main = counters.find(c => c.id === data.main_counter.id);
+                if (main) {
+                    main.value = data.main_counter.value;
+                    updateCounterDisplay(main.id);
+                }
             }
         }
     } catch (error) {
@@ -11369,11 +11405,19 @@ async function decrementCounter(counterId) {
         });
 
         if (response.ok) {
-            const updated = await response.json();
+            const data = await response.json();
+            const updated = data.counter || data;
             const counter = counters.find(c => c.id === counterId);
             if (counter) {
                 counter.value = updated.value;
                 updateCounterDisplay(counterId);
+            }
+            if (data.main_counter) {
+                const main = counters.find(c => c.id === data.main_counter.id);
+                if (main) {
+                    main.value = data.main_counter.value;
+                    updateCounterDisplay(main.id);
+                }
             }
         }
     } catch (error) {

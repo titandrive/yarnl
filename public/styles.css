@@ -3541,6 +3541,14 @@ body.global-drag-over #current::after {
     color: var(--text-muted);
 }
 
+.counter-main-badge {
+    font-size: 0.6rem;
+    font-weight: 600;
+    color: var(--primary-color);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 .counter-btn-settings {
     background: var(--text-muted);
     color: white;

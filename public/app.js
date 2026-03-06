@@ -11149,11 +11149,17 @@ const mobileBar = (() => {
         if (!bar) return;
         const editPanel = bar.querySelector('.mobile-bar-edit');
         const maxValueInput = bar.querySelector('.mobile-edit-max-value');
+        const mainToggle = bar.querySelector('.mobile-edit-main');
+        const repeatToggle = bar.querySelector('.mobile-edit-repeat-toggle');
+        const repeatLabel = bar.querySelector('.mobile-edit-repeat');
         if (show) {
             const counter = counters[currentIndex];
             if (!counter) return;
             bar.querySelector('.mobile-edit-name').value = counter.name || '';
             if (maxValueInput) maxValueInput.value = counter.max_value || '';
+            if (mainToggle) mainToggle.checked = !!counter.is_main;
+            if (repeatToggle) repeatToggle.checked = !!counter.max_value;
+            if (repeatLabel) repeatLabel.style.display = counter.max_value ? 'flex' : 'none';
             bar.querySelector('.mobile-edit-pos').textContent = `${currentIndex + 1} / ${counters.length}`;
             editPanel.style.display = '';
         } else {
@@ -11171,6 +11177,10 @@ const mobileBar = (() => {
                     if (newMax !== counter.max_value) {
                         updateCounterMaxValue(counter.id, maxValueInput.value);
                     }
+                }
+                // Save is_main if changed
+                if (mainToggle && mainToggle.checked !== !!counter.is_main) {
+                    toggleCounterMain(counter.id, mainToggle.checked);
                 }
             }
             editPanel.style.display = 'none';
@@ -11273,6 +11283,17 @@ const mobileBar = (() => {
 
             // Edit panel
             bar.querySelector('.mobile-edit-done').addEventListener('click', () => toggleEdit(false));
+
+            // Repeat toggle shows/hides the repeat input
+            const mobileRepeatToggle = bar.querySelector('.mobile-edit-repeat-toggle');
+            const mobileRepeatLabel = bar.querySelector('.mobile-edit-repeat');
+            const mobileMaxInput = bar.querySelector('.mobile-edit-max-value');
+            if (mobileRepeatToggle) {
+                mobileRepeatToggle.addEventListener('change', () => {
+                    if (mobileRepeatLabel) mobileRepeatLabel.style.display = mobileRepeatToggle.checked ? 'flex' : 'none';
+                    if (!mobileRepeatToggle.checked && mobileMaxInput) mobileMaxInput.value = '';
+                });
+            }
             bar.querySelector('.mobile-edit-add').addEventListener('click', async () => {
                 await addCounter('Counter');
                 toggleEdit(false);
@@ -11491,14 +11512,18 @@ function handleCounterDelete(event, counterId) {
 
     if (btn.classList.contains('confirming')) {
         btn.classList.remove('confirming');
+        btn.textContent = 'Delete';
         deleteCounter(counterId);
     } else {
         document.querySelectorAll('.counter-btn-reset.confirming, .counter-btn-delete.confirming, .counter-settings-delete.confirming').forEach(b => {
             b.classList.remove('confirming');
+            if (b.classList.contains('counter-settings-delete')) b.textContent = 'Delete';
         });
         btn.classList.add('confirming');
+        btn.textContent = 'Confirm?';
         setTimeout(() => {
             btn.classList.remove('confirming');
+            btn.textContent = 'Delete';
         }, 3000);
     }
 }

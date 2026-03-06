@@ -29,9 +29,6 @@ backups/
 claude-log.md
 API.md
 
-# Local notes
-release-notes.md
-
 # OS / editor
 .DS_Store
 .idea/

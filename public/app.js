@@ -11427,14 +11427,15 @@ const mobileBar = (() => {
             });
 
             // Unlink button — save immediately
-            bar.querySelector('.mobile-edit-unlink-btn')?.addEventListener('click', () => {
+            bar.querySelector('.mobile-edit-unlink-btn')?.addEventListener('click', async () => {
                 const counter = counters[currentIndex];
                 if (counter) {
-                    toggleCounterUnlink(counter.id, !counter.unlinked);
+                    const newState = !counter.unlinked;
+                    await toggleCounterUnlink(counter.id, newState);
                     const btn = bar.querySelector('.mobile-edit-unlink-btn');
                     if (btn) {
-                        btn.classList.toggle('unlinked', counter.unlinked);
-                        btn.title = counter.unlinked ? 'Click to link to main counter' : 'Click to unlink from main counter';
+                        btn.classList.toggle('unlinked', newState);
+                        btn.title = newState ? 'Click to link to main counter' : 'Click to unlink from main counter';
                     }
                 }
             });

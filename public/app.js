@@ -11380,15 +11380,18 @@ const mobileBar = (() => {
     function nav(delta) {
         const carousel = getCarouselCounters();
         if (carousel.length <= 1) return;
+        const prevIndex = currentIndex;
         currentIndex = (currentIndex + delta + carousel.length) % carousel.length;
         lastUsedCounterId = carousel[currentIndex].id;
         displayCounters();
-        // Scroll to the card
+        // Scroll to the card — instant when wrapping around, smooth otherwise
         const bar = document.getElementById('mobile-bottom-bar');
         const cardsContainer = bar?.querySelector('.mobile-counter-cards');
         if (cardsContainer) {
+            const wrapping = (prevIndex === 0 && currentIndex === carousel.length - 1) ||
+                             (prevIndex === carousel.length - 1 && currentIndex === 0);
             const cardWidth = cardsContainer.offsetWidth;
-            cardsContainer.scrollTo({ left: currentIndex * cardWidth, behavior: 'smooth' });
+            cardsContainer.scrollTo({ left: currentIndex * cardWidth, behavior: wrapping ? 'instant' : 'smooth' });
         }
         update();
     }

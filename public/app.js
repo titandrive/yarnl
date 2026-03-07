@@ -11195,7 +11195,7 @@ function selectCounter(counterId) {
 const mobileBar = (() => {
     let currentIndex = 0;
     let editingCounterId = null;
-    let isWrapping = false;
+    let isResetting = false;
 
     function isMobile() {
         return window.matchMedia('(max-width: 768px), (max-height: 500px) and (max-width: 1024px)').matches;
@@ -11309,7 +11309,7 @@ const mobileBar = (() => {
             }
         }
 
-        // --- Render carousel counters ---
+        // --- Render carousel counters (infinite 3-card layout) ---
         if (carousel.length > 0) {
             if (counterSection) counterSection.style.display = '';
 
@@ -11323,18 +11323,47 @@ const mobileBar = (() => {
 
             const cardsContainer = bar.querySelector('.mobile-counter-cards');
             if (cardsContainer) {
-                const existingCards = cardsContainer.querySelectorAll('.mobile-counter-card');
-                const needsFullRender = existingCards.length !== carousel.length ||
-                    carousel.some((c, i) => existingCards[i]?.dataset.counterId != c.id);
-
-                if (needsFullRender) {
-                    cardsContainer.innerHTML = carousel.map(c =>
-                        renderCounterHTML(c, 'mobile-counter-card', 'mobile-counter-card-label')
-                    ).join('');
-                    const cardWidth = cardsContainer.offsetWidth;
-                    cardsContainer.scrollLeft = currentIndex * cardWidth;
+                if (carousel.length === 1) {
+                    // Single card — no scrolling
+                    const existing = cardsContainer.querySelector('.mobile-counter-card');
+                    if (!existing || existing.dataset.counterId != carousel[0].id) {
+                        cardsContainer.innerHTML = renderCounterHTML(carousel[0], 'mobile-counter-card', 'mobile-counter-card-label');
+                    } else {
+                        updateCounterInPlace(cardsContainer, carousel[0], '.mobile-counter-card');
+                    }
                 } else {
-                    carousel.forEach(c => updateCounterInPlace(cardsContainer, c, '.mobile-counter-card'));
+                    // Render 3 cards: [prev, current, next] for infinite scroll
+                    const prevIdx = (currentIndex - 1 + carousel.length) % carousel.length;
+                    const nextIdx = (currentIndex + 1) % carousel.length;
+                    const triple = [carousel[prevIdx], carousel[currentIndex], carousel[nextIdx]];
+
+                    const existingCards = cardsContainer.querySelectorAll('.mobile-counter-card');
+                    const needsRender = existingCards.length !== 3 ||
+                        triple.some((c, i) => existingCards[i]?.dataset.counterId != c.id);
+
+                    if (needsRender) {
+                        isResetting = true;
+                        cardsContainer.innerHTML = triple.map(c =>
+                            renderCounterHTML(c, 'mobile-counter-card', 'mobile-counter-card-label')
+                        ).join('');
+                        const cardWidth = cardsContainer.offsetWidth;
+                        cardsContainer.scrollLeft = cardWidth; // center card
+                        requestAnimationFrame(() => { isResetting = false; });
+                    } else {
+                        // In-place update by position (handles duplicate IDs for 2-card case)
+                        existingCards.forEach((card, i) => {
+                            const counter = triple[i];
+                            const nameEl = card.querySelector('.mobile-counter-name');
+                            const valEl = card.querySelector('.mobile-counter-value');
+                            if (nameEl) {
+                                nameEl.textContent = counter.name || 'Counter';
+                                nameEl.style.color = counter.is_main ? 'var(--secondary-color)' : '';
+                            }
+                            if (valEl) valEl.innerHTML = counter.max_value
+                                ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>`
+                                : counter.value;
+                        });
+                    }
                 }
             }
 
@@ -11381,61 +11410,12 @@ const mobileBar = (() => {
     function nav(delta) {
         const carousel = getCarouselCounters();
         if (carousel.length <= 1) return;
-        const prevIndex = currentIndex;
-        currentIndex = (currentIndex + delta + carousel.length) % carousel.length;
-        lastUsedCounterId = carousel[currentIndex].id;
-        displayCounters();
-
         const bar = document.getElementById('mobile-bottom-bar');
         const cardsContainer = bar?.querySelector('.mobile-counter-cards');
-        if (!cardsContainer) { update(); return; }
-
+        if (!cardsContainer) return;
         const cardWidth = cardsContainer.offsetWidth;
-        const wrapping = (prevIndex === 0 && currentIndex === carousel.length - 1) ||
-                         (prevIndex === carousel.length - 1 && currentIndex === 0);
-
-        if (!wrapping) {
-            cardsContainer.scrollTo({ left: currentIndex * cardWidth, behavior: 'smooth' });
-            update();
-            return;
-        }
-
-        // Wrap animation: clone target card adjacent, animate one step, then snap
-        isWrapping = true;
-
-        const cleanup = (clone, finalScroll) => {
-            clone.remove();
-            cardsContainer.style.scrollSnapType = '';
-            cardsContainer.scrollLeft = finalScroll;
-            isWrapping = false;
-        };
-
-        // Disable snap during animation so clone position works
-        cardsContainer.style.scrollSnapType = 'none';
-
-        if (delta < 0) {
-            // Backward wrap: first → last — clone last card before first
-            const lastCard = cardsContainer.lastElementChild;
-            const clone = lastCard.cloneNode(true);
-            cardsContainer.prepend(clone);
-            cardsContainer.scrollLeft = cardWidth; // keep showing current card
-            cardsContainer.scrollTo({ left: 0, behavior: 'smooth' });
-            const finalScroll = (carousel.length - 1) * cardWidth;
-            const onEnd = () => { cleanup(clone, finalScroll); cardsContainer.removeEventListener('scrollend', onEnd); };
-            cardsContainer.addEventListener('scrollend', onEnd, { once: true });
-            setTimeout(() => { if (isWrapping) cleanup(clone, finalScroll); }, 400);
-        } else {
-            // Forward wrap: last → first — clone first card after last
-            const firstCard = cardsContainer.firstElementChild;
-            const clone = firstCard.cloneNode(true);
-            cardsContainer.append(clone);
-            cardsContainer.scrollTo({ left: carousel.length * cardWidth, behavior: 'smooth' });
-            const onEnd = () => { cleanup(clone, 0); cardsContainer.removeEventListener('scrollend', onEnd); };
-            cardsContainer.addEventListener('scrollend', onEnd, { once: true });
-            setTimeout(() => { if (isWrapping) cleanup(clone, 0); }, 400);
-        }
-
-        update();
+        // Scroll to prev (pos 0) or next (pos 2) — scroll handler updates state after
+        cardsContainer.scrollTo({ left: (delta < 0 ? 0 : 2) * cardWidth, behavior: 'smooth' });
     }
 
     function getEditingCounter() {
@@ -11585,74 +11565,51 @@ const mobileBar = (() => {
                 update();
             });
 
-            // Counter arrow navigation
-            bar.querySelector('.mobile-counter-prev').addEventListener('click', () => {
-                nav(-1);
-                const carousel = getCarouselCounters();
-                if (carousel[currentIndex]) editingCounterId = carousel[currentIndex].id;
-                const editPanel = bar.querySelector('.mobile-bar-edit');
-                if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
-            });
-            bar.querySelector('.mobile-counter-next').addEventListener('click', () => {
-                nav(1);
-                const carousel = getCarouselCounters();
-                if (carousel[currentIndex]) editingCounterId = carousel[currentIndex].id;
-                const editPanel = bar.querySelector('.mobile-bar-edit');
-                if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
-            });
+            // Counter arrow navigation — scroll handler updates state after animation
+            bar.querySelector('.mobile-counter-prev').addEventListener('click', () => nav(-1));
+            bar.querySelector('.mobile-counter-next').addEventListener('click', () => nav(1));
 
             // Scroll-snap sync — detect which card is snapped after swipe
             const cardsContainer = bar.querySelector('.mobile-counter-cards');
             if (cardsContainer) {
-                let scrollTimeout;
+                // Update dots eagerly during scroll (no delay)
+                const dotsContainer = bar.querySelector('.mobile-counter-dots');
                 cardsContainer.addEventListener('scroll', () => {
-                    clearTimeout(scrollTimeout);
-                    scrollTimeout = setTimeout(() => {
-                        if (isWrapping) return;
-                        const carousel = getCarouselCounters();
-                        const cardWidth = cardsContainer.offsetWidth;
-                        if (cardWidth === 0) return;
-                        const newIndex = Math.round(cardsContainer.scrollLeft / cardWidth);
-                        if (newIndex !== currentIndex && newIndex >= 0 && newIndex < carousel.length) {
-                            currentIndex = newIndex;
-                            lastUsedCounterId = carousel[currentIndex].id;
-                            editingCounterId = carousel[currentIndex].id;
-                            displayCounters();
-                            update();
-                            const editPanel = bar.querySelector('.mobile-bar-edit');
-                            if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
-                        }
-                    }, 50);
+                    if (isResetting) return;
+                    const carousel = getCarouselCounters();
+                    if (carousel.length <= 1 || !dotsContainer) return;
+                    const cardWidth = cardsContainer.offsetWidth;
+                    if (cardWidth === 0) return;
+                    const pos = cardsContainer.scrollLeft / cardWidth;
+                    let targetIndex = currentIndex;
+                    if (pos < 0.5) targetIndex = (currentIndex - 1 + carousel.length) % carousel.length;
+                    else if (pos > 1.5) targetIndex = (currentIndex + 1) % carousel.length;
+                    dotsContainer.querySelectorAll('.mobile-counter-dot').forEach((dot, i) => {
+                        dot.classList.toggle('active', i === targetIndex);
+                    });
                 }, { passive: true });
 
-                // Wrap-around: swipe past first/last card wraps to other end
-                let touchStartX = 0;
-                cardsContainer.addEventListener('touchstart', (e) => {
-                    touchStartX = e.touches[0].clientX;
-                }, { passive: true });
-                cardsContainer.addEventListener('touchend', (e) => {
+                // Re-render cards when scroll settles
+                cardsContainer.addEventListener('scrollend', () => {
+                    if (isResetting) return;
                     const carousel = getCarouselCounters();
                     if (carousel.length <= 1) return;
-                    const dx = e.changedTouches[0].clientX - touchStartX;
-                    const swipeThreshold = 50;
-                    if (Math.abs(dx) < swipeThreshold) return;
-                    const atStart = cardsContainer.scrollLeft <= 0;
                     const cardWidth = cardsContainer.offsetWidth;
-                    const atEnd = cardsContainer.scrollLeft >= cardWidth * (carousel.length - 1) - 1;
-                    if (dx > 0 && atStart) {
-                        // Swiped right at first card → go to last
-                        nav(- 1);
-                        editingCounterId = carousel[currentIndex]?.id;
-                        const editPanel = bar.querySelector('.mobile-bar-edit');
-                        if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
-                    } else if (dx < 0 && atEnd) {
-                        // Swiped left at last card → go to first
-                        nav(1);
-                        editingCounterId = carousel[currentIndex]?.id;
-                        const editPanel = bar.querySelector('.mobile-bar-edit');
-                        if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
+                    if (cardWidth === 0) return;
+                    const pos = Math.round(cardsContainer.scrollLeft / cardWidth);
+                    if (pos === 1) return;
+                    if (pos === 0) {
+                        currentIndex = (currentIndex - 1 + carousel.length) % carousel.length;
+                    } else if (pos >= 2) {
+                        currentIndex = (currentIndex + 1) % carousel.length;
                     }
-                }, { passive: true });
+                    lastUsedCounterId = carousel[currentIndex].id;
+                    editingCounterId = carousel[currentIndex].id;
+                    displayCounters();
+                    update();
+                    const editPanel = bar.querySelector('.mobile-bar-edit');
+                    if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
+                });
             }
 
             // Counter inc/dec + label tap via event delegation (carousel cards)

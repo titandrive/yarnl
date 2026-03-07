@@ -11195,6 +11195,7 @@ function selectCounter(counterId) {
 const mobileBar = (() => {
     let currentIndex = 0;
     let editingCounterId = null;
+    let isWrapping = false;
 
     function isMobile() {
         return window.matchMedia('(max-width: 768px), (max-height: 500px) and (max-width: 1024px)').matches;
@@ -11384,15 +11385,56 @@ const mobileBar = (() => {
         currentIndex = (currentIndex + delta + carousel.length) % carousel.length;
         lastUsedCounterId = carousel[currentIndex].id;
         displayCounters();
-        // Scroll to the card — instant when wrapping around, smooth otherwise
+
         const bar = document.getElementById('mobile-bottom-bar');
         const cardsContainer = bar?.querySelector('.mobile-counter-cards');
-        if (cardsContainer) {
-            const wrapping = (prevIndex === 0 && currentIndex === carousel.length - 1) ||
-                             (prevIndex === carousel.length - 1 && currentIndex === 0);
-            const cardWidth = cardsContainer.offsetWidth;
-            cardsContainer.scrollTo({ left: currentIndex * cardWidth, behavior: wrapping ? 'instant' : 'smooth' });
+        if (!cardsContainer) { update(); return; }
+
+        const cardWidth = cardsContainer.offsetWidth;
+        const wrapping = (prevIndex === 0 && currentIndex === carousel.length - 1) ||
+                         (prevIndex === carousel.length - 1 && currentIndex === 0);
+
+        if (!wrapping) {
+            cardsContainer.scrollTo({ left: currentIndex * cardWidth, behavior: 'smooth' });
+            update();
+            return;
         }
+
+        // Wrap animation: clone target card adjacent, animate one step, then snap
+        isWrapping = true;
+
+        const cleanup = (clone, finalScroll) => {
+            clone.remove();
+            cardsContainer.style.scrollSnapType = '';
+            cardsContainer.scrollLeft = finalScroll;
+            isWrapping = false;
+        };
+
+        // Disable snap during animation so clone position works
+        cardsContainer.style.scrollSnapType = 'none';
+
+        if (delta < 0) {
+            // Backward wrap: first → last — clone last card before first
+            const lastCard = cardsContainer.lastElementChild;
+            const clone = lastCard.cloneNode(true);
+            cardsContainer.prepend(clone);
+            cardsContainer.scrollLeft = cardWidth; // keep showing current card
+            cardsContainer.scrollTo({ left: 0, behavior: 'smooth' });
+            const finalScroll = (carousel.length - 1) * cardWidth;
+            const onEnd = () => { cleanup(clone, finalScroll); cardsContainer.removeEventListener('scrollend', onEnd); };
+            cardsContainer.addEventListener('scrollend', onEnd, { once: true });
+            setTimeout(() => { if (isWrapping) cleanup(clone, finalScroll); }, 400);
+        } else {
+            // Forward wrap: last → first — clone first card after last
+            const firstCard = cardsContainer.firstElementChild;
+            const clone = firstCard.cloneNode(true);
+            cardsContainer.append(clone);
+            cardsContainer.scrollTo({ left: carousel.length * cardWidth, behavior: 'smooth' });
+            const onEnd = () => { cleanup(clone, 0); cardsContainer.removeEventListener('scrollend', onEnd); };
+            cardsContainer.addEventListener('scrollend', onEnd, { once: true });
+            setTimeout(() => { if (isWrapping) cleanup(clone, 0); }, 400);
+        }
+
         update();
     }
 
@@ -11566,6 +11608,7 @@ const mobileBar = (() => {
                 cardsContainer.addEventListener('scroll', () => {
                     clearTimeout(scrollTimeout);
                     scrollTimeout = setTimeout(() => {
+                        if (isWrapping) return;
                         const carousel = getCarouselCounters();
                         const cardWidth = cardsContainer.offsetWidth;
                         if (cardWidth === 0) return;

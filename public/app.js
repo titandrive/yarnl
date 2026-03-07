@@ -11578,6 +11578,35 @@ const mobileBar = (() => {
                         }
                     }, 50);
                 }, { passive: true });
+
+                // Wrap-around: swipe past first/last card wraps to other end
+                let touchStartX = 0;
+                cardsContainer.addEventListener('touchstart', (e) => {
+                    touchStartX = e.touches[0].clientX;
+                }, { passive: true });
+                cardsContainer.addEventListener('touchend', (e) => {
+                    const carousel = getCarouselCounters();
+                    if (carousel.length <= 1) return;
+                    const dx = e.changedTouches[0].clientX - touchStartX;
+                    const swipeThreshold = 50;
+                    if (Math.abs(dx) < swipeThreshold) return;
+                    const atStart = cardsContainer.scrollLeft <= 0;
+                    const cardWidth = cardsContainer.offsetWidth;
+                    const atEnd = cardsContainer.scrollLeft >= cardWidth * (carousel.length - 1) - 1;
+                    if (dx > 0 && atStart) {
+                        // Swiped right at first card → go to last
+                        nav(- 1);
+                        editingCounterId = carousel[currentIndex]?.id;
+                        const editPanel = bar.querySelector('.mobile-bar-edit');
+                        if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
+                    } else if (dx < 0 && atEnd) {
+                        // Swiped left at last card → go to first
+                        nav(1);
+                        editingCounterId = carousel[currentIndex]?.id;
+                        const editPanel = bar.querySelector('.mobile-bar-edit');
+                        if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
+                    }
+                }, { passive: true });
             }
 
             // Counter inc/dec + label tap via event delegation (carousel cards)

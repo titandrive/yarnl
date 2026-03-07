@@ -56,7 +56,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=217">
+    <link rel="stylesheet" href="styles.css?v=218">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -2269,25 +2269,28 @@ Inc in each st around (12)
 
             <!-- Mobile Bottom Bar (visible only on mobile) -->
             <div id="mobile-bottom-bar" class="mobile-bottom-bar">
-                <button class="mobile-bar-btn mobile-page-prev" title="Previous page">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="15 18 9 12 15 6"></polyline>
-                    </svg>
-                </button>
-                <button class="mobile-bar-btn mobile-counter-add" style="display:none" title="Add counter">+</button>
-                <div class="mobile-bar-counter">
-                    <button class="mobile-bar-nav mobile-counter-prev">‹</button>
-                    <div class="mobile-counter-cards">
-                        <!-- Cards populated dynamically by JS -->
+                <div class="mobile-pinned-counters"></div>
+                <div class="mobile-bar-row">
+                    <button class="mobile-bar-btn mobile-page-prev" title="Previous page">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="15 18 9 12 15 6"></polyline>
+                        </svg>
+                    </button>
+                    <button class="mobile-bar-btn mobile-counter-add" style="display:none" title="Add counter">+</button>
+                    <div class="mobile-bar-counter">
+                        <button class="mobile-bar-nav mobile-counter-prev">‹</button>
+                        <div class="mobile-counter-cards">
+                            <!-- Cards populated dynamically by JS -->
+                        </div>
+                        <button class="mobile-bar-nav mobile-counter-next">›</button>
                     </div>
-                    <button class="mobile-bar-nav mobile-counter-next">›</button>
+                    <button class="mobile-bar-btn mobile-page-next" title="Next page">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="9 6 15 12 9 18"></polyline>
+                        </svg>
+                    </button>
                 </div>
                 <div class="mobile-counter-dots"></div>
-                <button class="mobile-bar-btn mobile-page-next" title="Next page">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="9 6 15 12 9 18"></polyline>
-                    </svg>
-                </button>
                 <!-- Counter Edit Panel (slides up) -->
                 <div class="mobile-bar-edit" style="display: none;">
                     <span class="mobile-edit-pos"></span>
@@ -2322,6 +2325,14 @@ Inc in each st around (12)
                     </div>
                     <div class="mobile-bar-edit-actions">
                         <button class="mobile-bar-edit-btn mobile-edit-done">Done</button>
+                        <button class="mobile-bar-edit-btn mobile-bar-edit-btn-small mobile-edit-pin" title="Pin counter above">
+                            <svg class="pin-maximize" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+                            </svg>
+                            <svg class="pin-minimize" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="4 14 10 14 10 20"/><polyline points="20 10 14 10 14 4"/><line x1="14" y1="10" x2="21" y2="3"/><line x1="3" y1="21" x2="10" y2="14"/>
+                            </svg>
+                        </button>
                         <button class="mobile-bar-edit-btn mobile-edit-add">Add</button>
                         <button class="mobile-bar-edit-btn mobile-bar-edit-btn-small mobile-edit-reset">Reset</button>
                         <button class="mobile-bar-edit-btn mobile-bar-edit-btn-small mobile-edit-delete">Delete</button>
@@ -2947,6 +2958,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=187"></script>
+    <script defer src="app.js?v=188"></script>
 </body>
 </html>

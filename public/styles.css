@@ -3902,13 +3902,6 @@ body.global-drag-over #current::after {
     opacity: 0.7;
 }
 
-.mobile-bar-nav.pressed {
-    transform: scale(0.85);
-    color: var(--primary-color);
-    background: rgba(255, 255, 255, 0.15);
-    border-radius: 4px;
-}
-
 
 .mobile-bar-btn:disabled {
     opacity: 0.3;
@@ -3925,17 +3918,38 @@ body.global-drag-over #current::after {
     display: flex;
     align-items: center;
     flex: 1;
+    min-width: 0;
+    gap: 4px;
+}
+
+.mobile-counter-cards {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    flex: 1;
+    min-width: 0;
+}
+
+.mobile-counter-cards::-webkit-scrollbar {
+    display: none;
+}
+
+.mobile-counter-card {
+    scroll-snap-align: center;
+    flex: 0 0 100%;
+    display: flex;
+    align-items: center;
     justify-content: center;
     gap: 4px;
 }
 
-.mobile-bar-counter-label {
+.mobile-counter-card-label {
     display: flex;
     flex-direction: column;
     align-items: center;
     min-width: 64px;
-    flex-shrink: 0;
-    overflow: hidden;
     cursor: pointer;
 }
 
@@ -3961,16 +3975,6 @@ body.global-drag-over #current::after {
     white-space: nowrap;
 }
 
-.mobile-counter-dec {
-    background: #6b7280;
-    color: white;
-}
-
-.mobile-counter-inc {
-    background: var(--primary-color);
-    color: white;
-}
-
 .mobile-bar-nav {
     background: none;
     border: none;
@@ -3980,6 +3984,8 @@ body.global-drag-over #current::after {
     cursor: pointer;
     padding: 4px 8px;
     line-height: 1;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
 }
 
 .mobile-bar-nav:active {
@@ -3988,6 +3994,45 @@ body.global-drag-over #current::after {
 
 .mobile-bar-nav.hidden {
     display: none;
+}
+
+.mobile-counter-dots {
+    display: none;
+    justify-content: center;
+    gap: 4px;
+    position: absolute;
+    bottom: 2px;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+}
+
+.mobile-counter-dots.visible {
+    display: flex;
+}
+
+.mobile-counter-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: var(--text-muted);
+    opacity: 0.3;
+    transition: opacity 0.2s;
+}
+
+.mobile-counter-dot.active {
+    opacity: 1;
+    background: var(--primary-color);
+}
+
+.mobile-counter-dec {
+    background: #6b7280;
+    color: white;
+}
+
+.mobile-counter-inc {
+    background: var(--primary-color);
+    color: white;
 }
 
 /* Bottom bar edit panel */

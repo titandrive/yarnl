@@ -3928,6 +3928,7 @@ body.global-drag-over #current::after {
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
+    touch-action: pan-x;
     flex: 1;
     min-width: 0;
 }

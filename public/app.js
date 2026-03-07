@@ -11206,11 +11206,13 @@ const mobileBar = (() => {
         const counterSection = bar.querySelector('.mobile-bar-counter');
         const addBtn = bar.querySelector('.mobile-counter-add');
         const divider = bar.querySelector('.mobile-bar-divider');
+        const dotsContainer = bar.querySelector('.mobile-counter-dots');
 
         if (counters.length === 0) {
             if (counterSection) counterSection.style.display = 'none';
             if (addBtn) addBtn.style.display = '';
             if (divider) divider.style.display = 'none';
+            if (dotsContainer) dotsContainer.classList.remove('visible');
             return;
         }
 
@@ -11226,18 +11228,61 @@ const mobileBar = (() => {
         const activeIdx = counters.findIndex(c => c.id === lastUsedCounterId);
         if (activeIdx >= 0) currentIndex = activeIdx;
 
-        const counter = counters[currentIndex];
+        // Render or update counter cards
+        const cardsContainer = bar.querySelector('.mobile-counter-cards');
+        if (cardsContainer) {
+            const existingCards = cardsContainer.querySelectorAll('.mobile-counter-card');
+            const needsFullRender = existingCards.length !== counters.length ||
+                counters.some((c, i) => existingCards[i]?.dataset.counterId != c.id);
 
-        const nameEl = bar.querySelector('.mobile-counter-name');
-        nameEl.textContent = counter.name || 'Counter';
-        nameEl.style.color = counter.is_main ? 'var(--secondary-color)' : '';
-        bar.querySelector('.mobile-counter-value').innerHTML = counter.max_value ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>` : counter.value;
+            if (needsFullRender) {
+                cardsContainer.innerHTML = counters.map(counter => `
+                    <div class="mobile-counter-card" data-counter-id="${counter.id}">
+                        <div class="mobile-bar-btn mobile-counter-dec">−</div>
+                        <div class="mobile-counter-card-label">
+                            <span class="mobile-counter-name" style="${counter.is_main ? 'color: var(--secondary-color)' : ''}">${escapeHtml(counter.name || 'Counter')}</span>
+                            <span class="mobile-counter-value">${counter.max_value ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>` : counter.value}</span>
+                        </div>
+                        <div class="mobile-bar-btn mobile-counter-inc">+</div>
+                    </div>
+                `).join('');
+                // Scroll to current card without triggering scroll handler
+                const cardWidth = cardsContainer.offsetWidth;
+                cardsContainer.scrollLeft = currentIndex * cardWidth;
+            } else {
+                // In-place update of values
+                counters.forEach(counter => {
+                    const card = cardsContainer.querySelector(`.mobile-counter-card[data-counter-id="${counter.id}"]`);
+                    if (!card) return;
+                    const nameEl = card.querySelector('.mobile-counter-name');
+                    const valEl = card.querySelector('.mobile-counter-value');
+                    if (nameEl) {
+                        nameEl.textContent = counter.name || 'Counter';
+                        nameEl.style.color = counter.is_main ? 'var(--secondary-color)' : '';
+                    }
+                    if (valEl) valEl.innerHTML = counter.max_value ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>` : counter.value;
+                });
+            }
+        }
 
         // Show/hide nav arrows
         const prev = bar.querySelector('.mobile-counter-prev');
         const next = bar.querySelector('.mobile-counter-next');
         if (prev) prev.classList.toggle('hidden', counters.length <= 1);
         if (next) next.classList.toggle('hidden', counters.length <= 1);
+
+        // Update dot indicators
+        if (dotsContainer) {
+            if (counters.length > 1) {
+                dotsContainer.classList.add('visible');
+                dotsContainer.innerHTML = counters.map((_, i) =>
+                    `<span class="mobile-counter-dot${i === currentIndex ? ' active' : ''}"></span>`
+                ).join('');
+            } else {
+                dotsContainer.classList.remove('visible');
+                dotsContainer.innerHTML = '';
+            }
+        }
 
         // Update page info
         updatePageInfo();
@@ -11262,6 +11307,13 @@ const mobileBar = (() => {
         currentIndex = (currentIndex + delta + counters.length) % counters.length;
         lastUsedCounterId = counters[currentIndex].id;
         displayCounters();
+        // Scroll to the card
+        const bar = document.getElementById('mobile-bottom-bar');
+        const cardsContainer = bar?.querySelector('.mobile-counter-cards');
+        if (cardsContainer) {
+            const cardWidth = cardsContainer.offsetWidth;
+            cardsContainer.scrollTo({ left: currentIndex * cardWidth, behavior: 'smooth' });
+        }
         update();
     }
 
@@ -11389,7 +11441,7 @@ const mobileBar = (() => {
                 update();
             });
 
-            // Counter navigation
+            // Counter arrow navigation
             bar.querySelector('.mobile-counter-prev').addEventListener('click', () => {
                 nav(-1);
                 const editPanel = bar.querySelector('.mobile-bar-edit');
@@ -11401,19 +11453,42 @@ const mobileBar = (() => {
                 if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
             });
 
-            // Counter increment/decrement
-            bar.querySelector('.mobile-counter-inc').addEventListener('click', () => {
-                if (counters[currentIndex]) incrementCounter(counters[currentIndex].id);
-            });
-            bar.querySelector('.mobile-counter-dec').addEventListener('click', () => {
-                if (counters[currentIndex]) decrementCounter(counters[currentIndex].id);
-            });
+            // Scroll-snap sync — detect which card is snapped after swipe
+            const cardsContainer = bar.querySelector('.mobile-counter-cards');
+            if (cardsContainer) {
+                let scrollTimeout;
+                cardsContainer.addEventListener('scroll', () => {
+                    clearTimeout(scrollTimeout);
+                    scrollTimeout = setTimeout(() => {
+                        const cardWidth = cardsContainer.offsetWidth;
+                        if (cardWidth === 0) return;
+                        const newIndex = Math.round(cardsContainer.scrollLeft / cardWidth);
+                        if (newIndex !== currentIndex && newIndex >= 0 && newIndex < counters.length) {
+                            currentIndex = newIndex;
+                            lastUsedCounterId = counters[currentIndex].id;
+                            displayCounters();
+                            update();
+                            const editPanel = bar.querySelector('.mobile-bar-edit');
+                            if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
+                        }
+                    }, 50);
+                }, { passive: true });
+            }
 
-            // Counter label tap → toggle edit
-            bar.querySelector('.mobile-bar-counter-label').addEventListener('click', () => {
-                if (counters.length > 0) {
-                    const editPanel = bar.querySelector('.mobile-bar-edit');
-                    toggleEdit(editPanel.style.display === 'none');
+            // Counter inc/dec + label tap via event delegation (buttons are inside dynamic cards)
+            bar.querySelector('.mobile-counter-cards')?.addEventListener('click', (e) => {
+                const card = e.target.closest('.mobile-counter-card');
+                if (!card) return;
+                const counterId = parseInt(card.dataset.counterId);
+                if (e.target.closest('.mobile-counter-inc')) {
+                    incrementCounter(counterId);
+                } else if (e.target.closest('.mobile-counter-dec')) {
+                    decrementCounter(counterId);
+                } else if (e.target.closest('.mobile-counter-card-label')) {
+                    if (counters.length > 0) {
+                        const editPanel = bar.querySelector('.mobile-bar-edit');
+                        toggleEdit(editPanel.style.display === 'none');
+                    }
                 }
             });
 

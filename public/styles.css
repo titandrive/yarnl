@@ -4035,6 +4035,49 @@ body.global-drag-over #current::after {
     color: white;
 }
 
+/* Pinned (maximized) counters */
+.mobile-pinned-counters {
+    display: none;
+    flex-direction: column;
+    width: 100%;
+}
+
+.mobile-pinned-counters.visible {
+    display: flex;
+}
+
+.mobile-pinned-counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mobile-pinned-counter-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 64px;
+    cursor: pointer;
+}
+
+.mobile-edit-pin {
+    background: var(--text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mobile-edit-pin .pin-minimize { display: none; }
+.mobile-edit-pin.pinned .pin-maximize { display: none; }
+.mobile-edit-pin.pinned .pin-minimize { display: inline; }
+
+.mobile-edit-pin.pinned {
+    background: var(--secondary-color);
+}
+
 /* Bottom bar edit panel */
 .mobile-bar-edit {
     position: absolute;
@@ -4237,9 +4280,7 @@ body.global-drag-over #current::after {
     /* Show mobile bottom bar */
     .mobile-bottom-bar {
         display: flex;
-        align-items: center;
-        gap: 8px;
-        padding: 6px 12px;
+        flex-direction: column;
         position: fixed;
         bottom: 0;
         left: 0;
@@ -4249,6 +4290,15 @@ body.global-drag-over #current::after {
         border-top: 1px solid var(--border-color);
         box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.15);
         user-select: none;
+    }
+
+    .mobile-bar-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        width: 100%;
+        box-sizing: border-box;
     }
 
     /* Prevent content behind bottom bar */
@@ -4277,7 +4327,7 @@ body.global-drag-over #current::after {
         padding: 4px 12px;
     }
 
-    .mobile-bottom-bar {
+    .mobile-bar-row {
         padding: 4px 12px;
     }
 
@@ -4288,6 +4338,10 @@ body.global-drag-over #current::after {
 
     .pdf-viewer-wrapper {
         padding-bottom: 40px;
+    }
+
+    .mobile-pinned-counter {
+        padding: 3px 12px;
     }
 }
 

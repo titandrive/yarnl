@@ -11194,9 +11194,74 @@ function selectCounter(counterId) {
 // Mobile Bar (top bar + bottom bar for mobile PDF viewer)
 const mobileBar = (() => {
     let currentIndex = 0;
+    let editingCounterId = null;
 
     function isMobile() {
         return window.matchMedia('(max-width: 768px), (max-height: 500px) and (max-width: 1024px)').matches;
+    }
+
+    function getPinnedIds() {
+        const id = currentPattern?.id;
+        if (!id) return [];
+        try { return JSON.parse(localStorage.getItem(`pinnedCounters_${id}`)) || []; }
+        catch { return []; }
+    }
+
+    function setPinnedIds(ids) {
+        const id = currentPattern?.id;
+        if (!id) return;
+        localStorage.setItem(`pinnedCounters_${id}`, JSON.stringify(ids));
+    }
+
+    function isPinned(counterId) {
+        return getPinnedIds().includes(counterId);
+    }
+
+    function getCarouselCounters() {
+        return counters.filter(c => !isPinned(c.id));
+    }
+
+    function getPinnedCounters() {
+        return counters.filter(c => isPinned(c.id));
+    }
+
+    function updateBarPadding() {
+        requestAnimationFrame(() => {
+            const bar = document.getElementById('mobile-bottom-bar');
+            const wrapper = document.querySelector('.pdf-viewer-wrapper');
+            if (bar && wrapper) {
+                wrapper.style.paddingBottom = bar.offsetHeight + 'px';
+            }
+        });
+    }
+
+    function renderCounterHTML(counter, className, labelClass) {
+        const nameStyle = counter.is_main ? ' style="color: var(--secondary-color)"' : '';
+        const valueHTML = counter.max_value
+            ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>`
+            : counter.value;
+        return `<div class="${className}" data-counter-id="${counter.id}">
+            <div class="mobile-bar-btn mobile-counter-dec">−</div>
+            <div class="${labelClass}">
+                <span class="mobile-counter-name"${nameStyle}>${escapeHtml(counter.name || 'Counter')}</span>
+                <span class="mobile-counter-value">${valueHTML}</span>
+            </div>
+            <div class="mobile-bar-btn mobile-counter-inc">+</div>
+        </div>`;
+    }
+
+    function updateCounterInPlace(container, counter, selector) {
+        const el = container.querySelector(`${selector}[data-counter-id="${counter.id}"]`);
+        if (!el) return;
+        const nameEl = el.querySelector('.mobile-counter-name');
+        const valEl = el.querySelector('.mobile-counter-value');
+        if (nameEl) {
+            nameEl.textContent = counter.name || 'Counter';
+            nameEl.style.color = counter.is_main ? 'var(--secondary-color)' : '';
+        }
+        if (valEl) valEl.innerHTML = counter.max_value
+            ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>`
+            : counter.value;
     }
 
     function update() {
@@ -11205,77 +11270,87 @@ const mobileBar = (() => {
 
         const counterSection = bar.querySelector('.mobile-bar-counter');
         const addBtn = bar.querySelector('.mobile-counter-add');
-        const divider = bar.querySelector('.mobile-bar-divider');
         const dotsContainer = bar.querySelector('.mobile-counter-dots');
+        const pinnedContainer = bar.querySelector('.mobile-pinned-counters');
 
         if (counters.length === 0) {
             if (counterSection) counterSection.style.display = 'none';
             if (addBtn) addBtn.style.display = '';
-            if (divider) divider.style.display = 'none';
             if (dotsContainer) dotsContainer.classList.remove('visible');
+            if (pinnedContainer) pinnedContainer.classList.remove('visible');
+            updateBarPadding();
             return;
         }
 
-        if (counterSection) counterSection.style.display = '';
         if (addBtn) addBtn.style.display = 'none';
-        if (divider) divider.style.display = '';
 
-        // Clamp index
-        if (currentIndex >= counters.length) currentIndex = counters.length - 1;
-        if (currentIndex < 0) currentIndex = 0;
+        const pinned = getPinnedCounters();
+        const carousel = getCarouselCounters();
 
-        // Sync with active counter
-        const activeIdx = counters.findIndex(c => c.id === lastUsedCounterId);
-        if (activeIdx >= 0) currentIndex = activeIdx;
+        // --- Render pinned counters ---
+        if (pinnedContainer) {
+            if (pinned.length > 0) {
+                pinnedContainer.classList.add('visible');
+                const existingPinned = pinnedContainer.querySelectorAll('.mobile-pinned-counter');
+                const needsPinnedRender = existingPinned.length !== pinned.length ||
+                    pinned.some((c, i) => existingPinned[i]?.dataset.counterId != c.id);
 
-        // Render or update counter cards
-        const cardsContainer = bar.querySelector('.mobile-counter-cards');
-        if (cardsContainer) {
-            const existingCards = cardsContainer.querySelectorAll('.mobile-counter-card');
-            const needsFullRender = existingCards.length !== counters.length ||
-                counters.some((c, i) => existingCards[i]?.dataset.counterId != c.id);
-
-            if (needsFullRender) {
-                cardsContainer.innerHTML = counters.map(counter => `
-                    <div class="mobile-counter-card" data-counter-id="${counter.id}">
-                        <div class="mobile-bar-btn mobile-counter-dec">−</div>
-                        <div class="mobile-counter-card-label">
-                            <span class="mobile-counter-name" style="${counter.is_main ? 'color: var(--secondary-color)' : ''}">${escapeHtml(counter.name || 'Counter')}</span>
-                            <span class="mobile-counter-value">${counter.max_value ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>` : counter.value}</span>
-                        </div>
-                        <div class="mobile-bar-btn mobile-counter-inc">+</div>
-                    </div>
-                `).join('');
-                // Scroll to current card without triggering scroll handler
-                const cardWidth = cardsContainer.offsetWidth;
-                cardsContainer.scrollLeft = currentIndex * cardWidth;
+                if (needsPinnedRender) {
+                    pinnedContainer.innerHTML = pinned.map(c =>
+                        renderCounterHTML(c, 'mobile-pinned-counter', 'mobile-pinned-counter-label')
+                    ).join('');
+                } else {
+                    pinned.forEach(c => updateCounterInPlace(pinnedContainer, c, '.mobile-pinned-counter'));
+                }
             } else {
-                // In-place update of values
-                counters.forEach(counter => {
-                    const card = cardsContainer.querySelector(`.mobile-counter-card[data-counter-id="${counter.id}"]`);
-                    if (!card) return;
-                    const nameEl = card.querySelector('.mobile-counter-name');
-                    const valEl = card.querySelector('.mobile-counter-value');
-                    if (nameEl) {
-                        nameEl.textContent = counter.name || 'Counter';
-                        nameEl.style.color = counter.is_main ? 'var(--secondary-color)' : '';
-                    }
-                    if (valEl) valEl.innerHTML = counter.max_value ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>` : counter.value;
-                });
+                pinnedContainer.classList.remove('visible');
+                pinnedContainer.innerHTML = '';
             }
         }
 
-        // Show/hide nav arrows
-        const prev = bar.querySelector('.mobile-counter-prev');
-        const next = bar.querySelector('.mobile-counter-next');
-        if (prev) prev.classList.toggle('hidden', counters.length <= 1);
-        if (next) next.classList.toggle('hidden', counters.length <= 1);
+        // --- Render carousel counters ---
+        if (carousel.length > 0) {
+            if (counterSection) counterSection.style.display = '';
+
+            // Clamp index to carousel bounds
+            if (currentIndex >= carousel.length) currentIndex = carousel.length - 1;
+            if (currentIndex < 0) currentIndex = 0;
+
+            // Sync with active counter (only if it's in the carousel)
+            const activeIdx = carousel.findIndex(c => c.id === lastUsedCounterId);
+            if (activeIdx >= 0) currentIndex = activeIdx;
+
+            const cardsContainer = bar.querySelector('.mobile-counter-cards');
+            if (cardsContainer) {
+                const existingCards = cardsContainer.querySelectorAll('.mobile-counter-card');
+                const needsFullRender = existingCards.length !== carousel.length ||
+                    carousel.some((c, i) => existingCards[i]?.dataset.counterId != c.id);
+
+                if (needsFullRender) {
+                    cardsContainer.innerHTML = carousel.map(c =>
+                        renderCounterHTML(c, 'mobile-counter-card', 'mobile-counter-card-label')
+                    ).join('');
+                    const cardWidth = cardsContainer.offsetWidth;
+                    cardsContainer.scrollLeft = currentIndex * cardWidth;
+                } else {
+                    carousel.forEach(c => updateCounterInPlace(cardsContainer, c, '.mobile-counter-card'));
+                }
+            }
+
+            // Show/hide nav arrows
+            const prev = bar.querySelector('.mobile-counter-prev');
+            const next = bar.querySelector('.mobile-counter-next');
+            if (prev) prev.classList.toggle('hidden', carousel.length <= 1);
+            if (next) next.classList.toggle('hidden', carousel.length <= 1);
+        } else {
+            if (counterSection) counterSection.style.display = 'none';
+        }
 
         // Update dot indicators
         if (dotsContainer) {
-            if (counters.length > 1) {
+            if (carousel.length > 1) {
                 dotsContainer.classList.add('visible');
-                dotsContainer.innerHTML = counters.map((_, i) =>
+                dotsContainer.innerHTML = carousel.map((_, i) =>
                     `<span class="mobile-counter-dot${i === currentIndex ? ' active' : ''}"></span>`
                 ).join('');
             } else {
@@ -11284,7 +11359,7 @@ const mobileBar = (() => {
             }
         }
 
-        // Update page info
+        updateBarPadding();
         updatePageInfo();
     }
 
@@ -11303,9 +11378,10 @@ const mobileBar = (() => {
     }
 
     function nav(delta) {
-        if (counters.length <= 1) return;
-        currentIndex = (currentIndex + delta + counters.length) % counters.length;
-        lastUsedCounterId = counters[currentIndex].id;
+        const carousel = getCarouselCounters();
+        if (carousel.length <= 1) return;
+        currentIndex = (currentIndex + delta + carousel.length) % carousel.length;
+        lastUsedCounterId = carousel[currentIndex].id;
         displayCounters();
         // Scroll to the card
         const bar = document.getElementById('mobile-bottom-bar');
@@ -11317,6 +11393,10 @@ const mobileBar = (() => {
         update();
     }
 
+    function getEditingCounter() {
+        return editingCounterId ? counters.find(c => c.id === editingCounterId) : null;
+    }
+
     function toggleEdit(show) {
         const bar = document.getElementById('mobile-bottom-bar');
         if (!bar) return;
@@ -11326,7 +11406,7 @@ const mobileBar = (() => {
         const repeatToggle = bar.querySelector('.mobile-edit-repeat-toggle');
         const repeatLabel = bar.querySelector('.mobile-edit-repeat');
         if (show) {
-            const counter = counters[currentIndex];
+            const counter = getEditingCounter();
             if (!counter) return;
             bar.querySelector('.mobile-edit-name').value = counter.name || '';
             if (maxValueInput) maxValueInput.value = counter.max_value || '';
@@ -11350,11 +11430,29 @@ const mobileBar = (() => {
             }
             if (repeatToggle) repeatToggle.checked = !!counter.max_value;
             if (repeatLabel) repeatLabel.style.display = counter.max_value ? 'flex' : 'none';
+            // Pin button state
+            const pinBtn = bar.querySelector('.mobile-edit-pin');
+            if (pinBtn) {
+                const pinned = isPinned(counter.id);
+                const carousel = getCarouselCounters();
+                const isLastInCarousel = !pinned && carousel.length <= 1;
+                pinBtn.classList.toggle('pinned', pinned);
+                pinBtn.disabled = isLastInCarousel;
+                pinBtn.title = isLastInCarousel ? 'At least one counter must remain in the carousel' : pinned ? 'Unpin counter' : 'Pin counter above';
+            }
+            // Position indicator
             const posEl = bar.querySelector('.mobile-edit-pos');
-            if (posEl) posEl.textContent = counters.length > 1 ? `${currentIndex + 1}/${counters.length}` : '';
+            if (posEl) {
+                if (isPinned(counter.id)) {
+                    posEl.textContent = 'Pinned';
+                } else {
+                    const carousel = getCarouselCounters();
+                    posEl.textContent = carousel.length > 1 ? `${currentIndex + 1}/${carousel.length}` : '';
+                }
+            }
             editPanel.style.display = '';
         } else {
-            const counter = counters[currentIndex];
+            const counter = getEditingCounter();
             if (counter) {
                 // Save name if changed
                 const nameInput = bar.querySelector('.mobile-edit-name');
@@ -11363,6 +11461,7 @@ const mobileBar = (() => {
                     updateCounterName(counter.id, nameInput.value);
                 }
             }
+            editingCounterId = null;
             editPanel.style.display = 'none';
             update();
             displayCounters();
@@ -11444,11 +11543,15 @@ const mobileBar = (() => {
             // Counter arrow navigation
             bar.querySelector('.mobile-counter-prev').addEventListener('click', () => {
                 nav(-1);
+                const carousel = getCarouselCounters();
+                if (carousel[currentIndex]) editingCounterId = carousel[currentIndex].id;
                 const editPanel = bar.querySelector('.mobile-bar-edit');
                 if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
             });
             bar.querySelector('.mobile-counter-next').addEventListener('click', () => {
                 nav(1);
+                const carousel = getCarouselCounters();
+                if (carousel[currentIndex]) editingCounterId = carousel[currentIndex].id;
                 const editPanel = bar.querySelector('.mobile-bar-edit');
                 if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
             });
@@ -11460,12 +11563,14 @@ const mobileBar = (() => {
                 cardsContainer.addEventListener('scroll', () => {
                     clearTimeout(scrollTimeout);
                     scrollTimeout = setTimeout(() => {
+                        const carousel = getCarouselCounters();
                         const cardWidth = cardsContainer.offsetWidth;
                         if (cardWidth === 0) return;
                         const newIndex = Math.round(cardsContainer.scrollLeft / cardWidth);
-                        if (newIndex !== currentIndex && newIndex >= 0 && newIndex < counters.length) {
+                        if (newIndex !== currentIndex && newIndex >= 0 && newIndex < carousel.length) {
                             currentIndex = newIndex;
-                            lastUsedCounterId = counters[currentIndex].id;
+                            lastUsedCounterId = carousel[currentIndex].id;
+                            editingCounterId = carousel[currentIndex].id;
                             displayCounters();
                             update();
                             const editPanel = bar.querySelector('.mobile-bar-edit');
@@ -11475,7 +11580,7 @@ const mobileBar = (() => {
                 }, { passive: true });
             }
 
-            // Counter inc/dec + label tap via event delegation (buttons are inside dynamic cards)
+            // Counter inc/dec + label tap via event delegation (carousel cards)
             bar.querySelector('.mobile-counter-cards')?.addEventListener('click', (e) => {
                 const card = e.target.closest('.mobile-counter-card');
                 if (!card) return;
@@ -11485,25 +11590,54 @@ const mobileBar = (() => {
                 } else if (e.target.closest('.mobile-counter-dec')) {
                     decrementCounter(counterId);
                 } else if (e.target.closest('.mobile-counter-card-label')) {
-                    if (counters.length > 0) {
-                        const editPanel = bar.querySelector('.mobile-bar-edit');
-                        toggleEdit(editPanel.style.display === 'none');
-                    }
+                    editingCounterId = counterId;
+                    const editPanel = bar.querySelector('.mobile-bar-edit');
+                    toggleEdit(editPanel.style.display === 'none');
+                }
+            });
+
+            // Pinned counter inc/dec + label tap via event delegation
+            bar.querySelector('.mobile-pinned-counters')?.addEventListener('click', (e) => {
+                const row = e.target.closest('.mobile-pinned-counter');
+                if (!row) return;
+                const counterId = parseInt(row.dataset.counterId);
+                if (e.target.closest('.mobile-counter-inc')) {
+                    incrementCounter(counterId);
+                } else if (e.target.closest('.mobile-counter-dec')) {
+                    decrementCounter(counterId);
+                } else if (e.target.closest('.mobile-pinned-counter-label')) {
+                    editingCounterId = counterId;
+                    const editPanel = bar.querySelector('.mobile-bar-edit');
+                    toggleEdit(editPanel.style.display === 'none');
                 }
             });
 
             // Edit panel
             bar.querySelector('.mobile-edit-done').addEventListener('click', () => toggleEdit(false));
 
+            // Pin/Unpin button
+            bar.querySelector('.mobile-edit-pin')?.addEventListener('click', () => {
+                const counter = getEditingCounter();
+                if (!counter) return;
+                const ids = getPinnedIds();
+                if (ids.includes(counter.id)) {
+                    setPinnedIds(ids.filter(id => id !== counter.id));
+                } else {
+                    ids.push(counter.id);
+                    setPinnedIds(ids);
+                }
+                toggleEdit(false);
+            });
+
             // Main toggle — save immediately
             bar.querySelector('.mobile-edit-main')?.addEventListener('change', (e) => {
-                const counter = counters[currentIndex];
+                const counter = getEditingCounter();
                 if (counter) toggleCounterMain(counter.id, e.target.checked);
             });
 
             // Unlink button — save immediately
             bar.querySelector('.mobile-edit-unlink-btn')?.addEventListener('click', async () => {
-                const counter = counters[currentIndex];
+                const counter = getEditingCounter();
                 if (counter) {
                     const newState = !counter.unlinked;
                     await toggleCounterUnlink(counter.id, newState);
@@ -11521,7 +11655,7 @@ const mobileBar = (() => {
             const mobileMaxInput = bar.querySelector('.mobile-edit-max-value');
             if (mobileRepeatToggle) {
                 mobileRepeatToggle.addEventListener('change', () => {
-                    const counter = counters[currentIndex];
+                    const counter = getEditingCounter();
                     if (mobileRepeatLabel) mobileRepeatLabel.style.display = mobileRepeatToggle.checked ? 'flex' : 'none';
                     if (mobileRepeatToggle.checked) {
                         if (mobileMaxInput && !mobileMaxInput.value) mobileMaxInput.value = 2;
@@ -11534,7 +11668,7 @@ const mobileBar = (() => {
             }
             // Repeat stepper buttons
             bar.querySelector('.mobile-edit-repeat-dec')?.addEventListener('click', () => {
-                const counter = counters[currentIndex];
+                const counter = getEditingCounter();
                 if (mobileMaxInput) {
                     const val = Math.max(2, (parseInt(mobileMaxInput.value) || 2) - 1);
                     mobileMaxInput.value = val;
@@ -11542,7 +11676,7 @@ const mobileBar = (() => {
                 }
             });
             bar.querySelector('.mobile-edit-repeat-inc')?.addEventListener('click', () => {
-                const counter = counters[currentIndex];
+                const counter = getEditingCounter();
                 if (mobileMaxInput) {
                     const val = (parseInt(mobileMaxInput.value) || 2) + 1;
                     mobileMaxInput.value = val;
@@ -11551,7 +11685,7 @@ const mobileBar = (() => {
             });
             if (mobileMaxInput) {
                 mobileMaxInput.addEventListener('change', () => {
-                    const counter = counters[currentIndex];
+                    const counter = getEditingCounter();
                     if (counter) updateCounterMaxValue(counter.id, mobileMaxInput.value);
                 });
             }
@@ -11560,24 +11694,38 @@ const mobileBar = (() => {
                 toggleEdit(false);
             });
             bar.querySelector('.mobile-edit-reset').addEventListener('click', async () => {
-                const counter = counters[currentIndex];
+                const counter = getEditingCounter();
                 if (!counter) return;
                 await resetCounter(counter.id);
                 update();
             });
             bar.querySelector('.mobile-edit-delete').addEventListener('click', async () => {
-                const counter = counters[currentIndex];
+                const counter = getEditingCounter();
                 if (!counter) return;
+                // Remove from pinned IDs if pinned
+                const ids = getPinnedIds();
+                if (ids.includes(counter.id)) {
+                    setPinnedIds(ids.filter(id => id !== counter.id));
+                }
                 await deleteCounter(counter.id);
                 if (counters.length === 0) {
                     toggleEdit(false);
                 } else {
+                    editingCounterId = null;
                     update();
-                    toggleEdit(true);
+                    // Open edit panel for next counter in carousel if available
+                    const carousel = getCarouselCounters();
+                    if (carousel.length > 0) {
+                        if (currentIndex >= carousel.length) currentIndex = carousel.length - 1;
+                        editingCounterId = carousel[currentIndex].id;
+                        toggleEdit(true);
+                    } else {
+                        toggleEdit(false);
+                    }
                 }
             });
             bar.querySelector('.mobile-edit-name').addEventListener('change', (e) => {
-                const counter = counters[currentIndex];
+                const counter = getEditingCounter();
                 if (counter) updateCounterName(counter.id, e.target.value);
             });
         }

@@ -12,7 +12,7 @@ const sharp = require('sharp');
 const pdfParse = require('pdf-parse');
 const archiver = require('archiver');
 const unzipper = require('unzipper');
-const cron = require('node-cron');
+const { Cron } = require('croner');
 const EventEmitter = require('events');
 const { pool, initDatabase } = require('./db');
 const {
@@ -5710,7 +5710,7 @@ function runScheduledPrune(settings, username) {
 }
 
 // Run backup check every minute
-cron.schedule('* * * * *', () => {
+new Cron('* * * * *', () => {
   createScheduledBackup();
 });
 
@@ -6760,7 +6760,7 @@ async function autoDeleteOldArchived() {
 }
 
 // Run auto-delete check daily at midnight
-cron.schedule('0 0 * * *', () => {
+new Cron('0 0 * * *', () => {
   autoDeleteOldArchived();
 });
 

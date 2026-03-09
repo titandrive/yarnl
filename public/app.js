@@ -11533,12 +11533,16 @@ const mobileBar = (() => {
             }
             if (repeatToggle) repeatToggle.checked = !!counter.max_value;
             if (repeatLabel) repeatLabel.style.display = counter.max_value ? 'flex' : 'none';
-            // Pin button state
+            // Pin button state — disable when action would leave carousel or pinned list empty
             const pinBtn = bar.querySelector('.mobile-edit-pin');
             if (pinBtn) {
                 const pinned = isPinned(counter.id);
+                const carousel = getCarouselCounters();
+                const cantUse = (!pinned && carousel.length <= 1) || (pinned && carousel.length === 0);
+                pinBtn.style.display = '';
                 pinBtn.classList.toggle('pinned', pinned);
-                pinBtn.disabled = false;
+                pinBtn.disabled = cantUse;
+                pinBtn.style.opacity = cantUse ? '0.35' : '';
                 pinBtn.title = pinned ? 'Unpin counter' : 'Pin counter above';
             }
             // Position indicator
@@ -11723,9 +11727,11 @@ const mobileBar = (() => {
                 } else if (e.target.closest('.mobile-counter-dec')) {
                     decrementCounter(counterId);
                 } else if (e.target.closest('.mobile-pinned-counter-label')) {
-                    editingCounterId = counterId;
                     const editPanel = bar.querySelector('.mobile-bar-edit');
-                    toggleEdit(editPanel.style.display === 'none');
+                    const wasOpen = editPanel.style.display !== 'none';
+                    const switching = editingCounterId !== counterId;
+                    editingCounterId = counterId;
+                    toggleEdit(!wasOpen || switching);
                 }
             });
 

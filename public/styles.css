@@ -3715,7 +3715,14 @@ body.global-drag-over #current::after {
     border-radius: 0 6px 6px 0;
 }
 
-.repeat-step:hover {
+@media (hover: hover) {
+    .repeat-step:hover {
+        background: var(--primary-color);
+        color: white;
+    }
+}
+
+.repeat-step:active {
     background: var(--primary-color);
     color: white;
     border-color: var(--primary-color);

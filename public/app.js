@@ -11758,6 +11758,21 @@ const mobileBar = (() => {
                 if (counter) toggleCounterMain(counter.id, e.target.checked);
             });
 
+            // Show tooltip on tap when main toggle is disabled
+            bar.querySelector('.mobile-edit-main-label')?.addEventListener('click', (e) => {
+                const toggle = bar.querySelector('.mobile-edit-main');
+                if (!toggle?.disabled) return;
+                const label = bar.querySelector('.mobile-edit-main-label');
+                if (!label?.title) return;
+                let tip = label.querySelector('.mobile-tooltip');
+                if (tip) return; // already showing
+                tip = document.createElement('span');
+                tip.className = 'mobile-tooltip';
+                tip.textContent = label.title;
+                label.appendChild(tip);
+                setTimeout(() => tip.remove(), 2000);
+            });
+
             // Unlink button — save immediately
             bar.querySelector('.mobile-edit-unlink-btn')?.addEventListener('click', async () => {
                 const counter = getEditingCounter();

@@ -4246,6 +4246,30 @@ body.global-drag-over #current::after {
     opacity: 0.35;
 }
 
+.mobile-edit-toggle-label {
+    position: relative;
+}
+
+.mobile-tooltip {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    background: #222;
+    color: #eee;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+    z-index: 2300;
+    animation: tooltip-fade 2s ease forwards;
+}
+
+@keyframes tooltip-fade {
+    0%, 70% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
 .mobile-edit-repeat {
     display: flex;
     align-items: center;

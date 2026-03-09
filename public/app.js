@@ -11449,6 +11449,9 @@ const mobileBar = (() => {
             if (next) next.classList.toggle('hidden', carousel.length <= 1);
         } else {
             if (counterSection) counterSection.style.display = 'none';
+            // Clear leftover cards so hidden container can't intercept swipes
+            const cardsContainer = bar.querySelector('.mobile-counter-cards');
+            if (cardsContainer) cardsContainer.innerHTML = '';
         }
 
         // Update dot indicators
@@ -11534,11 +11537,9 @@ const mobileBar = (() => {
             const pinBtn = bar.querySelector('.mobile-edit-pin');
             if (pinBtn) {
                 const pinned = isPinned(counter.id);
-                const carousel = getCarouselCounters();
-                const isLastInCarousel = !pinned && carousel.length <= 1;
                 pinBtn.classList.toggle('pinned', pinned);
-                pinBtn.disabled = isLastInCarousel;
-                pinBtn.title = isLastInCarousel ? 'At least one counter must remain in the carousel' : pinned ? 'Unpin counter' : 'Pin counter above';
+                pinBtn.disabled = false;
+                pinBtn.title = pinned ? 'Unpin counter' : 'Pin counter above';
             }
             // Position indicator
             const posEl = bar.querySelector('.mobile-edit-pos');
@@ -11649,6 +11650,7 @@ const mobileBar = (() => {
             if (cardsContainer) {
                 // Update dots eagerly during scroll (no delay)
                 const dotsContainer = bar.querySelector('.mobile-counter-dots');
+                let lastEagerIndex = null;
                 cardsContainer.addEventListener('scroll', () => {
                     if (isResetting) return;
                     const carousel = getCarouselCounters();
@@ -11662,6 +11664,13 @@ const mobileBar = (() => {
                     dotsContainer.querySelectorAll('.mobile-counter-dot').forEach((dot, i) => {
                         dot.classList.toggle('active', i === targetIndex);
                     });
+                    // Update edit panel eagerly during swipe
+                    if (targetIndex !== lastEagerIndex) {
+                        lastEagerIndex = targetIndex;
+                        editingCounterId = carousel[targetIndex].id;
+                        const editPanel = bar.querySelector('.mobile-bar-edit');
+                        if (editPanel && editPanel.style.display !== 'none') toggleEdit(true);
+                    }
                 }, { passive: true });
 
                 // Re-render cards when scroll settles
@@ -11680,6 +11689,7 @@ const mobileBar = (() => {
                     }
                     lastUsedCounterId = carousel[currentIndex].id;
                     editingCounterId = carousel[currentIndex].id;
+                    lastEagerIndex = null;
                     displayCounters();
                     update();
                     const editPanel = bar.querySelector('.mobile-bar-edit');

@@ -24,7 +24,7 @@ const SYNCED_SETTING_KEYS = [
     'libraryCategoryFilter',
     // Navigation & PDF
     'defaultPage', 'defaultPdfZoom', 'pdfScrollMode', 'arrowKeysScroll',
-    'scrollPageButtons', 'counterLayout',
+    'scrollPageButtons', 'counterLayout', 'pinnedCounters',
     // Projects
     'projectSort', 'projectShowFilter',
     // Behavior
@@ -122,6 +122,33 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // Load settings from server and apply to localStorage
+// Migrate legacy pinnedCounters_* keys to consolidated format
+(function migratePinnedCounters() {
+    if (localStorage.getItem('_pinnedMigrated')) return;
+    const all = {};
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('pinnedCounters_')) {
+            const patternId = key.slice('pinnedCounters_'.length);
+            try {
+                const ids = JSON.parse(localStorage.getItem(key));
+                if (Array.isArray(ids) && ids.length > 0) all[patternId] = ids;
+            } catch {}
+        }
+    }
+    if (Object.keys(all).length > 0) {
+        localStorage.setItem('pinnedCounters', JSON.stringify(all));
+    }
+    // Clean up old keys
+    const toRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('pinnedCounters_')) toRemove.push(key);
+    }
+    toRemove.forEach(k => localStorage.removeItem(k));
+    _originalSetItem('_pinnedMigrated', '1');
+})();
+
 async function loadServerSettings() {
     try {
         const response = await fetch(`${API_URL}/api/user/settings`);
@@ -11223,14 +11250,24 @@ const mobileBar = (() => {
     function getPinnedIds() {
         const id = currentPattern?.id;
         if (!id) return [];
-        try { return JSON.parse(localStorage.getItem(`pinnedCounters_${id}`)) || []; }
-        catch { return []; }
+        try {
+            const all = JSON.parse(localStorage.getItem('pinnedCounters') || '{}');
+            return all[id] || [];
+        } catch { return []; }
     }
 
     function setPinnedIds(ids) {
         const id = currentPattern?.id;
         if (!id) return;
-        localStorage.setItem(`pinnedCounters_${id}`, JSON.stringify(ids));
+        let all;
+        try { all = JSON.parse(localStorage.getItem('pinnedCounters') || '{}'); }
+        catch { all = {}; }
+        if (ids.length > 0) {
+            all[id] = ids;
+        } else {
+            delete all[id];
+        }
+        localStorage.setItem('pinnedCounters', JSON.stringify(all));
     }
 
     function isPinned(counterId) {
@@ -11263,9 +11300,11 @@ const mobileBar = (() => {
         return `<div class="${className}" data-counter-id="${counter.id}">
             <div class="mobile-bar-btn mobile-counter-dec">−</div>
             <div class="${labelClass}">
-                ${counterIndicatorHTML(counter, 8)}
                 <span class="mobile-counter-name"${nameStyle}>${escapeHtml(counter.name || 'Counter')}</span>
-                <span class="mobile-counter-value">${valueHTML}</span>
+                <span class="mobile-counter-value-row">
+                    <span class="mobile-counter-value">${valueHTML}</span>
+                    ${counterIndicatorHTML(counter, 8)}
+                </span>
             </div>
             <div class="mobile-bar-btn mobile-counter-inc">+</div>
         </div>`;
@@ -11283,16 +11322,13 @@ const mobileBar = (() => {
         if (valEl) valEl.innerHTML = counter.max_value
             ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>`
             : counter.value;
-        // Update link indicator
-        const label = el.querySelector('.mobile-counter-card-label, .mobile-pinned-counter-label');
-        if (label) {
-            const existing = label.querySelector('.counter-link-indicator');
-            const shouldShow = !counter.is_main && !counter.unlinked && counters.some(c => c.is_main);
-            if (shouldShow && !existing) {
-                label.insertAdjacentHTML('afterbegin', counterIndicatorHTML(counter, 8));
-            } else if (!shouldShow && existing) {
-                existing.remove();
-            }
+        // Update link/main indicator
+        const valueRow = el.querySelector('.mobile-counter-value-row');
+        if (valueRow) {
+            const existing = valueRow.querySelector('.counter-link-indicator');
+            if (existing) existing.remove();
+            const html = counterIndicatorHTML(counter, 8);
+            if (html) valueRow.insertAdjacentHTML('beforeend', html);
         }
     }
 
@@ -11394,15 +11430,12 @@ const mobileBar = (() => {
                                 ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>`
                                 : counter.value;
                             // Update link indicator
-                            const label = card.querySelector('.mobile-counter-card-label');
-                            if (label) {
-                                const existing = label.querySelector('.counter-link-indicator');
-                                const shouldShow = !counter.is_main && !counter.unlinked && counters.some(c => c.is_main);
-                                if (shouldShow && !existing) {
-                                    label.insertAdjacentHTML('afterbegin', counterIndicatorHTML(counter, 8));
-                                } else if (!shouldShow && existing) {
-                                    existing.remove();
-                                }
+                            const valueRow = card.querySelector('.mobile-counter-value-row');
+                            if (valueRow) {
+                                const existing = valueRow.querySelector('.counter-link-indicator');
+                                if (existing) existing.remove();
+                                const html = counterIndicatorHTML(counter, 8);
+                                if (html) valueRow.insertAdjacentHTML('beforeend', html);
                             }
                         });
                     }

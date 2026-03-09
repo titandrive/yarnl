@@ -3653,10 +3653,10 @@ body.global-drag-over #current::after {
     line-height: 0;
 }
 
-.mobile-counter-card-label .counter-link-indicator,
-.mobile-pinned-counter-label .counter-link-indicator {
-    bottom: -1px;
-    left: -2px;
+.mobile-counter-card .counter-link-indicator,
+.mobile-pinned-counter .counter-link-indicator {
+    margin-left: 2px;
+    align-self: center;
 }
 
 .counter-settings-repeat {
@@ -3989,6 +3989,20 @@ body.global-drag-over #current::after {
     white-space: nowrap;
     line-height: 1;
     text-align: center;
+}
+
+.mobile-counter-value-row {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.mobile-counter-value-row .counter-link-indicator {
+    position: absolute;
+    left: 100%;
+    margin-left: 2px;
+    top: 50%;
+    transform: translateY(-50%);
 }
 
 .mobile-counter-value {

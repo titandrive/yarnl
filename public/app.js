@@ -10983,6 +10983,14 @@ function applyCounterLayout() {
     countersList.classList.toggle('scroll-layout', layout === 'scroll');
 }
 
+function counterIndicatorHTML(counter, size = 12) {
+    if (counter.is_main) {
+        return `<span class="counter-link-indicator counter-main-indicator"><svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></span>`;
+    }
+    if (counter.unlinked || !counters.some(c => c.is_main)) return '';
+    return `<span class="counter-link-indicator"><svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 7h3a5 5 0 0 1 0 10h-3m-6 0H6a5 5 0 0 1 0-10h3"/><line x1="8" y1="12" x2="16" y2="12"/></svg></span>`;
+}
+
 function displayCounters() {
     const countersList = document.getElementById('counters-list');
 
@@ -11000,6 +11008,7 @@ function displayCounters() {
                        onclick="event.stopPropagation(); selectCounter(${counter.id})"
                        onfocus="selectCounter(${counter.id})"
                        placeholder="Counter name">
+                ${counterIndicatorHTML(counter)}
             </div>
             <div class="counter-main">
                 <div class="counter-value">${counter.value}${counter.max_value ? `<span class="counter-max">/${counter.max_value}</span>` : ''}</div>
@@ -11128,7 +11137,17 @@ async function toggleCounterUnlink(counterId, enabled) {
                     btn.title = enabled ? 'Click to link to main counter' : 'Click to unlink from main counter';
                     btn.setAttribute('onclick', `event.stopPropagation(); toggleCounterUnlink(${counterId}, ${!enabled})`);
                 }
+                // Update link indicator
+                const nameDiv = item.querySelector('.counter-name');
+                const indicator = nameDiv?.querySelector('.counter-link-indicator');
+                if (enabled && indicator) {
+                    indicator.remove();
+                } else if (!enabled && !indicator && counter && nameDiv) {
+                    nameDiv.insertAdjacentHTML('beforeend', counterIndicatorHTML(counter));
+                }
             }
+            // Update mobile counters
+            if (typeof mobileBar !== 'undefined') mobileBar.update();
         }
     } catch (error) {
         console.error('Error toggling counter unlink:', error);
@@ -11244,6 +11263,7 @@ const mobileBar = (() => {
         return `<div class="${className}" data-counter-id="${counter.id}">
             <div class="mobile-bar-btn mobile-counter-dec">−</div>
             <div class="${labelClass}">
+                ${counterIndicatorHTML(counter, 8)}
                 <span class="mobile-counter-name"${nameStyle}>${escapeHtml(counter.name || 'Counter')}</span>
                 <span class="mobile-counter-value">${valueHTML}</span>
             </div>
@@ -11263,6 +11283,17 @@ const mobileBar = (() => {
         if (valEl) valEl.innerHTML = counter.max_value
             ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>`
             : counter.value;
+        // Update link indicator
+        const label = el.querySelector('.mobile-counter-card-label, .mobile-pinned-counter-label');
+        if (label) {
+            const existing = label.querySelector('.counter-link-indicator');
+            const shouldShow = !counter.is_main && !counter.unlinked && counters.some(c => c.is_main);
+            if (shouldShow && !existing) {
+                label.insertAdjacentHTML('afterbegin', counterIndicatorHTML(counter, 8));
+            } else if (!shouldShow && existing) {
+                existing.remove();
+            }
+        }
     }
 
     function update() {
@@ -11362,6 +11393,17 @@ const mobileBar = (() => {
                             if (valEl) valEl.innerHTML = counter.max_value
                                 ? `${counter.value}<span class="counter-max">/${counter.max_value}</span>`
                                 : counter.value;
+                            // Update link indicator
+                            const label = card.querySelector('.mobile-counter-card-label');
+                            if (label) {
+                                const existing = label.querySelector('.counter-link-indicator');
+                                const shouldShow = !counter.is_main && !counter.unlinked && counters.some(c => c.is_main);
+                                if (shouldShow && !existing) {
+                                    label.insertAdjacentHTML('afterbegin', counterIndicatorHTML(counter, 8));
+                                } else if (!shouldShow && existing) {
+                                    existing.remove();
+                                }
+                            }
                         });
                     }
                 }

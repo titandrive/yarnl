@@ -3423,9 +3423,10 @@ body.global-drag-over #current::after {
     padding: 6px 10px;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 2px;
     transition: all 0.3s ease;
     flex: 0 0 auto;
+    position: relative;
 }
 
 .counter-item:hover {
@@ -3442,6 +3443,9 @@ body.global-drag-over #current::after {
     font-weight: 600;
     color: var(--text-color);
     font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 1px;
 }
 
 .counter-name input {
@@ -3632,6 +3636,27 @@ body.global-drag-over #current::after {
 .counter-link-btn.unlinked {
     color: var(--text-muted);
     opacity: 0.4;
+}
+
+.counter-name .counter-link-indicator {
+    color: var(--secondary-color);
+    opacity: 0.45;
+    pointer-events: none;
+    line-height: 0;
+    flex-shrink: 0;
+}
+
+.counter-link-indicator {
+    color: var(--secondary-color);
+    opacity: 0.45;
+    pointer-events: none;
+    line-height: 0;
+}
+
+.mobile-counter-card-label .counter-link-indicator,
+.mobile-pinned-counter-label .counter-link-indicator {
+    bottom: -1px;
+    left: -2px;
 }
 
 .counter-settings-repeat {
@@ -3951,6 +3976,7 @@ body.global-drag-over #current::after {
     align-items: center;
     min-width: 64px;
     cursor: pointer;
+    position: relative;
 }
 
 .mobile-counter-name {
@@ -4061,6 +4087,7 @@ body.global-drag-over #current::after {
     align-items: center;
     min-width: 64px;
     cursor: pointer;
+    position: relative;
 }
 
 .mobile-edit-pin {

@@ -56,7 +56,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=270">
+    <link rel="stylesheet" href="styles.css?v=278">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -193,21 +193,24 @@
                         </button>
                     </div>
                 </div>
+                <div class="library-toolbar">
+                    <input type="text" class="inventory-search" id="search-input" placeholder="Search...">
+                    <div class="inventory-view-toggle" id="library-view-toggle">
+                        <button class="view-toggle-btn active" data-view="card" title="Card view">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                        </button>
+                        <button class="view-toggle-btn" data-view="list" title="List view">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+                        </button>
+                    </div>
+                    <button class="inv-edit-btn" id="library-edit-btn" onclick="toggleLibraryEditMode()" title="Multi-select">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+                        Edit
+                    </button>
+                </div>
                 <div class="library-layout" id="library-layout">
-                    <script>if(localStorage.getItem('librarySidebarCollapsed')==='true'){document.getElementById('library-layout').classList.add('sidebar-collapsed');}</script>
+                    <script>if(localStorage.getItem('librarySidebarCollapsed')==='true'){document.getElementById('library-layout').classList.add('sidebar-collapsed');}if(localStorage.getItem('libraryView')==='list'){document.querySelectorAll('#library-view-toggle .view-toggle-btn').forEach(function(b){b.classList.toggle('active',b.dataset.view==='list');});}</script>
                     <aside class="library-sidebar">
-                        <div class="sidebar-section">
-                            <label for="search-input">Search</label>
-                            <div class="search-input-wrapper">
-                                <input type="text" id="search-input" placeholder="Search Library">
-                                <button type="button" id="search-clear-btn" class="search-clear-btn" title="Clear search">
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                                    </svg>
-                                </button>
-                            </div>
-                        </div>
                         <div class="sidebar-section">
                             <label for="show-filter-select">Show</label>
                             <select id="show-filter-select">
@@ -3318,6 +3321,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=260"></script>
+    <script defer src="app.js?v=268"></script>
 </body>
 </html>

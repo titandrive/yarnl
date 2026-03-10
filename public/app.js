@@ -1770,6 +1770,9 @@ let yarns = []; // Yarn inventory
 let hooks = []; // Hook inventory
 let inventoryView = localStorage.getItem('inventoryView') || 'card';
 let inventorySubTab = localStorage.getItem('inventorySubTab') || 'yarn';
+let libraryView = localStorage.getItem('libraryView') || 'card';
+let patternListSort = { col: 'name', dir: 'asc' };
+let libraryEditMode = false;
 let yarnSort = { col: 'brand', dir: 'asc' };
 let hookSort = { col: 'brand', dir: 'asc' };
 let editingYarnId = null;
@@ -2511,6 +2514,8 @@ function initNavigation() {
 // Global drag-drop to open upload panel
 function initGlobalDragDrop() {
     const handleDrop = (e) => {
+        // Only handle external file drops, not internal column drags
+        if (!e.dataTransfer.types.includes('Files')) return;
         e.preventDefault();
         e.stopPropagation();
         document.body.classList.remove('global-drag-over');
@@ -2531,6 +2536,8 @@ function initGlobalDragDrop() {
     };
 
     const handleDragOver = (e) => {
+        // Only handle external file drags, not internal column drags
+        if (!e.dataTransfer.types.includes('Files')) return;
         e.preventDefault();
         e.stopPropagation();
         // Don't show overlay if upload panel is already visible or new project panel is visible
@@ -2545,6 +2552,7 @@ function initGlobalDragDrop() {
     };
 
     const handleDragLeave = (e) => {
+        if (!e.dataTransfer.types.includes('Files')) return;
         e.preventDefault();
         e.stopPropagation();
         if (e.relatedTarget === null || !document.body.contains(e.relatedTarget)) {
@@ -8128,6 +8136,18 @@ function initLibraryFilters() {
             localStorage.setItem('librarySidebarCollapsed', isCollapsed);
         });
     }
+
+    // Library view toggle (card/list)
+    document.querySelectorAll('#library-view-toggle .view-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            libraryView = btn.dataset.view;
+            localStorage.setItem('libraryView', libraryView);
+            document.querySelectorAll('#library-view-toggle .view-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === libraryView));
+            exitLibraryEditMode();
+            clearBulkSelection();
+            displayPatterns();
+        });
+    });
 }
 
 function renderPatternCard(pattern, options = {}) {
@@ -8309,46 +8329,69 @@ function displayPatterns() {
     }
 
     // Sort patterns
-    filteredPatterns = [...filteredPatterns].sort((a, b) => {
-        // Pin favorites/current to top first
-        if (pinFavorites && a.is_favorite !== b.is_favorite) {
-            return b.is_favorite ? 1 : -1;
-        }
-        if (pinCurrent && a.is_current !== b.is_current) {
-            return b.is_current ? 1 : -1;
-        }
-
-        // Then apply selected sort
-        switch (selectedSort) {
-            case 'date-desc':
-                return new Date(b.upload_date) - new Date(a.upload_date);
-            case 'date-asc':
-                return new Date(a.upload_date) - new Date(b.upload_date);
-            case 'opened-desc':
-                return (new Date(b.last_opened_at || 0)) - (new Date(a.last_opened_at || 0));
-            case 'opened-asc':
-                return (new Date(a.last_opened_at || 0)) - (new Date(b.last_opened_at || 0));
-            case 'name-asc':
-                return a.name.localeCompare(b.name);
-            case 'name-desc':
-                return b.name.localeCompare(a.name);
-            default:
-                return 0;
-        }
-    });
+    if (libraryView === 'list') {
+        // List view: sort by column header
+        filteredPatterns = sortPatternList(filteredPatterns, patternListSort);
+    } else {
+        // Card view: sort by sidebar selection with pin support
+        filteredPatterns = [...filteredPatterns].sort((a, b) => {
+            if (pinFavorites && a.is_favorite !== b.is_favorite) {
+                return b.is_favorite ? 1 : -1;
+            }
+            if (pinCurrent && a.is_current !== b.is_current) {
+                return b.is_current ? 1 : -1;
+            }
+            switch (selectedSort) {
+                case 'date-desc':
+                    return new Date(b.upload_date) - new Date(a.upload_date);
+                case 'date-asc':
+                    return new Date(a.upload_date) - new Date(b.upload_date);
+                case 'opened-desc':
+                    return (new Date(b.last_opened_at || 0)) - (new Date(a.last_opened_at || 0));
+                case 'opened-asc':
+                    return (new Date(a.last_opened_at || 0)) - (new Date(b.last_opened_at || 0));
+                case 'name-asc':
+                    return a.name.localeCompare(b.name);
+                case 'name-desc':
+                    return b.name.localeCompare(a.name);
+                default:
+                    return 0;
+            }
+        });
+    }
 
     if (filteredPatterns.length === 0) {
         grid.innerHTML = `<p class="empty-state">No patterns match the current filters</p>`;
         return;
     }
 
-    grid.innerHTML = filteredPatterns.map(pattern => {
-        const isNewPattern = !pattern.completed && !pattern.timer_seconds;
-        const shouldHighlight = (highlightMode === 'new' && isNewPattern) || (highlightMode === 'current' && pattern.is_current) || (highlightMode === 'favorites' && pattern.is_favorite);
-        const highlightClass = shouldHighlight ? ' highlight-new' : '';
-        return renderPatternCard(pattern, { highlightClass });
-    }).join('');
-    grid.querySelectorAll('.pattern-card[data-pattern-id]').forEach(initLongPress);
+    // Toggle sidebar visibility based on view
+    const sidebarToggle = document.getElementById('library-sidebar-toggle');
+    if (sidebarToggle) sidebarToggle.style.display = libraryView === 'list' ? 'none' : '';
+    const libraryLayout = document.getElementById('library-layout');
+    if (libraryLayout) libraryLayout.classList.toggle('library-list-view', libraryView === 'list');
+
+    if (libraryView === 'list') {
+        const cols = getColumnOrder('pattern');
+        const arrow = (col) => patternListSort.col === col ? (patternListSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+        const cbStyle = 'style="width:40px;min-width:40px;padding:8px 6px;text-align:center"';
+        const cbTh = libraryEditMode ? `<th ${cbStyle}></th>` : '';
+        const cbTd = (p) => libraryEditMode ? `<td ${cbStyle}><div class="bulk-select-checkbox" onclick="event.stopPropagation(); togglePatternRowSelect(${p.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>` : '';
+        grid.className = 'inventory-list-wrap';
+        grid.innerHTML = `<table class="inventory-table" data-type="pattern">
+            <thead><tr>${cbTh}${cols.map(c => `<th data-col="${c}" draggable="true" onclick="togglePatternListSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'pattern')">${PATTERN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <tbody>${filteredPatterns.map(p => `<tr onclick="handlePatternRowClick(event,${p.id})" class="${selectedPatternIds.has(p.id) ? 'bulk-selected' : ''}" data-pattern-id="${p.id}">${cbTd(p)}${cols.map(c => `<td>${PATTERN_COLUMNS[c].value(p)}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table>`;
+    } else {
+        grid.className = 'patterns-grid' + (libraryEditMode ? ' bulk-edit-mode' : '');
+        grid.innerHTML = filteredPatterns.map(pattern => {
+            const isNewPattern = !pattern.completed && !pattern.timer_seconds;
+            const shouldHighlight = (highlightMode === 'new' && isNewPattern) || (highlightMode === 'current' && pattern.is_current) || (highlightMode === 'favorites' && pattern.is_favorite);
+            const highlightClass = shouldHighlight ? ' highlight-new' : '';
+            return renderPatternCard(pattern, { highlightClass });
+        }).join('');
+        grid.querySelectorAll('.pattern-card[data-pattern-id]').forEach(initLongPress);
+    }
 }
 
 async function toggleCurrent(id, isCurrent) {
@@ -15867,9 +15910,20 @@ const HOOK_COLUMNS = {
 };
 const DEFAULT_HOOK_COL_ORDER = ['brand', 'name', 'size_label', 'hook_type', 'craft_type', 'length', 'quantity', 'pattern_count'];
 
+const PATTERN_COLUMNS = {
+    name:     { label: 'Name',     value: p => escapeHtml(p.name || '—') },
+    category: { label: 'Category', value: p => escapeHtml(p.category || '—') },
+    type:     { label: 'Type',     value: p => p.pattern_type === 'markdown' ? 'MD' : 'PDF' },
+    status:   { label: 'Status',   value: p => p.completed ? 'Completed' : (p.is_current ? 'In Progress' : 'New') },
+    added:    { label: 'Added',    value: p => p.upload_date ? new Date(p.upload_date).toLocaleDateString() : '—' },
+    opened:   { label: 'Opened',   value: p => p.last_opened_at ? new Date(p.last_opened_at).toLocaleDateString() : '—' },
+    time:     { label: 'Time',     value: p => p.timer_seconds > 0 ? formatTime(p.timer_seconds) : '—' },
+};
+const DEFAULT_PATTERN_COL_ORDER = ['name', 'category', 'type', 'status', 'added', 'opened', 'time'];
+
 function getColumnOrder(type) {
-    const key = type === 'yarn' ? 'yarnColumnOrder' : 'hookColumnOrder';
-    const defaults = type === 'yarn' ? DEFAULT_YARN_COL_ORDER : DEFAULT_HOOK_COL_ORDER;
+    const key = type === 'pattern' ? 'patternColumnOrder' : (type === 'yarn' ? 'yarnColumnOrder' : 'hookColumnOrder');
+    const defaults = type === 'pattern' ? DEFAULT_PATTERN_COL_ORDER : (type === 'yarn' ? DEFAULT_YARN_COL_ORDER : DEFAULT_HOOK_COL_ORDER);
     try {
         const saved = localStorage.getItem(key);
         if (saved) {
@@ -15920,9 +15974,90 @@ function onColDrop(e, type) {
     if (fromIdx === -1 || toIdx === -1) return;
     order.splice(fromIdx, 1);
     order.splice(toIdx, 0, _dragCol);
-    const key = type === 'yarn' ? 'yarnColumnOrder' : 'hookColumnOrder';
+    const key = type === 'pattern' ? 'patternColumnOrder' : (type === 'yarn' ? 'yarnColumnOrder' : 'hookColumnOrder');
     localStorage.setItem(key, JSON.stringify(order));
-    if (type === 'yarn') displayYarns(); else displayHooks();
+    if (type === 'pattern') displayPatterns(); else if (type === 'yarn') displayYarns(); else displayHooks();
+}
+
+// --- Library list view functions ---
+
+function sortPatternList(items, sortState) {
+    const { col, dir } = sortState;
+    return [...items].sort((a, b) => {
+        let va, vb;
+        if (col === 'name') { va = (a.name || '').toLowerCase(); vb = (b.name || '').toLowerCase(); }
+        else if (col === 'category') { va = (a.category || '').toLowerCase(); vb = (b.category || '').toLowerCase(); }
+        else if (col === 'type') { va = a.pattern_type || ''; vb = b.pattern_type || ''; }
+        else if (col === 'status') {
+            const s = p => p.completed ? 2 : (p.is_current ? 1 : 0);
+            va = s(a); vb = s(b);
+        }
+        else if (col === 'added') { va = a.upload_date ? new Date(a.upload_date).getTime() : 0; vb = b.upload_date ? new Date(b.upload_date).getTime() : 0; }
+        else if (col === 'opened') { va = a.last_opened_at ? new Date(a.last_opened_at).getTime() : 0; vb = b.last_opened_at ? new Date(b.last_opened_at).getTime() : 0; }
+        else if (col === 'time') { va = a.timer_seconds || 0; vb = b.timer_seconds || 0; }
+        else { va = (a[col] || '').toString().toLowerCase(); vb = (b[col] || '').toString().toLowerCase(); }
+        if (va < vb) return dir === 'asc' ? -1 : 1;
+        if (va > vb) return dir === 'asc' ? 1 : -1;
+        return 0;
+    });
+}
+
+function togglePatternListSort(col) {
+    if (patternListSort.col === col) {
+        patternListSort.dir = patternListSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        patternListSort.col = col;
+        patternListSort.dir = 'asc';
+    }
+    displayPatterns();
+}
+
+function handlePatternRowClick(event, patternId) {
+    if (event.target.closest('.bulk-select-checkbox')) return;
+    if (libraryEditMode || selectedPatternIds.size > 0) {
+        const row = event.currentTarget;
+        togglePatternRowSelect(patternId, row.querySelector('.bulk-select-checkbox') || row);
+        return;
+    }
+    if (event.metaKey || event.ctrlKey) {
+        event.preventDefault();
+        const pattern = patterns.find(p => p.id === patternId);
+        const slug = pattern ? getPatternSlug(pattern) : patternId;
+        window.open(window.location.origin + window.location.pathname + '#pattern/' + slug, '_blank');
+    } else {
+        openPDFViewer(patternId);
+    }
+}
+
+function togglePatternRowSelect(patternId, el) {
+    if (selectedPatternIds.has(patternId)) {
+        selectedPatternIds.delete(patternId);
+    } else {
+        selectedPatternIds.add(patternId);
+    }
+    const row = el.closest('tr');
+    if (row) row.classList.toggle('bulk-selected', selectedPatternIds.has(patternId));
+    updateBulkToolbar();
+}
+
+function toggleLibraryEditMode() {
+    libraryEditMode = !libraryEditMode;
+    const btn = document.getElementById('library-edit-btn');
+    if (btn) btn.classList.toggle('active', libraryEditMode);
+    if (!libraryEditMode) {
+        clearBulkSelection();
+    }
+    // Re-render to show/hide checkbox column
+    displayPatterns();
+}
+
+function exitLibraryEditMode() {
+    if (!libraryEditMode) return;
+    libraryEditMode = false;
+    const btn = document.getElementById('library-edit-btn');
+    if (btn) btn.classList.remove('active');
+    clearBulkSelection();
+    displayPatterns();
 }
 
 // --- Yarn CRUD ---
@@ -15990,13 +16125,16 @@ function displayYarns() {
         filtered = sortInventory(filtered, yarnSort);
         const cols = getColumnOrder('yarn');
         const arrow = (col) => yarnSort.col === col ? (yarnSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+        const cbStyle = 'style="width:40px;min-width:40px;padding:8px 6px;text-align:center"';
+        const cbTh = inventoryEditMode ? `<th ${cbStyle}></th>` : '';
+        const cbTd = (y) => inventoryEditMode ? `<td ${cbStyle}><div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('yarn',${y.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>` : '';
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="yarn">
-            <thead><tr><th class="inv-cb-col"></th>${cols.map(c => `<th data-col="${c}" draggable="true" onclick="toggleYarnSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'yarn')">${YARN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
-            <tbody>${filtered.map(y => `<tr onclick="handleInventoryRowClick(event,'yarn',${y.id})" class="${selectedYarnIds.has(y.id) ? 'bulk-selected' : ''}" data-item-id="${y.id}"><td class="inv-cb-col"><div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('yarn',${y.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>${cols.map(c => `<td>${YARN_COLUMNS[c].value(y)}</td>`).join('')}</tr>`).join('')}</tbody>
+            <thead><tr>${cbTh}${cols.map(c => `<th data-col="${c}" draggable="true" onclick="toggleYarnSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'yarn')">${YARN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <tbody>${filtered.map(y => `<tr onclick="handleInventoryRowClick(event,'yarn',${y.id})" class="${selectedYarnIds.has(y.id) ? 'bulk-selected' : ''}" data-item-id="${y.id}">${cbTd(y)}${cols.map(c => `<td>${YARN_COLUMNS[c].value(y)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
     } else {
-        grid.className = 'patterns-grid';
+        grid.className = 'patterns-grid' + (inventoryEditMode ? ' bulk-edit-mode' : '');
         grid.innerHTML = filtered.map(renderYarnCard).join('');
         initInventoryCardLongPress('yarn');
     }
@@ -16214,13 +16352,16 @@ function displayHooks() {
         filtered = sortInventory(filtered, hookSort);
         const cols = getColumnOrder('hook');
         const arrow = (col) => hookSort.col === col ? (hookSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+        const cbStyle = 'style="width:40px;min-width:40px;padding:8px 6px;text-align:center"';
+        const cbTh = inventoryEditMode ? `<th ${cbStyle}></th>` : '';
+        const cbTd = (h) => inventoryEditMode ? `<td ${cbStyle}><div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('hook',${h.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>` : '';
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="hook">
-            <thead><tr><th class="inv-cb-col"></th>${cols.map(c => `<th data-col="${c}" draggable="true" onclick="toggleHookSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'hook')">${HOOK_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
-            <tbody>${filtered.map(h => `<tr onclick="handleInventoryRowClick(event,'hook',${h.id})" class="${selectedHookIds.has(h.id) ? 'bulk-selected' : ''}" data-item-id="${h.id}"><td class="inv-cb-col"><div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('hook',${h.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>${cols.map(c => `<td>${HOOK_COLUMNS[c].value(h)}</td>`).join('')}</tr>`).join('')}</tbody>
+            <thead><tr>${cbTh}${cols.map(c => `<th data-col="${c}" draggable="true" onclick="toggleHookSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'hook')">${HOOK_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <tbody>${filtered.map(h => `<tr onclick="handleInventoryRowClick(event,'hook',${h.id})" class="${selectedHookIds.has(h.id) ? 'bulk-selected' : ''}" data-item-id="${h.id}">${cbTd(h)}${cols.map(c => `<td>${HOOK_COLUMNS[c].value(h)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
     } else {
-        grid.className = 'patterns-grid';
+        grid.className = 'patterns-grid' + (inventoryEditMode ? ' bulk-edit-mode' : '');
         grid.innerHTML = filtered.map(renderHookCard).join('');
         initInventoryCardLongPress('hook');
     }
@@ -16814,19 +16955,21 @@ function toggleInventoryEditMode() {
     inventoryEditMode = !inventoryEditMode;
     const btn = document.getElementById('inv-edit-btn');
     if (btn) btn.classList.toggle('active', inventoryEditMode);
-    document.querySelectorAll('.inventory-table').forEach(t => t.classList.toggle('bulk-edit-mode', inventoryEditMode));
-    document.querySelectorAll('.inventory-main .patterns-grid').forEach(g => g.classList.toggle('bulk-edit-mode', inventoryEditMode));
     if (!inventoryEditMode) {
         clearInventorySelection();
     }
+    displayYarns();
+    displayHooks();
 }
 
 function exitInventoryEditMode() {
+    if (!inventoryEditMode) return;
     inventoryEditMode = false;
     const btn = document.getElementById('inv-edit-btn');
     if (btn) btn.classList.remove('active');
-    document.querySelectorAll('.inventory-table').forEach(t => t.classList.remove('bulk-edit-mode'));
-    document.querySelectorAll('.inventory-main .patterns-grid').forEach(g => g.classList.remove('bulk-edit-mode'));
+    clearInventorySelection();
+    displayYarns();
+    displayHooks();
 }
 
 // List view: row click in edit mode toggles selection

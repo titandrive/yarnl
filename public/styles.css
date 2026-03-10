@@ -1712,6 +1712,13 @@ html[data-theme="nuked-dark"] .btn-primary {
     gap: 15px;
 }
 
+.library-toolbar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    align-items: center;
+}
+
 .library-layout {
     display: flex;
     gap: 20px;
@@ -1721,6 +1728,7 @@ html[data-theme="nuked-dark"] .btn-primary {
 .grid-wrapper {
     flex: 1;
     min-width: 0;
+    overflow-x: auto;
 }
 
 .sidebar-toggle-icon {
@@ -1748,7 +1756,8 @@ html[data-theme="nuked-dark"] .btn-primary {
     color: var(--primary-color);
 }
 
-.library-layout.sidebar-collapsed .library-sidebar {
+.library-layout.sidebar-collapsed .library-sidebar,
+.library-layout.library-list-view .library-sidebar {
     display: none;
 }
 
@@ -10397,23 +10406,21 @@ textarea.image-drag-over {
     color: white;
 }
 
-/* Inventory list view — checkbox column hidden until edit mode */
+/* Inventory/library list view — checkbox column in edit mode */
 .inv-cb-col {
-    width: 0;
-    padding: 0 !important;
-    overflow: hidden;
-    transition: width 0.2s, padding 0.2s;
-}
-
-.bulk-edit-mode .inv-cb-col {
-    width: 36px;
+    width: 40px !important;
+    min-width: 40px !important;
+    max-width: 40px !important;
     padding: 8px 6px !important;
     text-align: center;
 }
 
 .inventory-table .bulk-select-checkbox {
+    position: static;
+    opacity: 1;
     cursor: pointer;
-    background: rgba(0, 0, 0, 0.45);
+    background: var(--input-bg, rgba(0, 0, 0, 0.45));
+    border: 1.5px solid var(--border-color);
     border-radius: 4px;
     width: 24px;
     height: 24px;
@@ -10423,12 +10430,20 @@ textarea.image-drag-over {
     margin: 0 auto;
 }
 
+.inventory-table .bulk-select-checkbox svg {
+    display: none;
+}
+
 .inventory-table .bulk-select-checkbox:hover {
     background: rgba(0, 0, 0, 0.6);
 }
 
 .inventory-table tr.bulk-selected .bulk-select-checkbox {
     background: var(--primary-color);
+}
+
+.inventory-table tr.bulk-selected .bulk-select-checkbox svg {
+    display: block;
 }
 
 .inventory-table tr.bulk-selected {

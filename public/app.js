@@ -8439,6 +8439,10 @@ function displayPatterns() {
                     return a.name.localeCompare(b.name);
                 case 'name-desc':
                     return b.name.localeCompare(a.name);
+                case 'rating-desc':
+                    return (b.rating || 0) - (a.rating || 0);
+                case 'rating-asc':
+                    return (a.rating || 0) - (b.rating || 0);
                 default:
                     return 0;
             }
@@ -9849,19 +9853,71 @@ function toggleBulkSelect(patternId, el) {
 
 function clearBulkSelection() {
     selectedPatternIds.clear();
-    document.querySelectorAll('.pattern-card.bulk-selected').forEach(c => c.classList.remove('bulk-selected'));
+    document.querySelectorAll('.bulk-selected').forEach(c => c.classList.remove('bulk-selected'));
     updateBulkToolbar();
 }
 
 function updateBulkToolbar() {
     const toolbar = document.getElementById('bulk-toolbar');
     if (!toolbar) return;
-    if (selectedPatternIds.size > 0) {
-        toolbar.style.display = 'flex';
-        document.getElementById('bulk-count').textContent = `${selectedPatternIds.size} selected`;
-    } else {
+    if (selectedPatternIds.size === 0) {
         toolbar.style.display = 'none';
+        return;
     }
+    const ids = Array.from(selectedPatternIds);
+    const selected = patterns.filter(p => ids.includes(p.id))
+        .concat(currentPatterns.filter(p => ids.includes(p.id)));
+    const seen = new Set();
+    const unique = selected.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
+    const allFav = unique.every(p => p.is_favorite);
+    const allCurrent = unique.every(p => p.is_current);
+    const allComplete = unique.every(p => p.completed);
+    const bulkStars = [1,2,3,4,5].map(i =>
+        `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" style="cursor:pointer" onclick="bulkQuickRating(${i})">${STAR_SVG}</svg>`
+    ).join('');
+    toolbar.innerHTML = `<span id="bulk-count">${selectedPatternIds.size} selected</span>
+        <button class="btn btn-sm bulk-quick-btn ${allCurrent ? 'active' : ''}" onclick="bulkQuickToggle('current', ${!allCurrent})" title="${allCurrent ? 'Remove In Progress' : 'Mark In Progress'}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="${allCurrent ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        </button>
+        <button class="btn btn-sm bulk-fav-btn ${allFav ? 'active' : ''}" onclick="bulkQuickToggle('favorite', ${!allFav})" title="${allFav ? 'Unfavorite' : 'Favorite'}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="${allFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+        </button>
+        <button class="btn btn-sm bulk-quick-btn ${allComplete ? 'active' : ''}" onclick="bulkQuickToggle('complete', ${!allComplete})" title="${allComplete ? 'Mark Incomplete' : 'Mark Complete'}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+        </button>
+        <span class="bulk-rating-stars" title="Set rating">${bulkStars}</span>
+        <button class="btn btn-primary btn-sm" onclick="openBulkEditModal()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+            Edit
+        </button>
+        <button class="btn btn-sm btn-secondary" onclick="clearBulkSelection()">Clear</button>`;
+    toolbar.style.display = 'flex';
+}
+
+async function bulkQuickToggle(field, value) {
+    const patternIds = Array.from(selectedPatternIds);
+    const endpoint = field === 'current' ? 'current' : field === 'complete' ? 'complete' : 'favorite';
+    const bodyKey = field === 'current' ? 'isCurrent' : field === 'complete' ? 'completed' : 'isFavorite';
+    await fetch(`${API_URL}/api/patterns/bulk/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patternIds, [bodyKey]: value })
+    });
+    await Promise.all([loadPatterns(), loadCurrentPatterns()]);
+    updateBulkToolbar();
+    showToast(`Updated ${patternIds.length} pattern${patternIds.length > 1 ? 's' : ''}`);
+}
+
+async function bulkQuickRating(rating) {
+    const patternIds = Array.from(selectedPatternIds);
+    await fetch(`${API_URL}/api/patterns/bulk/rating`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patternIds, rating })
+    });
+    await Promise.all([loadPatterns(), loadCurrentPatterns()]);
+    updateBulkToolbar();
+    showToast(`Rated ${patternIds.length} pattern${patternIds.length > 1 ? 's' : ''} ${rating} star${rating > 1 ? 's' : ''}`);
 }
 
 // Escape key clears bulk selection
@@ -11001,6 +11057,9 @@ async function openPdfEditModal() {
         clearThumbnailSelector('pdf-edit');
     }
 
+    // Populate rating
+    document.getElementById('pdf-edit-pattern-rating').innerHTML = ratingInputHtml('pdf-edit-pattern-rating-input', currentPattern.rating || 0);
+
     // Set current toggle state
     document.getElementById('pdf-edit-is-current').checked = currentPattern.is_current || false;
 
@@ -11175,6 +11234,7 @@ async function savePdfEdit() {
     const thumbnailFile = getThumbnailFile('pdf-edit');
     const hashtagIds = getSelectedHashtagIds('pdf-edit-hashtags');
     const isCurrent = document.getElementById('pdf-edit-is-current').checked;
+    const rating = parseInt(document.getElementById('pdf-edit-pattern-rating-input')?.dataset.rating) || 0;
 
     if (!name.trim()) {
         alert('Pattern name is required');
@@ -11186,7 +11246,7 @@ async function savePdfEdit() {
         const metaResponse = await fetch(`${API_URL}/api/patterns/${currentPattern.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, category, description })
+            body: JSON.stringify({ name, category, description, rating })
         });
 
         // Update current status if changed
@@ -11250,6 +11310,7 @@ async function savePdfEdit() {
         currentPattern.category = category;
         currentPattern.description = description;
         currentPattern.is_current = isCurrent;
+        currentPattern.rating = rating;
 
         // Update the viewer header
         document.getElementById('pdf-pattern-name').textContent = name;
@@ -13624,6 +13685,9 @@ async function openMarkdownEditModal() {
         clearThumbnailSelector('markdown-edit');
     }
 
+    // Populate rating
+    document.getElementById('markdown-edit-pattern-rating').innerHTML = ratingInputHtml('markdown-edit-pattern-rating-input', currentPattern.rating || 0);
+
     // Set current toggle state
     document.getElementById('markdown-edit-is-current').checked = currentPattern.is_current || false;
 
@@ -13687,6 +13751,7 @@ async function saveMarkdownEdit() {
     const thumbnailFile = getThumbnailFile('markdown-edit');
     const hashtagIds = getSelectedHashtagIds('markdown-edit-hashtags');
     const isCurrent = document.getElementById('markdown-edit-is-current').checked;
+    const rating = parseInt(document.getElementById('markdown-edit-pattern-rating-input')?.dataset.rating) || 0;
 
     if (!name.trim()) {
         alert('Pattern name is required');
@@ -13698,7 +13763,7 @@ async function saveMarkdownEdit() {
         const metaResponse = await fetch(`${API_URL}/api/patterns/${currentPattern.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, category, description })
+            body: JSON.stringify({ name, category, description, rating })
         });
 
         // Update current status if changed
@@ -13759,6 +13824,7 @@ async function saveMarkdownEdit() {
         currentPattern.category = category;
         currentPattern.description = description;
         currentPattern.is_current = isCurrent;
+        currentPattern.rating = rating;
 
         // Update the viewer header
         document.getElementById('markdown-pattern-name').textContent = name;
@@ -16626,7 +16692,7 @@ function displayYarns() {
     if (inventoryView !== 'list') {
         const sortVal = document.getElementById('yarn-sort-select')?.value || 'brand-asc';
         const [sortCol, sortDir] = sortVal.split('-');
-        const colMap = { brand: 'brand', name: 'name', weight: 'weight_category', quantity: 'quantity', date: 'created_at' };
+        const colMap = { brand: 'brand', name: 'name', weight: 'weight_category', quantity: 'quantity', date: 'created_at', rating: 'rating' };
         filtered = sortInventory(filtered, { col: colMap[sortCol] || sortCol, dir: sortDir });
     }
 
@@ -16874,7 +16940,7 @@ function displayHooks() {
     if (inventoryView !== 'list') {
         const sortVal = document.getElementById('hook-sort-select')?.value || 'brand-asc';
         const [sortCol, sortDir] = sortVal.split('-');
-        const colMap = { brand: 'brand', size: 'size_mm', quantity: 'quantity', date: 'created_at' };
+        const colMap = { brand: 'brand', size: 'size_mm', quantity: 'quantity', date: 'created_at', rating: 'rating' };
         filtered = sortInventory(filtered, { col: colMap[sortCol] || sortCol, dir: sortDir });
     }
 
@@ -17474,7 +17540,7 @@ function autoSaveInventoryLinks(cb) {
 
 function sortInventory(items, sortState) {
     const { col, dir } = sortState;
-    const numericCols = ['quantity', 'pattern_count', 'size_mm'];
+    const numericCols = ['quantity', 'pattern_count', 'size_mm', 'rating'];
     const weightOrder = ['Lace', 'Super Fine', 'Fine', 'Light', 'Medium', 'Bulky', 'Super Bulky', 'Jumbo'];
     return [...items].sort((a, b) => {
         let va = a[col], vb = b[col];
@@ -17679,10 +17745,14 @@ function updateInventoryBulkBar() {
     }
     const allFav = [...selectedYarnIds].every(id => yarns.find(y => y.id === id)?.is_favorite) &&
                    [...selectedHookIds].every(id => hooks.find(h => h.id === id)?.is_favorite);
+    const ratingStars = [1,2,3,4,5].map(i =>
+        `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#666" stroke-width="2" style="cursor:pointer" onclick="bulkSetInventoryRating(${i})">${STAR_SVG}</svg>`
+    ).join('');
     bar.innerHTML = `<span>${count} selected</span>
         <button class="btn btn-sm bulk-fav-btn ${allFav ? 'active' : ''}" onclick="bulkToggleInventoryFavorite(${!allFav})" title="${allFav ? 'Unfavorite' : 'Favorite'}">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="${allFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
         </button>
+        <span class="bulk-rating-stars" title="Set rating">${ratingStars}</span>
         <button class="btn btn-primary btn-sm" onclick="bulkSetQuantity()">Set Quantity</button>
         <button class="btn btn-danger btn-sm" id="bulk-inv-delete-btn" onclick="bulkDeleteInventory(this)">Delete</button>
         <button class="btn btn-sm btn-secondary" onclick="clearInventorySelection()">Clear</button>`;
@@ -17765,6 +17835,27 @@ async function bulkToggleInventoryFavorite(isFavorite) {
     clearInventorySelection();
     await Promise.all([loadYarns(), loadHooks()]);
     showToast(`${isFavorite ? 'Favorited' : 'Unfavorited'} ${total} item${total > 1 ? 's' : ''}`);
+}
+
+async function bulkSetInventoryRating(rating) {
+    const yarnIds = Array.from(selectedYarnIds);
+    const hookIds = Array.from(selectedHookIds);
+    const total = yarnIds.length + hookIds.length;
+    for (const id of yarnIds) {
+        await fetch(`${API_URL}/api/yarns/${id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating })
+        });
+    }
+    for (const id of hookIds) {
+        await fetch(`${API_URL}/api/hooks/${id}`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating })
+        });
+    }
+    clearInventorySelection();
+    await Promise.all([loadYarns(), loadHooks()]);
+    showToast(`Rated ${total} item${total > 1 ? 's' : ''} ${rating} star${rating > 1 ? 's' : ''}`);
 }
 
 // --- Linked patterns list (for yarn/hook modals) ---

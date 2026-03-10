@@ -1379,6 +1379,19 @@ html[data-theme="nuked-dark"] .btn-primary {
     color: var(--text-color);
 }
 
+.edit-bottom-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+}
+
+.edit-bottom-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    justify-content: center;
+}
+
 .form-group input,
 .form-group textarea,
 .form-group select {
@@ -1565,16 +1578,58 @@ html[data-theme="nuked-dark"] .btn-primary {
     font-size: 0.95rem;
 }
 
+.bulk-quick-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 4px 6px;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.bulk-quick-btn.active {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.bulk-quick-btn:hover {
+    color: var(--primary-color);
+}
+
+.bulk-rating-stars {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.bulk-rating-stars svg:hover,
+.bulk-rating-stars svg:hover ~ svg {
+    stroke: #eab308;
+}
+
+.bulk-rating-stars svg:hover {
+    fill: #eab308;
+    stroke: #eab308;
+    transform: scale(1.2);
+}
+
 @media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
     .bulk-toolbar {
         padding: 8px 14px;
-        gap: 10px;
+        gap: 8px;
         font-size: 0.85rem;
         bottom: 16px;
+        left: 8px;
+        right: 8px;
+        transform: none;
+        width: auto;
     }
     .bulk-toolbar .btn {
         font-size: 0.8rem;
         padding: 5px 10px;
+    }
+    .bulk-toolbar .bulk-rating-stars {
+        display: none;
     }
     .bulk-edit-modal-content {
         max-width: none;
@@ -7705,6 +7760,11 @@ textarea.image-drag-over {
     padding: 20px;
 }
 
+#pdf-edit-modal .form-group,
+#markdown-edit-modal .form-group {
+    margin-bottom: 12px;
+}
+
 .pdf-edit-modal-content .modal-header {
     margin-bottom: 12px;
 }
@@ -10734,6 +10794,20 @@ textarea.image-drag-over {
     align-items: center;
     gap: 6px;
     font-size: 0.95rem;
+}
+
+@media (max-width: 768px) {
+    .inventory-bulk-bar {
+        left: 8px;
+        right: 8px;
+        transform: none;
+        width: auto;
+        gap: 8px;
+        padding: 8px 14px;
+    }
+    .inventory-bulk-bar .bulk-rating-stars {
+        display: none;
+    }
 }
 
 .inventory-bulk-bar .confirm-danger {

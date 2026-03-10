@@ -4473,11 +4473,11 @@ app.get('/api/yarns/:id', async (req, res) => {
 
 app.post('/api/yarns', async (req, res) => {
   try {
-    const { name, brand, colorway, weight_category, fiber_content, color_hex, quantity, notes } = req.body;
+    const { name, brand, weight_category, fiber_content, color_hex, color, dye_lot, quantity, notes } = req.body;
     const result = await pool.query(
-      `INSERT INTO yarns (user_id, name, brand, colorway, weight_category, fiber_content, color_hex, quantity, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [req.user.id, name || null, brand || null, colorway || null, weight_category || null, fiber_content || null, color_hex || null, quantity || 1, notes || null]
+      `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, color_hex, color, dye_lot, quantity, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [req.user.id, name || null, brand || null, weight_category || null, fiber_content || null, color_hex || null, color || null, dye_lot || null, quantity || 1, notes || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -4491,7 +4491,7 @@ app.patch('/api/yarns/:id', async (req, res) => {
     const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
     if (!yarn) return res.status(403).json({ error: 'Not authorized' });
 
-    const fields = ['name', 'brand', 'colorway', 'weight_category', 'fiber_content', 'color_hex', 'quantity', 'notes'];
+    const fields = ['name', 'brand', 'weight_category', 'fiber_content', 'color_hex', 'color', 'dye_lot', 'quantity', 'notes'];
     const updates = [];
     const values = [];
     let idx = 1;
@@ -4744,6 +4744,10 @@ app.delete('/api/hooks/:id', async (req, res) => {
   try {
     const hook = await verifyHookOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
     if (!hook) return res.status(403).json({ error: 'Not authorized' });
+    if (hook.thumbnail) {
+      const thumbnailPath = path.join(getUserThumbnailsDir(req.user.username), hook.thumbnail);
+      if (fs.existsSync(thumbnailPath)) fs.unlinkSync(thumbnailPath);
+    }
     await pool.query('DELETE FROM hooks WHERE id = $1', [req.params.id]);
     res.json({ success: true });
   } catch (error) {
@@ -4761,6 +4765,10 @@ app.post('/api/hooks/bulk/delete', async (req, res) => {
     for (const id of ids) {
       const hook = await verifyHookOwnership(id, req.user?.id, req.user?.role === 'admin');
       if (!hook) continue;
+      if (hook.thumbnail) {
+        const thumbnailPath = path.join(getUserThumbnailsDir(req.user.username), hook.thumbnail);
+        if (fs.existsSync(thumbnailPath)) fs.unlinkSync(thumbnailPath);
+      }
       await pool.query('DELETE FROM hooks WHERE id = $1', [id]);
       count++;
     }
@@ -4787,6 +4795,72 @@ app.post('/api/hooks/bulk/quantity', async (req, res) => {
     res.json({ success: true, count });
   } catch (error) {
     console.error('Error bulk updating hook quantity:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Hook thumbnail endpoints
+app.get('/api/hooks/:id/thumbnail', async (req, res) => {
+  try {
+    const hook = await verifyHookOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!hook || !hook.thumbnail) return res.status(404).json({ error: 'Thumbnail not found' });
+    const thumbnailPath = path.join(getUserThumbnailsDir(req.user.username), hook.thumbnail);
+    if (fs.existsSync(thumbnailPath)) return res.sendFile(thumbnailPath);
+    res.status(404).json({ error: 'Thumbnail not found' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/hooks/:id/thumbnail', upload.single('thumbnail'), async (req, res) => {
+  try {
+    const hook = await verifyHookOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!hook) return res.status(403).json({ error: 'Not authorized' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const userThumbnailsDir = getUserThumbnailsDir(req.user.username);
+    if (!fs.existsSync(userThumbnailsDir)) fs.mkdirSync(userThumbnailsDir, { recursive: true });
+
+    if (hook.thumbnail) {
+      const oldPath = path.join(userThumbnailsDir, hook.thumbnail);
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+
+    const thumbnailFilename = `hook-${hook.id}-${Date.now()}.jpg`;
+    await sharp(req.file.path)
+      .resize(300, 400, { fit: 'cover', position: 'top' })
+      .jpeg({ quality: 85 })
+      .toFile(path.join(userThumbnailsDir, thumbnailFilename));
+
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
+    const result = await pool.query(
+      'UPDATE hooks SET thumbnail = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [thumbnailFilename, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error uploading hook thumbnail:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/hooks/:id/thumbnail', async (req, res) => {
+  try {
+    const hook = await verifyHookOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!hook) return res.status(403).json({ error: 'Not authorized' });
+
+    if (hook.thumbnail) {
+      const thumbnailPath = path.join(getUserThumbnailsDir(req.user.username), hook.thumbnail);
+      if (fs.existsSync(thumbnailPath)) fs.unlinkSync(thumbnailPath);
+    }
+
+    const result = await pool.query(
+      'UPDATE hooks SET thumbnail = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
@@ -4828,7 +4902,7 @@ app.get('/api/patterns/:id/yarns', async (req, res) => {
     const result = await pool.query(
       `SELECT y.*, py.notes AS link_notes FROM yarns y
        JOIN pattern_yarns py ON y.id = py.yarn_id
-       WHERE py.pattern_id = $1 ORDER BY y.brand, y.colorway`,
+       WHERE py.pattern_id = $1 ORDER BY y.brand, y.color`,
       [req.params.id]
     );
     res.json(result.rows);
@@ -4850,7 +4924,7 @@ app.put('/api/patterns/:id/yarns', async (req, res) => {
     const result = await pool.query(
       `SELECT y.* FROM yarns y
        JOIN pattern_yarns py ON y.id = py.yarn_id
-       WHERE py.pattern_id = $1 ORDER BY y.brand, y.colorway`,
+       WHERE py.pattern_id = $1 ORDER BY y.brand, y.color`,
       [req.params.id]
     );
     res.json(result.rows);

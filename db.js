@@ -254,6 +254,8 @@ async function initDatabase() {
         weight_category VARCHAR(50),
         fiber_content VARCHAR(255),
         color_hex VARCHAR(7),
+        color VARCHAR(100),
+        dye_lot VARCHAR(100),
         quantity NUMERIC(6,1) DEFAULT 1,
         notes TEXT,
         thumbnail VARCHAR(255),
@@ -276,6 +278,7 @@ async function initDatabase() {
         length VARCHAR(20),
         quantity INTEGER DEFAULT 1,
         notes TEXT,
+        thumbnail VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
@@ -302,11 +305,26 @@ async function initDatabase() {
           ALTER TABLE hooks ADD COLUMN name VARCHAR(255);
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='hooks' AND column_name='thumbnail') THEN
+          ALTER TABLE hooks ADD COLUMN thumbnail VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                       WHERE table_name='yarns' AND column_name='name') THEN
           ALTER TABLE yarns ADD COLUMN name VARCHAR(255);
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='yarns' AND column_name='color') THEN
+          ALTER TABLE yarns ADD COLUMN color VARCHAR(100);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='yarns' AND column_name='dye_lot') THEN
+          ALTER TABLE yarns ADD COLUMN dye_lot VARCHAR(100);
+        END IF;
       END $$;
     `);
+
+    // Migrate colorway data to color column
+    await client.query(`UPDATE yarns SET color = colorway WHERE color IS NULL AND colorway IS NOT NULL`);
 
     // Create pattern_yarns junction table
     await client.query(`

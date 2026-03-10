@@ -10340,6 +10340,18 @@ textarea.image-drag-over {
     background: var(--hover-bg);
 }
 
+.inventory-table th[draggable="true"] {
+    cursor: grab;
+}
+
+.inventory-table th.dragging {
+    opacity: 0.4;
+}
+
+.inventory-table th.drag-over {
+    box-shadow: inset 2px 0 0 var(--primary-color);
+}
+
 .inventory-toolbar {
     display: flex;
     gap: 8px;

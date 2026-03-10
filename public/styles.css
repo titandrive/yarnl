@@ -7463,6 +7463,11 @@ textarea.image-drag-over {
     overflow: hidden;
 }
 
+.form-row:has(.thumbnail-selector) textarea {
+    height: 120px;
+    resize: none;
+}
+
 .thumbnail-selector-preview:hover {
     border-color: var(--primary-color);
     background: var(--hover-bg);

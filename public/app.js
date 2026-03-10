@@ -15828,13 +15828,14 @@ function initInventory() {
 const YARN_COLUMNS = {
     brand: { label: 'Brand', value: y => escapeHtml(y.brand || '—') },
     name: { label: 'Name', value: y => escapeHtml(y.name || '—') },
-    colorway: { label: 'Colorway', value: y => escapeHtml(y.colorway || '—') },
+    color: { label: 'Color', value: y => escapeHtml(y.color || '—') },
+    dye_lot: { label: 'Dye Lot', value: y => escapeHtml(y.dye_lot || '—') },
     weight_category: { label: 'Weight', value: y => escapeHtml(y.weight_category || '—') },
     quantity: { label: 'Qty', value: y => parseFloat(y.quantity) || 0 },
     fiber_content: { label: 'Fiber', value: y => escapeHtml(y.fiber_content || '—') },
     pattern_count: { label: 'Patterns', value: y => y.pattern_count || 0 }
 };
-const DEFAULT_YARN_COL_ORDER = ['brand', 'name', 'colorway', 'weight_category', 'quantity', 'fiber_content', 'pattern_count'];
+const DEFAULT_YARN_COL_ORDER = ['brand', 'name', 'color', 'dye_lot', 'weight_category', 'quantity', 'fiber_content', 'pattern_count'];
 
 const HOOK_COLUMNS = {
     brand: { label: 'Brand', value: h => escapeHtml(h.brand || '—') },
@@ -15929,7 +15930,7 @@ function displayYarns() {
         filtered = filtered.filter(y =>
             (y.brand || '').toLowerCase().includes(query) ||
             (y.name || '').toLowerCase().includes(query) ||
-            (y.colorway || '').toLowerCase().includes(query) ||
+            (y.color || '').toLowerCase().includes(query) ||
             (y.weight_category || '').toLowerCase().includes(query) ||
             (y.fiber_content || '').toLowerCase().includes(query)
         );
@@ -15981,8 +15982,8 @@ function displayYarns() {
 function renderYarnCard(yarn) {
     const brandText = escapeHtml(yarn.brand || 'Unknown Brand');
     const nameText = escapeHtml(yarn.name || '');
-    const colorwayText = escapeHtml(yarn.colorway || '');
-    const subtitle = [nameText, colorwayText].filter(Boolean).join(' — ');
+    const colorText = escapeHtml(yarn.color || '');
+    const subtitle = [nameText, colorText].filter(Boolean).join(' — ');
     const qty = parseFloat(yarn.quantity) || 0;
     const isSelected = selectedYarnIds.has(yarn.id);
     return `
@@ -15991,7 +15992,7 @@ function renderYarnCard(yarn) {
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
             ${yarn.thumbnail
-                ? `<img src="${API_URL}/api/yarns/${yarn.id}/thumbnail?t=${Date.now()}" class="pattern-thumbnail" alt="${colorwayText}">`
+                ? `<img src="${API_URL}/api/yarns/${yarn.id}/thumbnail?t=${Date.now()}" class="pattern-thumbnail" alt="${colorText}">`
                 : `<div class="yarn-swatch"></div>`
             }
             <h3 title="${brandText}">${brandText}</h3>
@@ -16018,7 +16019,8 @@ function openYarnModal(yarnId = null) {
 
     document.getElementById('yarn-brand').value = yarn?.brand || '';
     document.getElementById('yarn-name').value = yarn?.name || '';
-    document.getElementById('yarn-colorway').value = yarn?.colorway || '';
+    document.getElementById('yarn-color').value = yarn?.color || '';
+    document.getElementById('yarn-dye-lot').value = yarn?.dye_lot || '';
     document.getElementById('yarn-weight').value = yarn?.weight_category || '';
     document.getElementById('yarn-quantity').value = yarn?.quantity || 1;
     document.getElementById('yarn-fiber').value = yarn?.fiber_content || '';
@@ -16062,7 +16064,8 @@ async function saveYarn() {
     const data = {
         name: document.getElementById('yarn-name').value.trim() || null,
         brand: document.getElementById('yarn-brand').value.trim() || null,
-        colorway: document.getElementById('yarn-colorway').value.trim() || null,
+        color: document.getElementById('yarn-color').value.trim() || null,
+        dye_lot: document.getElementById('yarn-dye-lot').value.trim() || null,
         weight_category: document.getElementById('yarn-weight').value || null,
         fiber_content: document.getElementById('yarn-fiber').value.trim() || null,
         quantity: parseFloat(document.getElementById('yarn-quantity').value) || 1,
@@ -16206,7 +16209,9 @@ function renderHookCard(hook) {
             <div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('hook',${hook.id},this)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
-            <div class="hook-icon-placeholder">
+            ${hook.thumbnail
+                ? `<img src="${API_URL}/api/hooks/${hook.id}/thumbnail?t=${Date.now()}" class="pattern-thumbnail" alt="${sizeText}">`
+                : `<div class="hook-icon-placeholder">
                 ${isKnitting
                     ? `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="8" y1="2" x2="8" y2="22"/>
@@ -16221,7 +16226,7 @@ function renderHookCard(hook) {
                     </svg>`
                 }
                 <span class="hook-size-overlay">${sizeText}</span>
-            </div>
+            </div>`}
             <h3>${sizeText}</h3>
             <p class="pattern-description">${details}</p>
             <div class="yarn-meta">
@@ -16269,6 +16274,13 @@ function openHookModal(hookId = null) {
     if (isKnitting && hook?.hook_type) {
         updateLengthOptions();
         document.getElementById('hook-length').value = hook?.length || '';
+    }
+
+    // Thumbnail
+    if (hook?.thumbnail) {
+        setThumbnailSelectorImage('hook', `${API_URL}/api/hooks/${hook.id}/thumbnail?t=${Date.now()}`);
+    } else {
+        clearThumbnailSelector('hook');
     }
 
     // Patterns tab
@@ -16320,19 +16332,34 @@ async function saveHook() {
     };
 
     try {
+        let result;
         if (editingHookId) {
-            await fetch(`${API_URL}/api/hooks/${editingHookId}`, {
+            const response = await fetch(`${API_URL}/api/hooks/${editingHookId}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
+            result = await response.json();
         } else {
-            await fetch(`${API_URL}/api/hooks`, {
+            const response = await fetch(`${API_URL}/api/hooks`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(data)
             });
+            result = await response.json();
         }
+
+        // Upload thumbnail if one was selected
+        const thumbnailFile = getThumbnailFile('hook');
+        if (thumbnailFile) {
+            const formData = new FormData();
+            formData.append('thumbnail', thumbnailFile);
+            await fetch(`${API_URL}/api/hooks/${result.id}/thumbnail`, {
+                method: 'POST',
+                body: formData
+            });
+        }
+
         closeHookModal();
         await loadHooks();
     } catch (error) {
@@ -16469,13 +16496,13 @@ function createYarnSelector(selectedYarnIds = []) {
     const brands = {};
     yarns.forEach(y => { const b = y.brand || 'Other'; if (!brands[b]) brands[b] = []; brands[b].push(y); });
     const selectedPills = yarns.filter(y => selectedYarnIds.includes(y.id)).map(y => {
-        const label = [y.name, y.colorway].filter(Boolean).join(' - ') || y.brand || 'Unnamed';
+        const label = [y.name, y.color].filter(Boolean).join(' - ') || y.brand || 'Unnamed';
         return `<span class="inv-selected-pill" data-id="${y.id}" onclick="toggleInvCheckbox(this, 'yarn-select-cb')">${escapeHtml(label)} ×</span>`;
     }).join('');
     const brandGroups = Object.keys(brands).sort().map(brand => {
         const items = brands[brand].map(y => {
             const checked = selectedYarnIds.includes(y.id);
-            const sub = [y.name, y.colorway].filter(Boolean).join(' - ') || 'Unnamed';
+            const sub = [y.name, y.color].filter(Boolean).join(' - ') || 'Unnamed';
             return `<label class="inv-selector-item${checked ? ' selected' : ''}">
                 <input type="checkbox" class="yarn-select-cb" value="${y.id}" ${checked ? 'checked' : ''}
                     onchange="this.parentElement.classList.toggle('selected', this.checked); updateInvSelectorPills(this, 'yarn'); updateInventoryBadgeFromCheckbox(this); autoSaveInventoryLinks(this)">
@@ -16594,7 +16621,7 @@ function updateInvSelectorPills(cb, type) {
         const item = items.find(i => i.id === id);
         if (!item) return '';
         const label = type === 'yarn'
-            ? ([item.name, item.colorway].filter(Boolean).join(' - ') || item.brand || 'Unnamed')
+            ? ([item.name, item.color].filter(Boolean).join(' - ') || item.brand || 'Unnamed')
             : ([item.name, item.size_label].filter(Boolean).join(' - ') || item.brand || 'Unnamed');
         return `<span class="inv-selected-pill" data-id="${id}" onclick="toggleInvCheckbox(this, '${cbClass}')">${escapeHtml(label)} ×</span>`;
     }).join('');

@@ -318,6 +318,15 @@ async function initDatabase() {
       )
     `);
 
+    // Create pattern_hooks junction table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pattern_hooks (
+        pattern_id INTEGER NOT NULL REFERENCES patterns(id) ON DELETE CASCADE,
+        hook_id INTEGER NOT NULL REFERENCES hooks(id) ON DELETE CASCADE,
+        PRIMARY KEY (pattern_id, hook_id)
+      )
+    `);
+
     // Add columns to existing patterns table if they don't exist
     await client.query(`
       DO $$

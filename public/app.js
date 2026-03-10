@@ -10735,6 +10735,23 @@ async function openPdfEditModal() {
     const patternHashtagIds = (currentPattern.hashtags || []).map(h => h.id);
     hashtagsContainer.innerHTML = createHashtagSelector('pdf-edit-hashtags', patternHashtagIds);
 
+    // Populate inventory tab selectors
+    const pdfYarnContainer = document.getElementById('pdf-edit-yarns-container');
+    const pdfHookContainer = document.getElementById('pdf-edit-hooks-container');
+    try {
+        const [yarnRes, hookRes] = await Promise.all([
+            fetch(`${API_URL}/api/patterns/${currentPattern.id}/yarns`),
+            fetch(`${API_URL}/api/patterns/${currentPattern.id}/hooks`)
+        ]);
+        const linkedYarns = yarnRes.ok ? await yarnRes.json() : [];
+        const linkedHooks = hookRes.ok ? await hookRes.json() : [];
+        pdfYarnContainer.innerHTML = createYarnSelector(linkedYarns.map(y => y.id));
+        pdfHookContainer.innerHTML = createHookSelector(linkedHooks.map(h => h.id));
+    } catch (e) {
+        pdfYarnContainer.innerHTML = createYarnSelector([]);
+        pdfHookContainer.innerHTML = createHookSelector([]);
+    }
+
     // Set existing thumbnail in selector
     if (currentPattern.thumbnail) {
         setThumbnailSelectorImage('pdf-edit', `${API_URL}${currentPattern.thumbnail}`);
@@ -10758,6 +10775,7 @@ async function openPdfEditModal() {
         .then(data => { revertBtn.disabled = !data.hasAnnotations; })
         .catch(() => { revertBtn.disabled = true; });
 
+    resetEditModalTab('pdf-edit');
     modal.style.display = 'flex';
 }
 
@@ -10951,6 +10969,22 @@ async function savePdfEdit() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ hashtagIds })
         });
+
+        // Update linked yarns
+        const pdfYarnIds = getSelectedYarnIds('pdf-edit-yarns-container');
+        const pdfHookIds = getSelectedHookIds('pdf-edit-hooks-container');
+        await Promise.all([
+            fetch(`${API_URL}/api/patterns/${currentPattern.id}/yarns`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ yarnIds: pdfYarnIds })
+            }),
+            fetch(`${API_URL}/api/patterns/${currentPattern.id}/hooks`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hookIds: pdfHookIds })
+            })
+        ]);
 
         // Handle thumbnail upload if provided
         if (thumbnailFile) {
@@ -12586,20 +12620,27 @@ async function openEditModal(patternId) {
         clearThumbnailSelector('edit');
     }
 
-    // Create yarn selector with current pattern's linked yarns
+    // Populate inventory tab selectors
     const yarnContainer = document.getElementById('edit-pattern-yarns-container');
+    const hookContainer = document.getElementById('edit-pattern-hooks-container');
     try {
-        const yarnRes = await fetch(`${API_URL}/api/patterns/${patternId}/yarns`);
+        const [yarnRes, hookRes] = await Promise.all([
+            fetch(`${API_URL}/api/patterns/${patternId}/yarns`),
+            fetch(`${API_URL}/api/patterns/${patternId}/hooks`)
+        ]);
         const linkedYarns = yarnRes.ok ? await yarnRes.json() : [];
-        const selectedYarnIds = linkedYarns.map(y => y.id);
-        yarnContainer.innerHTML = createYarnSelector(selectedYarnIds);
+        const linkedHooks = hookRes.ok ? await hookRes.json() : [];
+        yarnContainer.innerHTML = createYarnSelector(linkedYarns.map(y => y.id));
+        hookContainer.innerHTML = createHookSelector(linkedHooks.map(h => h.id));
     } catch (e) {
         yarnContainer.innerHTML = createYarnSelector([]);
+        hookContainer.innerHTML = createHookSelector([]);
     }
 
     // Set current toggle state
     document.getElementById('edit-is-current').checked = pattern.is_current || false;
 
+    resetEditModalTab('edit');
     document.getElementById('edit-modal').style.display = 'flex';
 }
 
@@ -12651,13 +12692,21 @@ async function savePatternEdits() {
             body: JSON.stringify({ hashtagIds })
         });
 
-        // Update linked yarns
+        // Update linked yarns and hooks
         const yarnIds = getSelectedYarnIds();
-        await fetch(`${API_URL}/api/patterns/${editingPatternId}/yarns`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ yarnIds })
-        });
+        const hookIds = getSelectedHookIds();
+        await Promise.all([
+            fetch(`${API_URL}/api/patterns/${editingPatternId}/yarns`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ yarnIds })
+            }),
+            fetch(`${API_URL}/api/patterns/${editingPatternId}/hooks`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hookIds })
+            })
+        ]);
 
         // If custom thumbnail was uploaded, handle it separately
         if (thumbnailFile) {
@@ -13307,7 +13356,7 @@ async function clearMarkdownNotes() {
 }
 
 // Markdown details modal (metadata only)
-function openMarkdownEditModal() {
+async function openMarkdownEditModal() {
     const modal = document.getElementById('markdown-edit-modal');
 
     // Populate metadata fields
@@ -13323,6 +13372,23 @@ function openMarkdownEditModal() {
     const patternHashtagIds = (currentPattern.hashtags || []).map(h => h.id);
     hashtagsContainer.innerHTML = createHashtagSelector('markdown-edit-hashtags', patternHashtagIds);
 
+    // Populate inventory tab selectors
+    const mdYarnContainer = document.getElementById('markdown-edit-yarns-container');
+    const mdHookContainer = document.getElementById('markdown-edit-hooks-container');
+    try {
+        const [yarnRes, hookRes] = await Promise.all([
+            fetch(`${API_URL}/api/patterns/${currentPattern.id}/yarns`),
+            fetch(`${API_URL}/api/patterns/${currentPattern.id}/hooks`)
+        ]);
+        const linkedYarns = yarnRes.ok ? await yarnRes.json() : [];
+        const linkedHooks = hookRes.ok ? await hookRes.json() : [];
+        mdYarnContainer.innerHTML = createYarnSelector(linkedYarns.map(y => y.id));
+        mdHookContainer.innerHTML = createHookSelector(linkedHooks.map(h => h.id));
+    } catch (e) {
+        mdYarnContainer.innerHTML = createYarnSelector([]);
+        mdHookContainer.innerHTML = createHookSelector([]);
+    }
+
     // Set existing thumbnail in selector
     if (currentPattern.thumbnail) {
         setThumbnailSelectorImage('markdown-edit', `${API_URL}${currentPattern.thumbnail}`);
@@ -13337,6 +13403,7 @@ function openMarkdownEditModal() {
     const deleteBtn = document.getElementById('delete-markdown-pattern');
     resetDeleteButton(deleteBtn, 'Delete Pattern');
 
+    resetEditModalTab('markdown-edit');
     modal.style.display = 'flex';
 }
 
@@ -13428,6 +13495,22 @@ async function saveMarkdownEdit() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ hashtagIds })
         });
+
+        // Update linked yarns
+        const mdYarnIds = getSelectedYarnIds('markdown-edit-yarns-container');
+        const mdHookIds = getSelectedHookIds('markdown-edit-hooks-container');
+        await Promise.all([
+            fetch(`${API_URL}/api/patterns/${currentPattern.id}/yarns`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ yarnIds: mdYarnIds })
+            }),
+            fetch(`${API_URL}/api/patterns/${currentPattern.id}/hooks`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ hookIds: mdHookIds })
+            })
+        ]);
 
         // Handle thumbnail upload if provided
         if (thumbnailFile) {
@@ -15626,6 +15709,9 @@ function updateLengthOptions() {
 }
 
 function initInventory() {
+    // Edit modal tabs (Details / Inventory)
+    initEditModalTabs();
+
     // Sub-tab switching
     document.querySelectorAll('.inventory-sub-tab').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -15903,6 +15989,10 @@ function renderHookCard(hook) {
             <div class="yarn-meta">
                 <span class="yarn-qty">${hook.quantity || 1} ${unitName}${(hook.quantity || 1) !== 1 ? 's' : ''}</span>
             </div>
+            ${hook.pattern_count > 0 ? `<div class="yarn-linked">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 7h3a5 5 0 0 1 0 10h-3m-6 0H6a5 5 0 0 1 0-10h3"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                ${hook.pattern_count} pattern${hook.pattern_count > 1 ? 's' : ''}
+            </div>` : ''}
         </div>
     `;
 }
@@ -16125,14 +16215,64 @@ function createYarnSelector(selectedYarnIds = []) {
             const checked = selectedYarnIds.includes(y.id);
             const label = [y.brand, y.name, y.colorway].filter(Boolean).join(' — ') || 'Unnamed Yarn';
             return `<label class="hashtag-tag${checked ? ' selected' : ''}">
-                <input type="checkbox" class="yarn-select-cb" value="${y.id}" ${checked ? 'checked' : ''}>
+                <input type="checkbox" class="yarn-select-cb" value="${y.id}" ${checked ? 'checked' : ''}
+                    onchange="this.parentElement.classList.toggle('selected', this.checked)">
                 ${escapeHtml(label)}
             </label>`;
         }).join('')}
     </div>`;
 }
 
-function getSelectedYarnIds() {
-    return Array.from(document.querySelectorAll('#edit-pattern-yarns-container .yarn-select-cb:checked'))
+function getSelectedYarnIds(containerId = 'edit-pattern-yarns-container') {
+    return Array.from(document.querySelectorAll(`#${containerId} .yarn-select-cb:checked`))
         .map(cb => parseInt(cb.value));
+}
+
+// --- Hook selector for pattern edit modal ---
+
+function createHookSelector(selectedHookIds = []) {
+    if (hooks.length === 0) {
+        return '<p class="text-muted" style="font-size: 0.85rem; margin: 0;">No hooks/needles in inventory. Add from the Inventory tab.</p>';
+    }
+    return `<div class="yarn-selector">
+        ${hooks.map(h => {
+            const checked = selectedHookIds.includes(h.id);
+            const label = [h.brand, h.name, h.size_label].filter(Boolean).join(' — ') || 'Unnamed Hook';
+            return `<label class="hashtag-tag${checked ? ' selected' : ''}">
+                <input type="checkbox" class="hook-select-cb" value="${h.id}" ${checked ? 'checked' : ''}
+                    onchange="this.parentElement.classList.toggle('selected', this.checked)">
+                ${escapeHtml(label)}
+            </label>`;
+        }).join('')}
+    </div>`;
+}
+
+function getSelectedHookIds(containerId = 'edit-pattern-hooks-container') {
+    return Array.from(document.querySelectorAll(`#${containerId} .hook-select-cb:checked`))
+        .map(cb => parseInt(cb.value));
+}
+
+// --- Edit modal tab switching ---
+
+function initEditModalTabs() {
+    document.querySelectorAll('.edit-modal-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const modal = btn.dataset.modal;
+            const tab = btn.dataset.tab;
+            // Toggle tab buttons
+            document.querySelectorAll(`.edit-modal-tab[data-modal="${modal}"]`).forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            // Toggle tab content
+            document.getElementById(`${modal}-tab-details`).classList.toggle('active', tab === 'details');
+            document.getElementById(`${modal}-tab-inventory`).classList.toggle('active', tab === 'inventory');
+        });
+    });
+}
+
+function resetEditModalTab(modal) {
+    document.querySelectorAll(`.edit-modal-tab[data-modal="${modal}"]`).forEach(b => {
+        b.classList.toggle('active', b.dataset.tab === 'details');
+    });
+    document.getElementById(`${modal}-tab-details`)?.classList.add('active');
+    document.getElementById(`${modal}-tab-inventory`)?.classList.remove('active');
 }

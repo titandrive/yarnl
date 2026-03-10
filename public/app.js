@@ -1774,6 +1774,8 @@ let yarnSort = { col: 'brand', dir: 'asc' };
 let hookSort = { col: 'brand', dir: 'asc' };
 let editingYarnId = null;
 let editingHookId = null;
+let selectedYarnIds = new Set();
+let selectedHookIds = new Set();
 let allCategories = []; // All possible categories for editing/uploading
 let populatedCategories = []; // Only categories with patterns (for filtering)
 let allHashtags = []; // All available hashtags
@@ -9650,6 +9652,9 @@ document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && selectedPatternIds.size > 0) {
         clearBulkSelection();
     }
+    if (e.key === 'Escape' && (selectedYarnIds.size > 0 || selectedHookIds.size > 0)) {
+        clearInventorySelection();
+    }
 });
 
 // ── Bulk Edit Modal ──
@@ -15739,6 +15744,7 @@ function initInventory() {
             // Update search placeholder
             document.getElementById('inventory-search').placeholder = btn.dataset.sub === 'yarn' ? 'Search yarn...' : 'Search hooks...';
             document.getElementById('inventory-search').value = '';
+            clearInventorySelection();
         });
     });
 
@@ -15748,6 +15754,8 @@ function initInventory() {
             inventoryView = btn.dataset.view;
             localStorage.setItem('inventoryView', inventoryView);
             document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === inventoryView));
+            clearInventorySelection();
+            exitInventoryEditMode();
             displayYarns();
             displayHooks();
         });
@@ -15958,12 +15966,13 @@ function displayYarns() {
         const arrow = (col) => yarnSort.col === col ? (yarnSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="yarn">
-            <thead><tr>${cols.map(c => `<th data-col="${c}" draggable="true" onclick="toggleYarnSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'yarn')">${YARN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
-            <tbody>${filtered.map(y => `<tr onclick="openYarnModal(${y.id})">${cols.map(c => `<td>${YARN_COLUMNS[c].value(y)}</td>`).join('')}</tr>`).join('')}</tbody>
+            <thead><tr><th class="inv-cb-col"></th>${cols.map(c => `<th data-col="${c}" draggable="true" onclick="toggleYarnSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'yarn')">${YARN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <tbody>${filtered.map(y => `<tr onclick="handleInventoryRowClick(event,'yarn',${y.id})" class="${selectedYarnIds.has(y.id) ? 'bulk-selected' : ''}" data-item-id="${y.id}"><td class="inv-cb-col"><div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('yarn',${y.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>${cols.map(c => `<td>${YARN_COLUMNS[c].value(y)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
     } else {
         grid.className = 'patterns-grid';
         grid.innerHTML = filtered.map(renderYarnCard).join('');
+        initInventoryCardLongPress('yarn');
     }
     // Populate brand filter options
     populateYarnBrandFilter();
@@ -15975,8 +15984,12 @@ function renderYarnCard(yarn) {
     const colorwayText = escapeHtml(yarn.colorway || '');
     const subtitle = [nameText, colorwayText].filter(Boolean).join(' — ');
     const qty = parseFloat(yarn.quantity) || 0;
+    const isSelected = selectedYarnIds.has(yarn.id);
     return `
-        <div class="pattern-card yarn-card" onclick="openYarnModal(${yarn.id})" data-yarn-id="${yarn.id}">
+        <div class="pattern-card yarn-card${isSelected ? ' bulk-selected' : ''}" onclick="handleInventoryCardClick(event,'yarn',${yarn.id})" data-yarn-id="${yarn.id}">
+            <div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('yarn',${yarn.id},this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
             ${yarn.thumbnail
                 ? `<img src="${API_URL}/api/yarns/${yarn.id}/thumbnail?t=${Date.now()}" class="pattern-thumbnail" alt="${colorwayText}">`
                 : `<div class="yarn-swatch"></div>`
@@ -16168,12 +16181,13 @@ function displayHooks() {
         const arrow = (col) => hookSort.col === col ? (hookSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="hook">
-            <thead><tr>${cols.map(c => `<th data-col="${c}" draggable="true" onclick="toggleHookSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'hook')">${HOOK_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
-            <tbody>${filtered.map(h => `<tr onclick="openHookModal(${h.id})">${cols.map(c => `<td>${HOOK_COLUMNS[c].value(h)}</td>`).join('')}</tr>`).join('')}</tbody>
+            <thead><tr><th class="inv-cb-col"></th>${cols.map(c => `<th data-col="${c}" draggable="true" onclick="toggleHookSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'hook')">${HOOK_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <tbody>${filtered.map(h => `<tr onclick="handleInventoryRowClick(event,'hook',${h.id})" class="${selectedHookIds.has(h.id) ? 'bulk-selected' : ''}" data-item-id="${h.id}"><td class="inv-cb-col"><div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('hook',${h.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>${cols.map(c => `<td>${HOOK_COLUMNS[c].value(h)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
     } else {
         grid.className = 'patterns-grid';
         grid.innerHTML = filtered.map(renderHookCard).join('');
+        initInventoryCardLongPress('hook');
     }
     // Populate filter options
     populateHookFilters();
@@ -16186,8 +16200,12 @@ function renderHookCard(hook) {
     const detailParts = [hook.brand, hook.name, hook.hook_type];
     if (isKnitting && hook.length) detailParts.push(hook.length);
     const details = detailParts.filter(Boolean).map(escapeHtml).join(' / ');
+    const isSelected = selectedHookIds.has(hook.id);
     return `
-        <div class="pattern-card hook-card" onclick="openHookModal(${hook.id})" data-hook-id="${hook.id}">
+        <div class="pattern-card hook-card${isSelected ? ' bulk-selected' : ''}" onclick="handleInventoryCardClick(event,'hook',${hook.id})" data-hook-id="${hook.id}">
+            <div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('hook',${hook.id},this)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            </div>
             <div class="hook-icon-placeholder">
                 ${isKnitting
                     ? `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -16674,6 +16692,198 @@ function populateHookFilters() {
         typeSelect.innerHTML = '<option value="all">All Types</option>' + types.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
         if (current && types.includes(current)) typeSelect.value = current;
     }
+}
+
+// --- Inventory bulk operations ---
+
+// Card view: library-style click handling (same as pattern cards)
+function handleInventoryCardClick(event, type, id) {
+    if (inventoryEditMode || selectedYarnIds.size > 0 || selectedHookIds.size > 0) {
+        event.preventDefault();
+        event.stopPropagation();
+        const card = event.currentTarget || event.target.closest('.pattern-card');
+        const cb = card ? card.querySelector('.bulk-select-checkbox') : null;
+        toggleInventoryCardSelect(type, id, cb || card);
+        return;
+    }
+    if (type === 'yarn') openYarnModal(id);
+    else openHookModal(id);
+}
+
+function toggleInventoryCardSelect(type, id, el) {
+    const set = type === 'yarn' ? selectedYarnIds : selectedHookIds;
+    if (set.has(id)) { set.delete(id); } else { set.add(id); }
+    const card = el.closest('.pattern-card');
+    if (card) card.classList.toggle('bulk-selected', set.has(id));
+    updateInventoryBulkBar();
+}
+
+let invLongPressTimer = null;
+let invLongPressTriggered = false;
+
+function initInventoryCardLongPress(type) {
+    const attr = type === 'yarn' ? 'data-yarn-id' : 'data-hook-id';
+    document.querySelectorAll(type === 'yarn' ? '.yarn-card' : '.hook-card').forEach(card => {
+        const id = parseInt(card.getAttribute(attr));
+        if (!id) return;
+        card.addEventListener('touchstart', (e) => {
+            invLongPressTriggered = false;
+            invLongPressTimer = setTimeout(() => {
+                invLongPressTriggered = true;
+                if (navigator.vibrate) navigator.vibrate(30);
+                const cb = card.querySelector('.bulk-select-checkbox');
+                toggleInventoryCardSelect(type, id, cb || card);
+            }, 500);
+        }, { passive: true });
+        card.addEventListener('touchend', (e) => {
+            clearTimeout(invLongPressTimer);
+            if (invLongPressTriggered) e.preventDefault();
+        });
+        card.addEventListener('touchmove', () => {
+            clearTimeout(invLongPressTimer);
+        }, { passive: true });
+        card.addEventListener('contextmenu', (e) => {
+            if (invLongPressTimer || invLongPressTriggered) e.preventDefault();
+        });
+    });
+}
+
+// List view: edit mode toggle reveals checkboxes
+let inventoryEditMode = false;
+
+function toggleInventoryEditMode() {
+    inventoryEditMode = !inventoryEditMode;
+    const btn = document.getElementById('inv-edit-btn');
+    if (btn) btn.classList.toggle('active', inventoryEditMode);
+    document.querySelectorAll('.inventory-table').forEach(t => t.classList.toggle('bulk-edit-mode', inventoryEditMode));
+    document.querySelectorAll('.inventory-main .patterns-grid').forEach(g => g.classList.toggle('bulk-edit-mode', inventoryEditMode));
+    if (!inventoryEditMode) {
+        clearInventorySelection();
+    }
+}
+
+function exitInventoryEditMode() {
+    inventoryEditMode = false;
+    const btn = document.getElementById('inv-edit-btn');
+    if (btn) btn.classList.remove('active');
+    document.querySelectorAll('.inventory-table').forEach(t => t.classList.remove('bulk-edit-mode'));
+    document.querySelectorAll('.inventory-main .patterns-grid').forEach(g => g.classList.remove('bulk-edit-mode'));
+}
+
+// List view: row click in edit mode toggles selection
+function handleInventoryRowClick(event, type, id) {
+    if (inventoryEditMode) {
+        event.preventDefault();
+        event.stopPropagation();
+        const row = event.currentTarget || event.target.closest('tr');
+        toggleInventoryRowSelect(type, id, row);
+        return;
+    }
+    if (type === 'yarn') openYarnModal(id);
+    else openHookModal(id);
+}
+
+function toggleInventoryRowSelect(type, id, row) {
+    const set = type === 'yarn' ? selectedYarnIds : selectedHookIds;
+    if (set.has(id)) { set.delete(id); } else { set.add(id); }
+    if (row) row.classList.toggle('bulk-selected', set.has(id));
+    updateInventoryBulkBar();
+}
+
+// Shared: also handle direct checkbox click in list rows
+function toggleInventorySelect(type, id, el) {
+    const set = type === 'yarn' ? selectedYarnIds : selectedHookIds;
+    if (set.has(id)) { set.delete(id); } else { set.add(id); }
+    const container = el.closest('tr') || el.closest('.pattern-card');
+    if (container) container.classList.toggle('bulk-selected', set.has(id));
+    updateInventoryBulkBar();
+}
+
+function clearInventorySelection() {
+    selectedYarnIds.clear();
+    selectedHookIds.clear();
+    document.querySelectorAll('.inventory-table tr.bulk-selected').forEach(r => r.classList.remove('bulk-selected'));
+    document.querySelectorAll('.pattern-card.bulk-selected').forEach(c => {
+        if (c.classList.contains('yarn-card') || c.classList.contains('hook-card')) c.classList.remove('bulk-selected');
+    });
+    updateInventoryBulkBar();
+}
+
+function updateInventoryBulkBar() {
+    const count = selectedYarnIds.size + selectedHookIds.size;
+    let bar = document.getElementById('inventory-bulk-bar');
+    if (count === 0) {
+        if (bar) bar.style.display = 'none';
+        return;
+    }
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.id = 'inventory-bulk-bar';
+        bar.className = 'inventory-bulk-bar';
+        document.body.appendChild(bar);
+    }
+    bar.innerHTML = `<span>${count} selected</span>
+        <button class="btn btn-primary btn-sm" onclick="bulkSetQuantity()">Set Quantity</button>
+        <button class="btn btn-danger btn-sm" id="bulk-inv-delete-btn" onclick="bulkDeleteInventory(this)">Delete</button>
+        <button class="btn btn-sm btn-secondary" onclick="clearInventorySelection()">Clear</button>`;
+    bar.style.display = 'flex';
+}
+
+async function bulkDeleteInventory(btn) {
+    if (!btn.classList.contains('confirm-danger')) {
+        btn.classList.add('confirm-danger');
+        btn.textContent = 'Confirm Delete?';
+        setTimeout(() => {
+            if (btn.classList.contains('confirm-danger')) {
+                btn.classList.remove('confirm-danger');
+                btn.textContent = 'Delete';
+            }
+        }, 3000);
+        return;
+    }
+    const yarnIds = Array.from(selectedYarnIds);
+    const hookIds = Array.from(selectedHookIds);
+    const total = yarnIds.length + hookIds.length;
+    if (yarnIds.length) {
+        await fetch(`${API_URL}/api/yarns/bulk/delete`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: yarnIds })
+        });
+    }
+    if (hookIds.length) {
+        await fetch(`${API_URL}/api/hooks/bulk/delete`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: hookIds })
+        });
+    }
+    clearInventorySelection();
+    await Promise.all([loadYarns(), loadHooks()]);
+    showToast(`Deleted ${total} item${total > 1 ? 's' : ''}`);
+}
+
+async function bulkSetQuantity() {
+    const input = prompt('Set quantity for selected items:');
+    if (input === null) return;
+    const quantity = parseFloat(input);
+    if (isNaN(quantity) || quantity < 0) { showToast('Invalid quantity', 'error'); return; }
+    const yarnIds = Array.from(selectedYarnIds);
+    const hookIds = Array.from(selectedHookIds);
+    const total = yarnIds.length + hookIds.length;
+    if (yarnIds.length) {
+        await fetch(`${API_URL}/api/yarns/bulk/quantity`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: yarnIds, quantity })
+        });
+    }
+    if (hookIds.length) {
+        await fetch(`${API_URL}/api/hooks/bulk/quantity`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ids: hookIds, quantity })
+        });
+    }
+    clearInventorySelection();
+    await Promise.all([loadYarns(), loadHooks()]);
+    showToast(`Updated quantity on ${total} item${total > 1 ? 's' : ''}`);
 }
 
 // --- Linked patterns list (for yarn/hook modals) ---

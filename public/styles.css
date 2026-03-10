@@ -1476,6 +1476,10 @@ html[data-theme="nuked-dark"] .btn-primary {
     background: var(--primary-color);
 }
 
+.bulk-edit-mode .pattern-card .bulk-select-checkbox {
+    opacity: 1;
+}
+
 .pattern-card.bulk-selected {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 2px var(--primary-color);
@@ -10350,6 +10354,112 @@ textarea.image-drag-over {
 
 .inventory-table th.drag-over {
     box-shadow: inset 2px 0 0 var(--primary-color);
+}
+
+/* Inventory edit mode toggle button (list view) */
+.inv-edit-btn {
+    background: none;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+
+.inv-edit-btn:hover {
+    color: var(--text-color);
+    border-color: var(--text-muted);
+}
+
+.inv-edit-btn.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+/* Inventory list view — checkbox column hidden until edit mode */
+.inv-cb-col {
+    width: 0;
+    padding: 0 !important;
+    overflow: hidden;
+    transition: width 0.2s, padding 0.2s;
+}
+
+.bulk-edit-mode .inv-cb-col {
+    width: 36px;
+    padding: 8px 6px !important;
+    text-align: center;
+}
+
+.inventory-table .bulk-select-checkbox {
+    cursor: pointer;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 4px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+}
+
+.inventory-table .bulk-select-checkbox:hover {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.inventory-table tr.bulk-selected .bulk-select-checkbox {
+    background: var(--primary-color);
+}
+
+.inventory-table tr.bulk-selected {
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+
+.inventory-table tr.bulk-selected:hover {
+    background: color-mix(in srgb, var(--primary-color) 18%, transparent);
+}
+
+/* Inventory bulk bar — matches library bulk toolbar */
+.inventory-bulk-bar {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--card-bg);
+    border: 2px solid var(--primary-color);
+    border-radius: 14px;
+    padding: 12px 24px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(139, 92, 246, 0.3);
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-color);
+    white-space: nowrap;
+    animation: bulk-toolbar-in 0.25s ease-out;
+}
+
+.inventory-bulk-bar .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.95rem;
+}
+
+.inventory-bulk-bar .confirm-danger {
+    background: var(--danger-color, #ef4444) !important;
+    border-color: var(--danger-color, #ef4444) !important;
+    color: white !important;
 }
 
 .inventory-toolbar {

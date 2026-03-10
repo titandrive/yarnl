@@ -4535,6 +4535,49 @@ app.delete('/api/yarns/:id', async (req, res) => {
   }
 });
 
+// Bulk delete yarns
+app.post('/api/yarns/bulk/delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !ids.length) return res.status(400).json({ error: 'No items specified' });
+    let count = 0;
+    for (const id of ids) {
+      const yarn = await verifyYarnOwnership(id, req.user?.id, req.user?.role === 'admin');
+      if (!yarn) continue;
+      if (yarn.thumbnail) {
+        const thumbnailPath = path.join(getUserThumbnailsDir(req.user.username), yarn.thumbnail);
+        if (fs.existsSync(thumbnailPath)) fs.unlinkSync(thumbnailPath);
+      }
+      await pool.query('DELETE FROM yarns WHERE id = $1', [id]);
+      count++;
+    }
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk deleting yarns:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk update yarn quantity
+app.post('/api/yarns/bulk/quantity', async (req, res) => {
+  try {
+    const { ids, quantity } = req.body;
+    if (!ids || !ids.length) return res.status(400).json({ error: 'No items specified' });
+    if (quantity == null || quantity < 0) return res.status(400).json({ error: 'Invalid quantity' });
+    let count = 0;
+    for (const id of ids) {
+      const yarn = await verifyYarnOwnership(id, req.user?.id, req.user?.role === 'admin');
+      if (!yarn) continue;
+      await pool.query('UPDATE yarns SET quantity = $1 WHERE id = $2', [quantity, id]);
+      count++;
+    }
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk updating yarn quantity:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/yarns/:id/thumbnail', async (req, res) => {
   try {
     const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
@@ -4705,6 +4748,45 @@ app.delete('/api/hooks/:id', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting hook:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk delete hooks
+app.post('/api/hooks/bulk/delete', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !ids.length) return res.status(400).json({ error: 'No items specified' });
+    let count = 0;
+    for (const id of ids) {
+      const hook = await verifyHookOwnership(id, req.user?.id, req.user?.role === 'admin');
+      if (!hook) continue;
+      await pool.query('DELETE FROM hooks WHERE id = $1', [id]);
+      count++;
+    }
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk deleting hooks:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Bulk update hook quantity
+app.post('/api/hooks/bulk/quantity', async (req, res) => {
+  try {
+    const { ids, quantity } = req.body;
+    if (!ids || !ids.length) return res.status(400).json({ error: 'No items specified' });
+    if (quantity == null || quantity < 0) return res.status(400).json({ error: 'Invalid quantity' });
+    let count = 0;
+    for (const id of ids) {
+      const hook = await verifyHookOwnership(id, req.user?.id, req.user?.role === 'admin');
+      if (!hook) continue;
+      await pool.query('UPDATE hooks SET quantity = $1 WHERE id = $2', [quantity, id]);
+      count++;
+    }
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk updating hook quantity:', error);
     res.status(500).json({ error: error.message });
   }
 });

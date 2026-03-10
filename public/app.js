@@ -15788,6 +15788,24 @@ function initInventory() {
         if (currentCraftType === 'knitting') updateLengthOptions();
     });
 
+    // Sidebar toggle buttons
+    document.querySelectorAll('.inv-sidebar-toggle').forEach(btn => {
+        const sidebarId = btn.dataset.sidebar;
+        const sidebar = document.getElementById(sidebarId);
+        if (!sidebar) return;
+        const key = sidebarId + 'Collapsed';
+        if (localStorage.getItem(key) === 'true') {
+            sidebar.style.display = 'none';
+            btn.classList.add('active');
+        }
+        btn.addEventListener('click', () => {
+            const isHidden = sidebar.style.display === 'none';
+            sidebar.style.display = isHidden ? '' : 'none';
+            btn.classList.toggle('active', !isHidden);
+            localStorage.setItem(key, !isHidden);
+        });
+    });
+
     // Brand autocomplete
     initBrandAutocomplete('yarn-brand', 'yarn-brand-list', DEFAULT_YARN_BRANDS);
     initBrandAutocomplete('hook-brand', 'hook-brand-list', DEFAULT_HOOK_BRANDS);
@@ -15952,9 +15970,16 @@ function displayYarns() {
         filtered = sortInventory(filtered, { col: colMap[sortCol] || sortCol, dir: sortDir });
     }
 
-    // Show/hide sidebar based on view
+    // Show/hide sidebar and toggle based on view
     const sidebar = document.getElementById('yarn-sidebar');
-    if (sidebar) sidebar.style.display = inventoryView === 'list' ? 'none' : '';
+    const sidebarToggle = sidebar?.closest('.inventory-layout')?.querySelector('.inv-sidebar-toggle');
+    if (inventoryView === 'list') {
+        if (sidebar) sidebar.style.display = 'none';
+        if (sidebarToggle) sidebarToggle.style.display = 'none';
+    } else {
+        if (sidebarToggle) sidebarToggle.style.display = '';
+        if (sidebar && localStorage.getItem('yarn-sidebarCollapsed') !== 'true') sidebar.style.display = '';
+    }
 
     if (filtered.length === 0) {
         grid.innerHTML = `<p class="empty-state">${query || (weightFilter && weightFilter !== 'all') || (brandFilter && brandFilter !== 'all') ? 'No yarn matches your filters.' : 'No yarn in your inventory yet. Add some to get started!'}</p>`;
@@ -16168,9 +16193,16 @@ function displayHooks() {
         filtered = sortInventory(filtered, { col: colMap[sortCol] || sortCol, dir: sortDir });
     }
 
-    // Show/hide sidebar based on view
+    // Show/hide sidebar and toggle based on view
     const sidebar = document.getElementById('hooks-sidebar');
-    if (sidebar) sidebar.style.display = inventoryView === 'list' ? 'none' : '';
+    const sidebarToggle = sidebar?.closest('.inventory-layout')?.querySelector('.inv-sidebar-toggle');
+    if (inventoryView === 'list') {
+        if (sidebar) sidebar.style.display = 'none';
+        if (sidebarToggle) sidebarToggle.style.display = 'none';
+    } else {
+        if (sidebarToggle) sidebarToggle.style.display = '';
+        if (sidebar && localStorage.getItem('hooks-sidebarCollapsed') !== 'true') sidebar.style.display = '';
+    }
 
     const hasFilters = query || (craftFilter && craftFilter !== 'all') || (typeFilter && typeFilter !== 'all') || (brandFilter && brandFilter !== 'all');
     if (filtered.length === 0) {

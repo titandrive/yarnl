@@ -8365,6 +8365,9 @@ function displayPatterns() {
         return;
     }
 
+    // Remove early view styles once JS takes over
+    const earlyViewStyle2 = document.getElementById('early-view-style');
+    if (earlyViewStyle2) earlyViewStyle2.remove();
     // Toggle sidebar visibility based on view
     const sidebarToggle = document.getElementById('library-sidebar-toggle');
     if (sidebarToggle) sidebarToggle.style.display = libraryView === 'list' ? 'none' : '';
@@ -16105,6 +16108,9 @@ function displayYarns() {
         filtered = sortInventory(filtered, { col: colMap[sortCol] || sortCol, dir: sortDir });
     }
 
+    // Remove early view styles once JS takes over
+    const earlyViewStyle = document.getElementById('early-view-style');
+    if (earlyViewStyle) earlyViewStyle.remove();
     // Show/hide sidebar and toggle based on view
     const sidebar = document.getElementById('yarn-sidebar');
     const sidebarToggle = sidebar?.closest('.inventory-layout')?.querySelector('.inv-sidebar-toggle');

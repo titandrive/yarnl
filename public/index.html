@@ -66,7 +66,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=292">
+    <link rel="stylesheet" href="styles.css?v=293">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -236,6 +236,18 @@
                                 <option value="favorites">Favorites Only</option>
                                 <option value="current">In Progress Only</option>
                                 <option value="new">New Only</option>
+                            </select>
+                        </div>
+                        <div class="sidebar-section">
+                            <label for="rating-filter-select">Rating</label>
+                            <select id="rating-filter-select">
+                                <option value="all">Any Rating</option>
+                                <option value="5">5 Stars</option>
+                                <option value="4">4 Stars</option>
+                                <option value="3">3 Stars</option>
+                                <option value="2">2 Stars</option>
+                                <option value="1">1 Star</option>
+                                <option value="unrated">Unrated</option>
                             </select>
                         </div>
                         <div class="sidebar-section" id="owner-filter-section" style="display:none">
@@ -633,6 +645,18 @@ Inc in each st around (12)
                                     <option value="all">All Brands</option>
                                 </select>
                             </div>
+                            <div class="sidebar-section">
+                                <label for="yarn-rating-filter">Rating</label>
+                                <select id="yarn-rating-filter">
+                                    <option value="all">Any Rating</option>
+                                    <option value="5">5 Stars</option>
+                                    <option value="4">4 Stars</option>
+                                    <option value="3">3 Stars</option>
+                                    <option value="2">2 Stars</option>
+                                    <option value="1">1 Star</option>
+                                    <option value="unrated">Unrated</option>
+                                </select>
+                            </div>
                         </aside>
                         <div class="inventory-main">
                             <button class="sidebar-toggle-icon inv-sidebar-toggle" data-sidebar="yarn-sidebar" title="Toggle sidebar">
@@ -682,6 +706,18 @@ Inc in each st around (12)
                                 <label for="hook-brand-filter">Brand</label>
                                 <select id="hook-brand-filter">
                                     <option value="all">All Brands</option>
+                                </select>
+                            </div>
+                            <div class="sidebar-section">
+                                <label for="hook-rating-filter">Rating</label>
+                                <select id="hook-rating-filter">
+                                    <option value="all">Any Rating</option>
+                                    <option value="5">5 Stars</option>
+                                    <option value="4">4 Stars</option>
+                                    <option value="3">3 Stars</option>
+                                    <option value="2">2 Stars</option>
+                                    <option value="1">1 Star</option>
+                                    <option value="unrated">Unrated</option>
                                 </select>
                             </div>
                         </aside>
@@ -2902,6 +2938,10 @@ Inc in each st around (12)
                         <div id="edit-pattern-hashtags-container"></div>
                     </div>
                     <div class="form-group">
+                        <label>Rating</label>
+                        <div id="edit-pattern-rating"></div>
+                    </div>
+                    <div class="form-group">
                         <label>Thumbnail <span class="required">optional</span></label>
                         <div class="thumbnail-selector" id="edit-thumbnail-selector" data-target="edit">
                             <div class="thumbnail-selector-preview" id="edit-thumbnail-preview">
@@ -3179,6 +3219,10 @@ Inc in each st around (12)
                         </button>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>Set Rating</label>
+                    <div id="bulk-rating"></div>
+                </div>
                 <hr style="border-color: var(--border-color); margin: 16px 0;">
                 <div class="form-group">
                     <label style="color: var(--danger-color);">Danger Zone</label>
@@ -3265,6 +3309,10 @@ Inc in each st around (12)
                             Import via URL
                         </button>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>Rating</label>
+                    <div id="yarn-rating"></div>
                 </div>
                 <div class="form-row" style="align-items: flex-start;">
                     <div class="form-group" style="flex: 0 0 auto;">
@@ -3365,6 +3413,10 @@ Inc in each st around (12)
                         </button>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>Rating</label>
+                    <div id="hook-rating"></div>
+                </div>
                 <div class="form-row" style="align-items: flex-start;">
                     <div class="form-group" style="flex: 0 0 auto;">
                         <label>Photo</label>
@@ -3414,6 +3466,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=292"></script>
+    <script defer src="app.js?v=293"></script>
 </body>
 </html>

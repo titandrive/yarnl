@@ -2552,6 +2552,27 @@ body.global-drag-over #current::after {
     z-index: 10;
 }
 
+.pattern-card .rating-badge {
+    position: absolute;
+    top: 140px;
+    left: 18px;
+    padding: 0;
+    background: none;
+    line-height: 0;
+    z-index: 10;
+}
+
+.yarn-card .rating-badge,
+.hook-card .rating-badge {
+    position: absolute;
+    top: 48px;
+    left: 8px;
+    padding: 0;
+    background: none;
+    line-height: 0;
+    z-index: 10;
+}
+
 .completion-date {
     color: var(--success-color);
     font-size: 0.8rem;
@@ -10589,6 +10610,17 @@ textarea.image-drag-over {
     background: color-mix(in srgb, var(--danger-color, #e74c3c) 15%, transparent);
 }
 
+.context-menu-rating {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 12px;
+}
+
+.context-menu-rating svg:hover {
+    transform: scale(1.2);
+}
+
 .list-url-link {
     color: var(--primary-color);
     text-decoration: none;
@@ -10726,6 +10758,28 @@ textarea.image-drag-over {
     color: #f87171;
 }
 
+.star-rating-input {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.star-rating-input svg:hover {
+    transform: scale(1.2);
+}
+
+.star-rating-clear {
+    margin-left: 8px;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+}
+
+.star-rating-clear:hover {
+    color: var(--text-color);
+}
+
 .inventory-toolbar {
     display: flex;
     gap: 8px;
@@ -10822,6 +10876,14 @@ textarea.image-drag-over {
     height: 70px;
     margin: -10px -10px 8px -10px;
     width: calc(100% + 20px);
+}
+
+.yarn-card .pattern-thumbnail,
+.hook-card .pattern-thumbnail {
+    height: 70px;
+    margin: -10px -10px 8px -10px;
+    width: calc(100% + 20px);
+    border-radius: 8px 8px 0 0;
 }
 
 .yarn-card h3, .hook-card h3 {

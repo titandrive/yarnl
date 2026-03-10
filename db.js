@@ -338,7 +338,7 @@ async function initDatabase() {
       END $$;
     `);
 
-    // Add is_favorite column to yarns and hooks
+    // Add is_favorite and rating columns to yarns, hooks, and patterns
     await client.query(`
       DO $$
       BEGIN
@@ -349,6 +349,18 @@ async function initDatabase() {
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                       WHERE table_name='hooks' AND column_name='is_favorite') THEN
           ALTER TABLE hooks ADD COLUMN is_favorite BOOLEAN DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='rating') THEN
+          ALTER TABLE patterns ADD COLUMN rating INTEGER DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='yarns' AND column_name='rating') THEN
+          ALTER TABLE yarns ADD COLUMN rating INTEGER DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='hooks' AND column_name='rating') THEN
+          ALTER TABLE hooks ADD COLUMN rating INTEGER DEFAULT 0;
         END IF;
       END $$;
     `);

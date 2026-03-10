@@ -1838,6 +1838,7 @@ let highlightMode = localStorage.getItem('libraryHighlightMode') || 'none';
 let pinCurrent = localStorage.getItem('libraryPinCurrent') === 'true';
 let pinFavorites = localStorage.getItem('libraryPinFavorites') === 'true';
 let showFilter = localStorage.getItem('libraryShowFilter') || 'all';
+let ratingFilter = localStorage.getItem('libraryRatingFilter') || 'all';
 let ownerFilter = localStorage.getItem('libraryOwnerFilter') || 'all';
 let searchQuery = '';
 let previousTab = 'current';
@@ -8131,6 +8132,17 @@ function initLibraryFilters() {
         });
     }
 
+    // Rating filter dropdown
+    const ratingFilterSelect = document.getElementById('rating-filter-select');
+    if (ratingFilterSelect) {
+        ratingFilterSelect.value = ratingFilter;
+        ratingFilterSelect.addEventListener('change', (e) => {
+            ratingFilter = e.target.value;
+            localStorage.setItem('libraryRatingFilter', ratingFilter);
+            displayPatterns();
+        });
+    }
+
     // Owner filter dropdown (admin only)
     const ownerFilterSection = document.getElementById('owner-filter-section');
     const ownerFilterSelect = document.getElementById('owner-filter-select');
@@ -8236,7 +8248,7 @@ function renderPatternCard(pattern, options = {}) {
             ${isOwnPattern && showStatusBadge && pattern.completed ? '<span class="completed-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>' : ''}
             ${isOwnPattern && showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>' : ''}
             ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
-            ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
+            ${pattern.rating ? `<span class="rating-badge">${ratingBadgeHtml(pattern.rating)}</span>` : (showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : '')}
             ${isOwnPattern && showStarBadge && pattern.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span>' : ''}
             ${!isOwnPattern && ownerName ? `<span class="owner-badge-overlay" style="background:${userColor(ownerName)}">${escapeHtml(ownerName)}</span>` : ''}
             ${pattern.thumbnail
@@ -8379,6 +8391,15 @@ function displayPatterns() {
             if (showFilter === 'current') return p.is_current && !p.completed;
             if (showFilter === 'new') return !p.completed && !p.timer_seconds;
             return true;
+        });
+    }
+
+    // Filter by rating
+    if (ratingFilter !== 'all') {
+        filteredPatterns = filteredPatterns.filter(p => {
+            if (ratingFilter === 'rated') return p.rating > 0;
+            if (ratingFilter === 'unrated') return !p.rating;
+            return (p.rating || 0) === parseInt(ratingFilter);
         });
     }
 
@@ -8608,6 +8629,41 @@ async function toggleHookFavorite(id, isFavorite) {
         if (hook) hook.is_favorite = !isFavorite;
         displayHooks();
     }
+}
+
+async function setPatternRating(id, rating) {
+    const p = patterns.find(x => String(x.id) === String(id));
+    const cp = currentPatterns.find(x => String(x.id) === String(id));
+    const oldRating = p?.rating || 0;
+    if (p) p.rating = rating;
+    if (cp) cp.rating = rating;
+    displayPatterns();
+    displayCurrentPatterns();
+    try {
+        const res = await fetch(`${API_URL}/api/patterns/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating })
+        });
+        if (!res.ok) { if (p) p.rating = oldRating; if (cp) cp.rating = oldRating; displayPatterns(); displayCurrentPatterns(); }
+    } catch { if (p) p.rating = oldRating; if (cp) cp.rating = oldRating; displayPatterns(); displayCurrentPatterns(); }
+}
+
+async function setInventoryRating(type, id, rating) {
+    const arr = type === 'yarn' ? yarns : hooks;
+    const item = arr.find(x => String(x.id) === String(id));
+    const oldRating = item?.rating || 0;
+    if (item) item.rating = rating;
+    if (type === 'yarn') displayYarns(); else displayHooks();
+    try {
+        const endpoint = type === 'yarn' ? 'yarns' : 'hooks';
+        const res = await fetch(`${API_URL}/api/${endpoint}/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ rating })
+        });
+        if (!res.ok) { if (item) item.rating = oldRating; if (type === 'yarn') displayYarns(); else displayHooks(); }
+    } catch { if (item) item.rating = oldRating; if (type === 'yarn') displayYarns(); else displayHooks(); }
 }
 
 function handleCardDelete(btn, id) {
@@ -9880,6 +9936,9 @@ function openBulkEditModal() {
         btn.title = has ? 'Click to remove' : `No selected patterns are ${labelMap[btn.dataset.field]}`;
     });
 
+    // Rating input (default 0 = no change)
+    document.getElementById('bulk-rating').innerHTML = ratingInputHtml('bulk-rating-input', 0);
+
     document.getElementById('bulk-edit-modal').style.display = 'flex';
 }
 
@@ -10031,6 +10090,16 @@ async function applyBulkEdit() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ patternIds, isFavorite: favoriteAction === 'set' })
+        }));
+    }
+
+    // Apply rating change
+    const bulkRating = parseInt(document.getElementById('bulk-rating-input')?.dataset.rating) || 0;
+    if (bulkRating > 0) {
+        promises.push(fetch(`${API_URL}/api/patterns/bulk/rating`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patternIds, rating: bulkRating })
         }));
     }
 
@@ -12794,6 +12863,9 @@ async function openEditModal(patternId) {
     // Set current toggle state
     document.getElementById('edit-is-current').checked = pattern.is_current || false;
 
+    // Rating
+    document.getElementById('edit-pattern-rating').innerHTML = ratingInputHtml('edit-pattern-rating-input', pattern.rating || 0);
+
     resetEditModalTab('edit');
     document.getElementById('edit-modal').style.display = 'flex';
 }
@@ -12818,10 +12890,11 @@ async function savePatternEdits() {
 
     try {
         // Update pattern details
+        const rating = parseInt(document.getElementById('edit-pattern-rating-input')?.dataset.rating) || 0;
         const response = await fetch(`${API_URL}/api/patterns/${editingPatternId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, category, description })
+            body: JSON.stringify({ name, category, description, rating })
         });
 
         if (!response.ok) {
@@ -16033,10 +16106,12 @@ function initInventory() {
     document.getElementById('yarn-sort-select')?.addEventListener('change', () => displayYarns());
     document.getElementById('yarn-weight-filter')?.addEventListener('change', () => displayYarns());
     document.getElementById('yarn-brand-filter')?.addEventListener('change', () => displayYarns());
+    document.getElementById('yarn-rating-filter')?.addEventListener('change', () => displayYarns());
     document.getElementById('hook-sort-select')?.addEventListener('change', () => displayHooks());
     document.getElementById('hook-craft-filter')?.addEventListener('change', () => displayHooks());
     document.getElementById('hook-type-filter')?.addEventListener('change', () => displayHooks());
     document.getElementById('hook-brand-filter')?.addEventListener('change', () => displayHooks());
+    document.getElementById('hook-rating-filter')?.addEventListener('change', () => displayHooks());
 }
 
 // --- Inventory column config ---
@@ -16053,6 +16128,55 @@ function hookPlaceholderSvg(craftType, size) {
 const LIST_HOOK_PLACEHOLDER = '<div class="list-thumbnail-placeholder"><svg width="26" height="26" viewBox="0 0 100 125" fill="currentColor">' + CROCHET_HOOK_SVG + '</svg></div>';
 const LIST_PATTERN_PLACEHOLDER = '<div class="list-thumbnail-placeholder"><svg width="26" height="26" viewBox="-5 -10 110 135" fill="currentColor"><path d="m89.617 13.352c-1.3828-2.4531-3.9922-3.9766-6.8125-3.9766-1.082 0-2.1328 0.21875-3.1289 0.65625-0.45312 0.19922-0.78516 0.60156-0.89453 1.0859-0.10938 0.48437 0.015625 0.98828 0.33984 1.3672l2.6992 3.1328c0.03125 0.035156 0.066407 0.070312 0.10156 0.10547-0.078125-0.023437-0.27734-0.085937-0.27734-0.085937-0.44922-0.14062-0.96484-0.21094-1.4961-0.21094-1.6094 0-3.1094 0.66797-4.2266 1.8828-0.11719 0.11719-0.69141 0.69531-1.5742 1.5781-6.6523-6.1445-15.242-9.5117-24.348-9.5117-19.816 0-35.938 16.121-35.938 35.938 0 9.1328 3.3828 17.742 9.5586 24.402-5.4453 5.457-12.77 12.805-12.852 12.887-0.89062 0.87891-1.3867 2.0547-1.3945 3.3047-0.007812 1.2539 0.47266 2.4336 1.3516 3.3242 0.87891 0.89062 2.0547 1.3867 3.3047 1.3945h0.03125c1.2422 0 2.4102-0.48047 3.3008-1.3594 0.097657-0.097656 8.4883-8.5156 13.496-13.531 4.6641 2.9414 9.9023 4.75 15.367 5.3203-0.082031 0.31641-0.13281 0.64844-0.13281 0.99219 0 1.3867 0.55469 2.6836 1.5586 3.6562 1.8516 1.7891 4.7266 2.1484 8.7617 2.1484 1.3633 0 2.8711-0.042968 4.8555-0.10937 1.6523-0.054688 3.3633-0.11328 4.9375-0.11328 1.0469 0 1.9336 0.023438 2.7109 0.078125 1.2266 0.082031 1.9727 0.21875 2.3984 0.33203 0.55078 1.5078 2.0039 2.5859 3.6836 2.5859 2.1523 0 3.9062-1.7539 3.9062-3.9062 0-1.6406-0.625-3.1133-1.8125-4.2578-2.2695-2.1953-5.9766-2.6445-10.844-2.6445-1.6719 0-3.5078 0.054688-5.2461 0.11328-0.47656 0.015624-1 0.035156-1.5352 0.050781 15.238-4.1641 26.469-18.129 26.469-34.668 0-6.8477-1.918-13.461-5.5586-19.207 0.45312-0.45312 0.83203-0.83203 1.1133-1.1172 0.34375 0.042969 0.69141 0.066407 1.043 0.066407 1.4609 0 2.8828-0.36719 4.1133-1.0625 1.8164-1.0234 3.1289-2.6953 3.6875-4.707 0.5625-2.0078 0.30469-4.1172-0.71875-5.9336z"/><path d="m47.98 50.457c-0.60938-0.60938-1.5977-0.60938-2.2109 0-0.60938 0.60938-0.60938 1.5977 0 2.2109l1.5625 1.5625c0.30469 0.30469 0.70312 0.45703 1.1055 0.45703 0.39844 0 0.80078-0.15234 1.1055-0.45703 0.60938-0.60938 0.60938-1.5977 0-2.2109z"/><path d="m43.293 52.02c-0.60938-0.60938-1.5977-0.60938-2.2109 0-0.60938 0.60938-0.60938 1.5977 0 2.2109l4.6875 4.6875c0.30469 0.30469 0.70312 0.45703 1.1055 0.45703 0.39844 0 0.80078-0.15234 1.1055-0.45703 0.60938-0.60938 0.60938-1.5977 0-2.2109z"/><path d="m41.73 56.707c-0.60938-0.60938-1.5977-0.60938-2.2109 0-0.60938 0.60938-0.60938 1.5977 0 2.2109l1.5625 1.5625c0.30469 0.30469 0.70312 0.45703 1.1055 0.45703 0.39844 0 0.80078-0.15234 1.1055-0.45703 0.60938-0.60938 0.60938-1.5977 0-2.2109z"/></svg></div>';
 
+const STAR_SVG = '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>';
+function ratingStarsHtml(rating, size = 14) {
+    if (!rating) return '—';
+    let html = '';
+    for (let i = 1; i <= 5; i++) {
+        html += `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="${i <= rating ? '#eab308' : 'none'}" stroke="${i <= rating ? '#eab308' : '#666'}" stroke-width="2" style="vertical-align:middle">${STAR_SVG}</svg>`;
+    }
+    return `<span style="white-space:nowrap">${html}</span>`;
+}
+function ratingBadgeHtml(rating, size = 16) {
+    let html = '';
+    for (let i = 0; i < rating; i++) {
+        html += `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="#eab308" stroke="#eab308" stroke-width="2" style="vertical-align:middle;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.5))">${STAR_SVG}</svg>`;
+    }
+    return html;
+}
+function ratingInputHtml(id, rating = 0) {
+    let html = `<div class="star-rating-input" data-rating="${rating}" id="${id}">`;
+    for (let i = 1; i <= 5; i++) {
+        html += `<svg width="22" height="22" viewBox="0 0 24 24" fill="${i <= rating ? '#eab308' : 'none'}" stroke="${i <= rating ? '#eab308' : '#666'}" stroke-width="2" style="cursor:pointer" data-value="${i}" onclick="setStarRating('${id}', ${i})">${STAR_SVG}</svg>`;
+    }
+    if (rating > 0) html += `<span class="star-rating-clear" onclick="setStarRating('${id}', 0)" title="Clear rating">&times;</span>`;
+    html += '</div>';
+    return html;
+}
+function setStarRating(containerId, value) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    container.dataset.rating = value;
+    const stars = container.querySelectorAll('svg');
+    stars.forEach((svg, i) => {
+        const filled = (i + 1) <= value;
+        svg.setAttribute('fill', filled ? '#eab308' : 'none');
+        svg.setAttribute('stroke', filled ? '#eab308' : '#666');
+    });
+    // Update clear button
+    const existing = container.querySelector('.star-rating-clear');
+    if (value > 0 && !existing) {
+        const clear = document.createElement('span');
+        clear.className = 'star-rating-clear';
+        clear.title = 'Clear rating';
+        clear.textContent = '\u00d7';
+        clear.onclick = () => setStarRating(containerId, 0);
+        container.appendChild(clear);
+    } else if (value === 0 && existing) {
+        existing.remove();
+    }
+}
+
 const YARN_COLUMNS = {
     thumbnail: { label: 'Photo', value: y => y.thumbnail ? `<img src="${API_URL}/api/yarns/${y.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_YARN_PLACEHOLDER },
     brand: { label: 'Brand', value: y => escapeHtml(y.brand || '—') },
@@ -16065,10 +16189,11 @@ const YARN_COLUMNS = {
     pattern_count: { label: 'Patterns', value: y => y.pattern_count || 0 },
     notes: { label: 'Notes', value: y => y.notes ? escapeHtml(y.notes.substring(0, 50)) + (y.notes.length > 50 ? '...' : '') : '—' },
     favorite: { label: 'Fav', value: y => y.is_favorite ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:#f87171"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>' : '—' },
+    rating: { label: 'Rating', value: y => ratingStarsHtml(y.rating) },
     url: { label: 'URL', value: y => y.url ? `<a href="${escapeHtml(y.url)}" target="_blank" onclick="event.stopPropagation()" class="list-url-link">Link</a>` : '—' },
     created_at: { label: 'Added', value: y => y.created_at ? new Date(y.created_at).toLocaleDateString() : '—' },
 };
-const DEFAULT_YARN_COL_ORDER = ['thumbnail', 'brand', 'name', 'color', 'dye_lot', 'weight_category', 'quantity', 'fiber_content', 'favorite', 'pattern_count', 'notes', 'created_at'];
+const DEFAULT_YARN_COL_ORDER = ['thumbnail', 'brand', 'name', 'color', 'dye_lot', 'weight_category', 'quantity', 'fiber_content', 'favorite', 'rating', 'pattern_count', 'notes', 'created_at'];
 
 const HOOK_COLUMNS = {
     thumbnail: { label: 'Photo', value: h => h.thumbnail ? `<img src="${API_URL}/api/hooks/${h.id}/thumbnail" class="list-thumbnail" alt="">` : `<div class="list-thumbnail-placeholder">${hookPlaceholderSvg(h.craft_type, 26)}</div>` },
@@ -16083,10 +16208,11 @@ const HOOK_COLUMNS = {
     pattern_count: { label: 'Patterns', value: h => h.pattern_count || 0 },
     notes: { label: 'Notes', value: h => h.notes ? escapeHtml(h.notes.substring(0, 50)) + (h.notes.length > 50 ? '...' : '') : '—' },
     favorite: { label: 'Fav', value: h => h.is_favorite ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:#f87171"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>' : '—' },
+    rating: { label: 'Rating', value: h => ratingStarsHtml(h.rating) },
     url: { label: 'URL', value: h => h.url ? `<a href="${escapeHtml(h.url)}" target="_blank" onclick="event.stopPropagation()" class="list-url-link">Link</a>` : '—' },
     created_at: { label: 'Added', value: h => h.created_at ? new Date(h.created_at).toLocaleDateString() : '—' },
 };
-const DEFAULT_HOOK_COL_ORDER = ['thumbnail', 'brand', 'name', 'size_label', 'size_mm', 'hook_type', 'craft_type', 'length', 'quantity', 'favorite', 'pattern_count', 'notes', 'created_at'];
+const DEFAULT_HOOK_COL_ORDER = ['thumbnail', 'brand', 'name', 'size_label', 'size_mm', 'hook_type', 'craft_type', 'length', 'quantity', 'favorite', 'rating', 'pattern_count', 'notes', 'created_at'];
 
 const PATTERN_COLUMNS = {
     thumbnail: { label: 'Photo', value: p => p.thumbnail ? `<img src="${API_URL}/api/patterns/${p.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_PATTERN_PLACEHOLDER },
@@ -16099,10 +16225,11 @@ const PATTERN_COLUMNS = {
     time:     { label: 'Time',     value: p => p.timer_seconds > 0 ? formatTime(p.timer_seconds) : '—' },
     description: { label: 'Description', value: p => p.description ? escapeHtml(p.description.substring(0, 50)) + (p.description.length > 50 ? '...' : '') : '—' },
     favorite: { label: 'Favorite', value: p => p.is_favorite ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color:#f87171"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>' : '—' },
+    rating: { label: 'Rating', value: p => ratingStarsHtml(p.rating) },
     completed_date: { label: 'Completed', value: p => p.completed_date ? new Date(p.completed_date).toLocaleDateString() : '—' },
     started_date: { label: 'Started', value: p => p.started_date ? new Date(p.started_date).toLocaleDateString() : '—' },
 };
-const DEFAULT_PATTERN_COL_ORDER = ['thumbnail', 'name', 'category', 'type', 'status', 'added', 'opened', 'time', 'description', 'favorite', 'completed_date', 'started_date'];
+const DEFAULT_PATTERN_COL_ORDER = ['thumbnail', 'name', 'category', 'type', 'status', 'added', 'opened', 'time', 'description', 'favorite', 'rating', 'completed_date', 'started_date'];
 
 function getColumnsConfig(type) {
     return type === 'pattern' ? PATTERN_COLUMNS : (type === 'yarn' ? YARN_COLUMNS : HOOK_COLUMNS);
@@ -16266,6 +16393,24 @@ function showRowMenu(e, type, id) {
         menu.appendChild(div);
     };
 
+    const addRatingRow = (currentRating, onRate) => {
+        const row = document.createElement('div');
+        row.className = 'column-menu-item context-menu-rating';
+        row.innerHTML = `<span style="font-size:0.8rem;color:var(--text-muted);margin-right:4px">Rate</span>` +
+            [1,2,3,4,5].map(i =>
+                `<svg width="18" height="18" viewBox="0 0 24 24" fill="${i <= currentRating ? '#eab308' : 'none'}" stroke="${i <= currentRating ? '#eab308' : '#666'}" stroke-width="2" style="cursor:pointer" data-value="${i}">${STAR_SVG}</svg>`
+            ).join('') +
+            (currentRating > 0 ? `<span class="star-rating-clear" data-value="0" title="Clear rating" style="margin-left:4px;cursor:pointer;color:var(--text-muted)">&times;</span>` : '');
+        row.addEventListener('click', (ev) => {
+            const target = ev.target.closest('[data-value]');
+            if (!target) return;
+            const val = parseInt(target.dataset.value);
+            menu.remove();
+            onRate(val);
+        });
+        menu.appendChild(row);
+    };
+
     if (type === 'pattern') {
         const p = patterns.find(x => x.id == id);
         if (!p) return;
@@ -16278,6 +16423,7 @@ function showRowMenu(e, type, id) {
         addItem(p.completed ? 'Mark Incomplete' : 'Mark Complete',
             '<polyline points="20 6 9 17 4 12"></polyline>',
             () => toggleComplete(id, !p.completed));
+        addRatingRow(p.rating || 0, (val) => setPatternRating(id, val));
         addDivider();
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openEditModal(id));
         addDivider();
@@ -16290,6 +16436,7 @@ function showRowMenu(e, type, id) {
         addItem(y.is_favorite ? 'Unfavorite' : 'Favorite',
             '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>',
             () => toggleYarnFavorite(id, !y.is_favorite));
+        addRatingRow(y.rating || 0, (val) => setInventoryRating('yarn', id, val));
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openYarnModal(id));
         addDivider();
         addItem('Delete', '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
@@ -16300,6 +16447,7 @@ function showRowMenu(e, type, id) {
         addItem(h.is_favorite ? 'Unfavorite' : 'Favorite',
             '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>',
             () => toggleHookFavorite(id, !h.is_favorite));
+        addRatingRow(h.rating || 0, (val) => setInventoryRating('hook', id, val));
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openHookModal(id));
         addDivider();
         addItem('Delete', '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
@@ -16467,6 +16615,13 @@ function displayYarns() {
     if (brandFilter && brandFilter !== 'all') {
         filtered = filtered.filter(y => y.brand === brandFilter);
     }
+    const yarnRatingFilter = document.getElementById('yarn-rating-filter')?.value;
+    if (yarnRatingFilter && yarnRatingFilter !== 'all') {
+        filtered = filtered.filter(y => {
+            if (yarnRatingFilter === 'unrated') return !y.rating;
+            return (y.rating || 0) === parseInt(yarnRatingFilter);
+        });
+    }
     // Sort: sidebar sort for card view, column header sort for list view
     if (inventoryView !== 'list') {
         const sortVal = document.getElementById('yarn-sort-select')?.value || 'brand-asc';
@@ -16535,6 +16690,7 @@ function renderYarnCard(yarn) {
                 ? `<img src="${API_URL}/api/yarns/${yarn.id}/thumbnail?t=${Date.now()}" class="pattern-thumbnail" alt="${colorText}">`
                 : `<div class="yarn-swatch"><svg width="56" height="56" viewBox="0 0 100 125" fill="currentColor"><g><g><path d="M47.6,34.1c-1.4,1-2.7,2.1-4.1,3.3c5.1,4.4,12.8,15.9,13.9,29c1.8-2.1,3.2-4.6,4.3-7.2C59.6,46.6,51.3,36.3,47.6,34.1z"/><path d="M45.2,60.8c-6.4,4.9-14,8.3-21,9.4v0c-0.2,1-0.3,2-0.4,2.9c1.2,0.6,2.4,1.1,3.6,1.6c8.2-1,15.4-5.1,19.3-7.8C46.4,64.8,45.8,62.7,45.2,60.8z"/><path d="M34.6,47.6c-2.6,3.4-4.6,6.9-6.2,10.2c4.3-1.7,8.6-4.2,12.2-7.1c-1.4-2.3-2.8-4.2-4-5.7C35.9,45.8,35.2,46.7,34.6,47.6z"/><path d="M44.8,23.1c-2.7-0.9-5.7-1.4-8.7-1.3c-4.9,3.3-9.5,8-14.3,14.4c-6.4,8.5-9.4,17.1-10.5,23.3c0.9,2.2,2.1,4.3,3.6,6.1c1-6.7,4.2-16,11.1-25.2C32.3,32.1,38.3,26.5,44.8,23.1z"/><path d="M53.3,27.6c-1.5-1.2-3.2-2.3-5-3.1c-7,3-13.4,8.6-20.1,17.5c-7.5,10-10.4,20.2-10.9,26.4c1.2,1.2,2.5,2.2,3.9,3.2c0.9-6.7,4.1-16.3,11.2-25.7C39.3,36.7,46,30.9,53.3,27.6z"/><path d="M63.3,53.9c0.4-2.1,0.5-4.4,0.4-6.6c-0.5-6.9-3.5-13.1-8.1-17.6c-1.9,0.7-3.8,1.7-5.6,2.8C54.1,35.6,60.3,43.7,63.3,53.9z"/><path d="M30.8,22.4C17.8,25.2,8.4,37.2,9.3,50.9c0.1,1.1,0.2,2.2,0.4,3.3c1.7-5.8,4.7-12.8,9.9-19.6C23.4,29.6,27.1,25.5,30.8,22.4z"/><path d="M33.9,76.2c1.4,0.1,2.9,0.2,4.4,0.1c3.1-0.2,6-0.9,8.8-2.1c0.1-1.4,0.1-2.8,0-4.2C43.9,72,39.3,74.6,33.9,76.2z"/><path d="M24.8,67.3c6.5-1.2,13.5-4.5,19.4-9.2l0,0c-0.7-1.8-1.5-3.5-2.3-5c-4.5,3.5-9.9,6.4-15.1,8.1C26,63.4,25.3,65.4,24.8,67.3z"/></g><g><path d="M91.6,80c-4.1-7.4-7.4-10.9-14.6-10.6c-2.8,0.1-5.4,1.8-8.2,3.7c-4,2.6-7.8,5.1-11.7,3c-1-0.6-1.7-1.5-2.2-2.4c-0.9,0.7-1.8,1.3-2.8,1.9c0.7,1.3,1.8,2.6,3.4,3.5c5.7,3.1,10.9-0.4,15.2-3.1c2.4-1.6,4.7-3.1,6.5-3.1c5.5-0.2,7.7,2.1,11.6,8.9c0.4,0.8,1.5,1.1,2.3,0.6C91.7,81.8,92,80.8,91.6,80z"/><path d="M50.1,72.7c0.4-0.2,0.4-0.3,0.8-0.5c0,0,0,0,0,0c0,0,0,0.1,0,0.1c1-0.7,2.1-1.4,3.1-2.3c0,0,0-0.1,0-0.1c0.3-0.2,0.6-0.5,0.9-0.7c-0.2-12.9-8-25.4-13.3-29.8c-1.1,1.1-2.1,2.2-3.2,3.5c5.5,6.3,10.7,16.6,11.4,27.1C49.8,70.9,50.1,71.7,50.1,72.7z"/></g></g></svg></div>`
             }
+            ${yarn.rating ? `<span class="rating-badge">${ratingBadgeHtml(yarn.rating)}</span>` : ''}
             <h3 title="${brandText}">${brandText}</h3>
             <p class="pattern-description">${subtitle}</p>
             <div class="yarn-meta">
@@ -16566,6 +16722,9 @@ function openYarnModal(yarnId = null) {
     document.getElementById('yarn-fiber').value = yarn?.fiber_content || '';
     document.getElementById('yarn-url').value = yarn?.url || '';
     document.getElementById('yarn-notes').value = yarn?.notes || '';
+
+    // Rating
+    document.getElementById('yarn-rating').innerHTML = ratingInputHtml('yarn-rating-input', yarn?.rating || 0);
 
     // Thumbnail
     if (yarn?.thumbnail) {
@@ -16611,7 +16770,8 @@ async function saveYarn() {
         fiber_content: document.getElementById('yarn-fiber').value.trim() || null,
         quantity: parseFloat(document.getElementById('yarn-quantity').value) || 1,
         url: document.getElementById('yarn-url').value.trim() || null,
-        notes: document.getElementById('yarn-notes').value.trim() || null
+        notes: document.getElementById('yarn-notes').value.trim() || null,
+        rating: parseInt(document.getElementById('yarn-rating-input')?.dataset.rating) || 0
     };
 
     try {
@@ -16703,6 +16863,13 @@ function displayHooks() {
     if (brandFilter && brandFilter !== 'all') {
         filtered = filtered.filter(h => h.brand === brandFilter);
     }
+    const hookRatingFilter = document.getElementById('hook-rating-filter')?.value;
+    if (hookRatingFilter && hookRatingFilter !== 'all') {
+        filtered = filtered.filter(h => {
+            if (hookRatingFilter === 'unrated') return !h.rating;
+            return (h.rating || 0) === parseInt(hookRatingFilter);
+        });
+    }
     // Sort: sidebar sort for card view, column header sort for list view
     if (inventoryView !== 'list') {
         const sortVal = document.getElementById('hook-sort-select')?.value || 'brand-asc';
@@ -16772,6 +16939,7 @@ function renderHookCard(hook) {
                 ${hookPlaceholderSvg(hook.craft_type, 56)}
                 <span class="hook-size-overlay">${sizeText}</span>
             </div>`}
+            ${hook.rating ? `<span class="rating-badge">${ratingBadgeHtml(hook.rating)}</span>` : ''}
             <h3>${sizeText}</h3>
             <p class="pattern-description">${details}</p>
             <div class="yarn-meta">
@@ -16815,6 +16983,9 @@ function openHookModal(hookId = null) {
     document.getElementById('hook-type').value = hook?.hook_type || '';
     document.getElementById('hook-url').value = hook?.url || '';
     document.getElementById('hook-notes').value = hook?.notes || '';
+
+    // Rating
+    document.getElementById('hook-rating').innerHTML = ratingInputHtml('hook-rating-input', hook?.rating || 0);
 
     // Set length for knitting needles
     if (isKnitting && hook?.hook_type) {
@@ -16875,7 +17046,8 @@ async function saveHook() {
         length: (currentCraftType === 'knitting' ? document.getElementById('hook-length').value : null) || null,
         quantity: parseInt(document.getElementById('hook-quantity').value) || 1,
         url: document.getElementById('hook-url').value.trim() || null,
-        notes: document.getElementById('hook-notes').value.trim() || null
+        notes: document.getElementById('hook-notes').value.trim() || null,
+        rating: parseInt(document.getElementById('hook-rating-input')?.dataset.rating) || 0
     };
 
     try {

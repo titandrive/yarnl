@@ -2312,6 +2312,34 @@ app.post('/api/patterns/bulk/favorite', async (req, res) => {
   }
 });
 
+// Bulk set rating
+app.post('/api/patterns/bulk/rating', async (req, res) => {
+  try {
+    const { patternIds, rating } = req.body;
+    if (!patternIds || patternIds.length === 0) {
+      return res.status(400).json({ error: 'No patterns specified' });
+    }
+
+    const clampedRating = Math.max(0, Math.min(5, parseInt(rating) || 0));
+    let count = 0;
+    for (const patternId of patternIds) {
+      const pattern = await verifyPatternOwnership(patternId, req.user?.id, req.user?.role === 'admin');
+      if (!pattern) continue;
+
+      await pool.query(
+        `UPDATE patterns SET rating = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        [clampedRating, patternId]
+      );
+      count++;
+    }
+
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk updating rating:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Get markdown content for a pattern
 app.get('/api/patterns/:id/content', async (req, res) => {
   try {
@@ -2781,8 +2809,8 @@ app.get('/api/patterns/:id/info', async (req, res) => {
 app.patch('/api/patterns/:id', async (req, res) => {
   try {
     console.log('PATCH request body:', req.body);
-    const { name, description, category } = req.body;
-    console.log('Extracted values:', { name, description, category });
+    const { name, description, category, rating } = req.body;
+    console.log('Extracted values:', { name, description, category, rating });
 
     // Verify ownership before allowing modification
     const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
@@ -2876,6 +2904,10 @@ app.patch('/api/patterns/:id', async (req, res) => {
     if (category !== undefined) {
       updates.push(`category = $${paramCount++}`);
       values.push(category);
+    }
+    if (rating !== undefined) {
+      updates.push(`rating = $${paramCount++}`);
+      values.push(Math.max(0, Math.min(5, parseInt(rating) || 0)));
     }
 
     // Update filename if it changed
@@ -4763,7 +4795,7 @@ app.patch('/api/yarns/:id', async (req, res) => {
     const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
     if (!yarn) return res.status(403).json({ error: 'Not authorized' });
 
-    const fields = ['name', 'brand', 'weight_category', 'fiber_content', 'color_hex', 'color', 'dye_lot', 'quantity', 'notes', 'url'];
+    const fields = ['name', 'brand', 'weight_category', 'fiber_content', 'color_hex', 'color', 'dye_lot', 'quantity', 'notes', 'url', 'rating'];
     const updates = [];
     const values = [];
     let idx = 1;
@@ -5003,7 +5035,7 @@ app.patch('/api/hooks/:id', async (req, res) => {
     const hook = await verifyHookOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
     if (!hook) return res.status(403).json({ error: 'Not authorized' });
 
-    const fields = ['craft_type', 'name', 'brand', 'size_mm', 'size_label', 'hook_type', 'length', 'quantity', 'notes', 'url'];
+    const fields = ['craft_type', 'name', 'brand', 'size_mm', 'size_label', 'hook_type', 'length', 'quantity', 'notes', 'url', 'rating'];
     const updates = [];
     const values = [];
     let idx = 1;
@@ -7116,11 +7148,11 @@ app.post('/api/backups/:filename/restore', authMiddleware, async (req, res) => {
       const result = await client.query(
         `INSERT INTO patterns (name, filename, original_name, upload_date, category, description,
          is_current, stitch_count, row_count, created_at, updated_at, thumbnail, current_page,
-         completed, completed_date, notes, pattern_type, content, timer_seconds, user_id, last_opened_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`,
+         completed, completed_date, notes, pattern_type, content, timer_seconds, user_id, last_opened_at, rating)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`,
         [row.name, row.filename, row.original_name, row.upload_date, row.category, row.description,
          row.is_current, row.stitch_count, row.row_count, row.created_at, row.updated_at, row.thumbnail,
-         row.current_page, row.completed, row.completed_date, row.notes, row.pattern_type, row.content, row.timer_seconds, userId, row.last_opened_at || null]
+         row.current_page, row.completed, row.completed_date, row.notes, row.pattern_type, row.content, row.timer_seconds, userId, row.last_opened_at || null, row.rating || 0]
       );
       patternIdMap[row.id] = result.rows[0].id;
     }
@@ -7151,9 +7183,9 @@ app.post('/api/backups/:filename/restore', authMiddleware, async (req, res) => {
     const yarnIdMap = {};
     for (const row of dbExport.tables.yarns || []) {
       const result = await client.query(
-        `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, color, dye_lot, quantity, notes, thumbnail, url, is_favorite, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
-        [userId, row.name, row.brand, row.weight_category, row.fiber_content, row.color, row.dye_lot, row.quantity, row.notes, row.thumbnail, row.url, row.is_favorite || false, row.created_at, row.updated_at]
+        `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, color, dye_lot, quantity, notes, thumbnail, url, is_favorite, rating, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+        [userId, row.name, row.brand, row.weight_category, row.fiber_content, row.color, row.dye_lot, row.quantity, row.notes, row.thumbnail, row.url, row.is_favorite || false, row.rating || 0, row.created_at, row.updated_at]
       );
       yarnIdMap[row.id] = result.rows[0].id;
     }
@@ -7162,9 +7194,9 @@ app.post('/api/backups/:filename/restore', authMiddleware, async (req, res) => {
     const hookIdMap = {};
     for (const row of dbExport.tables.hooks || []) {
       const result = await client.query(
-        `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label, hook_type, length, quantity, notes, thumbnail, url, is_favorite, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
-        [userId, row.craft_type, row.name, row.brand, row.size_mm, row.size_label, row.hook_type, row.length, row.quantity, row.notes, row.thumbnail, row.url, row.is_favorite || false, row.created_at, row.updated_at]
+        `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label, hook_type, length, quantity, notes, thumbnail, url, is_favorite, rating, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING id`,
+        [userId, row.craft_type, row.name, row.brand, row.size_mm, row.size_label, row.hook_type, row.length, row.quantity, row.notes, row.thumbnail, row.url, row.is_favorite || false, row.rating || 0, row.created_at, row.updated_at]
       );
       hookIdMap[row.id] = result.rows[0].id;
     }

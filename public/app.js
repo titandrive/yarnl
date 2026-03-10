@@ -8237,7 +8237,7 @@ function renderPatternCard(pattern, options = {}) {
             ${isOwnPattern && showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>' : ''}
             ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
             ${showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : ''}
-            ${isOwnPattern && showStarBadge && pattern.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
+            ${isOwnPattern && showStarBadge && pattern.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span>' : ''}
             ${!isOwnPattern && ownerName ? `<span class="owner-badge-overlay" style="background:${userColor(ownerName)}">${escapeHtml(ownerName)}</span>` : ''}
             ${pattern.thumbnail
                 ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
@@ -8269,7 +8269,7 @@ function renderPatternCard(pattern, options = {}) {
                         onclick="toggleFavorite('${pattern.id}', ${!pattern.is_favorite})"
                         title="${pattern.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="${pattern.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                     </svg>
                 </button>
                 <button class="action-btn ${pattern.completed ? 'completed' : ''}"
@@ -8539,11 +8539,11 @@ async function toggleComplete(id, completed) {
 async function toggleFavorite(id, isFavorite) {
     // Optimistic update
     const pattern = patterns.find(p => String(p.id) === String(id));
-    if (pattern) {
-        pattern.is_favorite = isFavorite;
-        displayCurrentPatterns();
-        displayPatterns();
-    }
+    if (pattern) pattern.is_favorite = isFavorite;
+    const currentPattern = currentPatterns.find(p => String(p.id) === String(id));
+    if (currentPattern) currentPattern.is_favorite = isFavorite;
+    displayCurrentPatterns();
+    displayPatterns();
     try {
         const response = await fetch(`${API_URL}/api/patterns/${id}/favorite`, {
             method: 'PATCH',
@@ -13924,7 +13924,7 @@ function renderProjectCard(project) {
             <span class="project-badge">PROJECT</span>
             ${project.completed ? '<span class="completed-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>' : ''}
             ${!project.completed && project.is_current ? '<span class="current-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>' : ''}
-            ${project.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
+            ${project.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span>' : ''}
 
             <div class="pattern-thumbnail project-thumbnail" style="background: var(--card-bg);">
                 ${project.thumbnail || project.pattern_count > 0
@@ -13970,7 +13970,7 @@ function renderProjectCard(project) {
                         onclick="toggleProjectFavorite(${project.id}, ${!project.is_favorite})"
                         title="Favorite">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="${project.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2">
-                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
                     </svg>
                 </button>
                 <button class="action-btn ${project.completed ? 'completed' : ''}"
@@ -15669,7 +15669,7 @@ function renderProjectExistingGrid() {
                         ${pattern.completed ? '<span class="peg-badge peg-complete"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>' : ''}
                         ${!pattern.completed && pattern.is_current ? '<span class="peg-badge peg-current"><svg width="10" height="10" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>' : ''}
                         ${pattern.category ? `<span class="peg-category">${escapeHtml(pattern.category)}</span>` : ''}
-                        ${pattern.is_favorite ? '<span class="peg-favorite"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg></span>' : ''}
+                        ${pattern.is_favorite ? '<span class="peg-favorite"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span>' : ''}
                         <span class="peg-type">${typeLabel}</span>
                         ${pattern.thumbnail
                             ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" alt="">`
@@ -16064,7 +16064,7 @@ const YARN_COLUMNS = {
     fiber_content: { label: 'Fiber', value: y => escapeHtml(y.fiber_content || '—') },
     pattern_count: { label: 'Patterns', value: y => y.pattern_count || 0 },
     notes: { label: 'Notes', value: y => y.notes ? escapeHtml(y.notes.substring(0, 50)) + (y.notes.length > 50 ? '...' : '') : '—' },
-    favorite: { label: 'Fav', value: y => y.is_favorite ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:var(--warning-color)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>' : '—' },
+    favorite: { label: 'Fav', value: y => y.is_favorite ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:#f87171"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>' : '—' },
     url: { label: 'URL', value: y => y.url ? `<a href="${escapeHtml(y.url)}" target="_blank" onclick="event.stopPropagation()" class="list-url-link">Link</a>` : '—' },
     created_at: { label: 'Added', value: y => y.created_at ? new Date(y.created_at).toLocaleDateString() : '—' },
 };
@@ -16082,7 +16082,7 @@ const HOOK_COLUMNS = {
     quantity: { label: 'Qty', value: h => h.quantity || 0 },
     pattern_count: { label: 'Patterns', value: h => h.pattern_count || 0 },
     notes: { label: 'Notes', value: h => h.notes ? escapeHtml(h.notes.substring(0, 50)) + (h.notes.length > 50 ? '...' : '') : '—' },
-    favorite: { label: 'Fav', value: h => h.is_favorite ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:var(--warning-color)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>' : '—' },
+    favorite: { label: 'Fav', value: h => h.is_favorite ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:#f87171"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>' : '—' },
     url: { label: 'URL', value: h => h.url ? `<a href="${escapeHtml(h.url)}" target="_blank" onclick="event.stopPropagation()" class="list-url-link">Link</a>` : '—' },
     created_at: { label: 'Added', value: h => h.created_at ? new Date(h.created_at).toLocaleDateString() : '—' },
 };
@@ -16098,7 +16098,7 @@ const PATTERN_COLUMNS = {
     opened:   { label: 'Opened',   value: p => p.last_opened_at ? new Date(p.last_opened_at).toLocaleDateString() : '—' },
     time:     { label: 'Time',     value: p => p.timer_seconds > 0 ? formatTime(p.timer_seconds) : '—' },
     description: { label: 'Description', value: p => p.description ? escapeHtml(p.description.substring(0, 50)) + (p.description.length > 50 ? '...' : '') : '—' },
-    favorite: { label: 'Favorite', value: p => p.is_favorite ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color:var(--warning-color)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>' : '—' },
+    favorite: { label: 'Favorite', value: p => p.is_favorite ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color:#f87171"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>' : '—' },
     completed_date: { label: 'Completed', value: p => p.completed_date ? new Date(p.completed_date).toLocaleDateString() : '—' },
     started_date: { label: 'Started', value: p => p.started_date ? new Date(p.started_date).toLocaleDateString() : '—' },
 };
@@ -16273,7 +16273,7 @@ function showRowMenu(e, type, id) {
             '<polygon points="5 3 19 12 5 21 5 3"></polygon>',
             () => toggleCurrent(id, !p.is_current));
         addItem(p.is_favorite ? 'Unfavorite' : 'Favorite',
-            '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>',
+            '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>',
             () => toggleFavorite(id, !p.is_favorite));
         addItem(p.completed ? 'Mark Incomplete' : 'Mark Complete',
             '<polyline points="20 6 9 17 4 12"></polyline>',
@@ -16288,7 +16288,7 @@ function showRowMenu(e, type, id) {
         const y = yarns.find(x => x.id == id);
         if (!y) return;
         addItem(y.is_favorite ? 'Unfavorite' : 'Favorite',
-            '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>',
+            '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>',
             () => toggleYarnFavorite(id, !y.is_favorite));
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openYarnModal(id));
         addDivider();
@@ -16298,7 +16298,7 @@ function showRowMenu(e, type, id) {
         const h = hooks.find(x => x.id == id);
         if (!h) return;
         addItem(h.is_favorite ? 'Unfavorite' : 'Favorite',
-            '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>',
+            '<path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>',
             () => toggleHookFavorite(id, !h.is_favorite));
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openHookModal(id));
         addDivider();
@@ -16526,7 +16526,7 @@ function renderYarnCard(yarn) {
     return `
         <div class="pattern-card yarn-card${isSelected ? ' bulk-selected' : ''}" onclick="handleInventoryCardClick(event,'yarn',${yarn.id})" data-yarn-id="${yarn.id}">
             <div class="card-favorite-toggle ${yarn.is_favorite ? 'active' : ''}" onclick="event.stopPropagation(); toggleYarnFavorite(${yarn.id}, ${!yarn.is_favorite})" title="${yarn.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="${yarn.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="${yarn.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
             </div>
             <div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('yarn',${yarn.id},this)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -16761,7 +16761,7 @@ function renderHookCard(hook) {
     return `
         <div class="pattern-card hook-card${isSelected ? ' bulk-selected' : ''}" onclick="handleInventoryCardClick(event,'hook',${hook.id})" data-hook-id="${hook.id}">
             <div class="card-favorite-toggle ${hook.is_favorite ? 'active' : ''}" onclick="event.stopPropagation(); toggleHookFavorite(${hook.id}, ${!hook.is_favorite})" title="${hook.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="${hook.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="${hook.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
             </div>
             <div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('hook',${hook.id},this)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
@@ -17509,7 +17509,7 @@ function updateInventoryBulkBar() {
                    [...selectedHookIds].every(id => hooks.find(h => h.id === id)?.is_favorite);
     bar.innerHTML = `<span>${count} selected</span>
         <button class="btn btn-sm bulk-fav-btn ${allFav ? 'active' : ''}" onclick="bulkToggleInventoryFavorite(${!allFav})" title="${allFav ? 'Unfavorite' : 'Favorite'}">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="${allFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="${allFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
         </button>
         <button class="btn btn-primary btn-sm" onclick="bulkSetQuantity()">Set Quantity</button>
         <button class="btn btn-danger btn-sm" id="bulk-inv-delete-btn" onclick="bulkDeleteInventory(this)">Delete</button>

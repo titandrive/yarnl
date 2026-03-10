@@ -1868,8 +1868,8 @@ html[data-theme="nuked-dark"] .btn-primary {
 }
 
 .pin-btn#pin-favorites.active {
-    background: var(--warning-color);
-    border-color: var(--warning-color);
+    background: #f87171;
+    border-color: #f87171;
 }
 
 .sidebar-section select,
@@ -2105,11 +2105,11 @@ html[data-theme="nuked-dark"] .btn-primary {
 }
 
 .action-btn.favorite {
-    color: var(--warning-color);
+    color: #f87171;
 }
 
 .action-btn.favorite:hover {
-    background: var(--warning-color);
+    background: #f87171;
     color: white;
 }
 
@@ -2130,7 +2130,7 @@ html[data-theme="nuked-dark"] .btn-primary {
     position: absolute;
     top: 140px;
     right: 18px;
-    color: var(--warning-color);
+    color: #f87171;
     z-index: 10;
 }
 
@@ -2148,7 +2148,7 @@ html[data-theme="nuked-dark"] .btn-primary {
 
 .card-favorite-toggle.active {
     opacity: 1;
-    color: var(--warning-color);
+    color: #f87171;
 }
 
 .pattern-card:hover .card-favorite-toggle {
@@ -2156,7 +2156,7 @@ html[data-theme="nuked-dark"] .btn-primary {
 }
 
 .card-favorite-toggle:hover {
-    color: var(--warning-color);
+    color: #f87171;
 }
 
 .pattern-card .favorite-badge svg {
@@ -9369,7 +9369,7 @@ textarea.image-drag-over {
     position: absolute;
     bottom: 160px;
     right: 8px;
-    color: var(--warning-color);
+    color: #f87171;
     font-size: 1.2rem;
     text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     z-index: 10;
@@ -9752,7 +9752,7 @@ textarea.image-drag-over {
     position: absolute;
     top: 4px;
     right: 4px;
-    color: #fbbf24;
+    color: #f87171;
     z-index: 1;
     filter: drop-shadow(0 1px 2px rgba(0,0,0,0.3));
 }
@@ -10719,11 +10719,11 @@ textarea.image-drag-over {
 }
 
 .bulk-fav-btn.active {
-    color: var(--warning-color);
+    color: #f87171;
 }
 
 .bulk-fav-btn:hover {
-    color: var(--warning-color);
+    color: #f87171;
 }
 
 .inventory-toolbar {

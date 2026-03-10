@@ -4412,6 +4412,331 @@ app.post('/api/projects/:id/restore', async (req, res) => {
 });
 
 // ============================================
+// INVENTORY ROUTES (Yarn & Hook)
+// ============================================
+
+async function verifyYarnOwnership(yarnId, currentUserId, isAdmin = false) {
+  const result = await pool.query('SELECT * FROM yarns WHERE id = $1', [yarnId]);
+  if (result.rows.length === 0) return null;
+  const yarn = result.rows[0];
+  if (isAdmin || yarn.user_id === currentUserId) return yarn;
+  return null;
+}
+
+async function verifyHookOwnership(hookId, currentUserId, isAdmin = false) {
+  const result = await pool.query('SELECT * FROM hooks WHERE id = $1', [hookId]);
+  if (result.rows.length === 0) return null;
+  const hook = result.rows[0];
+  if (isAdmin || hook.user_id === currentUserId) return hook;
+  return null;
+}
+
+// --- Yarn CRUD ---
+
+app.get('/api/yarns', async (req, res) => {
+  try {
+    let result;
+    if (req.user?.role === 'admin') {
+      result = await pool.query(`
+        SELECT y.*, COALESCE(pc.cnt, 0)::int AS pattern_count
+        FROM yarns y
+        LEFT JOIN (SELECT yarn_id, COUNT(*) AS cnt FROM pattern_yarns GROUP BY yarn_id) pc ON pc.yarn_id = y.id
+        ORDER BY y.created_at DESC
+      `);
+    } else if (req.user?.id) {
+      result = await pool.query(`
+        SELECT y.*, COALESCE(pc.cnt, 0)::int AS pattern_count
+        FROM yarns y
+        LEFT JOIN (SELECT yarn_id, COUNT(*) AS cnt FROM pattern_yarns GROUP BY yarn_id) pc ON pc.yarn_id = y.id
+        WHERE y.user_id = $1
+        ORDER BY y.created_at DESC
+      `, [req.user.id]);
+    } else {
+      return res.json([]);
+    }
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching yarns:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/yarns/:id', async (req, res) => {
+  try {
+    const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!yarn) return res.status(404).json({ error: 'Yarn not found' });
+    res.json(yarn);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/yarns', async (req, res) => {
+  try {
+    const { name, brand, colorway, weight_category, fiber_content, color_hex, quantity, notes } = req.body;
+    const result = await pool.query(
+      `INSERT INTO yarns (user_id, name, brand, colorway, weight_category, fiber_content, color_hex, quantity, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [req.user.id, name || null, brand || null, colorway || null, weight_category || null, fiber_content || null, color_hex || null, quantity || 1, notes || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating yarn:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch('/api/yarns/:id', async (req, res) => {
+  try {
+    const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!yarn) return res.status(403).json({ error: 'Not authorized' });
+
+    const fields = ['name', 'brand', 'colorway', 'weight_category', 'fiber_content', 'color_hex', 'quantity', 'notes'];
+    const updates = [];
+    const values = [];
+    let idx = 1;
+    for (const field of fields) {
+      if (req.body[field] !== undefined) {
+        updates.push(`${field} = $${idx}`);
+        values.push(req.body[field]);
+        idx++;
+      }
+    }
+    if (updates.length === 0) return res.json(yarn);
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(req.params.id);
+    const result = await pool.query(
+      `UPDATE yarns SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating yarn:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/yarns/:id', async (req, res) => {
+  try {
+    const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!yarn) return res.status(403).json({ error: 'Not authorized' });
+
+    // Delete thumbnail file if exists
+    if (yarn.thumbnail) {
+      const thumbnailPath = path.join(getUserThumbnailsDir(req.user.username), yarn.thumbnail);
+      if (fs.existsSync(thumbnailPath)) fs.unlinkSync(thumbnailPath);
+    }
+
+    await pool.query('DELETE FROM yarns WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting yarn:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/yarns/:id/thumbnail', async (req, res) => {
+  try {
+    const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!yarn || !yarn.thumbnail) return res.status(404).json({ error: 'Thumbnail not found' });
+
+    const thumbnailPath = path.join(getUserThumbnailsDir(req.user.username), yarn.thumbnail);
+    if (fs.existsSync(thumbnailPath)) return res.sendFile(thumbnailPath);
+    res.status(404).json({ error: 'Thumbnail not found' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/yarns/:id/thumbnail', upload.single('thumbnail'), async (req, res) => {
+  try {
+    const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!yarn) return res.status(403).json({ error: 'Not authorized' });
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+
+    const userThumbnailsDir = getUserThumbnailsDir(req.user.username);
+    if (!fs.existsSync(userThumbnailsDir)) fs.mkdirSync(userThumbnailsDir, { recursive: true });
+
+    if (yarn.thumbnail) {
+      const oldPath = path.join(userThumbnailsDir, yarn.thumbnail);
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+
+    const thumbnailFilename = `yarn-${yarn.id}-${Date.now()}.jpg`;
+    await sharp(req.file.path)
+      .resize(300, 400, { fit: 'cover', position: 'top' })
+      .jpeg({ quality: 85 })
+      .toFile(path.join(userThumbnailsDir, thumbnailFilename));
+
+    if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+
+    const result = await pool.query(
+      'UPDATE yarns SET thumbnail = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+      [thumbnailFilename, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error uploading yarn thumbnail:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/yarns/:id/thumbnail', async (req, res) => {
+  try {
+    const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!yarn) return res.status(403).json({ error: 'Not authorized' });
+
+    if (yarn.thumbnail) {
+      const thumbnailPath = path.join(getUserThumbnailsDir(req.user.username), yarn.thumbnail);
+      if (fs.existsSync(thumbnailPath)) fs.unlinkSync(thumbnailPath);
+    }
+
+    const result = await pool.query(
+      'UPDATE yarns SET thumbnail = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = $1 RETURNING *',
+      [req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Brand autocomplete (union of yarn + hook brands) ---
+
+app.get('/api/brands', async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.json([]);
+    const result = await pool.query(
+      `SELECT DISTINCT brand FROM (
+        SELECT brand FROM yarns WHERE user_id = $1 AND brand IS NOT NULL AND brand != ''
+        UNION
+        SELECT brand FROM hooks WHERE user_id = $1 AND brand IS NOT NULL AND brand != ''
+      ) AS brands ORDER BY brand ASC`,
+      [userId]
+    );
+    res.json(result.rows.map(r => r.brand));
+  } catch (error) {
+    console.error('Error fetching brands:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Hook CRUD ---
+
+app.get('/api/hooks', async (req, res) => {
+  try {
+    let result;
+    if (req.user?.role === 'admin') {
+      result = await pool.query('SELECT * FROM hooks ORDER BY size_mm ASC NULLS LAST, created_at DESC');
+    } else if (req.user?.id) {
+      result = await pool.query('SELECT * FROM hooks WHERE user_id = $1 ORDER BY size_mm ASC NULLS LAST, created_at DESC', [req.user.id]);
+    } else {
+      return res.json([]);
+    }
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching hooks:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/hooks', async (req, res) => {
+  try {
+    const { craft_type, name, brand, size_mm, size_label, hook_type, length, quantity, notes } = req.body;
+    const result = await pool.query(
+      `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label, hook_type, length, quantity, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [req.user.id, craft_type || 'crochet', name || null, brand || null, size_mm || null, size_label || null, hook_type || null, length || null, quantity || 1, notes || null]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating hook:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch('/api/hooks/:id', async (req, res) => {
+  try {
+    const hook = await verifyHookOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!hook) return res.status(403).json({ error: 'Not authorized' });
+
+    const fields = ['craft_type', 'name', 'brand', 'size_mm', 'size_label', 'hook_type', 'length', 'quantity', 'notes'];
+    const updates = [];
+    const values = [];
+    let idx = 1;
+    for (const field of fields) {
+      if (req.body[field] !== undefined) {
+        updates.push(`${field} = $${idx}`);
+        values.push(req.body[field]);
+        idx++;
+      }
+    }
+    if (updates.length === 0) return res.json(hook);
+    updates.push(`updated_at = CURRENT_TIMESTAMP`);
+    values.push(req.params.id);
+    const result = await pool.query(
+      `UPDATE hooks SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
+      values
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating hook:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.delete('/api/hooks/:id', async (req, res) => {
+  try {
+    const hook = await verifyHookOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!hook) return res.status(403).json({ error: 'Not authorized' });
+    await pool.query('DELETE FROM hooks WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting hook:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// --- Pattern-Yarn linking ---
+
+app.get('/api/patterns/:id/yarns', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT y.*, py.notes AS link_notes FROM yarns y
+       JOIN pattern_yarns py ON y.id = py.yarn_id
+       WHERE py.pattern_id = $1 ORDER BY y.brand, y.colorway`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.put('/api/patterns/:id/yarns', async (req, res) => {
+  try {
+    const { yarnLinks } = req.body; // [{ yarnId, notes }]
+    await pool.query('DELETE FROM pattern_yarns WHERE pattern_id = $1', [req.params.id]);
+    for (const link of (yarnLinks || [])) {
+      await pool.query(
+        'INSERT INTO pattern_yarns (pattern_id, yarn_id, notes) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+        [req.params.id, link.yarnId, link.notes || null]
+      );
+    }
+    const result = await pool.query(
+      `SELECT y.*, py.notes AS link_notes FROM yarns y
+       JOIN pattern_yarns py ON y.id = py.yarn_id
+       WHERE py.pattern_id = $1 ORDER BY y.brand, y.colorway`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// ============================================
 
 // Helper to sanitize pattern name for filename
 function sanitizeNotesFilename(name) {

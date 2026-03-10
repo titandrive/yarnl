@@ -243,6 +243,81 @@ async function initDatabase() {
       )
     `);
 
+    // Create yarns table for yarn inventory
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS yarns (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        name VARCHAR(255),
+        brand VARCHAR(255),
+        colorway VARCHAR(255),
+        weight_category VARCHAR(50),
+        fiber_content VARCHAR(255),
+        color_hex VARCHAR(7),
+        quantity NUMERIC(6,1) DEFAULT 1,
+        notes TEXT,
+        thumbnail VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create hooks table for hook/needle inventory
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hooks (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        craft_type VARCHAR(20) DEFAULT 'crochet',
+        name VARCHAR(255),
+        brand VARCHAR(255),
+        size_mm NUMERIC(4,1),
+        size_label VARCHAR(20),
+        hook_type VARCHAR(50),
+        length VARCHAR(20),
+        quantity INTEGER DEFAULT 1,
+        notes TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Add brand column to hooks if it doesn't exist (migration)
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='hooks' AND column_name='brand') THEN
+          ALTER TABLE hooks ADD COLUMN brand VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='hooks' AND column_name='craft_type') THEN
+          ALTER TABLE hooks ADD COLUMN craft_type VARCHAR(20) DEFAULT 'crochet';
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='hooks' AND column_name='length') THEN
+          ALTER TABLE hooks ADD COLUMN length VARCHAR(20);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='hooks' AND column_name='name') THEN
+          ALTER TABLE hooks ADD COLUMN name VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='yarns' AND column_name='name') THEN
+          ALTER TABLE yarns ADD COLUMN name VARCHAR(255);
+        END IF;
+      END $$;
+    `);
+
+    // Create pattern_yarns junction table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pattern_yarns (
+        pattern_id INTEGER NOT NULL REFERENCES patterns(id) ON DELETE CASCADE,
+        yarn_id INTEGER NOT NULL REFERENCES yarns(id) ON DELETE CASCADE,
+        notes VARCHAR(255),
+        PRIMARY KEY (pattern_id, yarn_id)
+      )
+    `);
+
     // Add columns to existing patterns table if they don't exist
     await client.query(`
       DO $$

@@ -335,7 +335,7 @@ async function handleLogin(e) {
             // Always refresh user-specific data and UI
             await loadAccountInfo();
             updateUIForUser();
-            await Promise.all([loadPatterns(), loadProjects()]);
+            await Promise.all([loadPatterns(), loadProjects(), loadYarns(), loadHooks()]);
             loadCurrentPatterns();
             await loadCurrentProjects();
             updateTabCounts();
@@ -1764,6 +1764,10 @@ let projectShowFilter = localStorage.getItem('projectShowFilter') || 'all';
 let currentProjectId = null; // Currently viewing project
 let currentProjectPatterns = []; // Patterns in currently viewing project
 let projectReorderMode = false; // Reorder mode for project patterns
+let yarns = []; // Yarn inventory
+let hooks = []; // Hook inventory
+let editingYarnId = null;
+let editingHookId = null;
 let allCategories = []; // All possible categories for editing/uploading
 let populatedCategories = []; // Only categories with patterns (for filtering)
 let allHashtags = []; // All available hashtags
@@ -2323,6 +2327,7 @@ function initAppUI() {
     initServerEvents();
     initHorizontalScroll();
     initUserManagement();
+    initInventory();
 }
 
 // Initialize app
@@ -2369,7 +2374,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     initAppUI();
     appInitialized = true;
     checkForNewVersion();
-    await Promise.all([loadPatterns(), loadProjects()]);
+    await Promise.all([loadPatterns(), loadProjects(), loadYarns(), loadHooks()]);
     loadCurrentPatterns();
     loadCategories();
     loadHashtags();
@@ -6491,6 +6496,11 @@ function updateTabCounts() {
     }
     if (projectsCount) {
         projectsCount.textContent = showTabCounts ? ` (${projects.length})` : '';
+    }
+    const inventoryCount = document.getElementById('inventory-tab-count');
+    if (inventoryCount) {
+        const total = yarns.length + hooks.length;
+        inventoryCount.textContent = showTabCounts && total > 0 ? ` (${total})` : '';
     }
 }
 
@@ -12576,6 +12586,17 @@ async function openEditModal(patternId) {
         clearThumbnailSelector('edit');
     }
 
+    // Create yarn selector with current pattern's linked yarns
+    const yarnContainer = document.getElementById('edit-pattern-yarns-container');
+    try {
+        const yarnRes = await fetch(`${API_URL}/api/patterns/${patternId}/yarns`);
+        const linkedYarns = yarnRes.ok ? await yarnRes.json() : [];
+        const selectedYarnIds = linkedYarns.map(y => y.id);
+        yarnContainer.innerHTML = createYarnSelector(selectedYarnIds);
+    } catch (e) {
+        yarnContainer.innerHTML = createYarnSelector([]);
+    }
+
     // Set current toggle state
     document.getElementById('edit-is-current').checked = pattern.is_current || false;
 
@@ -12628,6 +12649,14 @@ async function savePatternEdits() {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ hashtagIds })
+        });
+
+        // Update linked yarns
+        const yarnIds = getSelectedYarnIds();
+        await fetch(`${API_URL}/api/patterns/${editingPatternId}/yarns`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ yarnIds })
         });
 
         // If custom thumbnail was uploaded, handle it separately
@@ -15482,4 +15511,628 @@ function userColor(name) {
     }
     const hue = ((hash % 360) + 360) % 360;
     return `hsl(${hue}, 65%, 45%)`;
+}
+
+// ============================================
+// INVENTORY (Yarn & Hooks)
+// ============================================
+
+// --- Hook/Needle craft type data ---
+
+const CROCHET_SIZES = [
+    { value: '2.0|B/1', label: 'B/1 (2.0mm)' },
+    { value: '2.25|B/1', label: 'B/1 (2.25mm)' },
+    { value: '2.75|C/2', label: 'C/2 (2.75mm)' },
+    { value: '3.25|D/3', label: 'D/3 (3.25mm)' },
+    { value: '3.5|E/4', label: 'E/4 (3.5mm)' },
+    { value: '3.75|F/5', label: 'F/5 (3.75mm)' },
+    { value: '4.0|G/6', label: 'G/6 (4.0mm)' },
+    { value: '4.5|7', label: '7 (4.5mm)' },
+    { value: '5.0|H/8', label: 'H/8 (5.0mm)' },
+    { value: '5.5|I/9', label: 'I/9 (5.5mm)' },
+    { value: '6.0|J/10', label: 'J/10 (6.0mm)' },
+    { value: '6.5|K/10.5', label: 'K/10.5 (6.5mm)' },
+    { value: '8.0|L/11', label: 'L/11 (8.0mm)' },
+    { value: '9.0|M/13', label: 'M/13 (9.0mm)' },
+    { value: '10.0|N/15', label: 'N/15 (10.0mm)' },
+    { value: '11.5|P/16', label: 'P/16 (11.5mm)' },
+    { value: '15.0|P/Q', label: 'P/Q (15.0mm)' },
+    { value: '19.0|S', label: 'S (19.0mm)' },
+];
+
+const KNITTING_SIZES = [
+    { value: '2.0|US 0', label: 'US 0 (2.0mm)' },
+    { value: '2.25|US 1', label: 'US 1 (2.25mm)' },
+    { value: '2.5|US 1.5', label: 'US 1.5 (2.5mm)' },
+    { value: '2.75|US 2', label: 'US 2 (2.75mm)' },
+    { value: '3.25|US 3', label: 'US 3 (3.25mm)' },
+    { value: '3.5|US 4', label: 'US 4 (3.5mm)' },
+    { value: '3.75|US 5', label: 'US 5 (3.75mm)' },
+    { value: '4.0|US 6', label: 'US 6 (4.0mm)' },
+    { value: '4.5|US 7', label: 'US 7 (4.5mm)' },
+    { value: '5.0|US 8', label: 'US 8 (5.0mm)' },
+    { value: '5.5|US 9', label: 'US 9 (5.5mm)' },
+    { value: '6.0|US 10', label: 'US 10 (6.0mm)' },
+    { value: '6.5|US 10.5', label: 'US 10.5 (6.5mm)' },
+    { value: '8.0|US 11', label: 'US 11 (8.0mm)' },
+    { value: '9.0|US 13', label: 'US 13 (9.0mm)' },
+    { value: '10.0|US 15', label: 'US 15 (10.0mm)' },
+    { value: '12.75|US 17', label: 'US 17 (12.75mm)' },
+    { value: '15.0|US 19', label: 'US 19 (15.0mm)' },
+    { value: '19.0|US 35', label: 'US 35 (19.0mm)' },
+    { value: '25.0|US 50', label: 'US 50 (25.0mm)' },
+];
+
+const CROCHET_TYPES = [
+    { value: 'Inline', label: 'Inline (Bates)' },
+    { value: 'Tapered', label: 'Tapered (Boye)' },
+    { value: 'Ergonomic', label: 'Ergonomic' },
+    { value: 'Tunisian', label: 'Tunisian' },
+];
+
+const KNITTING_TYPES = [
+    { value: 'Straight', label: 'Straight' },
+    { value: 'Circular', label: 'Circular' },
+    { value: 'DPN', label: 'Double-Pointed (DPN)' },
+    { value: 'Interchangeable', label: 'Interchangeable' },
+];
+
+const NEEDLE_LENGTHS = {
+    Straight: ['9"', '10"', '12"', '14"'],
+    Circular: ['9"', '12"', '16"', '20"', '24"', '29"', '32"', '36"', '40"', '47"', '60"'],
+    DPN: ['5"', '6"', '7"', '8"'],
+    Interchangeable: ['4" tip', '5" tip'],
+};
+
+let currentCraftType = 'crochet';
+
+function setCraftType(type) {
+    currentCraftType = type;
+    document.querySelectorAll('.craft-type-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.craft === type);
+    });
+
+    const sizeSelect = document.getElementById('hook-size');
+    const typeSelect = document.getElementById('hook-type');
+    const sizes = type === 'knitting' ? KNITTING_SIZES : CROCHET_SIZES;
+    const types = type === 'knitting' ? KNITTING_TYPES : CROCHET_TYPES;
+
+    sizeSelect.innerHTML = '<option value="">Select...</option>' +
+        sizes.map(s => `<option value="${s.value}">${s.label}</option>`).join('');
+
+    typeSelect.innerHTML = '<option value="">Select...</option>' +
+        types.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
+
+    // Show/hide length field
+    const lengthGroup = document.getElementById('hook-length-group');
+    if (type === 'knitting') {
+        lengthGroup.style.display = '';
+        updateLengthOptions();
+    } else {
+        lengthGroup.style.display = 'none';
+    }
+}
+
+function updateLengthOptions() {
+    const needleType = document.getElementById('hook-type').value;
+    const lengthSelect = document.getElementById('hook-length');
+    const lengths = NEEDLE_LENGTHS[needleType] || [];
+    if (lengths.length === 0) {
+        lengthSelect.innerHTML = '<option value="">N/A</option>';
+    } else {
+        lengthSelect.innerHTML = '<option value="">Select...</option>' +
+            lengths.map(l => `<option value="${l}">${l}</option>`).join('');
+    }
+}
+
+function initInventory() {
+    // Sub-tab switching
+    document.querySelectorAll('.inventory-sub-tab').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.inventory-sub-tab').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.inventory-sub-content').forEach(c => c.style.display = 'none');
+            btn.classList.add('active');
+            document.getElementById(`inventory-${btn.dataset.sub}`).style.display = '';
+        });
+    });
+
+    // Add buttons
+    document.getElementById('add-yarn-btn')?.addEventListener('click', () => openYarnModal());
+    document.getElementById('add-hook-btn')?.addEventListener('click', () => openHookModal());
+
+    // Yarn modal
+    document.getElementById('yarn-form')?.addEventListener('submit', (e) => { e.preventDefault(); saveYarn(); });
+    document.getElementById('cancel-yarn-btn')?.addEventListener('click', () => closeYarnModal());
+    document.getElementById('close-yarn-modal')?.addEventListener('click', () => closeYarnModal());
+    document.getElementById('yarn-modal')?.addEventListener('click', (e) => { if (e.target.id === 'yarn-modal') closeYarnModal(); });
+    document.getElementById('delete-yarn-btn')?.addEventListener('click', () => { if (editingYarnId) deleteYarn(editingYarnId); });
+    // Hook modal
+    document.getElementById('hook-form')?.addEventListener('submit', (e) => { e.preventDefault(); saveHook(); });
+    document.getElementById('cancel-hook-btn')?.addEventListener('click', () => closeHookModal());
+    document.getElementById('close-hook-modal')?.addEventListener('click', () => closeHookModal());
+    document.getElementById('hook-modal')?.addEventListener('click', (e) => { if (e.target.id === 'hook-modal') closeHookModal(); });
+    document.getElementById('delete-hook-btn')?.addEventListener('click', () => { if (editingHookId) deleteHook(editingHookId); });
+
+    // Craft type toggle
+    document.querySelectorAll('.craft-type-btn').forEach(btn => {
+        btn.addEventListener('click', () => setCraftType(btn.dataset.craft));
+    });
+
+    // Update length options when needle type changes
+    document.getElementById('hook-type')?.addEventListener('change', () => {
+        if (currentCraftType === 'knitting') updateLengthOptions();
+    });
+
+    // Brand autocomplete
+    initBrandAutocomplete('yarn-brand', 'yarn-brand-list', DEFAULT_YARN_BRANDS);
+    initBrandAutocomplete('hook-brand', 'hook-brand-list', DEFAULT_HOOK_BRANDS);
+
+    // Quantity stepper buttons
+    document.querySelectorAll('.qty-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const input = document.getElementById(btn.dataset.target);
+            if (!input) return;
+            const step = parseFloat(btn.dataset.step) || 1;
+            const dir = parseInt(btn.dataset.dir);
+            const min = parseFloat(input.min) || 0;
+            let val = parseFloat(input.value) || 0;
+            val = Math.round((val + step * dir) * 10) / 10;
+            if (val < min) val = min;
+            input.value = val;
+        });
+    });
+
+    // Search
+    document.getElementById('yarn-search-input')?.addEventListener('input', () => displayYarns());
+    document.getElementById('hook-search-input')?.addEventListener('input', () => displayHooks());
+}
+
+// --- Yarn CRUD ---
+
+async function loadYarns() {
+    try {
+        const response = await fetch(`${API_URL}/api/yarns`);
+        if (!response.ok) return;
+        yarns = await response.json();
+        displayYarns();
+        updateTabCounts();
+    } catch (error) {
+        console.error('Error loading yarns:', error);
+    }
+}
+
+function displayYarns() {
+    const grid = document.getElementById('yarn-grid');
+    if (!grid) return;
+    const query = (document.getElementById('yarn-search-input')?.value || '').toLowerCase();
+    let filtered = yarns;
+    if (query) {
+        filtered = yarns.filter(y =>
+            (y.brand || '').toLowerCase().includes(query) ||
+            (y.name || '').toLowerCase().includes(query) ||
+            (y.colorway || '').toLowerCase().includes(query) ||
+            (y.weight_category || '').toLowerCase().includes(query) ||
+            (y.fiber_content || '').toLowerCase().includes(query)
+        );
+    }
+    if (filtered.length === 0) {
+        grid.innerHTML = `<p class="empty-state">${query ? 'No yarn matches your search.' : 'No yarn in your inventory yet. Add some to get started!'}</p>`;
+        return;
+    }
+    grid.innerHTML = filtered.map(renderYarnCard).join('');
+}
+
+function renderYarnCard(yarn) {
+    const brandText = escapeHtml(yarn.brand || 'Unknown Brand');
+    const nameText = escapeHtml(yarn.name || '');
+    const colorwayText = escapeHtml(yarn.colorway || '');
+    const subtitle = [nameText, colorwayText].filter(Boolean).join(' — ');
+    const qty = parseFloat(yarn.quantity) || 0;
+    return `
+        <div class="pattern-card yarn-card" onclick="openYarnModal(${yarn.id})" data-yarn-id="${yarn.id}">
+            ${yarn.thumbnail
+                ? `<img src="${API_URL}/api/yarns/${yarn.id}/thumbnail?t=${Date.now()}" class="pattern-thumbnail" alt="${colorwayText}">`
+                : `<div class="yarn-swatch"></div>`
+            }
+            <h3 title="${brandText}">${brandText}</h3>
+            <p class="pattern-description">${subtitle}</p>
+            <div class="yarn-meta">
+                ${yarn.weight_category ? `<span class="yarn-badge">${escapeHtml(yarn.weight_category)}</span>` : ''}
+                <span class="yarn-qty">${qty % 1 === 0 ? qty : qty.toFixed(1)} skein${qty !== 1 ? 's' : ''}</span>
+            </div>
+            ${yarn.pattern_count > 0 ? `<div class="yarn-linked">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 7h3a5 5 0 0 1 0 10h-3m-6 0H6a5 5 0 0 1 0-10h3"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                ${yarn.pattern_count} pattern${yarn.pattern_count > 1 ? 's' : ''}
+            </div>` : ''}
+        </div>
+    `;
+}
+
+function openYarnModal(yarnId = null) {
+    editingYarnId = yarnId;
+    const yarn = yarnId ? yarns.find(y => y.id === yarnId) : null;
+
+    document.getElementById('yarn-modal-title').textContent = yarn ? 'Edit Yarn' : 'Add Yarn';
+    document.getElementById('save-yarn-btn').textContent = yarn ? 'Save Changes' : 'Add Yarn';
+    document.getElementById('delete-yarn-btn').style.display = yarn ? '' : 'none';
+
+    document.getElementById('yarn-brand').value = yarn?.brand || '';
+    document.getElementById('yarn-name').value = yarn?.name || '';
+    document.getElementById('yarn-colorway').value = yarn?.colorway || '';
+    document.getElementById('yarn-weight').value = yarn?.weight_category || '';
+    document.getElementById('yarn-quantity').value = yarn?.quantity || 1;
+    document.getElementById('yarn-fiber').value = yarn?.fiber_content || '';
+    document.getElementById('yarn-notes').value = yarn?.notes || '';
+
+    // Thumbnail
+    if (yarn?.thumbnail) {
+        setThumbnailSelectorImage('yarn', `${API_URL}/api/yarns/${yarn.id}/thumbnail?t=${Date.now()}`);
+    } else {
+        clearThumbnailSelector('yarn');
+    }
+
+    loadBrands();
+    document.getElementById('yarn-modal').style.display = 'flex';
+}
+
+function closeYarnModal() {
+    document.getElementById('yarn-modal').style.display = 'none';
+    editingYarnId = null;
+}
+
+async function saveYarn() {
+    const data = {
+        name: document.getElementById('yarn-name').value.trim() || null,
+        brand: document.getElementById('yarn-brand').value.trim() || null,
+        colorway: document.getElementById('yarn-colorway').value.trim() || null,
+        weight_category: document.getElementById('yarn-weight').value || null,
+        fiber_content: document.getElementById('yarn-fiber').value.trim() || null,
+        quantity: parseFloat(document.getElementById('yarn-quantity').value) || 1,
+        notes: document.getElementById('yarn-notes').value.trim() || null
+    };
+
+    try {
+        let result;
+        if (editingYarnId) {
+            const response = await fetch(`${API_URL}/api/yarns/${editingYarnId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            result = await response.json();
+        } else {
+            const response = await fetch(`${API_URL}/api/yarns`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            result = await response.json();
+        }
+
+        // Upload thumbnail if one was selected via thumbnail modal
+        const thumbnailFile = getThumbnailFile('yarn');
+        if (thumbnailFile) {
+            const formData = new FormData();
+            formData.append('thumbnail', thumbnailFile);
+            await fetch(`${API_URL}/api/yarns/${result.id}/thumbnail`, {
+                method: 'POST',
+                body: formData
+            });
+        }
+
+        closeYarnModal();
+        await loadYarns();
+    } catch (error) {
+        console.error('Error saving yarn:', error);
+    }
+}
+
+async function deleteYarn(yarnId) {
+    if (!confirm('Delete this yarn from your inventory?')) return;
+    try {
+        await fetch(`${API_URL}/api/yarns/${yarnId}`, { method: 'DELETE' });
+        closeYarnModal();
+        await loadYarns();
+    } catch (error) {
+        console.error('Error deleting yarn:', error);
+    }
+}
+
+// --- Hook CRUD ---
+
+async function loadHooks() {
+    try {
+        const response = await fetch(`${API_URL}/api/hooks`);
+        if (!response.ok) return;
+        hooks = await response.json();
+        displayHooks();
+        updateTabCounts();
+    } catch (error) {
+        console.error('Error loading hooks:', error);
+    }
+}
+
+function displayHooks() {
+    const grid = document.getElementById('hooks-grid');
+    if (!grid) return;
+    const query = (document.getElementById('hook-search-input')?.value || '').toLowerCase();
+    let filtered = hooks;
+    if (query) {
+        filtered = hooks.filter(h =>
+            (h.size_label || '').toLowerCase().includes(query) ||
+            (h.brand || '').toLowerCase().includes(query) ||
+            (h.name || '').toLowerCase().includes(query) ||
+            (h.hook_type || '').toLowerCase().includes(query) ||
+            (h.craft_type || '').toLowerCase().includes(query)
+        );
+    }
+    if (filtered.length === 0) {
+        grid.innerHTML = `<p class="empty-state">${query ? 'No hooks or needles match your search.' : 'No hooks or needles in your inventory yet. Add some to get started!'}</p>`;
+        return;
+    }
+    grid.innerHTML = filtered.map(renderHookCard).join('');
+}
+
+function renderHookCard(hook) {
+    const sizeText = escapeHtml(hook.size_label || (hook.size_mm ? hook.size_mm + 'mm' : 'Unknown'));
+    const isKnitting = hook.craft_type === 'knitting';
+    const unitName = isKnitting ? 'needle' : 'hook';
+    const detailParts = [hook.brand, hook.name, hook.hook_type];
+    if (isKnitting && hook.length) detailParts.push(hook.length);
+    const details = detailParts.filter(Boolean).map(escapeHtml).join(' / ');
+    return `
+        <div class="pattern-card hook-card" onclick="openHookModal(${hook.id})" data-hook-id="${hook.id}">
+            <div class="hook-icon-placeholder">
+                ${isKnitting
+                    ? `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="8" y1="2" x2="8" y2="22"/>
+                        <line x1="16" y1="2" x2="16" y2="22"/>
+                        <circle cx="8" cy="3" r="1.5"/>
+                        <circle cx="16" cy="3" r="1.5"/>
+                    </svg>`
+                    : `<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M9 3v1a3 3 0 0 0 6 0V3"/>
+                        <path d="M12 4v16"/>
+                        <circle cx="12" cy="21" r="1"/>
+                    </svg>`
+                }
+                <span class="hook-size-overlay">${sizeText}</span>
+            </div>
+            <h3>${sizeText}</h3>
+            <p class="pattern-description">${details}</p>
+            <div class="yarn-meta">
+                <span class="yarn-qty">${hook.quantity || 1} ${unitName}${(hook.quantity || 1) !== 1 ? 's' : ''}</span>
+            </div>
+        </div>
+    `;
+}
+
+function openHookModal(hookId = null) {
+    editingHookId = hookId;
+    const hook = hookId ? hooks.find(h => h.id === hookId) : null;
+
+    const craftType = hook?.craft_type || 'crochet';
+    const isKnitting = craftType === 'knitting';
+    document.getElementById('hook-modal-title').textContent = hook
+        ? (isKnitting ? 'Edit Needle' : 'Edit Hook')
+        : 'Add Hook / Needle';
+    document.getElementById('save-hook-btn').textContent = hook ? 'Save Changes' : 'Add';
+    document.getElementById('delete-hook-btn').style.display = hook ? '' : 'none';
+
+    // Set craft type toggle and populate size/type selects
+    setCraftType(craftType);
+
+    // Set size select value
+    const sizeSelect = document.getElementById('hook-size');
+    if (hook?.size_mm) {
+        const match = Array.from(sizeSelect.options).find(o => o.value.startsWith(hook.size_mm + '|'));
+        sizeSelect.value = match ? match.value : '';
+    } else {
+        sizeSelect.value = '';
+    }
+
+    document.getElementById('hook-quantity').value = hook?.quantity || 1;
+    document.getElementById('hook-brand').value = hook?.brand || '';
+    document.getElementById('hook-name').value = hook?.name || '';
+    document.getElementById('hook-type').value = hook?.hook_type || '';
+    document.getElementById('hook-notes').value = hook?.notes || '';
+
+    // Set length for knitting needles
+    if (isKnitting && hook?.hook_type) {
+        updateLengthOptions();
+        document.getElementById('hook-length').value = hook?.length || '';
+    }
+
+    loadBrands();
+    document.getElementById('hook-modal').style.display = 'flex';
+}
+
+function closeHookModal() {
+    document.getElementById('hook-modal').style.display = 'none';
+    editingHookId = null;
+}
+
+async function saveHook() {
+    const sizeValue = document.getElementById('hook-size').value;
+    let size_mm = null, size_label = null;
+    if (sizeValue) {
+        const [mm, letter] = sizeValue.split('|');
+        size_mm = parseFloat(mm);
+        size_label = letter ? `${letter} (${mm}mm)` : `${mm}mm`;
+    }
+
+    const data = {
+        craft_type: currentCraftType,
+        name: document.getElementById('hook-name').value.trim() || null,
+        brand: document.getElementById('hook-brand').value.trim() || null,
+        size_mm,
+        size_label,
+        hook_type: document.getElementById('hook-type').value || null,
+        length: (currentCraftType === 'knitting' ? document.getElementById('hook-length').value : null) || null,
+        quantity: parseInt(document.getElementById('hook-quantity').value) || 1,
+        notes: document.getElementById('hook-notes').value.trim() || null
+    };
+
+    try {
+        if (editingHookId) {
+            await fetch(`${API_URL}/api/hooks/${editingHookId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        } else {
+            await fetch(`${API_URL}/api/hooks`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+        }
+        closeHookModal();
+        await loadHooks();
+    } catch (error) {
+        console.error('Error saving hook:', error);
+    }
+}
+
+async function deleteHook(hookId) {
+    if (!confirm('Delete this hook from your inventory?')) return;
+    try {
+        await fetch(`${API_URL}/api/hooks/${hookId}`, { method: 'DELETE' });
+        closeHookModal();
+        await loadHooks();
+    } catch (error) {
+        console.error('Error deleting hook:', error);
+    }
+}
+
+// --- Brand autocomplete ---
+
+const DEFAULT_YARN_BRANDS = [
+    'Bernat', 'Big Twist', 'Caron', 'Cascade', 'Drops',
+    'Fibra Natura', 'Hayfield', 'Hobbii', 'Ice Yarns', 'James C. Brett',
+    'King Cole', 'KnitPicks', 'Lion Brand', 'Loops & Threads',
+    'Malabrigo', 'Mandala', 'Paintbox', 'Patons', 'Premier',
+    'Red Heart', 'Rico', 'Rowan', 'Scheepjes', 'Sirdar',
+    'Stylecraft', 'Sublime', 'WeCrochet', 'Yarn Bee', 'Yarnspirations',
+];
+
+const DEFAULT_HOOK_BRANDS = [
+    'Addi', 'Boye', 'ChiaoGoo', 'Clover', 'Denise',
+    'Furls', 'HiyaHiya', 'KnitPicks', 'Knitter\'s Pride',
+    'Lykke', 'Pony', 'Prym', 'Susan Bates', 'Takumi',
+    'Tulip', 'WeCrochet',
+];
+
+let userBrands = [];
+
+function getHiddenBrands() {
+    try { return JSON.parse(localStorage.getItem('hiddenBrands') || '[]'); } catch { return []; }
+}
+
+function setHiddenBrands(list) {
+    localStorage.setItem('hiddenBrands', JSON.stringify(list));
+}
+
+function buildBrandList(defaults) {
+    const hidden = new Set(getHiddenBrands().map(b => b.toLowerCase()));
+    const brandMap = {};
+    defaults.forEach(b => { if (!hidden.has(b.toLowerCase())) brandMap[b.toLowerCase()] = b; });
+    userBrands.forEach(b => { if (!hidden.has(b.toLowerCase())) brandMap[b.toLowerCase()] = b; });
+    return Object.keys(brandMap).sort().map(k => brandMap[k]);
+}
+
+async function loadBrands() {
+    try {
+        const res = await fetch(`${API_URL}/api/brands`);
+        userBrands = await res.json();
+    } catch (e) {
+        console.error('Error loading brands:', e);
+    }
+}
+
+function initBrandAutocomplete(inputId, listId, defaults) {
+    const input = document.getElementById(inputId);
+    const list = document.getElementById(listId);
+    if (!input || !list) return;
+
+    function showSuggestions() {
+        const brands = buildBrandList(defaults);
+        const val = input.value.toLowerCase().trim();
+        let matches;
+        if (!val) {
+            matches = brands;
+        } else {
+            matches = brands.filter(b => b.toLowerCase().includes(val) && b.toLowerCase() !== val);
+        }
+        const exactMatch = val && brands.some(b => b.toLowerCase() === val);
+        let html = matches.map(b =>
+            `<div class="brand-autocomplete-item"><span class="brand-autocomplete-label">${escapeHtml(b)}</span><span class="brand-autocomplete-x" data-brand="${escapeHtml(b)}">&times;</span></div>`
+        ).join('');
+        if (val && !exactMatch) {
+            html += `<div class="brand-autocomplete-item brand-add-new">+ Add "${escapeHtml(input.value.trim())}"</div>`;
+        }
+        if (!html) { list.style.display = 'none'; return; }
+        list.innerHTML = html;
+        list.style.display = 'block';
+    }
+
+    input.addEventListener('input', showSuggestions);
+    input.addEventListener('focus', showSuggestions);
+
+    input.addEventListener('blur', () => {
+        setTimeout(() => { list.style.display = 'none'; }, 200);
+    });
+
+    list.addEventListener('click', (e) => {
+        // Handle × delete button
+        const xBtn = e.target.closest('.brand-autocomplete-x');
+        if (xBtn) {
+            e.stopPropagation();
+            const brand = xBtn.dataset.brand;
+            const hidden = getHiddenBrands();
+            if (!hidden.some(h => h.toLowerCase() === brand.toLowerCase())) {
+                hidden.push(brand);
+                setHiddenBrands(hidden);
+            }
+            showSuggestions();
+            return;
+        }
+        const item = e.target.closest('.brand-autocomplete-item');
+        if (item) {
+            if (item.classList.contains('brand-add-new')) {
+                const newBrand = input.value.trim();
+                if (newBrand && !defaults.includes(newBrand)) {
+                    defaults.push(newBrand);
+                }
+                list.style.display = 'none';
+            } else {
+                const label = item.querySelector('.brand-autocomplete-label');
+                input.value = label ? label.textContent : item.textContent;
+                list.style.display = 'none';
+            }
+        }
+    });
+}
+
+// --- Yarn selector for pattern edit modal ---
+
+function createYarnSelector(selectedYarnIds = []) {
+    if (yarns.length === 0) {
+        return '<p class="text-muted" style="font-size: 0.85rem; margin: 0;">No yarn in inventory. Add yarn from the Inventory tab.</p>';
+    }
+    return `<div class="yarn-selector">
+        ${yarns.map(y => {
+            const checked = selectedYarnIds.includes(y.id);
+            const label = [y.brand, y.name, y.colorway].filter(Boolean).join(' — ') || 'Unnamed Yarn';
+            return `<label class="hashtag-tag${checked ? ' selected' : ''}">
+                <input type="checkbox" class="yarn-select-cb" value="${y.id}" ${checked ? 'checked' : ''}>
+                ${escapeHtml(label)}
+            </label>`;
+        }).join('')}
+    </div>`;
+}
+
+function getSelectedYarnIds() {
+    return Array.from(document.querySelectorAll('#edit-pattern-yarns-container .yarn-select-cb:checked'))
+        .map(cb => parseInt(cb.value));
 }

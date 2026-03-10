@@ -56,7 +56,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=235">
+    <link rel="stylesheet" href="styles.css?v=246">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -161,6 +161,7 @@
             <button class="tab-btn active" data-tab="current">In Progress<span class="tab-count" id="current-tab-count"></span></button>
             <button class="tab-btn" data-tab="library">Library<span class="tab-count" id="library-tab-count"></span></button>
             <button class="tab-btn" data-tab="projects" id="projects-tab-btn">Projects<span class="tab-count" id="projects-tab-count"></span></button>
+            <button class="tab-btn" data-tab="inventory" id="inventory-tab-btn">Inventory<span class="tab-count" id="inventory-tab-count"></span></button>
         </nav>
 
         <!-- Current Patterns Tab -->
@@ -511,6 +512,36 @@ Inc in each st around (12)
                         <div id="projects-grid" class="patterns-grid">
                             <p class="empty-state">You haven't created any projects yet. Projects let you group multiple patterns together for larger works!</p>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Inventory Tab -->
+        <div id="inventory" class="tab-content">
+            <div class="inventory-container">
+                <div class="inventory-sub-tabs">
+                    <button type="button" class="inventory-sub-tab active" data-sub="yarn">Yarn</button>
+                    <button type="button" class="inventory-sub-tab" data-sub="hooks">Hooks & Needles</button>
+                </div>
+
+                <div id="inventory-yarn" class="inventory-sub-content">
+                    <div class="inventory-toolbar">
+                        <input type="text" id="yarn-search-input" class="inventory-search" placeholder="Search yarn...">
+                        <button class="btn btn-primary" id="add-yarn-btn">+ Add Yarn</button>
+                    </div>
+                    <div id="yarn-grid" class="patterns-grid">
+                        <p class="empty-state">No yarn in your inventory yet. Add some to get started!</p>
+                    </div>
+                </div>
+
+                <div id="inventory-hooks" class="inventory-sub-content" style="display: none;">
+                    <div class="inventory-toolbar">
+                        <input type="text" id="hook-search-input" class="inventory-search" placeholder="Search hooks...">
+                        <button class="btn btn-primary" id="add-hook-btn">+ Add Hook</button>
+                    </div>
+                    <div id="hooks-grid" class="patterns-grid">
+                        <p class="empty-state">No hooks in your inventory yet. Add some to get started!</p>
                     </div>
                 </div>
             </div>
@@ -2652,6 +2683,12 @@ Inc in each st around (12)
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>Yarns Used <span class="required">optional</span></label>
+                    <div id="edit-pattern-yarns-container">
+                        <!-- Yarn selector will be populated dynamically -->
+                    </div>
+                </div>
+                <div class="form-group">
                     <label>Thumbnail <span class="required">optional</span></label>
                     <div class="thumbnail-selector" id="edit-thumbnail-selector" data-target="edit">
                         <div class="thumbnail-selector-preview" id="edit-thumbnail-preview">
@@ -2682,34 +2719,27 @@ Inc in each st around (12)
     <div id="thumbnail-modal" class="modal" style="display: none;">
         <div class="modal-content thumbnail-modal-content">
             <div class="modal-header">
-                <h2>Select Thumbnail</h2>
+                <h2>Photo</h2>
                 <button class="modal-close" id="close-thumbnail-modal">&times;</button>
             </div>
             <div class="thumbnail-modal-body">
                 <div class="thumbnail-preview-area" id="thumbnail-preview-area">
                     <div class="thumbnail-placeholder" id="thumbnail-placeholder">
-                        <span class="thumbnail-placeholder-icon">🖼️</span>
-                        <p>No image selected</p>
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>
+                        <p>No image</p>
                     </div>
                     <img id="thumbnail-preview-img" class="thumbnail-preview-img" style="display: none;" alt="Thumbnail preview">
                 </div>
                 <div class="thumbnail-actions">
-                    <button type="button" class="btn btn-secondary thumbnail-action-btn" id="thumbnail-browse-btn">
-                        <span class="btn-icon">📁</span>
-                        <span>Browse Files</span>
-                    </button>
-                    <button type="button" class="btn btn-secondary thumbnail-action-btn" id="thumbnail-paste-btn">
-                        <span class="btn-icon">📋</span>
-                        <span>Paste from Clipboard</span>
-                    </button>
+                    <button type="button" class="btn btn-secondary thumbnail-action-btn" id="thumbnail-browse-btn">Browse</button>
+                    <button type="button" class="btn btn-secondary thumbnail-action-btn" id="thumbnail-paste-btn">Paste</button>
+                    <button type="button" class="btn btn-secondary thumbnail-action-btn" id="thumbnail-clear-btn">Clear</button>
                     <input type="file" id="thumbnail-file-input" accept="image/*" hidden>
                 </div>
-                <p class="thumbnail-hint">You can also paste an image directly (Ctrl+V / Cmd+V)</p>
             </div>
             <div class="modal-actions">
-                <button type="button" class="btn btn-secondary" id="thumbnail-clear-btn">Clear</button>
                 <button type="button" class="btn btn-secondary" id="cancel-thumbnail-btn">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirm-thumbnail-btn">Use This Image</button>
+                <button type="button" class="btn btn-primary" id="confirm-thumbnail-btn">Save</button>
             </div>
         </div>
     </div>
@@ -2938,6 +2968,148 @@ Inc in each st around (12)
         </div>
     </div>
 
+    <!-- Yarn Modal -->
+    <div id="yarn-modal" class="modal" style="display: none;">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="yarn-modal-title">Add Yarn</h2>
+                <button class="modal-close" id="close-yarn-modal">&times;</button>
+            </div>
+            <form id="yarn-form">
+                <div class="form-group">
+                    <label for="yarn-brand">Brand</label>
+                    <div class="brand-autocomplete-wrap">
+                        <input type="text" id="yarn-brand" placeholder="e.g. Red Heart, Bernat" autocomplete="off">
+                        <div class="brand-autocomplete-list" id="yarn-brand-list"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="yarn-name">Name / Product Line</label>
+                    <input type="text" id="yarn-name" placeholder="e.g. Super Saver, Simply Soft">
+                </div>
+                <div class="form-group">
+                    <label for="yarn-colorway">Colorway</label>
+                    <input type="text" id="yarn-colorway" placeholder="e.g. Soft Navy, Sunrise">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="yarn-weight">Weight</label>
+                        <select id="yarn-weight">
+                            <option value="">Select...</option>
+                            <option value="Lace">Lace (0)</option>
+                            <option value="Super Fine">Super Fine (1)</option>
+                            <option value="Fine">Fine (2)</option>
+                            <option value="Light">Light (3)</option>
+                            <option value="Medium">Medium (4)</option>
+                            <option value="Bulky">Bulky (5)</option>
+                            <option value="Super Bulky">Super Bulky (6)</option>
+                            <option value="Jumbo">Jumbo (7)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="yarn-quantity">Skeins</label>
+                        <div class="qty-stepper">
+                            <button type="button" class="qty-btn" data-target="yarn-quantity" data-dir="-1" data-step="0.1">&minus;</button>
+                            <input type="number" id="yarn-quantity" step="0.1" min="0" value="1">
+                            <button type="button" class="qty-btn" data-target="yarn-quantity" data-dir="1" data-step="0.1">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="yarn-fiber">Fiber Content</label>
+                    <input type="text" id="yarn-fiber" placeholder="e.g. 100% Acrylic, 80/20 Cotton/Poly">
+                </div>
+                <div class="form-group" style="flex: 0 0 auto;">
+                    <label>Photo</label>
+                    <div class="thumbnail-selector" id="yarn-thumbnail-selector" data-target="yarn">
+                        <div class="thumbnail-selector-preview" id="yarn-thumbnail-preview">
+                            <span class="thumbnail-selector-placeholder">+</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="yarn-notes">Notes</label>
+                    <textarea id="yarn-notes" rows="2" placeholder="Any notes about this yarn"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-danger" id="delete-yarn-btn" style="display: none;">Delete</button>
+                    <div class="modal-actions-right">
+                        <button type="button" class="btn btn-secondary" id="cancel-yarn-btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="save-yarn-btn">Add Yarn</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Hook Modal -->
+    <div id="hook-modal" class="modal" style="display: none;">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h2 id="hook-modal-title">Add Hook</h2>
+                <button class="modal-close" id="close-hook-modal">&times;</button>
+            </div>
+            <form id="hook-form">
+                <div class="craft-type-toggle">
+                    <button type="button" class="craft-type-btn active" data-craft="crochet">Crochet</button>
+                    <button type="button" class="craft-type-btn" data-craft="knitting">Knitting</button>
+                </div>
+                <div class="form-group">
+                    <label for="hook-brand">Brand</label>
+                    <div class="brand-autocomplete-wrap">
+                        <input type="text" id="hook-brand" placeholder="e.g. Clover, Susan Bates" autocomplete="off">
+                        <div class="brand-autocomplete-list" id="hook-brand-list"></div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="hook-name">Name / Model</label>
+                    <input type="text" id="hook-name" placeholder="e.g. Amour, Red Lace">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="hook-size">Size</label>
+                        <select id="hook-size">
+                            <!-- Populated by JS based on craft type -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hook-quantity">Quantity</label>
+                        <div class="qty-stepper">
+                            <button type="button" class="qty-btn" data-target="hook-quantity" data-dir="-1" data-step="1">&minus;</button>
+                            <input type="number" id="hook-quantity" min="0" value="1">
+                            <button type="button" class="qty-btn" data-target="hook-quantity" data-dir="1" data-step="1">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="hook-type" id="hook-type-label">Type</label>
+                        <select id="hook-type">
+                            <!-- Populated by JS based on craft type -->
+                        </select>
+                    </div>
+                    <div class="form-group" id="hook-length-group" style="display: none;">
+                        <label for="hook-length">Length</label>
+                        <select id="hook-length">
+                            <!-- Populated by JS based on needle type -->
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="hook-notes">Notes</label>
+                    <textarea id="hook-notes" rows="2" placeholder="Any notes"></textarea>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-danger" id="delete-hook-btn" style="display: none;">Delete</button>
+                    <div class="modal-actions-right">
+                        <button type="button" class="btn btn-secondary" id="cancel-hook-btn">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="save-hook-btn">Add Hook</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Changelog Modal -->
     <div id="changelog-modal" class="modal" style="display: none;">
         <div class="modal-content changelog-modal-content" onclick="event.stopPropagation()">
@@ -2958,6 +3130,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=211"></script>
+    <script defer src="app.js?v=226"></script>
 </body>
 </html>

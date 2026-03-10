@@ -10526,6 +10526,20 @@ textarea.image-drag-over {
     height: 10px;
 }
 
+.context-menu-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 4px 0;
+}
+
+.context-menu-danger {
+    color: var(--danger-color, #e74c3c);
+}
+
+.context-menu-danger:hover {
+    background: color-mix(in srgb, var(--danger-color, #e74c3c) 15%, transparent);
+}
+
 .list-url-link {
     color: var(--primary-color);
     text-decoration: none;

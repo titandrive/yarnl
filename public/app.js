@@ -8383,7 +8383,7 @@ function displayPatterns() {
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="pattern">
             <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="togglePatternListSort('${c}')" oncontextmenu="showColumnMenu(event,'pattern')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'pattern')">${PATTERN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
-            <tbody>${filteredPatterns.map(p => `<tr onclick="handlePatternRowClick(event,${p.id})" class="${selectedPatternIds.has(p.id) ? 'bulk-selected' : ''}" data-pattern-id="${p.id}">${cbTd(p)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${PATTERN_COLUMNS[c].value(p)}</td>`).join('')}</tr>`).join('')}</tbody>
+            <tbody>${filteredPatterns.map(p => `<tr onclick="handlePatternRowClick(event,${p.id})" oncontextmenu="showRowMenu(event,'pattern',${p.id})" class="${selectedPatternIds.has(p.id) ? 'bulk-selected' : ''}" data-pattern-id="${p.id}">${cbTd(p)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${PATTERN_COLUMNS[c].value(p)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
     } else {
         grid.className = 'patterns-grid' + (libraryEditMode ? ' bulk-edit-mode' : '');
@@ -16125,6 +16125,79 @@ function showColumnMenu(e, type) {
     setTimeout(() => { document.addEventListener('mousedown', close); document.addEventListener('keydown', escClose); }, 0);
 }
 
+function showRowMenu(e, type, id) {
+    e.preventDefault();
+    e.stopPropagation();
+    // Remove existing menu
+    const existing = document.querySelector('.column-menu');
+    if (existing) existing.remove();
+
+    const menu = document.createElement('div');
+    menu.className = 'column-menu';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+
+    const addItem = (label, icon, onClick, danger) => {
+        const item = document.createElement('div');
+        item.className = 'column-menu-item' + (danger ? ' context-menu-danger' : '');
+        item.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${icon}</svg><span>${label}</span>`;
+        item.addEventListener('click', () => { menu.remove(); onClick(); });
+        menu.appendChild(item);
+    };
+
+    const addDivider = () => {
+        const div = document.createElement('div');
+        div.className = 'context-menu-divider';
+        menu.appendChild(div);
+    };
+
+    if (type === 'pattern') {
+        const p = patterns.find(x => x.id == id);
+        if (!p) return;
+        addItem(p.is_current ? 'Remove from In Progress' : 'Mark In Progress',
+            '<polygon points="5 3 19 12 5 21 5 3"></polygon>',
+            () => toggleCurrent(id, !p.is_current));
+        addItem(p.is_favorite ? 'Unfavorite' : 'Favorite',
+            '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>',
+            () => toggleFavorite(id, !p.is_favorite));
+        addItem(p.completed ? 'Mark Incomplete' : 'Mark Complete',
+            '<polyline points="20 6 9 17 4 12"></polyline>',
+            () => toggleComplete(id, !p.completed));
+        addDivider();
+        addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openEditModal(id));
+        addDivider();
+        addItem(enableDirectDelete ? 'Delete' : 'Archive',
+            '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
+            () => { if (confirm(enableDirectDelete ? 'Delete this pattern?' : 'Archive this pattern?')) { enableDirectDelete ? deletePattern(id) : archivePattern(id); } }, true);
+    } else if (type === 'yarn') {
+        addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openYarnModal(id));
+        addDivider();
+        addItem('Delete', '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
+            () => { if (confirm('Delete this yarn?')) deleteYarn(id); }, true);
+    } else if (type === 'hook') {
+        addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openHookModal(id));
+        addDivider();
+        addItem('Delete', '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
+            () => { if (confirm('Delete this hook?')) deleteHook(id); }, true);
+    }
+
+    document.body.appendChild(menu);
+
+    // Keep menu in viewport
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+    if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+
+    // Close on click outside or Escape
+    const close = (ev) => {
+        if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escClose); }
+    };
+    const escClose = (ev) => {
+        if (ev.key === 'Escape') { menu.remove(); document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escClose); }
+    };
+    setTimeout(() => { document.addEventListener('mousedown', close); document.addEventListener('keydown', escClose); }, 0);
+}
+
 // --- Library list view functions ---
 
 function sortPatternList(items, sortState) {
@@ -16280,7 +16353,7 @@ function displayYarns() {
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="yarn">
             <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="toggleYarnSort('${c}')" oncontextmenu="showColumnMenu(event,'yarn')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'yarn')">${YARN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
-            <tbody>${filtered.map(y => `<tr onclick="handleInventoryRowClick(event,'yarn',${y.id})" class="${selectedYarnIds.has(y.id) ? 'bulk-selected' : ''}" data-item-id="${y.id}">${cbTd(y)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${YARN_COLUMNS[c].value(y)}</td>`).join('')}</tr>`).join('')}</tbody>
+            <tbody>${filtered.map(y => `<tr onclick="handleInventoryRowClick(event,'yarn',${y.id})" oncontextmenu="showRowMenu(event,'yarn',${y.id})" class="${selectedYarnIds.has(y.id) ? 'bulk-selected' : ''}" data-item-id="${y.id}">${cbTd(y)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${YARN_COLUMNS[c].value(y)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
     } else {
         grid.className = 'patterns-grid' + (inventoryEditMode ? ' bulk-edit-mode' : '');
@@ -16509,7 +16582,7 @@ function displayHooks() {
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="hook">
             <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="toggleHookSort('${c}')" oncontextmenu="showColumnMenu(event,'hook')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'hook')">${HOOK_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
-            <tbody>${filtered.map(h => `<tr onclick="handleInventoryRowClick(event,'hook',${h.id})" class="${selectedHookIds.has(h.id) ? 'bulk-selected' : ''}" data-item-id="${h.id}">${cbTd(h)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${HOOK_COLUMNS[c].value(h)}</td>`).join('')}</tr>`).join('')}</tbody>
+            <tbody>${filtered.map(h => `<tr onclick="handleInventoryRowClick(event,'hook',${h.id})" oncontextmenu="showRowMenu(event,'hook',${h.id})" class="${selectedHookIds.has(h.id) ? 'bulk-selected' : ''}" data-item-id="${h.id}">${cbTd(h)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${HOOK_COLUMNS[c].value(h)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
     } else {
         grid.className = 'patterns-grid' + (inventoryEditMode ? ' bulk-edit-mode' : '');

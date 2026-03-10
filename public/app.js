@@ -8385,6 +8385,7 @@ function displayPatterns() {
             <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="togglePatternListSort('${c}')" oncontextmenu="showColumnMenu(event,'pattern')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'pattern')">${PATTERN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
             <tbody>${filteredPatterns.map(p => `<tr onclick="handlePatternRowClick(event,${p.id})" oncontextmenu="showRowMenu(event,'pattern',${p.id})" class="${selectedPatternIds.has(p.id) ? 'bulk-selected' : ''}" data-pattern-id="${p.id}">${cbTd(p)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${PATTERN_COLUMNS[c].value(p)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
+        initListRowLongPress('pattern');
     } else {
         grid.className = 'patterns-grid' + (libraryEditMode ? ' bulk-edit-mode' : '');
         grid.innerHTML = filteredPatterns.map(pattern => {
@@ -16198,6 +16199,31 @@ function showRowMenu(e, type, id) {
     setTimeout(() => { document.addEventListener('mousedown', close); document.addEventListener('keydown', escClose); }, 0);
 }
 
+function initListRowLongPress(type) {
+    const table = document.querySelector(`.inventory-table[data-type="${type}"]`);
+    if (!table) return;
+    table.querySelectorAll('tbody tr').forEach(row => {
+        const id = parseInt(row.dataset.patternId || row.dataset.itemId);
+        if (!id) return;
+        let timer, triggered = false;
+        row.addEventListener('touchstart', (e) => {
+            triggered = false;
+            timer = setTimeout(() => {
+                triggered = true;
+                if (navigator.vibrate) navigator.vibrate(30);
+                const touch = e.changedTouches[0];
+                showRowMenu({ preventDefault(){}, stopPropagation(){}, clientX: touch.clientX, clientY: touch.clientY }, type, id);
+            }, 500);
+        }, { passive: true });
+        row.addEventListener('touchend', (e) => {
+            clearTimeout(timer);
+            if (triggered) e.preventDefault();
+        });
+        row.addEventListener('touchmove', () => { clearTimeout(timer); }, { passive: true });
+        row.addEventListener('contextmenu', (e) => { if (timer || triggered) e.preventDefault(); });
+    });
+}
+
 // --- Library list view functions ---
 
 function sortPatternList(items, sortState) {
@@ -16355,6 +16381,7 @@ function displayYarns() {
             <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="toggleYarnSort('${c}')" oncontextmenu="showColumnMenu(event,'yarn')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'yarn')">${YARN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
             <tbody>${filtered.map(y => `<tr onclick="handleInventoryRowClick(event,'yarn',${y.id})" oncontextmenu="showRowMenu(event,'yarn',${y.id})" class="${selectedYarnIds.has(y.id) ? 'bulk-selected' : ''}" data-item-id="${y.id}">${cbTd(y)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${YARN_COLUMNS[c].value(y)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
+        initListRowLongPress('yarn');
     } else {
         grid.className = 'patterns-grid' + (inventoryEditMode ? ' bulk-edit-mode' : '');
         grid.innerHTML = filtered.map(renderYarnCard).join('');
@@ -16584,6 +16611,7 @@ function displayHooks() {
             <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="toggleHookSort('${c}')" oncontextmenu="showColumnMenu(event,'hook')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'hook')">${HOOK_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
             <tbody>${filtered.map(h => `<tr onclick="handleInventoryRowClick(event,'hook',${h.id})" oncontextmenu="showRowMenu(event,'hook',${h.id})" class="${selectedHookIds.has(h.id) ? 'bulk-selected' : ''}" data-item-id="${h.id}">${cbTd(h)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${HOOK_COLUMNS[c].value(h)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
+        initListRowLongPress('hook');
     } else {
         grid.className = 'patterns-grid' + (inventoryEditMode ? ' bulk-edit-mode' : '');
         grid.innerHTML = filtered.map(renderHookCard).join('');

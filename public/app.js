@@ -16305,27 +16305,53 @@ function getColumnsConfig(type) {
     return type === 'pattern' ? PATTERN_COLUMNS : (type === 'yarn' ? YARN_COLUMNS : HOOK_COLUMNS);
 }
 
+function getHiddenColumns(type) {
+    try {
+        const key = type === 'pattern' ? 'patternHiddenColumns' : (type === 'yarn' ? 'yarnHiddenColumns' : 'hookHiddenColumns');
+        const saved = localStorage.getItem(key);
+        if (!saved) return {};
+        const parsed = JSON.parse(saved);
+        // Migrate old array format to object format
+        if (Array.isArray(parsed)) {
+            const obj = {};
+            for (const c of parsed) obj[c] = null;
+            return obj;
+        }
+        return parsed;
+    } catch (e) { return {}; }
+}
+
+function saveHiddenColumns(type, hidden) {
+    const key = type === 'pattern' ? 'patternHiddenColumns' : (type === 'yarn' ? 'yarnHiddenColumns' : 'hookHiddenColumns');
+    localStorage.setItem(key, JSON.stringify(hidden));
+}
+
 function getColumnOrder(type) {
     const key = type === 'pattern' ? 'patternColumnOrder' : (type === 'yarn' ? 'yarnColumnOrder' : 'hookColumnOrder');
     const defaults = type === 'pattern' ? DEFAULT_PATTERN_COL_ORDER : (type === 'yarn' ? DEFAULT_YARN_COL_ORDER : DEFAULT_HOOK_COL_ORDER);
     const allCols = getColumnsConfig(type);
+    const hidden = getHiddenColumns(type);
     try {
         const saved = localStorage.getItem(key);
         if (saved) {
             const order = JSON.parse(saved);
             if (Array.isArray(order) && order.length > 0 && order.every(c => c in allCols)) {
-                // Add any new default columns that aren't in the saved order at their default position
-                const missing = defaults.filter(c => !order.includes(c));
-                for (const col of missing) {
+                // Deduplicate (preserves first occurrence)
+                const seen = new Set();
+                const deduped = order.filter(c => { if (seen.has(c)) return false; seen.add(c); return true; });
+                // Auto-add only truly new columns (not in saved order AND not explicitly hidden)
+                const known = new Set([...deduped, ...Object.keys(hidden)]);
+                const brandNew = defaults.filter(c => !known.has(c));
+                for (const col of brandNew) {
                     const defIdx = defaults.indexOf(col);
                     let insertIdx = 0;
                     for (let i = defIdx - 1; i >= 0; i--) {
-                        const prev = order.indexOf(defaults[i]);
+                        const prev = deduped.indexOf(defaults[i]);
                         if (prev !== -1) { insertIdx = prev + 1; break; }
                     }
-                    order.splice(insertIdx, 0, col);
+                    deduped.splice(insertIdx, 0, col);
                 }
-                return order;
+                return deduped;
             }
         }
     } catch (e) {}
@@ -16393,27 +16419,42 @@ function showColumnMenu(e, type) {
 
     // Build menu items for all columns
     for (const [key, col] of Object.entries(allCols)) {
-        const item = document.createElement('label');
+        const item = document.createElement('div');
         item.className = 'column-menu-item';
         const checked = visibleCols.includes(key);
         item.innerHTML = `<input type="checkbox" ${checked ? 'checked' : ''} data-col="${key}"><span class="col-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span><span>${col.label || key}</span>`;
-        item.querySelector('input').addEventListener('change', (ev) => {
+        item.addEventListener('click', (ev) => {
+            ev.preventDefault();
+            ev.stopPropagation();
+            const cb = item.querySelector('input');
             const order = getColumnOrder(type);
-            if (ev.target.checked) {
-                // Add column — insert after last visible column in the default order
-                const allKeys = Object.keys(allCols);
-                let insertIdx = order.length;
-                for (let i = allKeys.indexOf(key) - 1; i >= 0; i--) {
-                    const prevIdx = order.indexOf(allKeys[i]);
-                    if (prevIdx !== -1) { insertIdx = prevIdx + 1; break; }
+            const hidden = getHiddenColumns(type);
+            if (!cb.checked) {
+                // Re-show column at its previous position
+                cb.checked = true;
+                if (!order.includes(key)) {
+                    const afterCol = hidden[key];
+                    let insertIdx = 0;
+                    if (afterCol === null || afterCol === undefined) {
+                        // Was first column — insert at beginning
+                        insertIdx = 0;
+                    } else {
+                        const prevIdx = order.indexOf(afterCol);
+                        insertIdx = prevIdx !== -1 ? prevIdx + 1 : order.length;
+                    }
+                    order.splice(insertIdx, 0, key);
                 }
-                order.splice(insertIdx, 0, key);
+                delete hidden[key];
             } else {
                 // Don't allow hiding all columns
                 if (order.length <= 2) return;
+                cb.checked = false;
                 const idx = order.indexOf(key);
+                // Remember the column before this one so we can restore position
+                hidden[key] = idx > 0 ? order[idx - 1] : null;
                 if (idx !== -1) order.splice(idx, 1);
             }
+            saveHiddenColumns(type, hidden);
             saveColumnOrder(type, order);
             if (type === 'pattern') displayPatterns(); else if (type === 'yarn') displayYarns(); else displayHooks();
         });

@@ -37,7 +37,9 @@ const SYNCED_SETTING_KEYS = [
     // Backup
     'backupScheduleEnabled', 'backupSchedule',
     'backupPruneEnabled', 'backupPruneMode',
-    'backupPruneValue', 'backupTime'
+    'backupPruneValue', 'backupTime',
+    // Inventory
+    'yarnColumnOrder', 'hookColumnOrder'
 ];
 
 // Debounced settings sync to server
@@ -15813,6 +15815,89 @@ function initInventory() {
     document.getElementById('hook-brand-filter')?.addEventListener('change', () => displayHooks());
 }
 
+// --- Inventory column config ---
+
+const YARN_COLUMNS = {
+    brand: { label: 'Brand', value: y => escapeHtml(y.brand || '—') },
+    name: { label: 'Name', value: y => escapeHtml(y.name || '—') },
+    colorway: { label: 'Colorway', value: y => escapeHtml(y.colorway || '—') },
+    weight_category: { label: 'Weight', value: y => escapeHtml(y.weight_category || '—') },
+    quantity: { label: 'Qty', value: y => parseFloat(y.quantity) || 0 },
+    fiber_content: { label: 'Fiber', value: y => escapeHtml(y.fiber_content || '—') },
+    pattern_count: { label: 'Patterns', value: y => y.pattern_count || 0 }
+};
+const DEFAULT_YARN_COL_ORDER = ['brand', 'name', 'colorway', 'weight_category', 'quantity', 'fiber_content', 'pattern_count'];
+
+const HOOK_COLUMNS = {
+    brand: { label: 'Brand', value: h => escapeHtml(h.brand || '—') },
+    name: { label: 'Name', value: h => escapeHtml(h.name || '—') },
+    size_label: { label: 'Size', value: h => escapeHtml(h.size_label || '—') },
+    hook_type: { label: 'Type', value: h => escapeHtml(h.hook_type || '—') },
+    craft_type: { label: 'Craft', value: h => escapeHtml(h.craft_type || '—') },
+    length: { label: 'Length', value: h => escapeHtml(h.length || '—') },
+    quantity: { label: 'Qty', value: h => h.quantity || 0 },
+    pattern_count: { label: 'Patterns', value: h => h.pattern_count || 0 }
+};
+const DEFAULT_HOOK_COL_ORDER = ['brand', 'name', 'size_label', 'hook_type', 'craft_type', 'length', 'quantity', 'pattern_count'];
+
+function getColumnOrder(type) {
+    const key = type === 'yarn' ? 'yarnColumnOrder' : 'hookColumnOrder';
+    const defaults = type === 'yarn' ? DEFAULT_YARN_COL_ORDER : DEFAULT_HOOK_COL_ORDER;
+    try {
+        const saved = localStorage.getItem(key);
+        if (saved) {
+            const order = JSON.parse(saved);
+            // Validate: must contain same columns as defaults
+            if (Array.isArray(order) && order.length === defaults.length && defaults.every(c => order.includes(c))) {
+                return order;
+            }
+        }
+    } catch (e) {}
+    return defaults;
+}
+
+let _dragCol = null;
+
+function onColDragStart(e) {
+    _dragCol = e.target.dataset.col;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function onColDragEnd(e) {
+    e.target.classList.remove('dragging');
+    document.querySelectorAll('.inventory-table th.drag-over').forEach(th => th.classList.remove('drag-over'));
+}
+
+function onColDragOver(e) {
+    e.preventDefault();
+    const th = e.target.closest('th');
+    if (th && th.dataset.col !== _dragCol) th.classList.add('drag-over');
+}
+
+function onColDragLeave(e) {
+    const th = e.target.closest('th');
+    if (th) th.classList.remove('drag-over');
+}
+
+function onColDrop(e, type) {
+    e.preventDefault();
+    const th = e.target.closest('th');
+    if (!th || !_dragCol) return;
+    th.classList.remove('drag-over');
+    const toCol = th.dataset.col;
+    if (toCol === _dragCol) return;
+    const order = getColumnOrder(type);
+    const fromIdx = order.indexOf(_dragCol);
+    const toIdx = order.indexOf(toCol);
+    if (fromIdx === -1 || toIdx === -1) return;
+    order.splice(fromIdx, 1);
+    order.splice(toIdx, 0, _dragCol);
+    const key = type === 'yarn' ? 'yarnColumnOrder' : 'hookColumnOrder';
+    localStorage.setItem(key, JSON.stringify(order));
+    if (type === 'yarn') displayYarns(); else displayHooks();
+}
+
 // --- Yarn CRUD ---
 
 async function loadYarns() {
@@ -15869,27 +15954,12 @@ function displayYarns() {
     }
     if (inventoryView === 'list') {
         filtered = sortInventory(filtered, yarnSort);
+        const cols = getColumnOrder('yarn');
         const arrow = (col) => yarnSort.col === col ? (yarnSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="yarn">
-            <thead><tr>
-                <th data-col="brand" onclick="toggleYarnSort('brand')">Brand${arrow('brand')}</th>
-                <th data-col="name" onclick="toggleYarnSort('name')">Name${arrow('name')}</th>
-                <th data-col="colorway" onclick="toggleYarnSort('colorway')">Colorway${arrow('colorway')}</th>
-                <th data-col="weight_category" onclick="toggleYarnSort('weight_category')">Weight${arrow('weight_category')}</th>
-                <th data-col="quantity" onclick="toggleYarnSort('quantity')">Qty${arrow('quantity')}</th>
-                <th data-col="fiber_content" onclick="toggleYarnSort('fiber_content')">Fiber${arrow('fiber_content')}</th>
-                <th data-col="pattern_count" onclick="toggleYarnSort('pattern_count')">Patterns${arrow('pattern_count')}</th>
-            </tr></thead>
-            <tbody>${filtered.map(y => `<tr onclick="openYarnModal(${y.id})">
-                <td>${escapeHtml(y.brand || '—')}</td>
-                <td>${escapeHtml(y.name || '—')}</td>
-                <td>${escapeHtml(y.colorway || '—')}</td>
-                <td>${escapeHtml(y.weight_category || '—')}</td>
-                <td>${parseFloat(y.quantity) || 0}</td>
-                <td>${escapeHtml(y.fiber_content || '—')}</td>
-                <td>${y.pattern_count || 0}</td>
-            </tr>`).join('')}</tbody>
+            <thead><tr>${cols.map(c => `<th data-col="${c}" draggable="true" onclick="toggleYarnSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'yarn')">${YARN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <tbody>${filtered.map(y => `<tr onclick="openYarnModal(${y.id})">${cols.map(c => `<td>${YARN_COLUMNS[c].value(y)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
     } else {
         grid.className = 'patterns-grid';
@@ -16094,29 +16164,12 @@ function displayHooks() {
     }
     if (inventoryView === 'list') {
         filtered = sortInventory(filtered, hookSort);
+        const cols = getColumnOrder('hook');
         const arrow = (col) => hookSort.col === col ? (hookSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="hook">
-            <thead><tr>
-                <th data-col="brand" onclick="toggleHookSort('brand')">Brand${arrow('brand')}</th>
-                <th data-col="name" onclick="toggleHookSort('name')">Name${arrow('name')}</th>
-                <th data-col="size_label" onclick="toggleHookSort('size_label')">Size${arrow('size_label')}</th>
-                <th data-col="hook_type" onclick="toggleHookSort('hook_type')">Type${arrow('hook_type')}</th>
-                <th data-col="craft_type" onclick="toggleHookSort('craft_type')">Craft${arrow('craft_type')}</th>
-                <th data-col="length" onclick="toggleHookSort('length')">Length${arrow('length')}</th>
-                <th data-col="quantity" onclick="toggleHookSort('quantity')">Qty${arrow('quantity')}</th>
-                <th data-col="pattern_count" onclick="toggleHookSort('pattern_count')">Patterns${arrow('pattern_count')}</th>
-            </tr></thead>
-            <tbody>${filtered.map(h => `<tr onclick="openHookModal(${h.id})">
-                <td>${escapeHtml(h.brand || '—')}</td>
-                <td>${escapeHtml(h.name || '—')}</td>
-                <td>${escapeHtml(h.size_label || '—')}</td>
-                <td>${escapeHtml(h.hook_type || '—')}</td>
-                <td>${escapeHtml(h.craft_type || '—')}</td>
-                <td>${escapeHtml(h.length || '—')}</td>
-                <td>${h.quantity || 0}</td>
-                <td>${h.pattern_count || 0}</td>
-            </tr>`).join('')}</tbody>
+            <thead><tr>${cols.map(c => `<th data-col="${c}" draggable="true" onclick="toggleHookSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'hook')">${HOOK_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <tbody>${filtered.map(h => `<tr onclick="openHookModal(${h.id})">${cols.map(c => `<td>${HOOK_COLUMNS[c].value(h)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
     } else {
         grid.className = 'patterns-grid';

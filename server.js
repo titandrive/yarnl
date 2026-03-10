@@ -1975,7 +1975,7 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
 // Create a new markdown pattern
 app.post('/api/patterns/markdown', async (req, res) => {
   try {
-    const { name, category, description, content, isCurrent, hashtagIds } = req.body;
+    const { name, category, description, content, isCurrent, rating, hashtagIds } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Pattern name is required' });
@@ -1988,6 +1988,7 @@ app.post('/api/patterns/markdown', async (req, res) => {
     const patternCategory = category || 'Amigurumi';
     const patternDescription = description || '';
     const patternIsCurrent = isCurrent === true || isCurrent === 'true';
+    const patternRating = Math.max(0, Math.min(5, parseInt(rating) || 0));
 
     // Ensure user directories exist
     const username = req.user.username;
@@ -2006,10 +2007,10 @@ app.post('/api/patterns/markdown', async (req, res) => {
 
     const userId = req.user.id;
     const result = await pool.query(
-      `INSERT INTO patterns (name, filename, original_name, category, description, is_current, pattern_type, user_id)
-       VALUES ($1, $2, $3, $4, $5, $6, 'markdown', $7)
+      `INSERT INTO patterns (name, filename, original_name, category, description, is_current, rating, pattern_type, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, 'markdown', $8)
        RETURNING *`,
-      [name.trim(), filename, filename, patternCategory, patternDescription, patternIsCurrent, userId]
+      [name.trim(), filename, filename, patternCategory, patternDescription, patternIsCurrent, patternRating, userId]
     );
 
     const pattern = result.rows[0];

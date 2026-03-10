@@ -5915,6 +5915,7 @@ async function showNewPatternPanel() {
     document.getElementById('new-pattern-description').value = '';
     document.getElementById('new-pattern-content').value = '';
     document.getElementById('new-pattern-is-current').checked = false;
+    document.getElementById('new-pattern-rating').innerHTML = ratingInputHtml('new-pattern-rating-input', 0);
     document.getElementById('new-pattern-preview').innerHTML = '<p style="color: var(--text-muted);">Preview will appear here...</p>';
 
     // Clear thumbnail selector
@@ -6484,6 +6485,7 @@ async function saveNewPattern() {
     const description = document.getElementById('new-pattern-description').value.trim();
     const content = document.getElementById('new-pattern-content').value;
     const isCurrent = document.getElementById('new-pattern-is-current').checked;
+    const rating = parseInt(document.getElementById('new-pattern-rating-input')?.dataset.rating) || 0;
     const hashtagIds = getSelectedHashtagIds('new-pattern-hashtags');
     const thumbnailFile = getThumbnailFile('new-pattern');
 
@@ -6507,6 +6509,7 @@ async function saveNewPattern() {
                 description,
                 content,
                 isCurrent,
+                rating,
                 hashtagIds
             })
         });
@@ -11162,6 +11165,7 @@ async function openPatternInfoModal() {
         const rows = [
             { label: 'Name', value: info.name },
             { label: 'Category', value: info.category || 'Uncategorized' },
+            { label: 'Rating', value: (currentPattern.rating || 0) > 0 ? ratingStarsHtml(currentPattern.rating) : '—' },
             { label: 'Type', value: info.pattern_type === 'markdown' ? 'Markdown' : 'PDF' },
             { label: 'Date Added', value: new Date(info.upload_date).toLocaleDateString() },
             { label: 'Date Started', value: info.started_date ? new Date(info.started_date).toLocaleDateString() : '—' },

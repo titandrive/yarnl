@@ -4863,7 +4863,7 @@ app.get('/api/yarns/:id/thumbnail', async (req, res) => {
   }
 });
 
-app.post('/api/yarns/:id/thumbnail', upload.single('thumbnail'), async (req, res) => {
+app.post('/api/yarns/:id/thumbnail', imageUpload.single('thumbnail'), async (req, res) => {
   try {
     const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
     if (!yarn) return res.status(403).json({ error: 'Not authorized' });
@@ -5084,7 +5084,7 @@ app.get('/api/hooks/:id/thumbnail', async (req, res) => {
   }
 });
 
-app.post('/api/hooks/:id/thumbnail', upload.single('thumbnail'), async (req, res) => {
+app.post('/api/hooks/:id/thumbnail', imageUpload.single('thumbnail'), async (req, res) => {
   try {
     const hook = await verifyHookOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
     if (!hook) return res.status(403).json({ error: 'Not authorized' });

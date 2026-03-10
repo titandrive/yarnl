@@ -338,6 +338,21 @@ async function initDatabase() {
       END $$;
     `);
 
+    // Add is_favorite column to yarns and hooks
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='yarns' AND column_name='is_favorite') THEN
+          ALTER TABLE yarns ADD COLUMN is_favorite BOOLEAN DEFAULT false;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='hooks' AND column_name='is_favorite') THEN
+          ALTER TABLE hooks ADD COLUMN is_favorite BOOLEAN DEFAULT false;
+        END IF;
+      END $$;
+    `);
+
     // Migrate colorway data to color column
     await client.query(`UPDATE yarns SET color = colorway WHERE color IS NULL AND colorway IS NOT NULL`);
 

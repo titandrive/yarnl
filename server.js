@@ -4850,6 +4850,22 @@ app.post('/api/yarns/bulk/quantity', async (req, res) => {
   }
 });
 
+app.patch('/api/yarns/:id/favorite', async (req, res) => {
+  try {
+    const { isFavorite } = req.body;
+    const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!yarn) return res.status(403).json({ error: 'Not authorized' });
+    const result = await pool.query(
+      `UPDATE yarns SET is_favorite = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`,
+      [isFavorite, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating yarn favorite:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.get('/api/yarns/:id/thumbnail', async (req, res) => {
   try {
     const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
@@ -5067,6 +5083,22 @@ app.post('/api/hooks/bulk/quantity', async (req, res) => {
     res.json({ success: true, count });
   } catch (error) {
     console.error('Error bulk updating hook quantity:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.patch('/api/hooks/:id/favorite', async (req, res) => {
+  try {
+    const { isFavorite } = req.body;
+    const hook = await verifyHookOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!hook) return res.status(403).json({ error: 'Not authorized' });
+    const result = await pool.query(
+      `UPDATE hooks SET is_favorite = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *`,
+      [isFavorite, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error updating hook favorite:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -7119,9 +7151,9 @@ app.post('/api/backups/:filename/restore', authMiddleware, async (req, res) => {
     const yarnIdMap = {};
     for (const row of dbExport.tables.yarns || []) {
       const result = await client.query(
-        `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, color, dye_lot, quantity, notes, thumbnail, url, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
-        [userId, row.name, row.brand, row.weight_category, row.fiber_content, row.color, row.dye_lot, row.quantity, row.notes, row.thumbnail, row.url, row.created_at, row.updated_at]
+        `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, color, dye_lot, quantity, notes, thumbnail, url, is_favorite, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+        [userId, row.name, row.brand, row.weight_category, row.fiber_content, row.color, row.dye_lot, row.quantity, row.notes, row.thumbnail, row.url, row.is_favorite || false, row.created_at, row.updated_at]
       );
       yarnIdMap[row.id] = result.rows[0].id;
     }
@@ -7130,9 +7162,9 @@ app.post('/api/backups/:filename/restore', authMiddleware, async (req, res) => {
     const hookIdMap = {};
     for (const row of dbExport.tables.hooks || []) {
       const result = await client.query(
-        `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label, hook_type, length, quantity, notes, thumbnail, url, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
-        [userId, row.craft_type, row.name, row.brand, row.size_mm, row.size_label, row.hook_type, row.length, row.quantity, row.notes, row.thumbnail, row.url, row.created_at, row.updated_at]
+        `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label, hook_type, length, quantity, notes, thumbnail, url, is_favorite, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
+        [userId, row.craft_type, row.name, row.brand, row.size_mm, row.size_label, row.hook_type, row.length, row.quantity, row.notes, row.thumbnail, row.url, row.is_favorite || false, row.created_at, row.updated_at]
       );
       hookIdMap[row.id] = result.rows[0].id;
     }

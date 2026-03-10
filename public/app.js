@@ -8564,6 +8564,52 @@ async function toggleFavorite(id, isFavorite) {
     }
 }
 
+async function toggleYarnFavorite(id, isFavorite) {
+    const yarn = yarns.find(y => String(y.id) === String(id));
+    if (yarn) {
+        yarn.is_favorite = isFavorite;
+        displayYarns();
+    }
+    try {
+        const response = await fetch(`${API_URL}/api/yarns/${id}/favorite`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isFavorite })
+        });
+        if (!response.ok) {
+            if (yarn) yarn.is_favorite = !isFavorite;
+            displayYarns();
+        }
+    } catch (error) {
+        console.error('Error toggling yarn favorite:', error);
+        if (yarn) yarn.is_favorite = !isFavorite;
+        displayYarns();
+    }
+}
+
+async function toggleHookFavorite(id, isFavorite) {
+    const hook = hooks.find(h => String(h.id) === String(id));
+    if (hook) {
+        hook.is_favorite = isFavorite;
+        displayHooks();
+    }
+    try {
+        const response = await fetch(`${API_URL}/api/hooks/${id}/favorite`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isFavorite })
+        });
+        if (!response.ok) {
+            if (hook) hook.is_favorite = !isFavorite;
+            displayHooks();
+        }
+    } catch (error) {
+        console.error('Error toggling hook favorite:', error);
+        if (hook) hook.is_favorite = !isFavorite;
+        displayHooks();
+    }
+}
+
 function handleCardDelete(btn, id) {
     // First click - show confirmation state
     if (!btn.classList.contains('confirm-delete')) {
@@ -15996,7 +16042,15 @@ function initInventory() {
 // --- Inventory column config ---
 
 const LIST_YARN_PLACEHOLDER = '<div class="list-thumbnail-placeholder"><svg width="26" height="26" viewBox="0 0 100 125" fill="currentColor"><g><path d="M47.6,34.1c-1.4,1-2.7,2.1-4.1,3.3c5.1,4.4,12.8,15.9,13.9,29c1.8-2.1,3.2-4.6,4.3-7.2C59.6,46.6,51.3,36.3,47.6,34.1z"/><path d="M45.2,60.8c-6.4,4.9-14,8.3-21,9.4v0c-0.2,1-0.3,2-0.4,2.9c1.2,0.6,2.4,1.1,3.6,1.6c8.2-1,15.4-5.1,19.3-7.8C46.4,64.8,45.8,62.7,45.2,60.8z"/><path d="M34.6,47.6c-2.6,3.4-4.6,6.9-6.2,10.2c4.3-1.7,8.6-4.2,12.2-7.1c-1.4-2.3-2.8-4.2-4-5.7C35.9,45.8,35.2,46.7,34.6,47.6z"/><path d="M44.8,23.1c-2.7-0.9-5.7-1.4-8.7-1.3c-4.9,3.3-9.5,8-14.3,14.4c-6.4,8.5-9.4,17.1-10.5,23.3c0.9,2.2,2.1,4.3,3.6,6.1c1-6.7,4.2-16,11.1-25.2C32.3,32.1,38.3,26.5,44.8,23.1z"/><path d="M53.3,27.6c-1.5-1.2-3.2-2.3-5-3.1c-7,3-13.4,8.6-20.1,17.5c-7.5,10-10.4,20.2-10.9,26.4c1.2,1.2,2.5,2.2,3.9,3.2c0.9-6.7,4.1-16.3,11.2-25.7C39.3,36.7,46,30.9,53.3,27.6z"/><path d="M63.3,53.9c0.4-2.1,0.5-4.4,0.4-6.6c-0.5-6.9-3.5-13.1-8.1-17.6c-1.9,0.7-3.8,1.7-5.6,2.8C54.1,35.6,60.3,43.7,63.3,53.9z"/><path d="M30.8,22.4C17.8,25.2,8.4,37.2,9.3,50.9c0.1,1.1,0.2,2.2,0.4,3.3c1.7-5.8,4.7-12.8,9.9-19.6C23.4,29.6,27.1,25.5,30.8,22.4z"/><path d="M33.9,76.2c1.4,0.1,2.9,0.2,4.4,0.1c3.1-0.2,6-0.9,8.8-2.1c0.1-1.4,0.1-2.8,0-4.2C43.9,72,39.3,74.6,33.9,76.2z"/><path d="M24.8,67.3c6.5-1.2,13.5-4.5,19.4-9.2l0,0c-0.7-1.8-1.5-3.5-2.3-5c-4.5,3.5-9.9,6.4-15.1,8.1C26,63.4,25.3,65.4,24.8,67.3z"/><path d="M91.6,80c-4.1-7.4-7.4-10.9-14.6-10.6c-2.8,0.1-5.4,1.8-8.2,3.7c-4,2.6-7.8,5.1-11.7,3c-1-0.6-1.7-1.5-2.2-2.4c-0.9,0.7-1.8,1.3-2.8,1.9c0.7,1.3,1.8,2.6,3.4,3.5c5.7,3.1,10.9-0.4,15.2-3.1c2.4-1.6,4.7-3.1,6.5-3.1c5.5-0.2,7.7,2.1,11.6,8.9c0.4,0.8,1.5,1.1,2.3,0.6C91.7,81.8,92,80.8,91.6,80z"/><path d="M50.1,72.7c0.4-0.2,0.4-0.3,0.8-0.5c0,0,0,0,0,0c0,0,0,0.1,0,0.1c1-0.7,2.1-1.4,3.1-2.3c0,0,0-0.1,0-0.1c0.3-0.2,0.6-0.5,0.9-0.7c-0.2-12.9-8-25.4-13.3-29.8c-1.1,1.1-2.1,2.2-3.2,3.5c5.5,6.3,10.7,16.6,11.4,27.1C49.8,70.9,50.1,71.7,50.1,72.7z"/></g></svg></div>';
-const LIST_HOOK_PLACEHOLDER = '<div class="list-thumbnail-placeholder"><svg width="26" height="26" viewBox="0 0 100 125" fill="currentColor"><path d="M93.7,82L52,40.3l-4-4.1l-1.4-1.4l0,0l-4.5-4.5C41.3,29.5,40.2,29,39,29c-0.8,0-1.6,0.2-2.5,0.5l-5.1-5.1l-0.2-0.2l-4.8-4.8l-5.2-5.2C19.3,12.4,13,6.3,9,5.9c-0.1,0-0.2,0-0.4,0l0,0c-1.3,0-2.1,0.5-2.5,1c-1,1-1.2,2.5-1,4.1c0.1,0.5,0.2,1.1,0.4,1.6c0.1,0.3,0.2,0.6,0.3,0.8c0.6,1.4,1.4,2.7,2.3,3.9c0.4,0.5,0.7,0.9,1.1,1.3l0,0l0,0l0.1,0.1c0.3,0.3,1,0.7,1.9,0.7l0,0l0,0c0.7,0,1.4-0.3,1.9-0.8c0.1-0.1,0.3-0.3,0.4-0.4c0.1,0.1,0.1,0.2,0.2,0.2c0.1,0.2,0.3,0.4,0.5,0.6c0.2,0.3,0.4,0.5,0.6,0.7c0.1,0.2,0.3,0.3,0.4,0.5l4.7,4.7l4.7,4.7l5.9,5.9c-0.9,2.2-0.6,4.2,0.7,5.6l1.4,1.4l4.6,4.6l1.4,1.4l0,0l24.9,24.9l19.3,19.3c0.8,0.8,1.9,1.3,3.1,1.3c2.6,0,5-2,6.2-3.2C95.2,87.9,95.9,84.1,93.7,82z M14.4,15.7c-0.1-0.2-0.2-0.3-0.3-0.5c-0.3-0.5-0.5-0.9-0.5-0.9s-0.5-0.8-1-0.8c-0.2,0-0.3,0.1-0.5,0.2c-0.3,0.3-0.2,1-0.1,1.6c0,0.4,0.1,0.7,0.1,1.1c0,0.3-0.1,0.6-0.3,0.8c-0.1,0.1-0.2,0.1-0.3,0.2c-0.1,0-0.2,0-0.3,0s-0.2,0-0.3,0c-0.2-0.1-0.3-0.1-0.4-0.2h-0.1c-0.4-0.4-0.7-0.7-1-1.1s-0.6-0.8-0.9-1.3c-0.4-0.6-0.7-1.2-0.9-1.7c-0.1-0.2-0.1-0.3-0.2-0.5C6.9,10.7,6.8,9,7.5,8.3C7.8,8,8.2,7.9,8.6,7.9c0.1,0,0.1,0,0.2,0c3.6,0.3,10.9,7.8,10.9,7.8c4.1,4.1,6.4,6.4,7.8,7.8c0.9,0.9,1.4,1.4,1.7,1.7c0.1,0.1,0.1,0.1,0.2,0.2s0.1,0.1,0.2,0.2c0,0,0,0,0.1,0.1c0,0,0.1,0.1,0.2,0.2c0.6,0.6,1.5,1.5,7.6,7.6c0.5,0.5,0.2,1.6-0.6,2.4c-0.6,0.6-1.3,1-1.9,1c-0.3,0-0.5-0.1-0.7-0.3c-0.5-0.5-1-1-1.4-1.4c-1.6-1.6-2.9-2.9-3.8-3.8c-2-2-2.6-2.6-3-3c-0.1-0.1-0.1-0.1-0.2-0.2c-0.3-0.3-0.6-0.6-2.4-2.4c-0.7-0.7-1.8-1.8-3.2-3.2c-0.7-0.7-1.5-1.5-2.4-2.4c-0.5-0.5-0.9-0.9-1.4-1.4c-0.3-0.3-0.6-0.6-0.8-1c-0.2-0.2-0.4-0.5-0.5-0.7c-0.2-0.3-0.3-0.5-0.5-0.8C14.6,16.2,14.5,15.9,14.4,15.7z M90.9,89.5c-1.5,1.5-3.3,2.6-4.8,2.6c-0.7,0-1.2-0.2-1.7-0.7C64.3,71.4,51.9,59,38.7,45.8l0,0c-1.7-1.7-4.2-4.2-6-6c-0.7-0.7-0.8-1.6-0.6-2.6l0.8,0.8c0.6,0.6,1.3,0.9,2.1,0.9c1.5,0,2.7-1,3.3-1.6s1.1-1.4,1.3-2.1c0.3-1.2,0.1-2.3-0.7-3.1l-0.8-0.8c0.3-0.1,0.6-0.1,0.9-0.1c0.6,0,1.2,0.2,1.7,0.7c1.2,1.2,4.5,4.5,5.9,5.9l0,0c13.5,13.5,25,25,45.8,45.8C93.7,84.8,92.8,87.6,90.9,89.5z"/></svg></div>';
+const CROCHET_HOOK_SVG = '<path d="M93.7,82L52,40.3l-4-4.1l-1.4-1.4l0,0l-4.5-4.5C41.3,29.5,40.2,29,39,29c-0.8,0-1.6,0.2-2.5,0.5l-5.1-5.1l-0.2-0.2l-4.8-4.8l-5.2-5.2C19.3,12.4,13,6.3,9,5.9c-0.1,0-0.2,0-0.4,0l0,0c-1.3,0-2.1,0.5-2.5,1c-1,1-1.2,2.5-1,4.1c0.1,0.5,0.2,1.1,0.4,1.6c0.1,0.3,0.2,0.6,0.3,0.8c0.6,1.4,1.4,2.7,2.3,3.9c0.4,0.5,0.7,0.9,1.1,1.3l0,0l0,0l0.1,0.1c0.3,0.3,1,0.7,1.9,0.7l0,0l0,0c0.7,0,1.4-0.3,1.9-0.8c0.1-0.1,0.3-0.3,0.4-0.4c0.1,0.1,0.1,0.2,0.2,0.2c0.1,0.2,0.3,0.4,0.5,0.6c0.2,0.3,0.4,0.5,0.6,0.7c0.1,0.2,0.3,0.3,0.4,0.5l4.7,4.7l4.7,4.7l5.9,5.9c-0.9,2.2-0.6,4.2,0.7,5.6l1.4,1.4l4.6,4.6l1.4,1.4l0,0l24.9,24.9l19.3,19.3c0.8,0.8,1.9,1.3,3.1,1.3c2.6,0,5-2,6.2-3.2C95.2,87.9,95.9,84.1,93.7,82z M14.4,15.7c-0.1-0.2-0.2-0.3-0.3-0.5c-0.3-0.5-0.5-0.9-0.5-0.9s-0.5-0.8-1-0.8c-0.2,0-0.3,0.1-0.5,0.2c-0.3,0.3-0.2,1-0.1,1.6c0,0.4,0.1,0.7,0.1,1.1c0,0.3-0.1,0.6-0.3,0.8c-0.1,0.1-0.2,0.1-0.3,0.2c-0.1,0-0.2,0-0.3,0s-0.2,0-0.3,0c-0.2-0.1-0.3-0.1-0.4-0.2h-0.1c-0.4-0.4-0.7-0.7-1-1.1s-0.6-0.8-0.9-1.3c-0.4-0.6-0.7-1.2-0.9-1.7c-0.1-0.2-0.1-0.3-0.2-0.5C6.9,10.7,6.8,9,7.5,8.3C7.8,8,8.2,7.9,8.6,7.9c0.1,0,0.1,0,0.2,0c3.6,0.3,10.9,7.8,10.9,7.8c4.1,4.1,6.4,6.4,7.8,7.8c0.9,0.9,1.4,1.4,1.7,1.7c0.1,0.1,0.1,0.1,0.2,0.2s0.1,0.1,0.2,0.2c0,0,0,0,0.1,0.1c0,0,0.1,0.1,0.2,0.2c0.6,0.6,1.5,1.5,7.6,7.6c0.5,0.5,0.2,1.6-0.6,2.4c-0.6,0.6-1.3,1-1.9,1c-0.3,0-0.5-0.1-0.7-0.3c-0.5-0.5-1-1-1.4-1.4c-1.6-1.6-2.9-2.9-3.8-3.8c-2-2-2.6-2.6-3-3c-0.1-0.1-0.1-0.1-0.2-0.2c-0.3-0.3-0.6-0.6-2.4-2.4c-0.7-0.7-1.8-1.8-3.2-3.2c-0.7-0.7-1.5-1.5-2.4-2.4c-0.5-0.5-0.9-0.9-1.4-1.4c-0.3-0.3-0.6-0.6-0.8-1c-0.2-0.2-0.4-0.5-0.5-0.7c-0.2-0.3-0.3-0.5-0.5-0.8C14.6,16.2,14.5,15.9,14.4,15.7z M90.9,89.5c-1.5,1.5-3.3,2.6-4.8,2.6c-0.7,0-1.2-0.2-1.7-0.7C64.3,71.4,51.9,59,38.7,45.8l0,0c-1.7-1.7-4.2-4.2-6-6c-0.7-0.7-0.8-1.6-0.6-2.6l0.8,0.8c0.6,0.6,1.3,0.9,2.1,0.9c1.5,0,2.7-1,3.3-1.6s1.1-1.4,1.3-2.1c0.3-1.2,0.1-2.3-0.7-3.1l-0.8-0.8c0.3-0.1,0.6-0.1,0.9-0.1c0.6,0,1.2,0.2,1.7,0.7c1.2,1.2,4.5,4.5,5.9,5.9l0,0c13.5,13.5,25,25,45.8,45.8C93.7,84.8,92.8,87.6,90.9,89.5z"/>';
+const KNITTING_NEEDLE_SVG = '<path d="M81.6667 90.6186l-26.8986 49.0622c-0.2835,0.5172 -0.4985,1.022 -0.6522,1.5101 -3.8458,-0.3929 -7.736,1.5522 -9.7939,5.3057 -2.8078,5.1214 -1.1415,11.6701 3.7218,14.6269 4.8633,2.9569 11.0821,1.2021 13.8899,-3.9192 2.0579,-3.7536 1.7123,-8.2738 -0.5335,-11.5848 0.3245,-0.3841 0.6322,-0.8326 0.9157,-1.3498l24.3828 -44.473 5.0318 -9.1779 28.7265 -52.3961 9.9823 -27.3854 -17.5302 22.7964 -26.2105 47.807 -5.0319 9.1779z"/><path d="M118.629 139.681l-25.3537 -46.2443 -5.0318 9.1779 22.8378 41.6554c0.2835,0.5172 0.5911,0.9657 0.9155,1.3501 -2.2458,3.3109 -2.5912,7.8309 -0.5333,11.5844 2.8078,5.1213 9.0266,6.8761 13.8899,3.9193 4.8633,-2.9568 6.5296,-9.5056 3.7218,-14.627 -2.0579,-3.7535 -5.9479,-5.6984 -9.7936,-5.3058 -0.1539,-0.488 -0.369,-0.9928 -0.6526,-1.51z"/><polygon points="85.1537,78.6229 60.488,33.6337 42.9579,10.8373 52.9403,38.2227 80.1218,87.8008 84.3229,80.1382 "/>';
+function hookPlaceholderSvg(craftType, size) {
+    const isKnitting = craftType === 'knitting';
+    const vb = isKnitting ? '0 0 173.397 173.397' : '0 0 100 125';
+    const path = isKnitting ? KNITTING_NEEDLE_SVG : CROCHET_HOOK_SVG;
+    return `<svg width="${size}" height="${size}" viewBox="${vb}" fill="currentColor">${path}</svg>`;
+}
+const LIST_HOOK_PLACEHOLDER = '<div class="list-thumbnail-placeholder"><svg width="26" height="26" viewBox="0 0 100 125" fill="currentColor">' + CROCHET_HOOK_SVG + '</svg></div>';
 const LIST_PATTERN_PLACEHOLDER = '<div class="list-thumbnail-placeholder"><svg width="26" height="26" viewBox="-5 -10 110 135" fill="currentColor"><path d="m89.617 13.352c-1.3828-2.4531-3.9922-3.9766-6.8125-3.9766-1.082 0-2.1328 0.21875-3.1289 0.65625-0.45312 0.19922-0.78516 0.60156-0.89453 1.0859-0.10938 0.48437 0.015625 0.98828 0.33984 1.3672l2.6992 3.1328c0.03125 0.035156 0.066407 0.070312 0.10156 0.10547-0.078125-0.023437-0.27734-0.085937-0.27734-0.085937-0.44922-0.14062-0.96484-0.21094-1.4961-0.21094-1.6094 0-3.1094 0.66797-4.2266 1.8828-0.11719 0.11719-0.69141 0.69531-1.5742 1.5781-6.6523-6.1445-15.242-9.5117-24.348-9.5117-19.816 0-35.938 16.121-35.938 35.938 0 9.1328 3.3828 17.742 9.5586 24.402-5.4453 5.457-12.77 12.805-12.852 12.887-0.89062 0.87891-1.3867 2.0547-1.3945 3.3047-0.007812 1.2539 0.47266 2.4336 1.3516 3.3242 0.87891 0.89062 2.0547 1.3867 3.3047 1.3945h0.03125c1.2422 0 2.4102-0.48047 3.3008-1.3594 0.097657-0.097656 8.4883-8.5156 13.496-13.531 4.6641 2.9414 9.9023 4.75 15.367 5.3203-0.082031 0.31641-0.13281 0.64844-0.13281 0.99219 0 1.3867 0.55469 2.6836 1.5586 3.6562 1.8516 1.7891 4.7266 2.1484 8.7617 2.1484 1.3633 0 2.8711-0.042968 4.8555-0.10937 1.6523-0.054688 3.3633-0.11328 4.9375-0.11328 1.0469 0 1.9336 0.023438 2.7109 0.078125 1.2266 0.082031 1.9727 0.21875 2.3984 0.33203 0.55078 1.5078 2.0039 2.5859 3.6836 2.5859 2.1523 0 3.9062-1.7539 3.9062-3.9062 0-1.6406-0.625-3.1133-1.8125-4.2578-2.2695-2.1953-5.9766-2.6445-10.844-2.6445-1.6719 0-3.5078 0.054688-5.2461 0.11328-0.47656 0.015624-1 0.035156-1.5352 0.050781 15.238-4.1641 26.469-18.129 26.469-34.668 0-6.8477-1.918-13.461-5.5586-19.207 0.45312-0.45312 0.83203-0.83203 1.1133-1.1172 0.34375 0.042969 0.69141 0.066407 1.043 0.066407 1.4609 0 2.8828-0.36719 4.1133-1.0625 1.8164-1.0234 3.1289-2.6953 3.6875-4.707 0.5625-2.0078 0.30469-4.1172-0.71875-5.9336z"/><path d="m47.98 50.457c-0.60938-0.60938-1.5977-0.60938-2.2109 0-0.60938 0.60938-0.60938 1.5977 0 2.2109l1.5625 1.5625c0.30469 0.30469 0.70312 0.45703 1.1055 0.45703 0.39844 0 0.80078-0.15234 1.1055-0.45703 0.60938-0.60938 0.60938-1.5977 0-2.2109z"/><path d="m43.293 52.02c-0.60938-0.60938-1.5977-0.60938-2.2109 0-0.60938 0.60938-0.60938 1.5977 0 2.2109l4.6875 4.6875c0.30469 0.30469 0.70312 0.45703 1.1055 0.45703 0.39844 0 0.80078-0.15234 1.1055-0.45703 0.60938-0.60938 0.60938-1.5977 0-2.2109z"/><path d="m41.73 56.707c-0.60938-0.60938-1.5977-0.60938-2.2109 0-0.60938 0.60938-0.60938 1.5977 0 2.2109l1.5625 1.5625c0.30469 0.30469 0.70312 0.45703 1.1055 0.45703 0.39844 0 0.80078-0.15234 1.1055-0.45703 0.60938-0.60938 0.60938-1.5977 0-2.2109z"/></svg></div>';
 
 const YARN_COLUMNS = {
@@ -16010,13 +16064,14 @@ const YARN_COLUMNS = {
     fiber_content: { label: 'Fiber', value: y => escapeHtml(y.fiber_content || '—') },
     pattern_count: { label: 'Patterns', value: y => y.pattern_count || 0 },
     notes: { label: 'Notes', value: y => y.notes ? escapeHtml(y.notes.substring(0, 50)) + (y.notes.length > 50 ? '...' : '') : '—' },
+    favorite: { label: 'Fav', value: y => y.is_favorite ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:var(--warning-color)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>' : '—' },
     url: { label: 'URL', value: y => y.url ? `<a href="${escapeHtml(y.url)}" target="_blank" onclick="event.stopPropagation()" class="list-url-link">Link</a>` : '—' },
     created_at: { label: 'Added', value: y => y.created_at ? new Date(y.created_at).toLocaleDateString() : '—' },
 };
-const DEFAULT_YARN_COL_ORDER = ['thumbnail', 'brand', 'name', 'color', 'dye_lot', 'weight_category', 'quantity', 'fiber_content', 'pattern_count', 'notes', 'created_at'];
+const DEFAULT_YARN_COL_ORDER = ['thumbnail', 'brand', 'name', 'color', 'dye_lot', 'weight_category', 'quantity', 'fiber_content', 'favorite', 'pattern_count', 'notes', 'created_at'];
 
 const HOOK_COLUMNS = {
-    thumbnail: { label: 'Photo', value: h => h.thumbnail ? `<img src="${API_URL}/api/hooks/${h.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_HOOK_PLACEHOLDER },
+    thumbnail: { label: 'Photo', value: h => h.thumbnail ? `<img src="${API_URL}/api/hooks/${h.id}/thumbnail" class="list-thumbnail" alt="">` : `<div class="list-thumbnail-placeholder">${hookPlaceholderSvg(h.craft_type, 26)}</div>` },
     brand: { label: 'Brand', value: h => escapeHtml(h.brand || '—') },
     name: { label: 'Name', value: h => escapeHtml(h.name || '—') },
     size_label: { label: 'Size', value: h => escapeHtml(h.size_label || '—') },
@@ -16027,10 +16082,11 @@ const HOOK_COLUMNS = {
     quantity: { label: 'Qty', value: h => h.quantity || 0 },
     pattern_count: { label: 'Patterns', value: h => h.pattern_count || 0 },
     notes: { label: 'Notes', value: h => h.notes ? escapeHtml(h.notes.substring(0, 50)) + (h.notes.length > 50 ? '...' : '') : '—' },
+    favorite: { label: 'Fav', value: h => h.is_favorite ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:var(--warning-color)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>' : '—' },
     url: { label: 'URL', value: h => h.url ? `<a href="${escapeHtml(h.url)}" target="_blank" onclick="event.stopPropagation()" class="list-url-link">Link</a>` : '—' },
     created_at: { label: 'Added', value: h => h.created_at ? new Date(h.created_at).toLocaleDateString() : '—' },
 };
-const DEFAULT_HOOK_COL_ORDER = ['thumbnail', 'brand', 'name', 'size_label', 'size_mm', 'hook_type', 'craft_type', 'length', 'quantity', 'pattern_count', 'notes', 'created_at'];
+const DEFAULT_HOOK_COL_ORDER = ['thumbnail', 'brand', 'name', 'size_label', 'size_mm', 'hook_type', 'craft_type', 'length', 'quantity', 'favorite', 'pattern_count', 'notes', 'created_at'];
 
 const PATTERN_COLUMNS = {
     thumbnail: { label: 'Photo', value: p => p.thumbnail ? `<img src="${API_URL}/api/patterns/${p.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_PATTERN_PLACEHOLDER },
@@ -16229,11 +16285,21 @@ function showRowMenu(e, type, id) {
             '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
             () => { enableDirectDelete ? deletePattern(id) : archivePattern(id); }, true);
     } else if (type === 'yarn') {
+        const y = yarns.find(x => x.id == id);
+        if (!y) return;
+        addItem(y.is_favorite ? 'Unfavorite' : 'Favorite',
+            '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>',
+            () => toggleYarnFavorite(id, !y.is_favorite));
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openYarnModal(id));
         addDivider();
         addItem('Delete', '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
             () => deleteYarn(id), true);
     } else if (type === 'hook') {
+        const h = hooks.find(x => x.id == id);
+        if (!h) return;
+        addItem(h.is_favorite ? 'Unfavorite' : 'Favorite',
+            '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>',
+            () => toggleHookFavorite(id, !h.is_favorite));
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openHookModal(id));
         addDivider();
         addItem('Delete', '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
@@ -16459,6 +16525,9 @@ function renderYarnCard(yarn) {
     const isSelected = selectedYarnIds.has(yarn.id);
     return `
         <div class="pattern-card yarn-card${isSelected ? ' bulk-selected' : ''}" onclick="handleInventoryCardClick(event,'yarn',${yarn.id})" data-yarn-id="${yarn.id}">
+            <div class="card-favorite-toggle ${yarn.is_favorite ? 'active' : ''}" onclick="event.stopPropagation(); toggleYarnFavorite(${yarn.id}, ${!yarn.is_favorite})" title="${yarn.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="${yarn.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            </div>
             <div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('yarn',${yarn.id},this)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
@@ -16691,13 +16760,16 @@ function renderHookCard(hook) {
     const isSelected = selectedHookIds.has(hook.id);
     return `
         <div class="pattern-card hook-card${isSelected ? ' bulk-selected' : ''}" onclick="handleInventoryCardClick(event,'hook',${hook.id})" data-hook-id="${hook.id}">
+            <div class="card-favorite-toggle ${hook.is_favorite ? 'active' : ''}" onclick="event.stopPropagation(); toggleHookFavorite(${hook.id}, ${!hook.is_favorite})" title="${hook.is_favorite ? 'Remove from Favorites' : 'Add to Favorites'}">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="${hook.is_favorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+            </div>
             <div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('hook',${hook.id},this)">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
             ${hook.thumbnail
                 ? `<img src="${API_URL}/api/hooks/${hook.id}/thumbnail?t=${Date.now()}" class="pattern-thumbnail" alt="${sizeText}">`
                 : `<div class="hook-icon-placeholder">
-                <svg width="56" height="56" viewBox="0 0 100 125" fill="currentColor"><path d="M93.7,82L52,40.3l-4-4.1l-1.4-1.4l0,0l-4.5-4.5C41.3,29.5,40.2,29,39,29c-0.8,0-1.6,0.2-2.5,0.5l-5.1-5.1l-0.2-0.2l-4.8-4.8l-5.2-5.2C19.3,12.4,13,6.3,9,5.9c-0.1,0-0.2,0-0.4,0l0,0c-1.3,0-2.1,0.5-2.5,1c-1,1-1.2,2.5-1,4.1c0.1,0.5,0.2,1.1,0.4,1.6c0.1,0.3,0.2,0.6,0.3,0.8c0.6,1.4,1.4,2.7,2.3,3.9c0.4,0.5,0.7,0.9,1.1,1.3l0,0l0,0l0.1,0.1c0.3,0.3,1,0.7,1.9,0.7l0,0l0,0c0.7,0,1.4-0.3,1.9-0.8c0.1-0.1,0.3-0.3,0.4-0.4c0.1,0.1,0.1,0.2,0.2,0.2c0.1,0.2,0.3,0.4,0.5,0.6c0.2,0.3,0.4,0.5,0.6,0.7c0.1,0.2,0.3,0.3,0.4,0.5l4.7,4.7l4.7,4.7l5.9,5.9c-0.9,2.2-0.6,4.2,0.7,5.6l1.4,1.4l4.6,4.6l1.4,1.4l0,0l24.9,24.9l19.3,19.3c0.8,0.8,1.9,1.3,3.1,1.3c2.6,0,5-2,6.2-3.2C95.2,87.9,95.9,84.1,93.7,82z M14.4,15.7c-0.1-0.2-0.2-0.3-0.3-0.5c-0.3-0.5-0.5-0.9-0.5-0.9s-0.5-0.8-1-0.8c-0.2,0-0.3,0.1-0.5,0.2c-0.3,0.3-0.2,1-0.1,1.6c0,0.4,0.1,0.7,0.1,1.1c0,0.3-0.1,0.6-0.3,0.8c-0.1,0.1-0.2,0.1-0.3,0.2c-0.1,0-0.2,0-0.3,0s-0.2,0-0.3,0c-0.2-0.1-0.3-0.1-0.4-0.2h-0.1c-0.4-0.4-0.7-0.7-1-1.1s-0.6-0.8-0.9-1.3c-0.4-0.6-0.7-1.2-0.9-1.7c-0.1-0.2-0.1-0.3-0.2-0.5C6.9,10.7,6.8,9,7.5,8.3C7.8,8,8.2,7.9,8.6,7.9c0.1,0,0.1,0,0.2,0c3.6,0.3,10.9,7.8,10.9,7.8c4.1,4.1,6.4,6.4,7.8,7.8c0.9,0.9,1.4,1.4,1.7,1.7c0.1,0.1,0.1,0.1,0.2,0.2s0.1,0.1,0.2,0.2c0,0,0,0,0.1,0.1c0,0,0.1,0.1,0.2,0.2c0.6,0.6,1.5,1.5,7.6,7.6c0.5,0.5,0.2,1.6-0.6,2.4c-0.6,0.6-1.3,1-1.9,1c-0.3,0-0.5-0.1-0.7-0.3c-0.5-0.5-1-1-1.4-1.4c-1.6-1.6-2.9-2.9-3.8-3.8c-2-2-2.6-2.6-3-3c-0.1-0.1-0.1-0.1-0.2-0.2c-0.3-0.3-0.6-0.6-2.4-2.4c-0.7-0.7-1.8-1.8-3.2-3.2c-0.7-0.7-1.5-1.5-2.4-2.4c-0.5-0.5-0.9-0.9-1.4-1.4c-0.3-0.3-0.6-0.6-0.8-1c-0.2-0.2-0.4-0.5-0.5-0.7c-0.2-0.3-0.3-0.5-0.5-0.8C14.6,16.2,14.5,15.9,14.4,15.7z M90.9,89.5c-1.5,1.5-3.3,2.6-4.8,2.6c-0.7,0-1.2-0.2-1.7-0.7C64.3,71.4,51.9,59,38.7,45.8l0,0c-1.7-1.7-4.2-4.2-6-6c-0.7-0.7-0.8-1.6-0.6-2.6l0.8,0.8c0.6,0.6,1.3,0.9,2.1,0.9c1.5,0,2.7-1,3.3-1.6s1.1-1.4,1.3-2.1c0.3-1.2,0.1-2.3-0.7-3.1l-0.8-0.8c0.3-0.1,0.6-0.1,0.9-0.1c0.6,0,1.2,0.2,1.7,0.7c1.2,1.2,4.5,4.5,5.9,5.9l0,0c13.5,13.5,25,25,45.8,45.8C93.7,84.8,92.8,87.6,90.9,89.5z"/></svg>
+                ${hookPlaceholderSvg(hook.craft_type, 56)}
                 <span class="hook-size-overlay">${sizeText}</span>
             </div>`}
             <h3>${sizeText}</h3>
@@ -17433,7 +17505,12 @@ function updateInventoryBulkBar() {
         bar.className = 'inventory-bulk-bar';
         document.body.appendChild(bar);
     }
+    const allFav = [...selectedYarnIds].every(id => yarns.find(y => y.id === id)?.is_favorite) &&
+                   [...selectedHookIds].every(id => hooks.find(h => h.id === id)?.is_favorite);
     bar.innerHTML = `<span>${count} selected</span>
+        <button class="btn btn-sm bulk-fav-btn ${allFav ? 'active' : ''}" onclick="bulkToggleInventoryFavorite(${!allFav})" title="${allFav ? 'Unfavorite' : 'Favorite'}">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="${allFav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
+        </button>
         <button class="btn btn-primary btn-sm" onclick="bulkSetQuantity()">Set Quantity</button>
         <button class="btn btn-danger btn-sm" id="bulk-inv-delete-btn" onclick="bulkDeleteInventory(this)">Delete</button>
         <button class="btn btn-sm btn-secondary" onclick="clearInventorySelection()">Clear</button>`;
@@ -17495,6 +17572,27 @@ async function bulkSetQuantity() {
     clearInventorySelection();
     await Promise.all([loadYarns(), loadHooks()]);
     showToast(`Updated quantity on ${total} item${total > 1 ? 's' : ''}`);
+}
+
+async function bulkToggleInventoryFavorite(isFavorite) {
+    const yarnIds = Array.from(selectedYarnIds);
+    const hookIds = Array.from(selectedHookIds);
+    const total = yarnIds.length + hookIds.length;
+    for (const id of yarnIds) {
+        await fetch(`${API_URL}/api/yarns/${id}/favorite`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isFavorite })
+        });
+    }
+    for (const id of hookIds) {
+        await fetch(`${API_URL}/api/hooks/${id}/favorite`, {
+            method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ isFavorite })
+        });
+    }
+    clearInventorySelection();
+    await Promise.all([loadYarns(), loadHooks()]);
+    showToast(`${isFavorite ? 'Favorited' : 'Unfavorited'} ${total} item${total > 1 ? 's' : ''}`);
 }
 
 // --- Linked patterns list (for yarn/hook modals) ---

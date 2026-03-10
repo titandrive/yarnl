@@ -11126,26 +11126,35 @@ function toggleCounterSettings(counterId) {
 }
 
 async function toggleCounterMain(counterId, enabled) {
+    // Update local state immediately so closing the edit panel doesn't revert it
+    const prev = counters.map(c => ({ id: c.id, is_main: c.is_main }));
+    counters.forEach(c => c.is_main = false);
+    const counter = counters.find(c => c.id === counterId);
+    if (counter) counter.is_main = enabled;
+    displayCounters();
     try {
         const response = await fetch(`${API_URL}/api/counters/${counterId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ is_main: enabled })
         });
-        if (response.ok) {
-            // Clear is_main on all counters locally, then set on this one
-            counters.forEach(c => c.is_main = false);
-            const counter = counters.find(c => c.id === counterId);
-            if (counter) counter.is_main = enabled;
-            // Re-render to update disabled states on other counters' Main toggles
+        if (!response.ok) {
+            // Revert on failure
+            prev.forEach(p => { const c = counters.find(c => c.id === p.id); if (c) c.is_main = p.is_main; });
             displayCounters();
         }
     } catch (error) {
         console.error('Error toggling main counter:', error);
+        prev.forEach(p => { const c = counters.find(c => c.id === p.id); if (c) c.is_main = p.is_main; });
+        displayCounters();
     }
 }
 
 async function toggleCounterUnlink(counterId, enabled) {
+    // Update local state immediately so closing the edit panel doesn't revert it
+    const counter = counters.find(c => c.id === counterId);
+    const prevState = counter?.unlinked;
+    if (counter) counter.unlinked = enabled;
     try {
         const response = await fetch(`${API_URL}/api/counters/${counterId}`, {
             method: 'PATCH',
@@ -11153,8 +11162,6 @@ async function toggleCounterUnlink(counterId, enabled) {
             body: JSON.stringify({ unlinked: enabled })
         });
         if (response.ok) {
-            const counter = counters.find(c => c.id === counterId);
-            if (counter) counter.unlinked = enabled;
             // Update button state in-place
             const item = document.querySelector(`.counter-item[data-counter-id="${counterId}"]`);
             if (item) {
@@ -11175,9 +11182,14 @@ async function toggleCounterUnlink(counterId, enabled) {
             }
             // Update mobile counters
             if (typeof mobileBar !== 'undefined') mobileBar.update();
+        } else {
+            if (counter) counter.unlinked = prevState;
+            displayCounters();
         }
     } catch (error) {
         console.error('Error toggling counter unlink:', error);
+        if (counter) counter.unlinked = prevState;
+        displayCounters();
     }
 }
 

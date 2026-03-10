@@ -8376,7 +8376,7 @@ function displayPatterns() {
 
     if (libraryView === 'list') {
         const cols = getColumnOrder('pattern');
-        const arrow = (col) => patternListSort.col === col ? (patternListSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+        const arrow = (col) => patternListSort.col === col ? (patternListSort.dir === 'asc' ? ' ▲' : ' ▼') : ' <span style="visibility:hidden">▲</span>';
         const cbStyle = 'style="width:40px;min-width:40px;padding:8px 6px;text-align:center"';
         const cbTh = libraryEditMode ? `<th ${cbStyle}></th>` : '';
         const cbTd = (p) => libraryEditMode ? `<td ${cbStyle}><div class="bulk-select-checkbox" onclick="event.stopPropagation(); togglePatternRowSelect(${p.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>` : '';
@@ -16194,7 +16194,7 @@ function displayYarns() {
     if (inventoryView === 'list') {
         filtered = sortInventory(filtered, yarnSort);
         const cols = getColumnOrder('yarn');
-        const arrow = (col) => yarnSort.col === col ? (yarnSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+        const arrow = (col) => yarnSort.col === col ? (yarnSort.dir === 'asc' ? ' ▲' : ' ▼') : ' <span style="visibility:hidden">▲</span>';
         const cbStyle = 'style="width:40px;min-width:40px;padding:8px 6px;text-align:center"';
         const cbTh = inventoryEditMode ? `<th ${cbStyle}></th>` : '';
         const cbTd = (y) => inventoryEditMode ? `<td ${cbStyle}><div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('yarn',${y.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>` : '';
@@ -16423,7 +16423,7 @@ function displayHooks() {
     if (inventoryView === 'list') {
         filtered = sortInventory(filtered, hookSort);
         const cols = getColumnOrder('hook');
-        const arrow = (col) => hookSort.col === col ? (hookSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+        const arrow = (col) => hookSort.col === col ? (hookSort.dir === 'asc' ? ' ▲' : ' ▼') : ' <span style="visibility:hidden">▲</span>';
         const cbStyle = 'style="width:40px;min-width:40px;padding:8px 6px;text-align:center"';
         const cbTh = inventoryEditMode ? `<th ${cbStyle}></th>` : '';
         const cbTd = (h) => inventoryEditMode ? `<td ${cbStyle}><div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('hook',${h.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>` : '';

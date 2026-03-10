@@ -66,7 +66,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=283">
+    <link rel="stylesheet" href="styles.css?v=285">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -191,7 +191,6 @@
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                         </svg>
-                        Filters
                     </button>
                     <div class="mobile-search-inline">
                         <input type="text" id="mobile-search-input" placeholder="Search Library">
@@ -200,6 +199,14 @@
                                 <line x1="18" y1="6" x2="6" y2="18"></line>
                                 <line x1="6" y1="6" x2="18" y2="18"></line>
                             </svg>
+                        </button>
+                    </div>
+                    <div class="inventory-view-toggle mobile-view-toggle" id="library-mobile-view-toggle">
+                        <button class="view-toggle-btn active" data-view="card" title="Card view">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                        </button>
+                        <button class="view-toggle-btn" data-view="list" title="List view">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
                         </button>
                     </div>
                 </div>
@@ -219,7 +226,7 @@
                     </button>
                 </div>
                 <div class="library-layout" id="library-layout">
-                    <script>if(localStorage.getItem('librarySidebarCollapsed')==='true'){document.getElementById('library-layout').classList.add('sidebar-collapsed');}if(localStorage.getItem('libraryView')==='list'){document.getElementById('library-layout').classList.add('library-list-view');document.querySelectorAll('#library-view-toggle .view-toggle-btn').forEach(function(b){b.classList.toggle('active',b.dataset.view==='list');});}</script>
+                    <script>if(localStorage.getItem('librarySidebarCollapsed')==='true'){document.getElementById('library-layout').classList.add('sidebar-collapsed');}if(localStorage.getItem('libraryView')==='list'){document.getElementById('library-layout').classList.add('library-list-view');document.querySelectorAll('#library-view-toggle .view-toggle-btn, #library-mobile-view-toggle .view-toggle-btn').forEach(function(b){b.classList.toggle('active',b.dataset.view==='list');});}</script>
                     <aside class="library-sidebar">
                         <div class="sidebar-section">
                             <label for="show-filter-select">Show</label>
@@ -533,6 +540,37 @@ Inc in each st around (12)
         <!-- Inventory Tab -->
         <div id="inventory" class="tab-content">
             <div class="inventory-container">
+                <div class="mobile-filter-bar inventory-mobile-bar">
+                    <div class="inventory-sub-tabs mobile-sub-tabs">
+                        <button type="button" class="inventory-sub-tab active" data-sub="yarn">Yarn</button>
+                        <button type="button" class="inventory-sub-tab" data-sub="hooks">Hooks</button>
+                    </div>
+                    <button id="inv-mobile-filter-btn" class="mobile-filter-btn">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                        </svg>
+                    </button>
+                    <div class="inventory-view-toggle mobile-view-toggle" id="inv-mobile-view-toggle">
+                        <button class="view-toggle-btn active" data-view="card" title="Card view">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                        </button>
+                        <button class="view-toggle-btn" data-view="list" title="List view">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+                        </button>
+                    </div>
+                    <button type="button" class="mobile-add-btn" id="inv-mobile-add-btn">+ Add Yarn</button>
+                </div>
+                <div class="mobile-filter-bar inventory-mobile-search-row">
+                    <div class="mobile-search-inline">
+                        <input type="text" id="inv-mobile-search-input" placeholder="Search...">
+                        <button type="button" id="inv-mobile-search-clear-btn" class="search-clear-btn" title="Clear search">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <line x1="18" y1="6" x2="6" y2="18"></line>
+                                <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
                 <div class="inventory-toolbar">
                     <div class="inventory-sub-tabs">
                         <button type="button" class="inventory-sub-tab active" data-sub="yarn">Yarn</button>
@@ -547,7 +585,7 @@ Inc in each st around (12)
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
                         </button>
                     </div>
-                    <script>if(localStorage.getItem('inventoryView')==='list'){document.querySelectorAll('#inventory-view-toggle .view-toggle-btn').forEach(function(b){b.classList.toggle('active',b.dataset.view==='list');});}</script>
+                    <script>if(localStorage.getItem('inventoryView')==='list'){document.querySelectorAll('#inventory-view-toggle .view-toggle-btn, #inv-mobile-view-toggle .view-toggle-btn').forEach(function(b){b.classList.toggle('active',b.dataset.view==='list');});}</script>
                     <button class="inv-edit-btn" id="inv-edit-btn" onclick="toggleInventoryEditMode()" title="Multi-select">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
                         Edit
@@ -671,6 +709,10 @@ Inc in each st around (12)
                 document.getElementById('add-yarn-btn').style.display = 'none';
                 document.getElementById('add-hook-btn').style.display = '';
                 document.getElementById('inventory-search').placeholder = 'Search hooks...';
+                var mobileSearch = document.getElementById('inv-mobile-search-input');
+                if (mobileSearch) mobileSearch.placeholder = 'Search hooks...';
+                var mobileAdd = document.getElementById('inv-mobile-add-btn');
+                if (mobileAdd) mobileAdd.textContent = '+ Add Item';
             }
             var view = localStorage.getItem('inventoryView');
             if (view && view !== 'card') {
@@ -3358,6 +3400,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=273"></script>
+    <script defer src="app.js?v=275"></script>
 </body>
 </html>

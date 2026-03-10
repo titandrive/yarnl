@@ -8138,11 +8138,11 @@ function initLibraryFilters() {
     }
 
     // Library view toggle (card/list)
-    document.querySelectorAll('#library-view-toggle .view-toggle-btn').forEach(btn => {
+    document.querySelectorAll('#library-view-toggle .view-toggle-btn, #library-mobile-view-toggle .view-toggle-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             libraryView = btn.dataset.view;
             localStorage.setItem('libraryView', libraryView);
-            document.querySelectorAll('#library-view-toggle .view-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === libraryView));
+            document.querySelectorAll('#library-view-toggle .view-toggle-btn, #library-mobile-view-toggle .view-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === libraryView));
             exitLibraryEditMode();
             clearBulkSelection();
             displayPatterns();
@@ -15776,6 +15776,10 @@ function initInventory() {
     initEditModalTabs();
 
     // Sub-tab switching
+    const invMobileSearch = document.getElementById('inv-mobile-search-input');
+    const invMobileSearchClear = document.getElementById('inv-mobile-search-clear-btn');
+    const invDesktopSearch = document.getElementById('inventory-search');
+
     document.querySelectorAll('.inventory-sub-tab').forEach(btn => {
         btn.addEventListener('click', () => {
             document.querySelectorAll('.inventory-sub-tab').forEach(b => b.classList.remove('active'));
@@ -15787,19 +15791,68 @@ function initInventory() {
             // Toggle add buttons
             document.getElementById('add-yarn-btn').style.display = btn.dataset.sub === 'yarn' ? '' : 'none';
             document.getElementById('add-hook-btn').style.display = btn.dataset.sub === 'hooks' ? '' : 'none';
+            const mobileAddBtn = document.getElementById('inv-mobile-add-btn');
+            if (mobileAddBtn) mobileAddBtn.textContent = btn.dataset.sub === 'yarn' ? '+ Add Yarn' : '+ Add Item';
             // Update search placeholder
-            document.getElementById('inventory-search').placeholder = btn.dataset.sub === 'yarn' ? 'Search yarn...' : 'Search hooks...';
-            document.getElementById('inventory-search').value = '';
+            const placeholder = btn.dataset.sub === 'yarn' ? 'Search yarn...' : 'Search hooks...';
+            if (invDesktopSearch) { invDesktopSearch.placeholder = placeholder; invDesktopSearch.value = ''; }
+            if (invMobileSearch) { invMobileSearch.placeholder = placeholder; invMobileSearch.value = ''; }
+            // Close mobile sidebar on tab switch
+            document.querySelectorAll('.inventory-sidebar').forEach(s => s.classList.remove('mobile-visible'));
+            const invMobileFilterBtn = document.getElementById('inv-mobile-filter-btn');
+            if (invMobileFilterBtn) invMobileFilterBtn.classList.remove('active');
             clearInventorySelection();
         });
     });
 
+    // Mobile filter toggle
+    const invMobileFilterBtn = document.getElementById('inv-mobile-filter-btn');
+    if (invMobileFilterBtn) {
+        invMobileFilterBtn.addEventListener('click', () => {
+            const activeSidebar = document.getElementById(inventorySubTab === 'yarn' ? 'yarn-sidebar' : 'hooks-sidebar');
+            if (activeSidebar) {
+                // Clear any inline display style (set by list-view init) so CSS classes work
+                activeSidebar.style.display = '';
+                activeSidebar.classList.toggle('mobile-visible');
+                invMobileFilterBtn.classList.toggle('active', activeSidebar.classList.contains('mobile-visible'));
+            }
+        });
+    }
+
+    // Mobile search sync
+    if (invMobileSearch) {
+        invMobileSearch.addEventListener('input', (e) => {
+            if (invDesktopSearch) invDesktopSearch.value = e.target.value;
+            if (invMobileSearchClear) invMobileSearchClear.classList.toggle('visible', e.target.value.length > 0);
+            if (inventorySubTab === 'yarn') displayYarns();
+            else displayHooks();
+        });
+    }
+    if (invMobileSearchClear) {
+        invMobileSearchClear.addEventListener('click', () => {
+            if (invMobileSearch) invMobileSearch.value = '';
+            if (invDesktopSearch) invDesktopSearch.value = '';
+            invMobileSearchClear.classList.remove('visible');
+            if (inventorySubTab === 'yarn') displayYarns();
+            else displayHooks();
+        });
+    }
+
+    // Mobile add button
+    const invMobileAddBtn = document.getElementById('inv-mobile-add-btn');
+    if (invMobileAddBtn) {
+        invMobileAddBtn.addEventListener('click', () => {
+            if (inventorySubTab === 'yarn') openYarnModal();
+            else openHookModal();
+        });
+    }
+
     // View toggle (card / list)
-    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+    document.querySelectorAll('#inventory-view-toggle .view-toggle-btn, #inv-mobile-view-toggle .view-toggle-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             inventoryView = btn.dataset.view;
             localStorage.setItem('inventoryView', inventoryView);
-            document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === inventoryView));
+            document.querySelectorAll('#inventory-view-toggle .view-toggle-btn, #inv-mobile-view-toggle .view-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === inventoryView));
             clearInventorySelection();
             exitInventoryEditMode();
             displayYarns();
@@ -15873,8 +15926,10 @@ function initInventory() {
         });
     });
 
-    // Search
-    document.getElementById('inventory-search')?.addEventListener('input', () => {
+    // Search (desktop → mobile sync)
+    document.getElementById('inventory-search')?.addEventListener('input', (e) => {
+        if (invMobileSearch) invMobileSearch.value = e.target.value;
+        if (invMobileSearchClear) invMobileSearchClear.classList.toggle('visible', e.target.value.length > 0);
         if (inventorySubTab === 'yarn') displayYarns();
         else displayHooks();
     });

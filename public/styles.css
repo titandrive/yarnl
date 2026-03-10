@@ -2275,6 +2275,10 @@ html[data-theme="nuked-dark"] .btn-primary {
     }
 
     /* ── Library Layout ── */
+    .library-toolbar {
+        display: none;
+    }
+
     .sidebar-toggle-icon {
         display: none !important;
     }
@@ -2295,7 +2299,7 @@ html[data-theme="nuked-dark"] .btn-primary {
     }
 
     .library-sidebar.mobile-visible {
-        display: flex;
+        display: flex !important;
     }
 
     .library-sidebar .sidebar-section {
@@ -2303,8 +2307,8 @@ html[data-theme="nuked-dark"] .btn-primary {
         min-width: 140px;
     }
 
-    /* Hide search in sidebar on mobile (it's in the filter bar) */
-    .library-sidebar .sidebar-section:first-child {
+    /* Hide search in projects sidebar on mobile (it's in the filter bar) */
+    .projects-sidebar .sidebar-section:first-child {
         display: none;
     }
 
@@ -10898,8 +10902,16 @@ textarea.image-drag-over {
     font-weight: 700;
 }
 
-/* Mobile inventory sidebar */
+/* Mobile inventory */
 @media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
+    .inventory-toolbar {
+        display: none;
+    }
+
+    .inv-sidebar-toggle {
+        display: none !important;
+    }
+
     .inventory-layout {
         flex-direction: column;
     }
@@ -10916,7 +10928,7 @@ textarea.image-drag-over {
     }
 
     .inventory-sidebar.mobile-visible {
-        display: flex;
+        display: flex !important;
     }
 
     .inventory-sidebar .sidebar-section {
@@ -10926,5 +10938,71 @@ textarea.image-drag-over {
 
     .inventory-sidebar .sidebar-section:first-child {
         display: none;
+    }
+
+    .yarn-card, .hook-card {
+        width: 100%;
+    }
+
+    .inventory-main .patterns-grid {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .inventory-mobile-bar {
+        margin-bottom: 0;
+        align-items: stretch;
+    }
+
+    .inventory-mobile-bar > * {
+        height: 36px;
+        box-sizing: border-box;
+    }
+
+    .inventory-mobile-bar .mobile-sub-tabs {
+        flex-shrink: 0;
+        margin-bottom: 0;
+        max-width: none;
+        padding: 3px;
+    }
+
+    .inventory-mobile-bar .inventory-sub-tab {
+        white-space: nowrap;
+        padding: 0 12px;
+        flex: none;
+    }
+
+    .inventory-mobile-bar .mobile-filter-btn {
+        width: 36px;
+        padding: 0;
+        justify-content: center;
+    }
+
+    .inventory-mobile-bar .mobile-view-toggle {
+        padding: 3px;
+    }
+
+    .inventory-mobile-bar .view-toggle-btn {
+        padding: 0 6px;
+    }
+
+    .mobile-add-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 12px;
+        border: 1px solid var(--primary-color);
+        border-radius: 8px;
+        background: var(--primary-color);
+        color: white;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        flex-shrink: 0;
+        white-space: nowrap;
+    }
+
+    .inventory-mobile-search-row {
+        margin-top: 8px;
     }
 }

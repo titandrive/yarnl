@@ -7463,8 +7463,15 @@ textarea.image-drag-over {
     overflow: hidden;
 }
 
+#yarn-form .form-row:has(.thumbnail-selector),
+#hook-form .form-row:has(.thumbnail-selector) {
+    display: flex;
+    gap: 12px;
+}
+
 .form-row:has(.thumbnail-selector) textarea {
     height: 120px;
+    width: 100%;
     resize: none;
 }
 

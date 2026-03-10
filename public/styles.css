@@ -10155,6 +10155,138 @@ textarea.image-drag-over {
     display: block;
 }
 
+/* Linked patterns list (in yarn/hook modals) */
+.linked-patterns-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.linked-pattern-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.linked-pattern-row:hover {
+    background: var(--hover-bg);
+}
+
+.linked-pattern-thumb {
+    width: 40px;
+    height: 40px;
+    border-radius: 6px;
+    object-fit: cover;
+    flex-shrink: 0;
+}
+
+.linked-pattern-thumb-empty {
+    background: var(--input-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
+.linked-pattern-info {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.linked-pattern-name {
+    font-size: 0.9rem;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.linked-pattern-cat {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+
+/* Inventory view toggle */
+.inventory-view-toggle {
+    display: flex;
+    gap: 2px;
+    background: var(--input-bg);
+    border-radius: 6px;
+    padding: 2px;
+}
+
+.view-toggle-btn {
+    padding: 6px 8px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.view-toggle-btn:hover {
+    color: var(--text-color);
+}
+
+.view-toggle-btn.active {
+    background: var(--primary-color);
+    color: white;
+}
+
+/* Inventory table (list view) */
+.inventory-list-wrap {
+    overflow-x: auto;
+}
+
+.inventory-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.inventory-table th {
+    text-align: left;
+    padding: 8px 10px;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 2px solid var(--border-color);
+    cursor: pointer;
+    user-select: none;
+    white-space: nowrap;
+    transition: color 0.15s;
+}
+
+.inventory-table th:hover {
+    color: var(--primary-color);
+}
+
+.inventory-table td {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--text-color);
+}
+
+.inventory-table tbody tr {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.inventory-table tbody tr:hover {
+    background: var(--hover-bg);
+}
+
 .inventory-toolbar {
     display: flex;
     gap: 8px;
@@ -10185,6 +10317,24 @@ textarea.image-drag-over {
     border-radius: 8px 8px 0 0;
     margin: -12px -12px 8px -12px;
     width: calc(100% + 24px);
+}
+
+.yarn-card, .hook-card {
+    width: 170px;
+    height: auto;
+    min-height: 0;
+    padding: 10px;
+}
+
+.yarn-card .yarn-swatch,
+.hook-card .hook-icon-placeholder {
+    height: 70px;
+    margin: -10px -10px 8px -10px;
+    width: calc(100% + 20px);
+}
+
+.yarn-card h3, .hook-card h3 {
+    font-size: 0.85rem;
 }
 
 .yarn-card h3 {

@@ -56,7 +56,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=249">
+    <link rel="stylesheet" href="styles.css?v=252">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -528,6 +528,14 @@ Inc in each st around (12)
                 <div id="inventory-yarn" class="inventory-sub-content">
                     <div class="inventory-toolbar">
                         <input type="text" id="yarn-search-input" class="inventory-search" placeholder="Search yarn...">
+                        <div class="inventory-view-toggle">
+                            <button class="view-toggle-btn active" data-view="card" title="Card view">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                            </button>
+                            <button class="view-toggle-btn" data-view="list" title="List view">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+                            </button>
+                        </div>
                         <button class="btn btn-primary" id="add-yarn-btn">+ Add Yarn</button>
                     </div>
                     <div id="yarn-grid" class="patterns-grid">
@@ -538,6 +546,14 @@ Inc in each st around (12)
                 <div id="inventory-hooks" class="inventory-sub-content" style="display: none;">
                     <div class="inventory-toolbar">
                         <input type="text" id="hook-search-input" class="inventory-search" placeholder="Search hooks...">
+                        <div class="inventory-view-toggle">
+                            <button class="view-toggle-btn active" data-view="card" title="Card view">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                            </button>
+                            <button class="view-toggle-btn" data-view="list" title="List view">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+                            </button>
+                        </div>
                         <button class="btn btn-primary" id="add-hook-btn">+ Add Hook</button>
                     </div>
                     <div id="hooks-grid" class="patterns-grid">
@@ -546,6 +562,20 @@ Inc in each st around (12)
                 </div>
             </div>
         </div>
+        <script>
+        (function() {
+            var sub = localStorage.getItem('inventorySubTab');
+            if (sub && sub !== 'yarn') {
+                document.querySelectorAll('.inventory-sub-tab').forEach(function(b) { b.classList.toggle('active', b.dataset.sub === sub); });
+                document.getElementById('inventory-yarn').style.display = 'none';
+                document.getElementById('inventory-' + sub).style.display = '';
+            }
+            var view = localStorage.getItem('inventoryView');
+            if (view && view !== 'card') {
+                document.querySelectorAll('.view-toggle-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.view === view); });
+            }
+        })();
+        </script>
 
         <!-- New Project Panel -->
         <div id="new-project-panel" class="new-pattern-panel" style="display: none;">
@@ -3001,7 +3031,12 @@ Inc in each st around (12)
                 <h2 id="yarn-modal-title">Add Yarn</h2>
                 <button class="modal-close" id="close-yarn-modal">&times;</button>
             </div>
+            <div class="edit-modal-tabs" id="yarn-modal-tabs" style="display: none;">
+                <button type="button" class="edit-modal-tab active" data-modal="yarn" data-tab="details">Details</button>
+                <button type="button" class="edit-modal-tab" data-modal="yarn" data-tab="patterns">Patterns</button>
+            </div>
             <form id="yarn-form">
+              <div id="yarn-tab-details" class="edit-modal-tab-content active">
                 <div class="form-group">
                     <label for="yarn-brand">Brand</label>
                     <div class="brand-autocomplete-wrap">
@@ -3057,6 +3092,10 @@ Inc in each st around (12)
                     <label for="yarn-notes">Notes</label>
                     <textarea id="yarn-notes" rows="2" placeholder="Any notes about this yarn"></textarea>
                 </div>
+              </div>
+              <div id="yarn-tab-patterns" class="edit-modal-tab-content">
+                <div id="yarn-linked-patterns"></div>
+              </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-danger" id="delete-yarn-btn" style="display: none;">Delete</button>
                     <div class="modal-actions-right">
@@ -3075,7 +3114,12 @@ Inc in each st around (12)
                 <h2 id="hook-modal-title">Add Hook</h2>
                 <button class="modal-close" id="close-hook-modal">&times;</button>
             </div>
+            <div class="edit-modal-tabs" id="hook-modal-tabs" style="display: none;">
+                <button type="button" class="edit-modal-tab active" data-modal="hook" data-tab="details">Details</button>
+                <button type="button" class="edit-modal-tab" data-modal="hook" data-tab="patterns">Patterns</button>
+            </div>
             <form id="hook-form">
+              <div id="hook-tab-details" class="edit-modal-tab-content active">
                 <div class="craft-type-toggle">
                     <button type="button" class="craft-type-btn active" data-craft="crochet">Crochet</button>
                     <button type="button" class="craft-type-btn" data-craft="knitting">Knitting</button>
@@ -3125,6 +3169,10 @@ Inc in each st around (12)
                     <label for="hook-notes">Notes</label>
                     <textarea id="hook-notes" rows="2" placeholder="Any notes"></textarea>
                 </div>
+              </div>
+              <div id="hook-tab-patterns" class="edit-modal-tab-content">
+                <div id="hook-linked-patterns"></div>
+              </div>
                 <div class="modal-actions">
                     <button type="button" class="btn btn-danger" id="delete-hook-btn" style="display: none;">Delete</button>
                     <div class="modal-actions-right">
@@ -3156,6 +3204,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=230"></script>
+    <script defer src="app.js?v=237"></script>
 </body>
 </html>

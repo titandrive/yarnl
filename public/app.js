@@ -1766,6 +1766,10 @@ let currentProjectPatterns = []; // Patterns in currently viewing project
 let projectReorderMode = false; // Reorder mode for project patterns
 let yarns = []; // Yarn inventory
 let hooks = []; // Hook inventory
+let inventoryView = localStorage.getItem('inventoryView') || 'card';
+let inventorySubTab = localStorage.getItem('inventorySubTab') || 'yarn';
+let yarnSort = { col: 'brand', dir: 'asc' };
+let hookSort = { col: 'brand', dir: 'asc' };
 let editingYarnId = null;
 let editingHookId = null;
 let allCategories = []; // All possible categories for editing/uploading
@@ -10751,6 +10755,7 @@ async function openPdfEditModal() {
         pdfYarnContainer.innerHTML = createYarnSelector([]);
         pdfHookContainer.innerHTML = createHookSelector([]);
     }
+    updateInventoryTabBadge('pdf-edit');
 
     // Set existing thumbnail in selector
     if (currentPattern.thumbnail) {
@@ -12636,6 +12641,7 @@ async function openEditModal(patternId) {
         yarnContainer.innerHTML = createYarnSelector([]);
         hookContainer.innerHTML = createHookSelector([]);
     }
+    updateInventoryTabBadge('edit');
 
     // Set current toggle state
     document.getElementById('edit-is-current').checked = pattern.is_current || false;
@@ -13388,6 +13394,7 @@ async function openMarkdownEditModal() {
         mdYarnContainer.innerHTML = createYarnSelector([]);
         mdHookContainer.innerHTML = createHookSelector([]);
     }
+    updateInventoryTabBadge('markdown-edit');
 
     // Set existing thumbnail in selector
     if (currentPattern.thumbnail) {
@@ -15719,6 +15726,19 @@ function initInventory() {
             document.querySelectorAll('.inventory-sub-content').forEach(c => c.style.display = 'none');
             btn.classList.add('active');
             document.getElementById(`inventory-${btn.dataset.sub}`).style.display = '';
+            inventorySubTab = btn.dataset.sub;
+            localStorage.setItem('inventorySubTab', inventorySubTab);
+        });
+    });
+
+    // View toggle (card / list)
+    document.querySelectorAll('.view-toggle-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            inventoryView = btn.dataset.view;
+            localStorage.setItem('inventoryView', inventoryView);
+            document.querySelectorAll('.view-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === inventoryView));
+            displayYarns();
+            displayHooks();
         });
     });
 
@@ -15803,9 +15823,37 @@ function displayYarns() {
     }
     if (filtered.length === 0) {
         grid.innerHTML = `<p class="empty-state">${query ? 'No yarn matches your search.' : 'No yarn in your inventory yet. Add some to get started!'}</p>`;
+        grid.className = 'patterns-grid';
         return;
     }
-    grid.innerHTML = filtered.map(renderYarnCard).join('');
+    if (inventoryView === 'list') {
+        filtered = sortInventory(filtered, yarnSort);
+        const arrow = (col) => yarnSort.col === col ? (yarnSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+        grid.className = 'inventory-list-wrap';
+        grid.innerHTML = `<table class="inventory-table" data-type="yarn">
+            <thead><tr>
+                <th data-col="brand" onclick="toggleYarnSort('brand')">Brand${arrow('brand')}</th>
+                <th data-col="name" onclick="toggleYarnSort('name')">Name${arrow('name')}</th>
+                <th data-col="colorway" onclick="toggleYarnSort('colorway')">Colorway${arrow('colorway')}</th>
+                <th data-col="weight_category" onclick="toggleYarnSort('weight_category')">Weight${arrow('weight_category')}</th>
+                <th data-col="quantity" onclick="toggleYarnSort('quantity')">Qty${arrow('quantity')}</th>
+                <th data-col="fiber_content" onclick="toggleYarnSort('fiber_content')">Fiber${arrow('fiber_content')}</th>
+                <th data-col="pattern_count" onclick="toggleYarnSort('pattern_count')">Patterns${arrow('pattern_count')}</th>
+            </tr></thead>
+            <tbody>${filtered.map(y => `<tr onclick="openYarnModal(${y.id})">
+                <td>${escapeHtml(y.brand || '—')}</td>
+                <td>${escapeHtml(y.name || '—')}</td>
+                <td>${escapeHtml(y.colorway || '—')}</td>
+                <td>${escapeHtml(y.weight_category || '—')}</td>
+                <td>${parseFloat(y.quantity) || 0}</td>
+                <td>${escapeHtml(y.fiber_content || '—')}</td>
+                <td>${y.pattern_count || 0}</td>
+            </tr>`).join('')}</tbody>
+        </table>`;
+    } else {
+        grid.className = 'patterns-grid';
+        grid.innerHTML = filtered.map(renderYarnCard).join('');
+    }
 }
 
 function renderYarnCard(yarn) {
@@ -15856,6 +15904,24 @@ function openYarnModal(yarnId = null) {
     } else {
         clearThumbnailSelector('yarn');
     }
+
+    // Patterns tab
+    const tabsEl = document.getElementById('yarn-modal-tabs');
+    const patternsContainer = document.getElementById('yarn-linked-patterns');
+    if (yarn && yarn.pattern_count > 0) {
+        tabsEl.style.display = '';
+        const patternsTab = tabsEl.querySelector('[data-tab="patterns"]');
+        patternsTab.textContent = `Patterns (${yarn.pattern_count})`;
+        patternsContainer.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Loading…</p>';
+        fetch(`${API_URL}/api/yarns/${yarn.id}/patterns`)
+            .then(r => r.json())
+            .then(patterns => { patternsContainer.innerHTML = renderLinkedPatterns(patterns); })
+            .catch(() => { patternsContainer.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Could not load patterns.</p>'; });
+    } else {
+        tabsEl.style.display = 'none';
+        patternsContainer.innerHTML = '';
+    }
+    resetEditModalTab('yarn');
 
     loadBrands();
     document.getElementById('yarn-modal').style.display = 'flex';
@@ -15954,9 +16020,39 @@ function displayHooks() {
     }
     if (filtered.length === 0) {
         grid.innerHTML = `<p class="empty-state">${query ? 'No hooks or needles match your search.' : 'No hooks or needles in your inventory yet. Add some to get started!'}</p>`;
+        grid.className = 'patterns-grid';
         return;
     }
-    grid.innerHTML = filtered.map(renderHookCard).join('');
+    if (inventoryView === 'list') {
+        filtered = sortInventory(filtered, hookSort);
+        const arrow = (col) => hookSort.col === col ? (hookSort.dir === 'asc' ? ' ▲' : ' ▼') : '';
+        grid.className = 'inventory-list-wrap';
+        grid.innerHTML = `<table class="inventory-table" data-type="hook">
+            <thead><tr>
+                <th data-col="brand" onclick="toggleHookSort('brand')">Brand${arrow('brand')}</th>
+                <th data-col="name" onclick="toggleHookSort('name')">Name${arrow('name')}</th>
+                <th data-col="size_label" onclick="toggleHookSort('size_label')">Size${arrow('size_label')}</th>
+                <th data-col="hook_type" onclick="toggleHookSort('hook_type')">Type${arrow('hook_type')}</th>
+                <th data-col="craft_type" onclick="toggleHookSort('craft_type')">Craft${arrow('craft_type')}</th>
+                <th data-col="length" onclick="toggleHookSort('length')">Length${arrow('length')}</th>
+                <th data-col="quantity" onclick="toggleHookSort('quantity')">Qty${arrow('quantity')}</th>
+                <th data-col="pattern_count" onclick="toggleHookSort('pattern_count')">Patterns${arrow('pattern_count')}</th>
+            </tr></thead>
+            <tbody>${filtered.map(h => `<tr onclick="openHookModal(${h.id})">
+                <td>${escapeHtml(h.brand || '—')}</td>
+                <td>${escapeHtml(h.name || '—')}</td>
+                <td>${escapeHtml(h.size_label || '—')}</td>
+                <td>${escapeHtml(h.hook_type || '—')}</td>
+                <td>${escapeHtml(h.craft_type || '—')}</td>
+                <td>${escapeHtml(h.length || '—')}</td>
+                <td>${h.quantity || 0}</td>
+                <td>${h.pattern_count || 0}</td>
+            </tr>`).join('')}</tbody>
+        </table>`;
+    } else {
+        grid.className = 'patterns-grid';
+        grid.innerHTML = filtered.map(renderHookCard).join('');
+    }
 }
 
 function renderHookCard(hook) {
@@ -16032,6 +16128,24 @@ function openHookModal(hookId = null) {
         updateLengthOptions();
         document.getElementById('hook-length').value = hook?.length || '';
     }
+
+    // Patterns tab
+    const hookTabsEl = document.getElementById('hook-modal-tabs');
+    const hookPatternsContainer = document.getElementById('hook-linked-patterns');
+    if (hook && hook.pattern_count > 0) {
+        hookTabsEl.style.display = '';
+        const patternsTab = hookTabsEl.querySelector('[data-tab="patterns"]');
+        patternsTab.textContent = `Patterns (${hook.pattern_count})`;
+        hookPatternsContainer.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Loading…</p>';
+        fetch(`${API_URL}/api/hooks/${hook.id}/patterns`)
+            .then(r => r.json())
+            .then(patterns => { hookPatternsContainer.innerHTML = renderLinkedPatterns(patterns); })
+            .catch(() => { hookPatternsContainer.innerHTML = '<p class="text-muted" style="font-size:0.85rem;">Could not load patterns.</p>'; });
+    } else {
+        hookTabsEl.style.display = 'none';
+        hookPatternsContainer.innerHTML = '';
+    }
+    resetEditModalTab('hook');
 
     loadBrands();
     document.getElementById('hook-modal').style.display = 'flex';
@@ -16216,7 +16330,7 @@ function createYarnSelector(selectedYarnIds = []) {
             const label = [y.brand, y.name, y.colorway].filter(Boolean).join(' — ') || 'Unnamed Yarn';
             return `<label class="hashtag-tag${checked ? ' selected' : ''}">
                 <input type="checkbox" class="yarn-select-cb" value="${y.id}" ${checked ? 'checked' : ''}
-                    onchange="this.parentElement.classList.toggle('selected', this.checked)">
+                    onchange="this.parentElement.classList.toggle('selected', this.checked); updateInventoryBadgeFromCheckbox(this)">
                 ${escapeHtml(label)}
             </label>`;
         }).join('')}
@@ -16240,7 +16354,7 @@ function createHookSelector(selectedHookIds = []) {
             const label = [h.brand, h.name, h.size_label].filter(Boolean).join(' — ') || 'Unnamed Hook';
             return `<label class="hashtag-tag${checked ? ' selected' : ''}">
                 <input type="checkbox" class="hook-select-cb" value="${h.id}" ${checked ? 'checked' : ''}
-                    onchange="this.parentElement.classList.toggle('selected', this.checked)">
+                    onchange="this.parentElement.classList.toggle('selected', this.checked); updateInventoryBadgeFromCheckbox(this)">
                 ${escapeHtml(label)}
             </label>`;
         }).join('')}
@@ -16250,6 +16364,63 @@ function createHookSelector(selectedHookIds = []) {
 function getSelectedHookIds(containerId = 'edit-pattern-hooks-container') {
     return Array.from(document.querySelectorAll(`#${containerId} .hook-select-cb:checked`))
         .map(cb => parseInt(cb.value));
+}
+
+// --- Inventory sorting ---
+
+function sortInventory(items, sortState) {
+    const { col, dir } = sortState;
+    return [...items].sort((a, b) => {
+        let va = a[col], vb = b[col];
+        if (col === 'quantity' || col === 'pattern_count') {
+            va = parseFloat(va) || 0;
+            vb = parseFloat(vb) || 0;
+        } else {
+            va = (va || '').toString().toLowerCase();
+            vb = (vb || '').toString().toLowerCase();
+        }
+        if (va < vb) return dir === 'asc' ? -1 : 1;
+        if (va > vb) return dir === 'asc' ? 1 : -1;
+        return 0;
+    });
+}
+
+function toggleYarnSort(col) {
+    if (yarnSort.col === col) {
+        yarnSort.dir = yarnSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        yarnSort.col = col;
+        yarnSort.dir = 'asc';
+    }
+    displayYarns();
+}
+
+function toggleHookSort(col) {
+    if (hookSort.col === col) {
+        hookSort.dir = hookSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+        hookSort.col = col;
+        hookSort.dir = 'asc';
+    }
+    displayHooks();
+}
+
+// --- Linked patterns list (for yarn/hook modals) ---
+
+function renderLinkedPatterns(patterns) {
+    if (!patterns.length) return '<p class="text-muted" style="font-size:0.85rem;">No patterns linked.</p>';
+    return `<div class="linked-patterns-list">${patterns.map(p => {
+        const thumb = p.thumbnail
+            ? `<img src="${API_URL}/api/patterns/${p.id}/thumbnail" class="linked-pattern-thumb" alt="">`
+            : `<div class="linked-pattern-thumb linked-pattern-thumb-empty"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>`;
+        return `<div class="linked-pattern-row" onclick="closeYarnModal(); closeHookModal(); openPDFViewer(${p.id})">
+            ${thumb}
+            <div class="linked-pattern-info">
+                <span class="linked-pattern-name">${escapeHtml(p.name)}</span>
+                ${p.category ? `<span class="linked-pattern-cat">${escapeHtml(p.category)}</span>` : ''}
+            </div>
+        </div>`;
+    }).join('')}</div>`;
 }
 
 // --- Edit modal tab switching ---
@@ -16262,9 +16433,11 @@ function initEditModalTabs() {
             // Toggle tab buttons
             document.querySelectorAll(`.edit-modal-tab[data-modal="${modal}"]`).forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            // Toggle tab content
-            document.getElementById(`${modal}-tab-details`).classList.toggle('active', tab === 'details');
-            document.getElementById(`${modal}-tab-inventory`).classList.toggle('active', tab === 'inventory');
+            // Toggle all tab content panes for this modal
+            document.querySelectorAll(`[id^="${modal}-tab-"]`).forEach(el => {
+                const paneTab = el.id.replace(`${modal}-tab-`, '');
+                el.classList.toggle('active', paneTab === tab);
+            });
         });
     });
 }
@@ -16273,6 +16446,25 @@ function resetEditModalTab(modal) {
     document.querySelectorAll(`.edit-modal-tab[data-modal="${modal}"]`).forEach(b => {
         b.classList.toggle('active', b.dataset.tab === 'details');
     });
-    document.getElementById(`${modal}-tab-details`)?.classList.add('active');
-    document.getElementById(`${modal}-tab-inventory`)?.classList.remove('active');
+    document.querySelectorAll(`[id^="${modal}-tab-"]`).forEach(el => {
+        const paneTab = el.id.replace(`${modal}-tab-`, '');
+        el.classList.toggle('active', paneTab === 'details');
+    });
+}
+
+function updateInventoryTabBadge(modal) {
+    const btn = document.querySelector(`.edit-modal-tab[data-modal="${modal}"][data-tab="inventory"]`);
+    if (!btn) return;
+    const prefix = modal === 'edit' ? 'edit-pattern' : modal;
+    const yarnCount = document.querySelectorAll(`#${prefix}-yarns-container .yarn-select-cb:checked`).length;
+    const hookCount = document.querySelectorAll(`#${prefix}-hooks-container .hook-select-cb:checked`).length;
+    const total = yarnCount + hookCount;
+    btn.textContent = total > 0 ? `Inventory (${total})` : 'Inventory';
+}
+
+function updateInventoryBadgeFromCheckbox(cb) {
+    const tabContent = cb.closest('.edit-modal-tab-content');
+    if (!tabContent) return;
+    const modal = tabContent.id.replace('-tab-inventory', '');
+    updateInventoryTabBadge(modal);
 }

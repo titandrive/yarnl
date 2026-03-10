@@ -4709,6 +4709,36 @@ app.delete('/api/hooks/:id', async (req, res) => {
   }
 });
 
+// --- Yarn/Hook → Patterns (reverse lookup) ---
+
+app.get('/api/yarns/:id/patterns', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT p.id, p.name, p.thumbnail, p.category FROM patterns p
+       JOIN pattern_yarns py ON p.id = py.pattern_id
+       WHERE py.yarn_id = $1 ORDER BY p.name`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/hooks/:id/patterns', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT p.id, p.name, p.thumbnail, p.category FROM patterns p
+       JOIN pattern_hooks ph ON p.id = ph.pattern_id
+       WHERE ph.hook_id = $1 ORDER BY p.name`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // --- Pattern-Yarn linking ---
 
 app.get('/api/patterns/:id/yarns', async (req, res) => {

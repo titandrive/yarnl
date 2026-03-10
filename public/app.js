@@ -16061,6 +16061,17 @@ function getColumnOrder(type) {
         if (saved) {
             const order = JSON.parse(saved);
             if (Array.isArray(order) && order.length > 0 && order.every(c => c in allCols)) {
+                // Add any new default columns that aren't in the saved order at their default position
+                const missing = defaults.filter(c => !order.includes(c));
+                for (const col of missing) {
+                    const defIdx = defaults.indexOf(col);
+                    let insertIdx = 0;
+                    for (let i = defIdx - 1; i >= 0; i--) {
+                        const prev = order.indexOf(defaults[i]);
+                        if (prev !== -1) { insertIdx = prev + 1; break; }
+                    }
+                    order.splice(insertIdx, 0, col);
+                }
                 return order;
             }
         }

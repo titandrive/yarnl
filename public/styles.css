@@ -1469,6 +1469,7 @@ html[data-theme="nuked-dark"] .btn-primary {
     color: #6b7280;
     padding: 40px;
     font-style: italic;
+    grid-column: 1 / -1;
 }
 
 .pattern-card {

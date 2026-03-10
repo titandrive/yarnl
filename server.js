@@ -4461,6 +4461,278 @@ app.get('/api/yarns', async (req, res) => {
   }
 });
 
+// Fetch product data + image from a URL
+app.post('/api/fetch-url-image', async (req, res) => {
+  try {
+    const { url, type } = req.body; // type: 'yarn' or 'hook'
+    if (!url) return res.status(400).json({ error: 'URL is required' });
+
+    let parsedUrl;
+    try { parsedUrl = new URL(url); } catch { return res.status(400).json({ error: 'Invalid URL' }); }
+    if (!['http:', 'https:'].includes(parsedUrl.protocol)) return res.status(400).json({ error: 'Invalid URL protocol' });
+
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+      signal: AbortSignal.timeout(10000)
+    });
+    if (!response.ok) return res.status(400).json({ error: `Failed to fetch URL (${response.status})` });
+
+    const contentType = response.headers.get('content-type') || '';
+
+    // If URL points directly to an image, return just the image
+    if (contentType.startsWith('image/')) {
+      const imgBuffer = Buffer.from(await response.arrayBuffer());
+      const processed = await sharp(imgBuffer)
+        .resize(300, 400, { fit: 'cover', position: 'top' })
+        .jpeg({ quality: 85 })
+        .toBuffer();
+      return res.json({ image: `data:image/jpeg;base64,${processed.toString('base64')}` });
+    }
+
+    const html = await response.text();
+    const result = {};
+
+    // --- Extract product metadata ---
+
+    // 1. Try JSON-LD structured data
+    const jsonLdMatches = [...html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)];
+    let product = null;
+    for (const m of jsonLdMatches) {
+      try {
+        let data = JSON.parse(m[1]);
+        // Handle @graph arrays
+        if (data['@graph']) data = data['@graph'];
+        if (Array.isArray(data)) {
+          product = data.find(d => d['@type'] === 'Product' || d['@type']?.includes?.('Product'));
+        } else if (data['@type'] === 'Product' || data['@type']?.includes?.('Product')) {
+          product = data;
+        }
+        if (product) break;
+      } catch {}
+    }
+
+    // Extract fields from JSON-LD product
+    if (product) {
+      result.meta = {};
+      if (product.brand) {
+        result.meta.brand = typeof product.brand === 'string' ? product.brand : (product.brand.name || null);
+      }
+      if (product.name) result.meta.name = product.name;
+      if (product.description) result.meta.description = product.description;
+      if (product.image) {
+        const img = Array.isArray(product.image) ? product.image[0] : product.image;
+        result.meta.productImage = typeof img === 'string' ? img : img?.url;
+      }
+    }
+
+    // 2. Also grab og:title and og:description as fallbacks
+    if (!result.meta) result.meta = {};
+    if (!result.meta.name) {
+      const ogTitle = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i)
+                   || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:title["']/i);
+      if (ogTitle) result.meta.name = ogTitle[1];
+    }
+    if (!result.meta.description) {
+      const ogDesc = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i)
+                  || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:description["']/i)
+                  || html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i)
+                  || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']description["']/i);
+      if (ogDesc) result.meta.description = ogDesc[1];
+    }
+
+    // 3. Parse yarn-specific fields from name + description text
+    const text = [result.meta.name, result.meta.description].filter(Boolean).join(' ');
+    if (text) {
+      if (type === 'yarn') {
+        result.fields = parseYarnFields(text, result.meta);
+      } else if (type === 'hook') {
+        result.fields = parseHookFields(text, result.meta);
+      }
+    }
+
+    // --- Extract image ---
+    let imageUrl = result.meta?.productImage || null;
+
+    if (!imageUrl) {
+      const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i)
+                   || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*property=["']og:image["']/i);
+      if (ogMatch) imageUrl = ogMatch[1];
+    }
+    if (!imageUrl) {
+      const twMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i)
+                   || html.match(/<meta[^>]*content=["']([^"']+)["'][^>]*name=["']twitter:image["']/i);
+      if (twMatch) imageUrl = twMatch[1];
+    }
+    if (!imageUrl) {
+      const imgMatches = [...html.matchAll(/<img[^>]*src=["']([^"']+)["'][^>]*/gi)];
+      for (const m of imgMatches) {
+        const src = m[0], imgSrc = m[1];
+        if (imgSrc.includes('.svg') || imgSrc.includes('pixel') || imgSrc.includes('spacer')) continue;
+        if (src.includes('width="1"') || src.includes('height="1"')) continue;
+        if (src.includes('product') || src.includes('main') || src.includes('hero') || src.includes('primary')) {
+          imageUrl = imgSrc;
+          break;
+        }
+      }
+      if (!imageUrl) {
+        const imgMatches2 = [...html.matchAll(/<img[^>]*src=["']([^"']+)["'][^>]*/gi)];
+        for (const m of imgMatches2) {
+          if (m[1].includes('.svg') || m[1].includes('pixel') || m[1].includes('spacer')) continue;
+          if (m[0].includes('width="1"') || m[0].includes('height="1"')) continue;
+          imageUrl = m[1];
+          break;
+        }
+      }
+    }
+
+    if (imageUrl) {
+      if (imageUrl.startsWith('//')) imageUrl = parsedUrl.protocol + imageUrl;
+      else if (imageUrl.startsWith('/')) imageUrl = parsedUrl.origin + imageUrl;
+      else if (!imageUrl.startsWith('http')) imageUrl = new URL(imageUrl, url).href;
+
+      try {
+        const imgResponse = await fetch(imageUrl, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+          signal: AbortSignal.timeout(10000)
+        });
+        if (imgResponse.ok) {
+          const imgBuffer = Buffer.from(await imgResponse.arrayBuffer());
+          const processed = await sharp(imgBuffer)
+            .resize(300, 400, { fit: 'cover', position: 'top' })
+            .jpeg({ quality: 85 })
+            .toBuffer();
+          result.image = `data:image/jpeg;base64,${processed.toString('base64')}`;
+        }
+      } catch {}
+    }
+
+    if (!result.image && !result.fields) {
+      return res.status(404).json({ error: 'No product data or image found on page' });
+    }
+
+    res.json(result);
+  } catch (error) {
+    console.error('Error fetching URL data:', error);
+    res.status(500).json({ error: 'Failed to fetch data from URL' });
+  }
+});
+
+// Parse yarn attributes from product text
+function parseYarnFields(text, meta) {
+  const fields = {};
+  const lower = text.toLowerCase();
+
+  // Brand — from structured data or known brands in text
+  if (meta.brand) {
+    fields.brand = meta.brand;
+  }
+
+  // Weight category
+  const weightMap = [
+    { keywords: ['jumbo', 'roving', '#7', 'weight 7'], value: 'Jumbo' },
+    { keywords: ['super bulky', '#6', 'weight 6', 'super chunky'], value: 'Super Bulky' },
+    { keywords: ['bulky', 'chunky', '#5', 'weight 5'], value: 'Bulky' },
+    { keywords: ['medium', 'worsted', 'aran', '#4', 'weight 4'], value: 'Medium' },
+    { keywords: ['light', 'dk', 'light worsted', '#3', 'weight 3'], value: 'Light' },
+    { keywords: ['fine', 'sport', 'baby', '#2', 'weight 2'], value: 'Fine' },
+    { keywords: ['super fine', 'fingering', 'sock', '#1', 'weight 1'], value: 'Super Fine' },
+    { keywords: ['lace', 'thread', '#0', 'weight 0', 'cobweb'], value: 'Lace' },
+  ];
+  for (const w of weightMap) {
+    if (w.keywords.some(k => lower.includes(k))) {
+      fields.weight_category = w.value;
+      break;
+    }
+  }
+
+  // Fiber content — look for common patterns
+  const fiberMatch = text.match(/(\d+%\s*\w[\w\s/]*(?:,\s*\d+%\s*\w[\w\s/]*)*)/i);
+  if (fiberMatch) {
+    const fiber = fiberMatch[1].replace(/\s+/g, ' ').trim();
+    // Only use if it looks like actual fiber content (has % and a fiber name)
+    if (/\d+%\s*(acrylic|cotton|wool|polyester|nylon|bamboo|alpaca|mohair|silk|rayon|linen|cashmere|merino|poly)/i.test(fiber)) {
+      fields.fiber_content = fiber;
+    }
+  }
+
+  // Try to split product name into brand + name/line + color
+  if (meta.name) {
+    const name = meta.name;
+    // Many product names follow "Brand Name - Color" or "Brand Name, Color"
+    // Try to extract color from end after a dash or comma
+    const colorSplit = name.match(/^(.+?)(?:\s*[-–—]\s*|\s*,\s*)([^,\-–—]+)$/);
+    if (colorSplit) {
+      fields._productTitle = colorSplit[1].trim();
+      fields.color = colorSplit[2].trim();
+    } else {
+      fields._productTitle = name;
+    }
+
+    // If we have a brand, try to extract the line/name from the product title
+    if (fields.brand && fields._productTitle) {
+      const brandLower = fields.brand.toLowerCase();
+      const titleLower = fields._productTitle.toLowerCase();
+      if (titleLower.startsWith(brandLower)) {
+        const remainder = fields._productTitle.substring(fields.brand.length).replace(/^[\s®™]+/, '').trim();
+        if (remainder) fields.name = remainder;
+      } else {
+        fields.name = fields._productTitle;
+      }
+    } else if (!fields.brand && fields._productTitle) {
+      // No brand from structured data — first word(s) might be brand
+      fields.name = fields._productTitle;
+    }
+    delete fields._productTitle;
+  }
+
+  return Object.keys(fields).length > 0 ? fields : null;
+}
+
+// Parse hook/needle attributes from product text
+function parseHookFields(text, meta) {
+  const fields = {};
+  const lower = text.toLowerCase();
+
+  if (meta.brand) {
+    fields.brand = meta.brand;
+  }
+
+  // Detect craft type
+  if (lower.includes('knitting needle') || lower.includes('knit needle') || lower.includes('circular needle') || lower.includes('dpn')) {
+    fields.craft_type = 'knitting';
+  } else if (lower.includes('crochet hook') || lower.includes('crochet')) {
+    fields.craft_type = 'crochet';
+  }
+
+  // Extract size — look for mm values
+  const mmMatch = text.match(/(\d+(?:\.\d+)?)\s*mm/i);
+  if (mmMatch) {
+    fields.size_mm = parseFloat(mmMatch[1]);
+  }
+
+  // Extract US letter/number size for crochet
+  const usMatch = text.match(/(?:size|us)\s*([A-Z](?:\/\d+)?|\d+(?:\.\d+)?)/i);
+  if (usMatch && !fields.size_mm) {
+    fields._usSize = usMatch[1];
+  }
+
+  // Try to extract name from product title
+  if (meta.name) {
+    if (fields.brand) {
+      const brandLower = fields.brand.toLowerCase();
+      const titleLower = meta.name.toLowerCase();
+      if (titleLower.startsWith(brandLower)) {
+        const remainder = meta.name.substring(fields.brand.length).replace(/^[\s®™]+/, '').trim();
+        // Remove size info from name
+        const cleaned = remainder.replace(/\d+(\.\d+)?\s*mm/i, '').replace(/size\s*[A-Z](?:\/\d+)?/i, '').replace(/\s{2,}/g, ' ').trim();
+        if (cleaned) fields.name = cleaned;
+      }
+    }
+  }
+
+  return Object.keys(fields).length > 0 ? fields : null;
+}
+
 app.get('/api/yarns/:id', async (req, res) => {
   try {
     const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
@@ -4473,11 +4745,11 @@ app.get('/api/yarns/:id', async (req, res) => {
 
 app.post('/api/yarns', async (req, res) => {
   try {
-    const { name, brand, weight_category, fiber_content, color_hex, color, dye_lot, quantity, notes } = req.body;
+    const { name, brand, weight_category, fiber_content, color_hex, color, dye_lot, quantity, notes, url } = req.body;
     const result = await pool.query(
-      `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, color_hex, color, dye_lot, quantity, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [req.user.id, name || null, brand || null, weight_category || null, fiber_content || null, color_hex || null, color || null, dye_lot || null, quantity || 1, notes || null]
+      `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, color_hex, color, dye_lot, quantity, notes, url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [req.user.id, name || null, brand || null, weight_category || null, fiber_content || null, color_hex || null, color || null, dye_lot || null, quantity || 1, notes || null, url || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -4491,7 +4763,7 @@ app.patch('/api/yarns/:id', async (req, res) => {
     const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
     if (!yarn) return res.status(403).json({ error: 'Not authorized' });
 
-    const fields = ['name', 'brand', 'weight_category', 'fiber_content', 'color_hex', 'color', 'dye_lot', 'quantity', 'notes'];
+    const fields = ['name', 'brand', 'weight_category', 'fiber_content', 'color_hex', 'color', 'dye_lot', 'quantity', 'notes', 'url'];
     const updates = [];
     const values = [];
     let idx = 1;
@@ -4697,11 +4969,11 @@ app.get('/api/hooks', async (req, res) => {
 
 app.post('/api/hooks', async (req, res) => {
   try {
-    const { craft_type, name, brand, size_mm, size_label, hook_type, length, quantity, notes } = req.body;
+    const { craft_type, name, brand, size_mm, size_label, hook_type, length, quantity, notes, url } = req.body;
     const result = await pool.query(
-      `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label, hook_type, length, quantity, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [req.user.id, craft_type || 'crochet', name || null, brand || null, size_mm || null, size_label || null, hook_type || null, length || null, quantity || 1, notes || null]
+      `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label, hook_type, length, quantity, notes, url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [req.user.id, craft_type || 'crochet', name || null, brand || null, size_mm || null, size_label || null, hook_type || null, length || null, quantity || 1, notes || null, url || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -4715,7 +4987,7 @@ app.patch('/api/hooks/:id', async (req, res) => {
     const hook = await verifyHookOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
     if (!hook) return res.status(403).json({ error: 'Not authorized' });
 
-    const fields = ['craft_type', 'name', 'brand', 'size_mm', 'size_label', 'hook_type', 'length', 'quantity', 'notes'];
+    const fields = ['craft_type', 'name', 'brand', 'size_mm', 'size_label', 'hook_type', 'length', 'quantity', 'notes', 'url'];
     const updates = [];
     const values = [];
     let idx = 1;

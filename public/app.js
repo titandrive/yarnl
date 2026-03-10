@@ -15817,12 +15817,14 @@ function initInventory() {
     document.getElementById('close-yarn-modal')?.addEventListener('click', () => closeYarnModal());
     document.getElementById('yarn-modal')?.addEventListener('click', (e) => { if (e.target.id === 'yarn-modal') closeYarnModal(); });
     document.getElementById('delete-yarn-btn')?.addEventListener('click', () => { if (editingYarnId) deleteYarn(editingYarnId); });
+    document.getElementById('yarn-import-img-btn')?.addEventListener('click', () => importImageFromUrl('yarn'));
     // Hook modal
     document.getElementById('hook-form')?.addEventListener('submit', (e) => { e.preventDefault(); saveHook(); });
     document.getElementById('cancel-hook-btn')?.addEventListener('click', () => closeHookModal());
     document.getElementById('close-hook-modal')?.addEventListener('click', () => closeHookModal());
     document.getElementById('hook-modal')?.addEventListener('click', (e) => { if (e.target.id === 'hook-modal') closeHookModal(); });
     document.getElementById('delete-hook-btn')?.addEventListener('click', () => { if (editingHookId) deleteHook(editingHookId); });
+    document.getElementById('hook-import-img-btn')?.addEventListener('click', () => importImageFromUrl('hook'));
 
     // Craft type toggle
     document.querySelectorAll('.craft-type-btn').forEach(btn => {
@@ -16193,6 +16195,7 @@ function openYarnModal(yarnId = null) {
     document.getElementById('yarn-weight').value = yarn?.weight_category || '';
     document.getElementById('yarn-quantity').value = yarn?.quantity || 1;
     document.getElementById('yarn-fiber').value = yarn?.fiber_content || '';
+    document.getElementById('yarn-url').value = yarn?.url || '';
     document.getElementById('yarn-notes').value = yarn?.notes || '';
 
     // Thumbnail
@@ -16238,6 +16241,7 @@ async function saveYarn() {
         weight_category: document.getElementById('yarn-weight').value || null,
         fiber_content: document.getElementById('yarn-fiber').value.trim() || null,
         quantity: parseFloat(document.getElementById('yarn-quantity').value) || 1,
+        url: document.getElementById('yarn-url').value.trim() || null,
         notes: document.getElementById('yarn-notes').value.trim() || null
     };
 
@@ -16447,6 +16451,7 @@ function openHookModal(hookId = null) {
     document.getElementById('hook-brand').value = hook?.brand || '';
     document.getElementById('hook-name').value = hook?.name || '';
     document.getElementById('hook-type').value = hook?.hook_type || '';
+    document.getElementById('hook-url').value = hook?.url || '';
     document.getElementById('hook-notes').value = hook?.notes || '';
 
     // Set length for knitting needles
@@ -16507,6 +16512,7 @@ async function saveHook() {
         hook_type: document.getElementById('hook-type').value || null,
         length: (currentCraftType === 'knitting' ? document.getElementById('hook-length').value : null) || null,
         quantity: parseInt(document.getElementById('hook-quantity').value) || 1,
+        url: document.getElementById('hook-url').value.trim() || null,
         notes: document.getElementById('hook-notes').value.trim() || null
     };
 
@@ -16555,6 +16561,110 @@ async function deleteHook(hookId) {
     } catch (error) {
         console.error('Error deleting hook:', error);
     }
+}
+
+// --- URL image import ---
+
+async function importImageFromUrl(type) {
+    const urlInput = document.getElementById(`${type}-url`);
+    const btn = document.getElementById(`${type}-import-img-btn`);
+    const url = urlInput?.value?.trim();
+    if (!url) return;
+
+    const origText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-small"></span> Importing…';
+
+    try {
+        const response = await fetch(`${API_URL}/api/fetch-url-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url, type })
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || 'Failed to fetch data');
+
+        // Set the thumbnail preview with the fetched image
+        const preview = document.getElementById(`${type}-thumbnail-preview`);
+        if (preview && data.image) {
+            preview.innerHTML = `<img src="${data.image}">`;
+            preview.classList.add('has-image');
+            preview.dataset.thumbnailBlob = data.image;
+        }
+
+        // Auto-fill empty form fields from extracted product data
+        if (data.fields) {
+            const filled = [];
+            if (type === 'yarn') {
+                filled.push(...autoFillYarnFields(data.fields));
+            } else if (type === 'hook') {
+                filled.push(...autoFillHookFields(data.fields));
+            }
+            // Brief highlight on filled fields
+            filled.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.classList.add('url-autofilled');
+                    setTimeout(() => el.classList.remove('url-autofilled'), 2000);
+                }
+            });
+        }
+    } catch (error) {
+        alert(error.message || 'Could not import from URL');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = origText;
+    }
+}
+
+function autoFillYarnFields(fields) {
+    const filled = [];
+    const fill = (id, value) => {
+        const el = document.getElementById(id);
+        if (el && !el.value && value) {
+            el.value = value;
+            filled.push(id);
+        }
+    };
+    fill('yarn-brand', fields.brand);
+    fill('yarn-name', fields.name);
+    fill('yarn-color', fields.color);
+    fill('yarn-fiber', fields.fiber_content);
+    if (fields.weight_category) {
+        const el = document.getElementById('yarn-weight');
+        if (el && !el.value) {
+            el.value = fields.weight_category;
+            filled.push('yarn-weight');
+        }
+    }
+    return filled;
+}
+
+function autoFillHookFields(fields) {
+    const filled = [];
+    const fill = (id, value) => {
+        const el = document.getElementById(id);
+        if (el && !el.value && value) {
+            el.value = value;
+            filled.push(id);
+        }
+    };
+    fill('hook-brand', fields.brand);
+    fill('hook-name', fields.name);
+    if (fields.craft_type) {
+        setCraftType(fields.craft_type);
+    }
+    if (fields.size_mm) {
+        const sizeSelect = document.getElementById('hook-size');
+        if (sizeSelect && !sizeSelect.value) {
+            const match = Array.from(sizeSelect.options).find(o => o.value.startsWith(fields.size_mm + '|'));
+            if (match) {
+                sizeSelect.value = match.value;
+                filled.push('hook-size');
+            }
+        }
+    }
+    return filled;
 }
 
 // --- Brand autocomplete ---

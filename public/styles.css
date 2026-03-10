@@ -1410,6 +1410,48 @@ html[data-theme="nuked-dark"] .btn-primary {
     margin: 0;
 }
 
+.url-input-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.url-input-row input[type="url"] {
+    flex: 1;
+    min-width: 0;
+}
+
+.url-import-btn {
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.spinner-small {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.url-autofilled {
+    animation: autofill-flash 2s ease;
+}
+
+@keyframes autofill-flash {
+    0%, 100% { box-shadow: none; }
+    15%, 60% { box-shadow: 0 0 0 2px var(--primary-color); }
+}
+
 .patterns-list h2 {
     color: var(--primary-color);
     margin-bottom: 20px;

@@ -323,6 +323,21 @@ async function initDatabase() {
       END $$;
     `);
 
+    // Add url column to yarns and hooks
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='yarns' AND column_name='url') THEN
+          ALTER TABLE yarns ADD COLUMN url TEXT;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='hooks' AND column_name='url') THEN
+          ALTER TABLE hooks ADD COLUMN url TEXT;
+        END IF;
+      END $$;
+    `);
+
     // Migrate colorway data to color column
     await client.query(`UPDATE yarns SET color = colorway WHERE color IS NULL AND colorway IS NOT NULL`);
 

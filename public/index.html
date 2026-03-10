@@ -66,7 +66,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=281">
+    <link rel="stylesheet" href="styles.css?v=282">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -536,7 +536,7 @@ Inc in each st around (12)
                 <div class="inventory-toolbar">
                     <div class="inventory-sub-tabs">
                         <button type="button" class="inventory-sub-tab active" data-sub="yarn">Yarn</button>
-                        <button type="button" class="inventory-sub-tab" data-sub="hooks">Hooks & Needles</button>
+                        <button type="button" class="inventory-sub-tab" data-sub="hooks">Hooks</button>
                     </div>
                     <input type="text" class="inventory-search" id="inventory-search" placeholder="Search...">
                     <div class="inventory-view-toggle" id="inventory-view-toggle">
@@ -553,7 +553,7 @@ Inc in each st around (12)
                         Edit
                     </button>
                     <button class="btn btn-primary inventory-add-btn" id="add-yarn-btn">+ Add Yarn</button>
-                    <button class="btn btn-primary inventory-add-btn" id="add-hook-btn" style="display:none;">+ Add Hook</button>
+                    <button class="btn btn-primary inventory-add-btn" id="add-hook-btn" style="display:none;">+ Add Item</button>
                 </div>
 
                 <div id="inventory-yarn" class="inventory-sub-content">
@@ -3194,6 +3194,16 @@ Inc in each st around (12)
                     <label for="yarn-fiber">Fiber Content</label>
                     <input type="text" id="yarn-fiber" placeholder="e.g. 100% Acrylic, 80/20 Cotton/Poly">
                 </div>
+                <div class="form-group">
+                    <label for="yarn-url">Product URL</label>
+                    <div class="url-input-row">
+                        <input type="url" id="yarn-url" placeholder="e.g. https://www.joann.com/...">
+                        <button type="button" class="btn btn-secondary url-import-btn" id="yarn-import-img-btn" title="Import product data from URL">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Import via URL
+                        </button>
+                    </div>
+                </div>
                 <div class="form-row" style="align-items: flex-start;">
                     <div class="form-group" style="flex: 0 0 auto;">
                         <label>Photo</label>
@@ -3283,6 +3293,16 @@ Inc in each st around (12)
                         </select>
                     </div>
                 </div>
+                <div class="form-group">
+                    <label for="hook-url">Product URL</label>
+                    <div class="url-input-row">
+                        <input type="url" id="hook-url" placeholder="e.g. https://www.amazon.com/...">
+                        <button type="button" class="btn btn-secondary url-import-btn" id="hook-import-img-btn" title="Import product data from URL">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Import via URL
+                        </button>
+                    </div>
+                </div>
                 <div class="form-row" style="align-items: flex-start;">
                     <div class="form-group" style="flex: 0 0 auto;">
                         <label>Photo</label>
@@ -3332,6 +3352,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=271"></script>
+    <script defer src="app.js?v=272"></script>
 </body>
 </html>

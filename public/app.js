@@ -8382,7 +8382,7 @@ function displayPatterns() {
         const cbTd = (p) => libraryEditMode ? `<td ${cbStyle}><div class="bulk-select-checkbox" onclick="event.stopPropagation(); togglePatternRowSelect(${p.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>` : '';
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="pattern">
-            <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="togglePatternListSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'pattern')">${PATTERN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="togglePatternListSort('${c}')" oncontextmenu="showColumnMenu(event,'pattern')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'pattern')">${PATTERN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
             <tbody>${filteredPatterns.map(p => `<tr onclick="handlePatternRowClick(event,${p.id})" class="${selectedPatternIds.has(p.id) ? 'bulk-selected' : ''}" data-pattern-id="${p.id}">${cbTd(p)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${PATTERN_COLUMNS[c].value(p)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
     } else {
@@ -15959,7 +15959,10 @@ const YARN_COLUMNS = {
     weight_category: { label: 'Weight', value: y => escapeHtml(y.weight_category || '—') },
     quantity: { label: 'Qty', value: y => parseFloat(y.quantity) || 0 },
     fiber_content: { label: 'Fiber', value: y => escapeHtml(y.fiber_content || '—') },
-    pattern_count: { label: 'Patterns', value: y => y.pattern_count || 0 }
+    pattern_count: { label: 'Patterns', value: y => y.pattern_count || 0 },
+    notes: { label: 'Notes', value: y => y.notes ? escapeHtml(y.notes.substring(0, 50)) + (y.notes.length > 50 ? '...' : '') : '—' },
+    url: { label: 'URL', value: y => y.url ? `<a href="${escapeHtml(y.url)}" target="_blank" onclick="event.stopPropagation()" class="list-url-link">Link</a>` : '—' },
+    created_at: { label: 'Added', value: y => y.created_at ? new Date(y.created_at).toLocaleDateString() : '—' },
 };
 const DEFAULT_YARN_COL_ORDER = ['thumbnail', 'brand', 'name', 'color', 'dye_lot', 'weight_category', 'quantity', 'fiber_content', 'pattern_count'];
 
@@ -15968,11 +15971,15 @@ const HOOK_COLUMNS = {
     brand: { label: 'Brand', value: h => escapeHtml(h.brand || '—') },
     name: { label: 'Name', value: h => escapeHtml(h.name || '—') },
     size_label: { label: 'Size', value: h => escapeHtml(h.size_label || '—') },
+    size_mm: { label: 'Size (mm)', value: h => h.size_mm ? h.size_mm + 'mm' : '—' },
     hook_type: { label: 'Type', value: h => escapeHtml(h.hook_type || '—') },
     craft_type: { label: 'Craft', value: h => escapeHtml(h.craft_type || '—') },
     length: { label: 'Length', value: h => escapeHtml(h.length || '—') },
     quantity: { label: 'Qty', value: h => h.quantity || 0 },
-    pattern_count: { label: 'Patterns', value: h => h.pattern_count || 0 }
+    pattern_count: { label: 'Patterns', value: h => h.pattern_count || 0 },
+    notes: { label: 'Notes', value: h => h.notes ? escapeHtml(h.notes.substring(0, 50)) + (h.notes.length > 50 ? '...' : '') : '—' },
+    url: { label: 'URL', value: h => h.url ? `<a href="${escapeHtml(h.url)}" target="_blank" onclick="event.stopPropagation()" class="list-url-link">Link</a>` : '—' },
+    created_at: { label: 'Added', value: h => h.created_at ? new Date(h.created_at).toLocaleDateString() : '—' },
 };
 const DEFAULT_HOOK_COL_ORDER = ['thumbnail', 'brand', 'name', 'size_label', 'hook_type', 'craft_type', 'length', 'quantity', 'pattern_count'];
 
@@ -15985,23 +15992,36 @@ const PATTERN_COLUMNS = {
     added:    { label: 'Added',    value: p => p.upload_date ? new Date(p.upload_date).toLocaleDateString() : '—' },
     opened:   { label: 'Opened',   value: p => p.last_opened_at ? new Date(p.last_opened_at).toLocaleDateString() : '—' },
     time:     { label: 'Time',     value: p => p.timer_seconds > 0 ? formatTime(p.timer_seconds) : '—' },
+    description: { label: 'Description', value: p => p.description ? escapeHtml(p.description.substring(0, 50)) + (p.description.length > 50 ? '...' : '') : '—' },
+    favorite: { label: 'Favorite', value: p => p.is_favorite ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color:var(--warning-color)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>' : '—' },
+    completed_date: { label: 'Completed', value: p => p.completed_date ? new Date(p.completed_date).toLocaleDateString() : '—' },
+    started_date: { label: 'Started', value: p => p.started_date ? new Date(p.started_date).toLocaleDateString() : '—' },
 };
 const DEFAULT_PATTERN_COL_ORDER = ['thumbnail', 'name', 'category', 'type', 'status', 'added', 'opened', 'time'];
+
+function getColumnsConfig(type) {
+    return type === 'pattern' ? PATTERN_COLUMNS : (type === 'yarn' ? YARN_COLUMNS : HOOK_COLUMNS);
+}
 
 function getColumnOrder(type) {
     const key = type === 'pattern' ? 'patternColumnOrder' : (type === 'yarn' ? 'yarnColumnOrder' : 'hookColumnOrder');
     const defaults = type === 'pattern' ? DEFAULT_PATTERN_COL_ORDER : (type === 'yarn' ? DEFAULT_YARN_COL_ORDER : DEFAULT_HOOK_COL_ORDER);
+    const allCols = getColumnsConfig(type);
     try {
         const saved = localStorage.getItem(key);
         if (saved) {
             const order = JSON.parse(saved);
-            // Validate: must contain same columns as defaults
-            if (Array.isArray(order) && order.length === defaults.length && defaults.every(c => order.includes(c))) {
+            if (Array.isArray(order) && order.length > 0 && order.every(c => c in allCols)) {
                 return order;
             }
         }
     } catch (e) {}
-    return defaults;
+    return [...defaults];
+}
+
+function saveColumnOrder(type, order) {
+    const key = type === 'pattern' ? 'patternColumnOrder' : (type === 'yarn' ? 'yarnColumnOrder' : 'hookColumnOrder');
+    localStorage.setItem(key, JSON.stringify(order));
 }
 
 let _dragCol = null;
@@ -16041,9 +16061,68 @@ function onColDrop(e, type) {
     if (fromIdx === -1 || toIdx === -1) return;
     order.splice(fromIdx, 1);
     order.splice(toIdx, 0, _dragCol);
-    const key = type === 'pattern' ? 'patternColumnOrder' : (type === 'yarn' ? 'yarnColumnOrder' : 'hookColumnOrder');
-    localStorage.setItem(key, JSON.stringify(order));
+    saveColumnOrder(type, order);
     if (type === 'pattern') displayPatterns(); else if (type === 'yarn') displayYarns(); else displayHooks();
+}
+
+function showColumnMenu(e, type) {
+    e.preventDefault();
+    // Remove existing menu
+    const existing = document.querySelector('.column-menu');
+    if (existing) existing.remove();
+
+    const allCols = getColumnsConfig(type);
+    const visibleCols = getColumnOrder(type);
+    const menu = document.createElement('div');
+    menu.className = 'column-menu';
+    menu.style.left = e.clientX + 'px';
+    menu.style.top = e.clientY + 'px';
+
+    // Build menu items for all columns except thumbnail
+    for (const [key, col] of Object.entries(allCols)) {
+        if (key === 'thumbnail') continue;
+        const item = document.createElement('label');
+        item.className = 'column-menu-item';
+        const checked = visibleCols.includes(key);
+        item.innerHTML = `<input type="checkbox" ${checked ? 'checked' : ''} data-col="${key}"><span class="col-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span><span>${col.label || key}</span>`;
+        item.querySelector('input').addEventListener('change', (ev) => {
+            const order = getColumnOrder(type);
+            if (ev.target.checked) {
+                // Add column — insert after last visible column in the default order
+                const allKeys = Object.keys(allCols);
+                let insertIdx = order.length;
+                for (let i = allKeys.indexOf(key) - 1; i >= 0; i--) {
+                    const prevIdx = order.indexOf(allKeys[i]);
+                    if (prevIdx !== -1) { insertIdx = prevIdx + 1; break; }
+                }
+                order.splice(insertIdx, 0, key);
+            } else {
+                // Don't allow hiding all columns
+                if (order.length <= 2) return;
+                const idx = order.indexOf(key);
+                if (idx !== -1) order.splice(idx, 1);
+            }
+            saveColumnOrder(type, order);
+            if (type === 'pattern') displayPatterns(); else if (type === 'yarn') displayYarns(); else displayHooks();
+        });
+        menu.appendChild(item);
+    }
+
+    document.body.appendChild(menu);
+
+    // Keep menu in viewport
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+    if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+
+    // Close on click outside or Escape
+    const close = (ev) => {
+        if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escClose); }
+    };
+    const escClose = (ev) => {
+        if (ev.key === 'Escape') { menu.remove(); document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escClose); }
+    };
+    setTimeout(() => { document.addEventListener('mousedown', close); document.addEventListener('keydown', escClose); }, 0);
 }
 
 // --- Library list view functions ---
@@ -16200,7 +16279,7 @@ function displayYarns() {
         const cbTd = (y) => inventoryEditMode ? `<td ${cbStyle}><div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('yarn',${y.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>` : '';
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="yarn">
-            <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="toggleYarnSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'yarn')">${YARN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="toggleYarnSort('${c}')" oncontextmenu="showColumnMenu(event,'yarn')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'yarn')">${YARN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
             <tbody>${filtered.map(y => `<tr onclick="handleInventoryRowClick(event,'yarn',${y.id})" class="${selectedYarnIds.has(y.id) ? 'bulk-selected' : ''}" data-item-id="${y.id}">${cbTd(y)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${YARN_COLUMNS[c].value(y)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
     } else {
@@ -16429,7 +16508,7 @@ function displayHooks() {
         const cbTd = (h) => inventoryEditMode ? `<td ${cbStyle}><div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('hook',${h.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>` : '';
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="hook">
-            <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="toggleHookSort('${c}')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'hook')">${HOOK_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="toggleHookSort('${c}')" oncontextmenu="showColumnMenu(event,'hook')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'hook')">${HOOK_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
             <tbody>${filtered.map(h => `<tr onclick="handleInventoryRowClick(event,'hook',${h.id})" class="${selectedHookIds.has(h.id) ? 'bulk-selected' : ''}" data-item-id="${h.id}">${cbTd(h)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${HOOK_COLUMNS[c].value(h)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
     } else {

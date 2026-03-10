@@ -10467,6 +10467,74 @@ textarea.image-drag-over {
     color: var(--text-muted);
 }
 
+/* Column visibility context menu */
+.column-menu {
+    position: fixed;
+    z-index: 10000;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 4px 0;
+    min-width: 180px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.column-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--text-color);
+    user-select: none;
+}
+
+.column-menu-item:hover {
+    background: var(--hover-bg);
+}
+
+.column-menu-item input[type="checkbox"] {
+    display: none;
+}
+
+.column-menu-item .col-check {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1.5px solid var(--border-color);
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.column-menu-item input:checked + .col-check {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.column-menu-item input:checked + .col-check svg {
+    display: block;
+}
+
+.column-menu-item .col-check svg {
+    display: none;
+    width: 10px;
+    height: 10px;
+}
+
+.list-url-link {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.list-url-link:hover {
+    text-decoration: underline;
+}
+
 /* Inventory edit mode toggle button (list view) */
 .inv-edit-btn {
     background: none;

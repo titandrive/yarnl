@@ -10489,18 +10489,150 @@ textarea.image-drag-over {
 }
 
 /* Yarn selector swatch in edit modal */
-.yarn-selector {
+/* Inventory selector (pattern edit modal) */
+.inv-selector {
     display: flex;
-    flex-wrap: wrap;
-    gap: 6px;
+    flex-direction: column;
+    gap: 8px;
 }
 
-.yarn-selector-swatch {
-    display: inline-block;
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.3);
-    vertical-align: middle;
-    margin-right: 2px;
+.inv-selected-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    min-height: 0;
+}
+
+.inv-selected-pills:empty {
+    display: none;
+}
+
+.inv-selected-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 8px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.inv-selected-pill:hover {
+    opacity: 0.8;
+}
+
+.inv-add-btn {
+    align-self: flex-start;
+    padding: 5px 12px;
+    border: 1px dashed var(--border-color);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.inv-add-btn-open {
+    border-style: solid;
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+}
+
+.inv-add-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    border-style: solid;
+}
+
+.inv-dropdown {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px;
+    background: var(--bg-color);
+}
+
+.inv-selector-search {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-size: 0.8rem;
+}
+
+.inv-selector-search:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+.inv-selector-list {
+    max-height: 240px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.inv-brand-group {
+    margin-bottom: 4px;
+}
+
+.inv-brand-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+    padding: 4px 0 2px;
+    position: sticky;
+    top: 0;
+    background: var(--bg-color);
+    z-index: 1;
+}
+
+.inv-brand-items {
+    display: flex;
+    flex-direction: column;
+}
+
+.inv-selector-item {
+    display: flex;
+    align-items: center;
+    padding: 5px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: background 0.1s;
+}
+
+.inv-selector-item input {
+    display: none;
+}
+
+.inv-selector-item:hover {
+    background: var(--hover-bg);
+}
+
+.inv-selector-item.selected {
+    background: color-mix(in srgb, var(--primary-color) 15%, transparent);
+}
+
+.inv-selector-item.selected .inv-item-name {
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.inv-selector-item.selected::before {
+    content: '✓';
+    margin-right: 6px;
+    font-size: 0.7rem;
+    color: var(--primary-color);
+    font-weight: 700;
 }

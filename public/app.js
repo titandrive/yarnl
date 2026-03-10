@@ -16327,16 +16327,31 @@ function createYarnSelector(selectedYarnIds = []) {
     if (yarns.length === 0) {
         return '<p class="text-muted" style="font-size: 0.85rem; margin: 0;">No yarn in inventory. Add yarn from the Inventory tab.</p>';
     }
-    return `<div class="yarn-selector">
-        ${yarns.map(y => {
+    const brands = {};
+    yarns.forEach(y => { const b = y.brand || 'Other'; if (!brands[b]) brands[b] = []; brands[b].push(y); });
+    const selectedPills = yarns.filter(y => selectedYarnIds.includes(y.id)).map(y => {
+        const label = [y.name, y.colorway].filter(Boolean).join(' - ') || y.brand || 'Unnamed';
+        return `<span class="inv-selected-pill" data-id="${y.id}" onclick="toggleInvCheckbox(this, 'yarn-select-cb')">${escapeHtml(label)} ×</span>`;
+    }).join('');
+    const brandGroups = Object.keys(brands).sort().map(brand => {
+        const items = brands[brand].map(y => {
             const checked = selectedYarnIds.includes(y.id);
-            const label = [y.brand, y.name, y.colorway].filter(Boolean).join(' — ') || 'Unnamed Yarn';
-            return `<label class="hashtag-tag${checked ? ' selected' : ''}">
+            const sub = [y.name, y.colorway].filter(Boolean).join(' - ') || 'Unnamed';
+            return `<label class="inv-selector-item${checked ? ' selected' : ''}">
                 <input type="checkbox" class="yarn-select-cb" value="${y.id}" ${checked ? 'checked' : ''}
-                    onchange="this.parentElement.classList.toggle('selected', this.checked); updateInventoryBadgeFromCheckbox(this)">
-                ${escapeHtml(label)}
+                    onchange="this.parentElement.classList.toggle('selected', this.checked); updateInvSelectorPills(this, 'yarn'); updateInventoryBadgeFromCheckbox(this); autoSaveInventoryLinks(this)">
+                <span class="inv-item-name">${escapeHtml(sub)}</span>
             </label>`;
-        }).join('')}
+        }).join('');
+        return `<div class="inv-brand-group"><div class="inv-brand-label">${escapeHtml(brand)}</div><div class="inv-brand-items">${items}</div></div>`;
+    }).join('');
+    return `<div class="inv-selector">
+        <div class="inv-selected-pills">${selectedPills}</div>
+        <button type="button" class="inv-add-btn" data-label="+ Add Yarn" onclick="toggleInvDropdown(this)">+ Add Yarn</button>
+        <div class="inv-dropdown" style="display:none;">
+            <input type="text" class="inv-selector-search" placeholder="Search yarn..." oninput="filterInvSelector(this)">
+            <div class="inv-selector-list">${brandGroups}</div>
+        </div>
     </div>`;
 }
 
@@ -16351,22 +16366,118 @@ function createHookSelector(selectedHookIds = []) {
     if (hooks.length === 0) {
         return '<p class="text-muted" style="font-size: 0.85rem; margin: 0;">No hooks/needles in inventory. Add from the Inventory tab.</p>';
     }
-    return `<div class="yarn-selector">
-        ${hooks.map(h => {
+    const brands = {};
+    hooks.forEach(h => { const b = h.brand || 'Other'; if (!brands[b]) brands[b] = []; brands[b].push(h); });
+    const selectedPills = hooks.filter(h => selectedHookIds.includes(h.id)).map(h => {
+        const label = [h.name, h.size_label].filter(Boolean).join(' - ') || h.brand || 'Unnamed';
+        return `<span class="inv-selected-pill" data-id="${h.id}" onclick="toggleInvCheckbox(this, 'hook-select-cb')">${escapeHtml(label)} ×</span>`;
+    }).join('');
+    const brandGroups = Object.keys(brands).sort().map(brand => {
+        const items = brands[brand].map(h => {
             const checked = selectedHookIds.includes(h.id);
-            const label = [h.brand, h.name, h.size_label].filter(Boolean).join(' — ') || 'Unnamed Hook';
-            return `<label class="hashtag-tag${checked ? ' selected' : ''}">
+            const sub = [h.name, h.size_label].filter(Boolean).join(' - ') || 'Unnamed';
+            return `<label class="inv-selector-item${checked ? ' selected' : ''}">
                 <input type="checkbox" class="hook-select-cb" value="${h.id}" ${checked ? 'checked' : ''}
-                    onchange="this.parentElement.classList.toggle('selected', this.checked); updateInventoryBadgeFromCheckbox(this)">
-                ${escapeHtml(label)}
+                    onchange="this.parentElement.classList.toggle('selected', this.checked); updateInvSelectorPills(this, 'hook'); updateInventoryBadgeFromCheckbox(this); autoSaveInventoryLinks(this)">
+                <span class="inv-item-name">${escapeHtml(sub)}</span>
             </label>`;
-        }).join('')}
+        }).join('');
+        return `<div class="inv-brand-group"><div class="inv-brand-label">${escapeHtml(brand)}</div><div class="inv-brand-items">${items}</div></div>`;
+    }).join('');
+    return `<div class="inv-selector">
+        <div class="inv-selected-pills">${selectedPills}</div>
+        <button type="button" class="inv-add-btn" data-label="+ Add Hook" onclick="toggleInvDropdown(this)">+ Add Hook</button>
+        <div class="inv-dropdown" style="display:none;">
+            <input type="text" class="inv-selector-search" placeholder="Search hooks..." oninput="filterInvSelector(this)">
+            <div class="inv-selector-list">${brandGroups}</div>
+        </div>
     </div>`;
 }
 
 function getSelectedHookIds(containerId = 'edit-pattern-hooks-container') {
     return Array.from(document.querySelectorAll(`#${containerId} .hook-select-cb:checked`))
         .map(cb => parseInt(cb.value));
+}
+
+// --- Inventory selector helpers ---
+
+function toggleInvDropdown(btn) {
+    const dropdown = btn.nextElementSibling;
+    const isOpen = dropdown.style.display !== 'none';
+    dropdown.style.display = isOpen ? 'none' : '';
+    if (!isOpen) {
+        btn.textContent = 'Done';
+        btn.classList.add('inv-add-btn-open');
+        const search = dropdown.querySelector('.inv-selector-search');
+        search.value = '';
+        filterInvSelector(search);
+        search.focus();
+    } else {
+        btn.textContent = btn.dataset.label;
+        btn.classList.remove('inv-add-btn-open');
+    }
+}
+
+function filterInvSelector(input) {
+    const query = input.value.toLowerCase();
+    const list = input.nextElementSibling;
+    list.querySelectorAll('.inv-brand-group').forEach(group => {
+        let anyVisible = false;
+        group.querySelectorAll('.inv-selector-item').forEach(item => {
+            const text = item.textContent.toLowerCase();
+            const brandText = group.querySelector('.inv-brand-label').textContent.toLowerCase();
+            const match = !query || text.includes(query) || brandText.includes(query);
+            item.style.display = match ? '' : 'none';
+            if (match) anyVisible = true;
+        });
+        group.style.display = anyVisible ? '' : 'none';
+    });
+}
+
+function toggleInvCheckbox(pill, cbClass) {
+    const id = pill.dataset.id;
+    const container = pill.closest('.inv-selector');
+    const cb = container.querySelector(`.${cbClass}[value="${id}"]`);
+    if (cb) {
+        cb.checked = false;
+        cb.parentElement.classList.remove('selected');
+        cb.dispatchEvent(new Event('change'));
+    }
+}
+
+function updateInvSelectorPills(cb, type) {
+    const container = cb.closest('.inv-selector');
+    const pillsWrap = container.querySelector('.inv-selected-pills');
+    const cbClass = type === 'yarn' ? 'yarn-select-cb' : 'hook-select-cb';
+    const items = type === 'yarn' ? yarns : hooks;
+    const checked = Array.from(container.querySelectorAll(`.${cbClass}:checked`)).map(c => parseInt(c.value));
+    pillsWrap.innerHTML = checked.map(id => {
+        const item = items.find(i => i.id === id);
+        if (!item) return '';
+        const label = type === 'yarn'
+            ? ([item.name, item.colorway].filter(Boolean).join(' - ') || item.brand || 'Unnamed')
+            : ([item.name, item.size_label].filter(Boolean).join(' - ') || item.brand || 'Unnamed');
+        return `<span class="inv-selected-pill" data-id="${id}" onclick="toggleInvCheckbox(this, '${cbClass}')">${escapeHtml(label)} ×</span>`;
+    }).join('');
+}
+
+function autoSaveInventoryLinks(cb) {
+    const tabContent = cb.closest('.edit-modal-tab-content');
+    if (!tabContent) return;
+    const modal = tabContent.id.replace('-tab-inventory', '');
+    const prefix = modal === 'edit' ? 'edit-pattern' : modal;
+    const patternId = modal === 'edit' ? editingPatternId : currentPattern?.id;
+    if (!patternId) return;
+    const yarnIds = Array.from(document.querySelectorAll(`#${prefix}-yarns-container .yarn-select-cb:checked`)).map(c => parseInt(c.value));
+    const hookIds = Array.from(document.querySelectorAll(`#${prefix}-hooks-container .hook-select-cb:checked`)).map(c => parseInt(c.value));
+    fetch(`${API_URL}/api/patterns/${patternId}/yarns`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ yarnIds })
+    });
+    fetch(`${API_URL}/api/patterns/${patternId}/hooks`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hookIds })
+    });
 }
 
 // --- Inventory sorting ---

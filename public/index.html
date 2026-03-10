@@ -56,7 +56,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=252">
+    <link rel="stylesheet" href="styles.css?v=253">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -3037,22 +3037,24 @@ Inc in each st around (12)
             </div>
             <form id="yarn-form">
               <div id="yarn-tab-details" class="edit-modal-tab-content active">
-                <div class="form-group">
-                    <label for="yarn-brand">Brand</label>
-                    <div class="brand-autocomplete-wrap">
-                        <input type="text" id="yarn-brand" placeholder="e.g. Red Heart, Bernat" autocomplete="off">
-                        <div class="brand-autocomplete-list" id="yarn-brand-list"></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="yarn-brand">Brand</label>
+                        <div class="brand-autocomplete-wrap">
+                            <input type="text" id="yarn-brand" placeholder="e.g. Red Heart" autocomplete="off">
+                            <div class="brand-autocomplete-list" id="yarn-brand-list"></div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="yarn-name">Name / Line</label>
+                        <input type="text" id="yarn-name" placeholder="e.g. Super Saver">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="yarn-name">Name / Product Line</label>
-                    <input type="text" id="yarn-name" placeholder="e.g. Super Saver, Simply Soft">
-                </div>
-                <div class="form-group">
-                    <label for="yarn-colorway">Colorway</label>
-                    <input type="text" id="yarn-colorway" placeholder="e.g. Soft Navy, Sunrise">
-                </div>
-                <div class="form-row">
+                <div class="form-row form-row-3">
+                    <div class="form-group">
+                        <label for="yarn-colorway">Colorway</label>
+                        <input type="text" id="yarn-colorway" placeholder="e.g. Soft Navy">
+                    </div>
                     <div class="form-group">
                         <label for="yarn-weight">Weight</label>
                         <select id="yarn-weight">
@@ -3080,17 +3082,19 @@ Inc in each st around (12)
                     <label for="yarn-fiber">Fiber Content</label>
                     <input type="text" id="yarn-fiber" placeholder="e.g. 100% Acrylic, 80/20 Cotton/Poly">
                 </div>
-                <div class="form-group" style="flex: 0 0 auto;">
-                    <label>Photo</label>
-                    <div class="thumbnail-selector" id="yarn-thumbnail-selector" data-target="yarn">
-                        <div class="thumbnail-selector-preview" id="yarn-thumbnail-preview">
-                            <span class="thumbnail-selector-placeholder">+</span>
+                <div class="form-row" style="align-items: flex-start;">
+                    <div class="form-group" style="flex: 0 0 auto;">
+                        <label>Photo</label>
+                        <div class="thumbnail-selector" id="yarn-thumbnail-selector" data-target="yarn">
+                            <div class="thumbnail-selector-preview" id="yarn-thumbnail-preview">
+                                <span class="thumbnail-selector-placeholder">+</span>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label for="yarn-notes">Notes</label>
-                    <textarea id="yarn-notes" rows="2" placeholder="Any notes about this yarn"></textarea>
+                    <div class="form-group" style="flex: 1;">
+                        <label for="yarn-notes">Notes</label>
+                        <textarea id="yarn-notes" rows="2" placeholder="Any notes about this yarn"></textarea>
+                    </div>
                 </div>
               </div>
               <div id="yarn-tab-patterns" class="edit-modal-tab-content">
@@ -3124,18 +3128,20 @@ Inc in each st around (12)
                     <button type="button" class="craft-type-btn active" data-craft="crochet">Crochet</button>
                     <button type="button" class="craft-type-btn" data-craft="knitting">Knitting</button>
                 </div>
-                <div class="form-group">
-                    <label for="hook-brand">Brand</label>
-                    <div class="brand-autocomplete-wrap">
-                        <input type="text" id="hook-brand" placeholder="e.g. Clover, Susan Bates" autocomplete="off">
-                        <div class="brand-autocomplete-list" id="hook-brand-list"></div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="hook-brand">Brand</label>
+                        <div class="brand-autocomplete-wrap">
+                            <input type="text" id="hook-brand" placeholder="e.g. Clover" autocomplete="off">
+                            <div class="brand-autocomplete-list" id="hook-brand-list"></div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="hook-name">Name / Model</label>
+                        <input type="text" id="hook-name" placeholder="e.g. Amour">
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="hook-name">Name / Model</label>
-                    <input type="text" id="hook-name" placeholder="e.g. Amour, Red Lace">
-                </div>
-                <div class="form-row">
+                <div class="form-row form-row-3">
                     <div class="form-group">
                         <label for="hook-size">Size</label>
                         <select id="hook-size">
@@ -3143,7 +3149,13 @@ Inc in each st around (12)
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="hook-quantity">Quantity</label>
+                        <label for="hook-type" id="hook-type-label">Type</label>
+                        <select id="hook-type">
+                            <!-- Populated by JS based on craft type -->
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="hook-quantity">Qty</label>
                         <div class="qty-stepper">
                             <button type="button" class="qty-btn" data-target="hook-quantity" data-dir="-1" data-step="1">&minus;</button>
                             <input type="number" id="hook-quantity" min="0" value="1">
@@ -3151,14 +3163,8 @@ Inc in each st around (12)
                         </div>
                     </div>
                 </div>
-                <div class="form-row">
-                    <div class="form-group">
-                        <label for="hook-type" id="hook-type-label">Type</label>
-                        <select id="hook-type">
-                            <!-- Populated by JS based on craft type -->
-                        </select>
-                    </div>
-                    <div class="form-group" id="hook-length-group" style="display: none;">
+                <div class="form-row" id="hook-length-row" style="display: none;">
+                    <div class="form-group" id="hook-length-group">
                         <label for="hook-length">Length</label>
                         <select id="hook-length">
                             <!-- Populated by JS based on needle type -->
@@ -3204,6 +3210,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=237"></script>
+    <script defer src="app.js?v=243"></script>
 </body>
 </html>

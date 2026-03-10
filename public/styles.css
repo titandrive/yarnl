@@ -9897,36 +9897,89 @@ textarea.image-drag-over {
     }
 }
 
+/* ── Compact inventory modals ── */
+
+#yarn-form, #hook-form {
+    font-size: 0.9rem;
+}
+
+#yarn-form .form-group,
+#hook-form .form-group {
+    margin-bottom: 12px;
+}
+
+#yarn-form .form-group label,
+#hook-form .form-group label {
+    margin-bottom: 4px;
+    font-size: 0.8rem;
+}
+
+#yarn-form .form-group input,
+#yarn-form .form-group select,
+#yarn-form .form-group textarea,
+#hook-form .form-group input,
+#hook-form .form-group select,
+#hook-form .form-group textarea {
+    padding: 8px 10px;
+    font-size: 0.9rem;
+}
+
+#yarn-form .form-row,
+#hook-form .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+#yarn-form .form-row-3,
+#hook-form .form-row-3 {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+#yarn-form .qty-stepper input,
+#hook-form .qty-stepper input {
+    padding: 8px 4px;
+    font-size: 0.9rem;
+}
+
+#yarn-form .qty-btn,
+#hook-form .qty-btn {
+    width: 34px;
+    font-size: 1rem;
+}
+
 /* ── Craft type toggle ── */
 
 .craft-type-toggle {
     display: flex;
     gap: 0;
-    margin-bottom: 14px;
-    border: 1.5px solid var(--border-color);
+    margin-bottom: 12px;
+    background: var(--input-bg);
     border-radius: 8px;
-    overflow: hidden;
+    padding: 3px;
 }
 
 .craft-type-btn {
     flex: 1;
-    padding: 8px 0;
+    padding: 6px 0;
     border: none;
-    background: var(--input-bg);
+    border-radius: 6px;
+    background: transparent;
     color: var(--text-muted);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
 }
 
 .craft-type-btn:first-child {
-    border-right: 1px solid var(--border-color);
+    border-right: none;
 }
 
 .craft-type-btn.active {
     background: var(--primary-color);
     color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 /* ── Brand autocomplete ── */

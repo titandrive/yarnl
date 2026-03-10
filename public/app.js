@@ -15610,47 +15610,48 @@ function userColor(name) {
 // --- Hook/Needle craft type data ---
 
 const CROCHET_SIZES = [
-    { value: '2.0|B/1', label: 'B/1 (2.0mm)' },
-    { value: '2.25|B/1', label: 'B/1 (2.25mm)' },
-    { value: '2.75|C/2', label: 'C/2 (2.75mm)' },
-    { value: '3.25|D/3', label: 'D/3 (3.25mm)' },
-    { value: '3.5|E/4', label: 'E/4 (3.5mm)' },
-    { value: '3.75|F/5', label: 'F/5 (3.75mm)' },
-    { value: '4.0|G/6', label: 'G/6 (4.0mm)' },
-    { value: '4.5|7', label: '7 (4.5mm)' },
-    { value: '5.0|H/8', label: 'H/8 (5.0mm)' },
-    { value: '5.5|I/9', label: 'I/9 (5.5mm)' },
-    { value: '6.0|J/10', label: 'J/10 (6.0mm)' },
-    { value: '6.5|K/10.5', label: 'K/10.5 (6.5mm)' },
-    { value: '8.0|L/11', label: 'L/11 (8.0mm)' },
-    { value: '9.0|M/13', label: 'M/13 (9.0mm)' },
-    { value: '10.0|N/15', label: 'N/15 (10.0mm)' },
-    { value: '11.5|P/16', label: 'P/16 (11.5mm)' },
-    { value: '15.0|P/Q', label: 'P/Q (15.0mm)' },
-    { value: '19.0|S', label: 'S (19.0mm)' },
+    { value: '2.0|B/1', label: '2.0mm - B/1' },
+    { value: '2.25|B/1', label: '2.25mm - B/1' },
+    { value: '2.75|C/2', label: '2.75mm - C/2' },
+    { value: '3.25|D/3', label: '3.25mm - D/3' },
+    { value: '3.5|E/4', label: '3.5mm - E/4' },
+    { value: '3.75|F/5', label: '3.75mm - F/5' },
+    { value: '4.0|G/6', label: '4.0mm - G/6' },
+    { value: '4.5|7', label: '4.5mm - 7' },
+    { value: '5.0|H/8', label: '5.0mm - H/8' },
+    { value: '5.5|I/9', label: '5.5mm - I/9' },
+    { value: '6.0|J/10', label: '6.0mm - J/10' },
+    { value: '6.5|K/10.5', label: '6.5mm - K/10.5' },
+    { value: '8.0|L/11', label: '8.0mm - L/11' },
+    { value: '9.0|M/13', label: '9.0mm - M/13' },
+    { value: '10.0|N/15', label: '10.0mm - N/15' },
+    { value: '11.5|P/16', label: '11.5mm - P/16' },
+    { value: '15.0|P/Q', label: '15.0mm - P/Q' },
+    { value: '19.0|S', label: '19.0mm - S' },
 ];
 
 const KNITTING_SIZES = [
-    { value: '2.0|US 0', label: 'US 0 (2.0mm)' },
-    { value: '2.25|US 1', label: 'US 1 (2.25mm)' },
-    { value: '2.5|US 1.5', label: 'US 1.5 (2.5mm)' },
-    { value: '2.75|US 2', label: 'US 2 (2.75mm)' },
-    { value: '3.25|US 3', label: 'US 3 (3.25mm)' },
-    { value: '3.5|US 4', label: 'US 4 (3.5mm)' },
-    { value: '3.75|US 5', label: 'US 5 (3.75mm)' },
-    { value: '4.0|US 6', label: 'US 6 (4.0mm)' },
-    { value: '4.5|US 7', label: 'US 7 (4.5mm)' },
-    { value: '5.0|US 8', label: 'US 8 (5.0mm)' },
-    { value: '5.5|US 9', label: 'US 9 (5.5mm)' },
-    { value: '6.0|US 10', label: 'US 10 (6.0mm)' },
-    { value: '6.5|US 10.5', label: 'US 10.5 (6.5mm)' },
-    { value: '8.0|US 11', label: 'US 11 (8.0mm)' },
-    { value: '9.0|US 13', label: 'US 13 (9.0mm)' },
-    { value: '10.0|US 15', label: 'US 15 (10.0mm)' },
-    { value: '12.75|US 17', label: 'US 17 (12.75mm)' },
-    { value: '15.0|US 19', label: 'US 19 (15.0mm)' },
-    { value: '19.0|US 35', label: 'US 35 (19.0mm)' },
-    { value: '25.0|US 50', label: 'US 50 (25.0mm)' },
+    { value: '2.0|US 0', label: '2.0mm - US 0 / UK 14' },
+    { value: '2.25|US 1', label: '2.25mm - US 1 / UK 13' },
+    { value: '2.5|US 1.5', label: '2.5mm - US 1.5' },
+    { value: '2.75|US 2', label: '2.75mm - US 2 / UK 12' },
+    { value: '3.0|US 2.5', label: '3.0mm - US 2.5 / UK 11' },
+    { value: '3.25|US 3', label: '3.25mm - US 3 / UK 10' },
+    { value: '3.5|US 4', label: '3.5mm - US 4' },
+    { value: '3.75|US 5', label: '3.75mm - US 5 / UK 9' },
+    { value: '4.0|US 6', label: '4.0mm - US 6 / UK 8' },
+    { value: '4.5|US 7', label: '4.5mm - US 7 / UK 7' },
+    { value: '5.0|US 8', label: '5.0mm - US 8 / UK 6' },
+    { value: '5.5|US 9', label: '5.5mm - US 9 / UK 5' },
+    { value: '6.0|US 10', label: '6.0mm - US 10 / UK 4' },
+    { value: '6.5|US 10.5', label: '6.5mm - US 10.5 / UK 3' },
+    { value: '8.0|US 11', label: '8.0mm - US 11 / UK 0' },
+    { value: '9.0|US 13', label: '9.0mm - US 13 / UK 00' },
+    { value: '10.0|US 15', label: '10.0mm - US 15' },
+    { value: '12.75|US 17', label: '12.75mm - US 17' },
+    { value: '15.0|US 19', label: '15.0mm - US 19' },
+    { value: '19.0|US 35', label: '19.0mm - US 35' },
+    { value: '25.0|US 50', label: '25.0mm - US 50' },
 ];
 
 const CROCHET_TYPES = [
@@ -15694,12 +15695,12 @@ function setCraftType(type) {
         types.map(t => `<option value="${t.value}">${t.label}</option>`).join('');
 
     // Show/hide length field
-    const lengthGroup = document.getElementById('hook-length-group');
+    const lengthRow = document.getElementById('hook-length-row');
     if (type === 'knitting') {
-        lengthGroup.style.display = '';
+        lengthRow.style.display = '';
         updateLengthOptions();
     } else {
-        lengthGroup.style.display = 'none';
+        lengthRow.style.display = 'none';
     }
 }
 
@@ -15708,8 +15709,10 @@ function updateLengthOptions() {
     const lengthSelect = document.getElementById('hook-length');
     const lengths = NEEDLE_LENGTHS[needleType] || [];
     if (lengths.length === 0) {
-        lengthSelect.innerHTML = '<option value="">N/A</option>';
+        lengthSelect.innerHTML = '<option value="">Select type first</option>';
+        lengthSelect.disabled = true;
     } else {
+        lengthSelect.disabled = false;
         lengthSelect.innerHTML = '<option value="">Select...</option>' +
             lengths.map(l => `<option value="${l}">${l}</option>`).join('');
     }

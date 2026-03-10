@@ -10104,6 +10104,48 @@ textarea.image-drag-over {
     color: white;
 }
 
+/* Edit modal tabs (Details / Inventory) */
+.edit-modal-tabs {
+    display: flex;
+    background: var(--input-bg);
+    border-radius: 8px;
+    padding: 3px;
+    margin-bottom: 16px;
+}
+
+.edit-modal-tab {
+    flex: 1;
+    padding: 7px 0;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-family: inherit;
+    text-align: center;
+}
+
+.edit-modal-tab:hover {
+    color: var(--text-color);
+}
+
+.edit-modal-tab.active {
+    background: var(--primary-color);
+    color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.edit-modal-tab-content {
+    display: none;
+}
+
+.edit-modal-tab-content.active {
+    display: block;
+}
+
 .inventory-toolbar {
     display: flex;
     gap: 8px;

@@ -4628,9 +4628,20 @@ app.get('/api/hooks', async (req, res) => {
   try {
     let result;
     if (req.user?.role === 'admin') {
-      result = await pool.query('SELECT * FROM hooks ORDER BY size_mm ASC NULLS LAST, created_at DESC');
+      result = await pool.query(`
+        SELECT h.*, COALESCE(pc.cnt, 0)::int AS pattern_count
+        FROM hooks h
+        LEFT JOIN (SELECT hook_id, COUNT(*) AS cnt FROM pattern_hooks GROUP BY hook_id) pc ON pc.hook_id = h.id
+        ORDER BY h.size_mm ASC NULLS LAST, h.created_at DESC
+      `);
     } else if (req.user?.id) {
-      result = await pool.query('SELECT * FROM hooks WHERE user_id = $1 ORDER BY size_mm ASC NULLS LAST, created_at DESC', [req.user.id]);
+      result = await pool.query(`
+        SELECT h.*, COALESCE(pc.cnt, 0)::int AS pattern_count
+        FROM hooks h
+        LEFT JOIN (SELECT hook_id, COUNT(*) AS cnt FROM pattern_hooks GROUP BY hook_id) pc ON pc.hook_id = h.id
+        WHERE h.user_id = $1
+        ORDER BY h.size_mm ASC NULLS LAST, h.created_at DESC
+      `, [req.user.id]);
     } else {
       return res.json([]);
     }
@@ -4716,18 +4727,56 @@ app.get('/api/patterns/:id/yarns', async (req, res) => {
 
 app.put('/api/patterns/:id/yarns', async (req, res) => {
   try {
-    const { yarnLinks } = req.body; // [{ yarnId, notes }]
+    const { yarnIds } = req.body;
     await pool.query('DELETE FROM pattern_yarns WHERE pattern_id = $1', [req.params.id]);
-    for (const link of (yarnLinks || [])) {
+    for (const yarnId of (yarnIds || [])) {
       await pool.query(
-        'INSERT INTO pattern_yarns (pattern_id, yarn_id, notes) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
-        [req.params.id, link.yarnId, link.notes || null]
+        'INSERT INTO pattern_yarns (pattern_id, yarn_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [req.params.id, yarnId]
       );
     }
     const result = await pool.query(
-      `SELECT y.*, py.notes AS link_notes FROM yarns y
+      `SELECT y.* FROM yarns y
        JOIN pattern_yarns py ON y.id = py.yarn_id
        WHERE py.pattern_id = $1 ORDER BY y.brand, y.colorway`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Get hooks linked to a pattern
+app.get('/api/patterns/:id/hooks', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT h.* FROM hooks h
+       JOIN pattern_hooks ph ON h.id = ph.hook_id
+       WHERE ph.pattern_id = $1 ORDER BY h.brand, h.size_label`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Update hooks linked to a pattern
+app.put('/api/patterns/:id/hooks', async (req, res) => {
+  try {
+    const { hookIds } = req.body;
+    await pool.query('DELETE FROM pattern_hooks WHERE pattern_id = $1', [req.params.id]);
+    for (const hookId of (hookIds || [])) {
+      await pool.query(
+        'INSERT INTO pattern_hooks (pattern_id, hook_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+        [req.params.id, hookId]
+      );
+    }
+    const result = await pool.query(
+      `SELECT h.* FROM hooks h
+       JOIN pattern_hooks ph ON h.id = ph.hook_id
+       WHERE ph.pattern_id = $1 ORDER BY h.brand, h.size_label`,
       [req.params.id]
     );
     res.json(result.rows);

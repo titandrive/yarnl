@@ -10081,27 +10081,36 @@ textarea.image-drag-over {
 
 .inventory-sub-tabs {
     display: flex;
-    gap: 4px;
+    background: var(--input-bg);
+    border-radius: 8px;
+    padding: 3px;
     margin-bottom: 12px;
-    padding: 0 4px;
+    max-width: 320px;
 }
 
 .inventory-sub-tab {
-    padding: 6px 18px;
-    border-radius: 20px;
-    border: 1.5px solid var(--border-color);
-    background: var(--card-bg);
+    flex: 1;
+    padding: 7px 0;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
     color: var(--text-muted);
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
+    font-family: inherit;
+    text-align: center;
+}
+
+.inventory-sub-tab:hover {
+    color: var(--text-color);
 }
 
 .inventory-sub-tab.active {
     background: var(--primary-color);
-    border-color: var(--primary-color);
     color: white;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 /* Edit modal tabs (Details / Inventory) */

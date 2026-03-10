@@ -173,6 +173,7 @@
             <button class="tab-btn" data-tab="projects" id="projects-tab-btn">Projects<span class="tab-count" id="projects-tab-count"></span></button>
             <button class="tab-btn" data-tab="inventory" id="inventory-tab-btn">Inventory<span class="tab-count" id="inventory-tab-count"></span></button>
         </nav>
+        <script>if(localStorage.getItem('hasProjects')==='false')document.getElementById('projects-tab-btn').style.display='none';if(localStorage.getItem('showInventoryTab')==='false')document.getElementById('inventory-tab-btn').style.display='none';</script>
 
         <!-- Current Patterns Tab -->
         <div id="current" class="tab-content active">

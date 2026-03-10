@@ -3933,7 +3933,7 @@ function initTabs() {
 function initSwipeNavigation() {
     if (!window.matchMedia('(max-width: 768px)').matches) return;
 
-    const tabOrder = ['current', 'library', 'projects'];
+    const tabOrder = ['current', 'library', 'inventory', 'projects'];
     let startX = 0;
     let startY = 0;
     let tracking = false;
@@ -3946,8 +3946,8 @@ function initSwipeNavigation() {
     }
 
     document.addEventListener('touchstart', (e) => {
-        // Don't swipe inside PDF viewer or modals
-        if (e.target.closest('#pdf-viewer-container, .modal, .settings-content')) return;
+        // Don't swipe inside PDF viewer, modals, or horizontally scrollable tables
+        if (e.target.closest('#pdf-viewer-container, .modal, .settings-content, .inventory-table')) return;
         startX = e.touches[0].clientX;
         startY = e.touches[0].clientY;
         tracking = true;

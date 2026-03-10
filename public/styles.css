@@ -7783,6 +7783,29 @@ textarea.image-drag-over {
     border-left-color: var(--danger-color);
 }
 
+.toast.toast-undo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border-left-color: var(--warning-color, #f39c12);
+}
+
+.undo-btn {
+    background: none;
+    border: none;
+    color: var(--primary-color);
+    font-weight: 600;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    white-space: nowrap;
+}
+
+.undo-btn:hover {
+    background: rgba(255,255,255,0.1);
+}
+
 /* Archived patterns list */
 .archived-patterns-list {
     display: flex;

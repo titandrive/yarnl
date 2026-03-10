@@ -1719,6 +1719,45 @@ function showToast(message, type = 'success', duration = 2000) {
     }, duration);
 }
 
+let _undoTimer = null;
+function undoableDelete(label, removeFn, apiDeleteFn, restoreFn) {
+    // Cancel any pending undo delete
+    if (_undoTimer) { clearTimeout(_undoTimer); _undoTimer = null; }
+
+    // Immediately remove from UI
+    removeFn();
+
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-undo';
+    toast.innerHTML = `<span>${label}</span><button class="undo-btn">Undo</button>`;
+    container.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+
+    let undone = false;
+    toast.querySelector('.undo-btn').addEventListener('click', () => {
+        undone = true;
+        clearTimeout(_undoTimer);
+        _undoTimer = null;
+        restoreFn();
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    });
+
+    _undoTimer = setTimeout(() => {
+        _undoTimer = null;
+        if (!undone) apiDeleteFn();
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+    }, 5000);
+}
+
 // Parse pattern name from image filename (e.g., "hello-world-123456.jpg" -> "Hello World")
 function parsePatternFromFilename(filename) {
     const match = filename.match(/^(.+)-\d+\.jpg$/);
@@ -8788,46 +8827,50 @@ document.addEventListener('click', (e) => {
     }
 });
 
-async function deletePattern(id) {
-    try {
-        const response = await fetch(`${API_URL}/api/patterns/${id}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            await loadPatterns();
-            await loadCurrentPatterns();
-            await loadCategories();
-        } else {
-            const error = await response.json();
-            console.error('Error deleting pattern:', error.error);
+function deletePattern(id) {
+    const item = patterns.find(p => p.id == id);
+    if (!item) return;
+    const wasCurrent = currentPatterns.find(p => p.id == id);
+    undoableDelete(
+        'Pattern deleted',
+        () => {
+            patterns = patterns.filter(p => p.id != id);
+            currentPatterns = currentPatterns.filter(p => p.id != id);
+            displayPatterns(); displayCurrentPatterns(); loadCategories();
+        },
+        async () => { try { await fetch(`${API_URL}/api/patterns/${id}`, { method: 'DELETE' }); } catch(e) { console.error('Error deleting pattern:', e); } },
+        () => {
+            patterns.push(item);
+            if (wasCurrent) currentPatterns.push(item);
+            displayPatterns(); displayCurrentPatterns(); loadCategories();
         }
-    } catch (error) {
-        console.error('Error deleting pattern:', error);
-    }
+    );
 }
 
-async function archivePattern(id) {
-    try {
-        const response = await fetch(`${API_URL}/api/patterns/${id}/archive`, {
-            method: 'POST'
-        });
-
-        if (response.ok) {
-            showToast('Pattern archived');
-            await loadPatterns();
-            await loadCurrentPatterns();
-            await loadCategories();
-            await loadArchivedPatternsUI();
-        } else {
-            const error = await response.json();
-            console.error('Error archiving pattern:', error.error);
-            showToast('Error archiving pattern', 'error');
+function archivePattern(id) {
+    const item = patterns.find(p => p.id == id);
+    if (!item) return;
+    const wasCurrent = currentPatterns.find(p => p.id == id);
+    undoableDelete(
+        'Pattern archived',
+        () => {
+            patterns = patterns.filter(p => p.id != id);
+            currentPatterns = currentPatterns.filter(p => p.id != id);
+            displayPatterns(); displayCurrentPatterns(); loadCategories();
+        },
+        async () => {
+            try {
+                const response = await fetch(`${API_URL}/api/patterns/${id}/archive`, { method: 'POST' });
+                if (response.ok) loadArchivedPatternsUI();
+                else showToast('Error archiving pattern', 'error');
+            } catch(e) { console.error('Error archiving pattern:', e); showToast('Error archiving pattern', 'error'); }
+        },
+        () => {
+            patterns.push(item);
+            if (wasCurrent) currentPatterns.push(item);
+            displayPatterns(); displayCurrentPatterns(); loadCategories();
         }
-    } catch (error) {
-        console.error('Error archiving pattern:', error);
-        showToast('Error archiving pattern', 'error');
-    }
+    );
 }
 
 async function restorePattern(id) {
@@ -12622,30 +12665,10 @@ function initEditModal() {
     }
 }
 
-async function deleteEditPattern() {
+function deleteEditPattern() {
     if (!editingPatternId) return;
-
-    if (!confirm('Are you sure you want to delete this pattern?')) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`${API_URL}/api/patterns/${editingPatternId}`, {
-            method: 'DELETE'
-        });
-
-        if (response.ok) {
-            closeEditModal();
-            await loadPatterns();
-            await loadCurrentPatterns();
-            await loadCategories();
-        } else {
-            const error = await response.json();
-            console.error('Error deleting pattern:', error.error);
-        }
-    } catch (error) {
-        console.error('Error deleting pattern:', error);
-    }
+    closeEditModal();
+    deletePattern(editingPatternId);
 }
 
 async function openEditModal(patternId) {
@@ -15965,7 +15988,7 @@ const YARN_COLUMNS = {
     url: { label: 'URL', value: y => y.url ? `<a href="${escapeHtml(y.url)}" target="_blank" onclick="event.stopPropagation()" class="list-url-link">Link</a>` : '—' },
     created_at: { label: 'Added', value: y => y.created_at ? new Date(y.created_at).toLocaleDateString() : '—' },
 };
-const DEFAULT_YARN_COL_ORDER = ['thumbnail', 'brand', 'name', 'color', 'dye_lot', 'weight_category', 'quantity', 'fiber_content', 'pattern_count'];
+const DEFAULT_YARN_COL_ORDER = ['thumbnail', 'brand', 'name', 'color', 'dye_lot', 'weight_category', 'quantity', 'fiber_content', 'pattern_count', 'notes', 'created_at'];
 
 const HOOK_COLUMNS = {
     thumbnail: { label: '', value: h => h.thumbnail ? `<img src="${API_URL}/api/hooks/${h.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_HOOK_PLACEHOLDER },
@@ -15982,7 +16005,7 @@ const HOOK_COLUMNS = {
     url: { label: 'URL', value: h => h.url ? `<a href="${escapeHtml(h.url)}" target="_blank" onclick="event.stopPropagation()" class="list-url-link">Link</a>` : '—' },
     created_at: { label: 'Added', value: h => h.created_at ? new Date(h.created_at).toLocaleDateString() : '—' },
 };
-const DEFAULT_HOOK_COL_ORDER = ['thumbnail', 'brand', 'name', 'size_label', 'hook_type', 'craft_type', 'length', 'quantity', 'pattern_count'];
+const DEFAULT_HOOK_COL_ORDER = ['thumbnail', 'brand', 'name', 'size_label', 'size_mm', 'hook_type', 'craft_type', 'length', 'quantity', 'pattern_count', 'notes', 'created_at'];
 
 const PATTERN_COLUMNS = {
     thumbnail: { label: '', value: p => p.thumbnail ? `<img src="${API_URL}/api/patterns/${p.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_PATTERN_PLACEHOLDER },
@@ -15998,7 +16021,7 @@ const PATTERN_COLUMNS = {
     completed_date: { label: 'Completed', value: p => p.completed_date ? new Date(p.completed_date).toLocaleDateString() : '—' },
     started_date: { label: 'Started', value: p => p.started_date ? new Date(p.started_date).toLocaleDateString() : '—' },
 };
-const DEFAULT_PATTERN_COL_ORDER = ['thumbnail', 'name', 'category', 'type', 'status', 'added', 'opened', 'time'];
+const DEFAULT_PATTERN_COL_ORDER = ['thumbnail', 'name', 'category', 'type', 'status', 'added', 'opened', 'time', 'description', 'favorite', 'completed_date', 'started_date'];
 
 function getColumnsConfig(type) {
     return type === 'pattern' ? PATTERN_COLUMNS : (type === 'yarn' ? YARN_COLUMNS : HOOK_COLUMNS);
@@ -16169,17 +16192,17 @@ function showRowMenu(e, type, id) {
         addDivider();
         addItem(enableDirectDelete ? 'Delete' : 'Archive',
             '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
-            () => { if (confirm(enableDirectDelete ? 'Delete this pattern?' : 'Archive this pattern?')) { enableDirectDelete ? deletePattern(id) : archivePattern(id); } }, true);
+            () => { enableDirectDelete ? deletePattern(id) : archivePattern(id); }, true);
     } else if (type === 'yarn') {
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openYarnModal(id));
         addDivider();
         addItem('Delete', '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
-            () => { if (confirm('Delete this yarn?')) deleteYarn(id); }, true);
+            () => deleteYarn(id), true);
     } else if (type === 'hook') {
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openHookModal(id));
         addDivider();
         addItem('Delete', '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
-            () => { if (confirm('Delete this hook?')) deleteHook(id); }, true);
+            () => deleteHook(id), true);
     }
 
     document.body.appendChild(menu);
@@ -16522,15 +16545,16 @@ async function saveYarn() {
     }
 }
 
-async function deleteYarn(yarnId) {
-    if (!confirm('Delete this yarn from your inventory?')) return;
-    try {
-        await fetch(`${API_URL}/api/yarns/${yarnId}`, { method: 'DELETE' });
-        closeYarnModal();
-        await loadYarns();
-    } catch (error) {
-        console.error('Error deleting yarn:', error);
-    }
+function deleteYarn(yarnId) {
+    const item = yarns.find(y => y.id == yarnId);
+    if (!item) return;
+    closeYarnModal();
+    undoableDelete(
+        'Yarn deleted',
+        () => { yarns = yarns.filter(y => y.id != yarnId); displayYarns(); updateTabCounts(); },
+        async () => { try { await fetch(`${API_URL}/api/yarns/${yarnId}`, { method: 'DELETE' }); } catch(e) { console.error('Error deleting yarn:', e); } },
+        () => { yarns.push(item); displayYarns(); updateTabCounts(); }
+    );
 }
 
 // --- Hook CRUD ---
@@ -16782,15 +16806,16 @@ async function saveHook() {
     }
 }
 
-async function deleteHook(hookId) {
-    if (!confirm('Delete this hook from your inventory?')) return;
-    try {
-        await fetch(`${API_URL}/api/hooks/${hookId}`, { method: 'DELETE' });
-        closeHookModal();
-        await loadHooks();
-    } catch (error) {
-        console.error('Error deleting hook:', error);
-    }
+function deleteHook(hookId) {
+    const item = hooks.find(h => h.id == hookId);
+    if (!item) return;
+    closeHookModal();
+    undoableDelete(
+        'Hook deleted',
+        () => { hooks = hooks.filter(h => h.id != hookId); displayHooks(); updateTabCounts(); },
+        async () => { try { await fetch(`${API_URL}/api/hooks/${hookId}`, { method: 'DELETE' }); } catch(e) { console.error('Error deleting hook:', e); } },
+        () => { hooks.push(item); displayHooks(); updateTabCounts(); }
+    );
 }
 
 // --- URL image import ---

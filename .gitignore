@@ -28,6 +28,8 @@ backups/
 # Claude development log
 claude-log.md
 API.md
+codereview.md
+.claude/
 
 # Local notes
 release-notes.md

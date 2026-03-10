@@ -10345,7 +10345,25 @@ textarea.image-drag-over {
     gap: 8px;
     margin-bottom: 12px;
     align-items: center;
-    padding: 0 4px;
+}
+
+.inventory-toolbar .inventory-sub-tabs {
+    margin-bottom: 0;
+    flex-shrink: 0;
+    max-width: none;
+}
+
+.inventory-toolbar .inventory-sub-tab {
+    white-space: nowrap;
+    padding: 7px 12px;
+    flex: none;
+}
+
+.inventory-toolbar .inventory-add-btn {
+    padding: 7px 14px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .inventory-search {
@@ -10361,6 +10379,35 @@ textarea.image-drag-over {
 .inventory-search:focus {
     outline: none;
     border-color: var(--primary-color);
+}
+
+/* Inventory sidebar layout */
+.inventory-layout {
+    display: flex;
+    gap: 20px;
+}
+
+.inventory-sidebar {
+    width: 160px;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.inventory-main {
+    flex: 1;
+    min-width: 0;
+}
+
+.inventory-main .patterns-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+}
+
+.inventory-main .patterns-grid .yarn-card,
+.inventory-main .patterns-grid .hook-card {
+    width: auto;
 }
 
 /* Yarn swatch (color preview on card) */
@@ -10635,4 +10682,35 @@ textarea.image-drag-over {
     font-size: 0.7rem;
     color: var(--primary-color);
     font-weight: 700;
+}
+
+/* Mobile inventory sidebar */
+@media (max-width: 768px), (max-height: 500px) and (max-width: 1024px) {
+    .inventory-layout {
+        flex-direction: column;
+    }
+
+    .inventory-sidebar {
+        display: none;
+        width: 100%;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 12px;
+    }
+
+    .inventory-sidebar.mobile-visible {
+        display: flex;
+    }
+
+    .inventory-sidebar .sidebar-section {
+        flex: 1;
+        min-width: 140px;
+    }
+
+    .inventory-sidebar .sidebar-section:first-child {
+        display: none;
+    }
 }

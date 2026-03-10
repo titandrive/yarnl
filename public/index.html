@@ -56,7 +56,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=256">
+    <link rel="stylesheet" href="styles.css?v=263">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -520,44 +520,113 @@ Inc in each st around (12)
         <!-- Inventory Tab -->
         <div id="inventory" class="tab-content">
             <div class="inventory-container">
-                <div class="inventory-sub-tabs">
-                    <button type="button" class="inventory-sub-tab active" data-sub="yarn">Yarn</button>
-                    <button type="button" class="inventory-sub-tab" data-sub="hooks">Hooks & Needles</button>
+                <div class="inventory-toolbar">
+                    <div class="inventory-sub-tabs">
+                        <button type="button" class="inventory-sub-tab active" data-sub="yarn">Yarn</button>
+                        <button type="button" class="inventory-sub-tab" data-sub="hooks">Hooks & Needles</button>
+                    </div>
+                    <input type="text" class="inventory-search" id="inventory-search" placeholder="Search...">
+                    <div class="inventory-view-toggle">
+                        <button class="view-toggle-btn active" data-view="card" title="Card view">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+                        </button>
+                        <button class="view-toggle-btn" data-view="list" title="List view">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
+                        </button>
+                    </div>
+                    <button class="btn btn-primary inventory-add-btn" id="add-yarn-btn">+ Add Yarn</button>
+                    <button class="btn btn-primary inventory-add-btn" id="add-hook-btn" style="display:none;">+ Add Hook</button>
                 </div>
 
                 <div id="inventory-yarn" class="inventory-sub-content">
-                    <div class="inventory-toolbar">
-                        <input type="text" id="yarn-search-input" class="inventory-search" placeholder="Search yarn...">
-                        <div class="inventory-view-toggle">
-                            <button class="view-toggle-btn active" data-view="card" title="Card view">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                            </button>
-                            <button class="view-toggle-btn" data-view="list" title="List view">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-                            </button>
+                    <div class="inventory-layout">
+                        <aside class="inventory-sidebar" id="yarn-sidebar">
+                            <div class="sidebar-section">
+                                <label for="yarn-sort-select">Sort by</label>
+                                <select id="yarn-sort-select">
+                                    <option value="brand-asc">Brand (A-Z)</option>
+                                    <option value="brand-desc">Brand (Z-A)</option>
+                                    <option value="name-asc">Name (A-Z)</option>
+                                    <option value="name-desc">Name (Z-A)</option>
+                                    <option value="weight-asc">Weight (Light→Heavy)</option>
+                                    <option value="weight-desc">Weight (Heavy→Light)</option>
+                                    <option value="quantity-desc">Qty (Most)</option>
+                                    <option value="quantity-asc">Qty (Least)</option>
+                                    <option value="date-desc">Added (Newest)</option>
+                                    <option value="date-asc">Added (Oldest)</option>
+                                </select>
+                            </div>
+                            <div class="sidebar-section">
+                                <label for="yarn-weight-filter">Weight</label>
+                                <select id="yarn-weight-filter">
+                                    <option value="all">All Weights</option>
+                                    <option value="Lace">Lace</option>
+                                    <option value="Super Fine">Super Fine</option>
+                                    <option value="Fine">Fine</option>
+                                    <option value="Light">Light</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Bulky">Bulky</option>
+                                    <option value="Super Bulky">Super Bulky</option>
+                                    <option value="Jumbo">Jumbo</option>
+                                </select>
+                            </div>
+                            <div class="sidebar-section">
+                                <label for="yarn-brand-filter">Brand</label>
+                                <select id="yarn-brand-filter">
+                                    <option value="all">All Brands</option>
+                                </select>
+                            </div>
+                        </aside>
+                        <div class="inventory-main">
+                            <div id="yarn-grid" class="patterns-grid">
+                                <p class="empty-state">No yarn in your inventory yet. Add some to get started!</p>
+                            </div>
                         </div>
-                        <button class="btn btn-primary" id="add-yarn-btn">+ Add Yarn</button>
-                    </div>
-                    <div id="yarn-grid" class="patterns-grid">
-                        <p class="empty-state">No yarn in your inventory yet. Add some to get started!</p>
                     </div>
                 </div>
 
                 <div id="inventory-hooks" class="inventory-sub-content" style="display: none;">
-                    <div class="inventory-toolbar">
-                        <input type="text" id="hook-search-input" class="inventory-search" placeholder="Search hooks...">
-                        <div class="inventory-view-toggle">
-                            <button class="view-toggle-btn active" data-view="card" title="Card view">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-                            </button>
-                            <button class="view-toggle-btn" data-view="list" title="List view">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
-                            </button>
+                    <div class="inventory-layout">
+                        <aside class="inventory-sidebar" id="hooks-sidebar">
+                            <div class="sidebar-section">
+                                <label for="hook-sort-select">Sort by</label>
+                                <select id="hook-sort-select">
+                                    <option value="brand-asc">Brand (A-Z)</option>
+                                    <option value="brand-desc">Brand (Z-A)</option>
+                                    <option value="size-asc">Size (Small→Large)</option>
+                                    <option value="size-desc">Size (Large→Small)</option>
+                                    <option value="quantity-desc">Qty (Most)</option>
+                                    <option value="quantity-asc">Qty (Least)</option>
+                                    <option value="date-desc">Added (Newest)</option>
+                                    <option value="date-asc">Added (Oldest)</option>
+                                </select>
+                            </div>
+                            <div class="sidebar-section">
+                                <label for="hook-craft-filter">Craft</label>
+                                <select id="hook-craft-filter">
+                                    <option value="all">All</option>
+                                    <option value="crochet">Crochet</option>
+                                    <option value="knitting">Knitting</option>
+                                </select>
+                            </div>
+                            <div class="sidebar-section">
+                                <label for="hook-type-filter">Type</label>
+                                <select id="hook-type-filter">
+                                    <option value="all">All Types</option>
+                                </select>
+                            </div>
+                            <div class="sidebar-section">
+                                <label for="hook-brand-filter">Brand</label>
+                                <select id="hook-brand-filter">
+                                    <option value="all">All Brands</option>
+                                </select>
+                            </div>
+                        </aside>
+                        <div class="inventory-main">
+                            <div id="hooks-grid" class="patterns-grid">
+                                <p class="empty-state">No hooks in your inventory yet. Add some to get started!</p>
+                            </div>
                         </div>
-                        <button class="btn btn-primary" id="add-hook-btn">+ Add Hook</button>
-                    </div>
-                    <div id="hooks-grid" class="patterns-grid">
-                        <p class="empty-state">No hooks in your inventory yet. Add some to get started!</p>
                     </div>
                 </div>
             </div>
@@ -569,6 +638,9 @@ Inc in each st around (12)
                 document.querySelectorAll('.inventory-sub-tab').forEach(function(b) { b.classList.toggle('active', b.dataset.sub === sub); });
                 document.getElementById('inventory-yarn').style.display = 'none';
                 document.getElementById('inventory-' + sub).style.display = '';
+                document.getElementById('add-yarn-btn').style.display = 'none';
+                document.getElementById('add-hook-btn').style.display = '';
+                document.getElementById('inventory-search').placeholder = 'Search hooks...';
             }
             var view = localStorage.getItem('inventoryView');
             if (view && view !== 'card') {
@@ -3210,6 +3282,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=247"></script>
+    <script defer src="app.js?v=250"></script>
 </body>
 </html>

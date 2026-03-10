@@ -15731,6 +15731,12 @@ function initInventory() {
             document.getElementById(`inventory-${btn.dataset.sub}`).style.display = '';
             inventorySubTab = btn.dataset.sub;
             localStorage.setItem('inventorySubTab', inventorySubTab);
+            // Toggle add buttons
+            document.getElementById('add-yarn-btn').style.display = btn.dataset.sub === 'yarn' ? '' : 'none';
+            document.getElementById('add-hook-btn').style.display = btn.dataset.sub === 'hooks' ? '' : 'none';
+            // Update search placeholder
+            document.getElementById('inventory-search').placeholder = btn.dataset.sub === 'yarn' ? 'Search yarn...' : 'Search hooks...';
+            document.getElementById('inventory-search').value = '';
         });
     });
 
@@ -15792,8 +15798,19 @@ function initInventory() {
     });
 
     // Search
-    document.getElementById('yarn-search-input')?.addEventListener('input', () => displayYarns());
-    document.getElementById('hook-search-input')?.addEventListener('input', () => displayHooks());
+    document.getElementById('inventory-search')?.addEventListener('input', () => {
+        if (inventorySubTab === 'yarn') displayYarns();
+        else displayHooks();
+    });
+
+    // Sidebar sort/filter
+    document.getElementById('yarn-sort-select')?.addEventListener('change', () => displayYarns());
+    document.getElementById('yarn-weight-filter')?.addEventListener('change', () => displayYarns());
+    document.getElementById('yarn-brand-filter')?.addEventListener('change', () => displayYarns());
+    document.getElementById('hook-sort-select')?.addEventListener('change', () => displayHooks());
+    document.getElementById('hook-craft-filter')?.addEventListener('change', () => displayHooks());
+    document.getElementById('hook-type-filter')?.addEventListener('change', () => displayHooks());
+    document.getElementById('hook-brand-filter')?.addEventListener('change', () => displayHooks());
 }
 
 // --- Yarn CRUD ---
@@ -15813,10 +15830,10 @@ async function loadYarns() {
 function displayYarns() {
     const grid = document.getElementById('yarn-grid');
     if (!grid) return;
-    const query = (document.getElementById('yarn-search-input')?.value || '').toLowerCase();
+    const query = (document.getElementById('inventory-search')?.value || '').toLowerCase();
     let filtered = yarns;
     if (query) {
-        filtered = yarns.filter(y =>
+        filtered = filtered.filter(y =>
             (y.brand || '').toLowerCase().includes(query) ||
             (y.name || '').toLowerCase().includes(query) ||
             (y.colorway || '').toLowerCase().includes(query) ||
@@ -15824,8 +15841,29 @@ function displayYarns() {
             (y.fiber_content || '').toLowerCase().includes(query)
         );
     }
+    // Sidebar filters
+    const weightFilter = document.getElementById('yarn-weight-filter')?.value;
+    if (weightFilter && weightFilter !== 'all') {
+        filtered = filtered.filter(y => y.weight_category === weightFilter);
+    }
+    const brandFilter = document.getElementById('yarn-brand-filter')?.value;
+    if (brandFilter && brandFilter !== 'all') {
+        filtered = filtered.filter(y => y.brand === brandFilter);
+    }
+    // Sort: sidebar sort for card view, column header sort for list view
+    if (inventoryView !== 'list') {
+        const sortVal = document.getElementById('yarn-sort-select')?.value || 'brand-asc';
+        const [sortCol, sortDir] = sortVal.split('-');
+        const colMap = { brand: 'brand', name: 'name', weight: 'weight_category', quantity: 'quantity', date: 'created_at' };
+        filtered = sortInventory(filtered, { col: colMap[sortCol] || sortCol, dir: sortDir });
+    }
+
+    // Show/hide sidebar based on view
+    const sidebar = document.getElementById('yarn-sidebar');
+    if (sidebar) sidebar.style.display = inventoryView === 'list' ? 'none' : '';
+
     if (filtered.length === 0) {
-        grid.innerHTML = `<p class="empty-state">${query ? 'No yarn matches your search.' : 'No yarn in your inventory yet. Add some to get started!'}</p>`;
+        grid.innerHTML = `<p class="empty-state">${query || (weightFilter && weightFilter !== 'all') || (brandFilter && brandFilter !== 'all') ? 'No yarn matches your filters.' : 'No yarn in your inventory yet. Add some to get started!'}</p>`;
         grid.className = 'patterns-grid';
         return;
     }
@@ -15857,6 +15895,8 @@ function displayYarns() {
         grid.className = 'patterns-grid';
         grid.innerHTML = filtered.map(renderYarnCard).join('');
     }
+    // Populate brand filter options
+    populateYarnBrandFilter();
 }
 
 function renderYarnCard(yarn) {
@@ -16010,10 +16050,10 @@ async function loadHooks() {
 function displayHooks() {
     const grid = document.getElementById('hooks-grid');
     if (!grid) return;
-    const query = (document.getElementById('hook-search-input')?.value || '').toLowerCase();
+    const query = (document.getElementById('inventory-search')?.value || '').toLowerCase();
     let filtered = hooks;
     if (query) {
-        filtered = hooks.filter(h =>
+        filtered = filtered.filter(h =>
             (h.size_label || '').toLowerCase().includes(query) ||
             (h.brand || '').toLowerCase().includes(query) ||
             (h.name || '').toLowerCase().includes(query) ||
@@ -16021,8 +16061,34 @@ function displayHooks() {
             (h.craft_type || '').toLowerCase().includes(query)
         );
     }
+    // Sidebar filters
+    const craftFilter = document.getElementById('hook-craft-filter')?.value;
+    if (craftFilter && craftFilter !== 'all') {
+        filtered = filtered.filter(h => h.craft_type === craftFilter);
+    }
+    const typeFilter = document.getElementById('hook-type-filter')?.value;
+    if (typeFilter && typeFilter !== 'all') {
+        filtered = filtered.filter(h => h.hook_type === typeFilter);
+    }
+    const brandFilter = document.getElementById('hook-brand-filter')?.value;
+    if (brandFilter && brandFilter !== 'all') {
+        filtered = filtered.filter(h => h.brand === brandFilter);
+    }
+    // Sort: sidebar sort for card view, column header sort for list view
+    if (inventoryView !== 'list') {
+        const sortVal = document.getElementById('hook-sort-select')?.value || 'brand-asc';
+        const [sortCol, sortDir] = sortVal.split('-');
+        const colMap = { brand: 'brand', size: 'size_mm', quantity: 'quantity', date: 'created_at' };
+        filtered = sortInventory(filtered, { col: colMap[sortCol] || sortCol, dir: sortDir });
+    }
+
+    // Show/hide sidebar based on view
+    const sidebar = document.getElementById('hooks-sidebar');
+    if (sidebar) sidebar.style.display = inventoryView === 'list' ? 'none' : '';
+
+    const hasFilters = query || (craftFilter && craftFilter !== 'all') || (typeFilter && typeFilter !== 'all') || (brandFilter && brandFilter !== 'all');
     if (filtered.length === 0) {
-        grid.innerHTML = `<p class="empty-state">${query ? 'No hooks or needles match your search.' : 'No hooks or needles in your inventory yet. Add some to get started!'}</p>`;
+        grid.innerHTML = `<p class="empty-state">${hasFilters ? 'No hooks or needles match your filters.' : 'No hooks or needles in your inventory yet. Add some to get started!'}</p>`;
         grid.className = 'patterns-grid';
         return;
     }
@@ -16056,6 +16122,8 @@ function displayHooks() {
         grid.className = 'patterns-grid';
         grid.innerHTML = filtered.map(renderHookCard).join('');
     }
+    // Populate filter options
+    populateHookFilters();
 }
 
 function renderHookCard(hook) {
@@ -16484,11 +16552,21 @@ function autoSaveInventoryLinks(cb) {
 
 function sortInventory(items, sortState) {
     const { col, dir } = sortState;
+    const numericCols = ['quantity', 'pattern_count', 'size_mm'];
+    const weightOrder = ['Lace', 'Super Fine', 'Fine', 'Light', 'Medium', 'Bulky', 'Super Bulky', 'Jumbo'];
     return [...items].sort((a, b) => {
         let va = a[col], vb = b[col];
-        if (col === 'quantity' || col === 'pattern_count') {
+        if (col === 'weight_category') {
+            va = weightOrder.indexOf(va);
+            vb = weightOrder.indexOf(vb);
+            if (va === -1) va = 99;
+            if (vb === -1) vb = 99;
+        } else if (numericCols.includes(col)) {
             va = parseFloat(va) || 0;
             vb = parseFloat(vb) || 0;
+        } else if (col === 'created_at') {
+            va = va ? new Date(va).getTime() : 0;
+            vb = vb ? new Date(vb).getTime() : 0;
         } else {
             va = (va || '').toString().toLowerCase();
             vb = (vb || '').toString().toLowerCase();
@@ -16517,6 +16595,32 @@ function toggleHookSort(col) {
         hookSort.dir = 'asc';
     }
     displayHooks();
+}
+
+function populateYarnBrandFilter() {
+    const select = document.getElementById('yarn-brand-filter');
+    if (!select) return;
+    const current = select.value;
+    const brands = [...new Set(yarns.map(y => y.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+    select.innerHTML = '<option value="all">All Brands</option>' + brands.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+    if (current && brands.includes(current)) select.value = current;
+}
+
+function populateHookFilters() {
+    const brandSelect = document.getElementById('hook-brand-filter');
+    if (brandSelect) {
+        const current = brandSelect.value;
+        const brands = [...new Set(hooks.map(h => h.brand).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+        brandSelect.innerHTML = '<option value="all">All Brands</option>' + brands.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join('');
+        if (current && brands.includes(current)) brandSelect.value = current;
+    }
+    const typeSelect = document.getElementById('hook-type-filter');
+    if (typeSelect) {
+        const current = typeSelect.value;
+        const types = [...new Set(hooks.map(h => h.hook_type).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+        typeSelect.innerHTML = '<option value="all">All Types</option>' + types.map(t => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+        if (current && types.includes(current)) typeSelect.value = current;
+    }
 }
 
 // --- Linked patterns list (for yarn/hook modals) ---

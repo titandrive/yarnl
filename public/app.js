@@ -29,7 +29,7 @@ const SYNCED_SETTING_KEYS = [
     'projectSort', 'projectShowFilter',
     // Behavior
     'showWhatsNew', 'autoCurrentOnTimer', 'autoTimerDefault', 'inactivityTimeout', 'defaultCategory',
-    'enableDirectDelete', 'hapticFeedback', 'wakeLock', 'keyboardShortcuts',
+    'enableDirectDelete', 'hapticFeedback', 'wakeLock', 'keyboardShortcuts', 'showInventoryTab',
     // Notes
     'notesLivePreview', 'notesPopoverSize',
     // Media
@@ -39,7 +39,7 @@ const SYNCED_SETTING_KEYS = [
     'backupPruneEnabled', 'backupPruneMode',
     'backupPruneValue', 'backupTime',
     // Inventory
-    'yarnColumnOrder', 'hookColumnOrder'
+    'patternColumnOrder', 'yarnColumnOrder', 'hookColumnOrder'
 ];
 
 // Debounced settings sync to server
@@ -1856,6 +1856,7 @@ let inactivityTimeout = null;
 let inactivityDelay = parseInt(localStorage.getItem('inactivityTimeout') || '5', 10) * 60 * 1000;
 let defaultCategory = localStorage.getItem('defaultCategory') || 'Amigurumi';
 let enableDirectDelete = localStorage.getItem('enableDirectDelete') === 'true';
+let showInventoryTab = localStorage.getItem('showInventoryTab') !== 'false';
 
 // Bulk selection state
 let selectedPatternIds = new Set();
@@ -2422,6 +2423,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateUIForUser();
 
     initAppUI();
+    applyInventoryTabVisibility();
     appInitialized = true;
     checkForNewVersion();
     await Promise.all([loadPatterns(), loadProjects(), loadYarns(), loadHooks()]);
@@ -3806,6 +3808,13 @@ function initTheme() {
             const defaultPageSelect = document.getElementById('default-page-select');
             if (defaultPageSelect) defaultPageSelect.value = 'current';
 
+            // Reset inventory tab
+            localStorage.setItem('showInventoryTab', 'true');
+            showInventoryTab = true;
+            const showInvCheckbox = document.getElementById('show-inventory-checkbox');
+            if (showInvCheckbox) showInvCheckbox.checked = true;
+            applyInventoryTabVisibility();
+
             // Reset auto-current on timer
             localStorage.setItem('autoCurrentOnTimer', 'false');
             autoCurrentOnTimer = false;
@@ -4985,6 +4994,17 @@ function initSettings() {
             localStorage.setItem('showTabCounts', showTabCounts);
             updateTabCounts();
             showToast(showTabCounts ? 'Tab counts shown' : 'Tab counts hidden');
+        });
+    }
+
+    const showInventoryCheckbox = document.getElementById('show-inventory-checkbox');
+    if (showInventoryCheckbox) {
+        showInventoryCheckbox.checked = showInventoryTab;
+        showInventoryCheckbox.addEventListener('change', () => {
+            showInventoryTab = showInventoryCheckbox.checked;
+            localStorage.setItem('showInventoryTab', showInventoryTab);
+            applyInventoryTabVisibility();
+            showToast(showInventoryTab ? 'Inventory tab shown' : 'Inventory tab hidden');
         });
     }
 
@@ -6533,6 +6553,11 @@ async function saveNewPattern() {
         console.error('Error creating pattern:', error);
         alert(error.message);
     }
+}
+
+function applyInventoryTabVisibility() {
+    const btn = document.getElementById('inventory-tab-btn');
+    if (btn) btn.style.display = showInventoryTab ? '' : 'none';
 }
 
 function updateTabCounts() {
@@ -8421,7 +8446,7 @@ function displayPatterns() {
         const cbTd = (p) => libraryEditMode ? `<td ${cbStyle}><div class="bulk-select-checkbox" onclick="event.stopPropagation(); togglePatternRowSelect(${p.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>` : '';
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="pattern">
-            <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="togglePatternListSort('${c}')" oncontextmenu="showColumnMenu(event,'pattern')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'pattern')">${PATTERN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <thead><tr>${cbTh}${cols.map(c => `<th data-col="${c}"${c === 'thumbnail' ? ' class="col-thumbnail"' : ''} draggable="true" onclick="togglePatternListSort('${c}')" oncontextmenu="showColumnMenu(event,'pattern')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'pattern')">${PATTERN_COLUMNS[c].label}${c === 'thumbnail' ? '' : arrow(c)}</th>`).join('')}</tr></thead>
             <tbody>${filteredPatterns.map(p => `<tr onclick="handlePatternRowClick(event,${p.id})" oncontextmenu="showRowMenu(event,'pattern',${p.id})" class="${selectedPatternIds.has(p.id) ? 'bulk-selected' : ''}" data-pattern-id="${p.id}">${cbTd(p)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${PATTERN_COLUMNS[c].value(p)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
         initListRowLongPress('pattern');
@@ -15975,7 +16000,7 @@ const LIST_HOOK_PLACEHOLDER = '<div class="list-thumbnail-placeholder"><svg widt
 const LIST_PATTERN_PLACEHOLDER = '<div class="list-thumbnail-placeholder"><svg width="26" height="26" viewBox="-5 -10 110 135" fill="currentColor"><path d="m89.617 13.352c-1.3828-2.4531-3.9922-3.9766-6.8125-3.9766-1.082 0-2.1328 0.21875-3.1289 0.65625-0.45312 0.19922-0.78516 0.60156-0.89453 1.0859-0.10938 0.48437 0.015625 0.98828 0.33984 1.3672l2.6992 3.1328c0.03125 0.035156 0.066407 0.070312 0.10156 0.10547-0.078125-0.023437-0.27734-0.085937-0.27734-0.085937-0.44922-0.14062-0.96484-0.21094-1.4961-0.21094-1.6094 0-3.1094 0.66797-4.2266 1.8828-0.11719 0.11719-0.69141 0.69531-1.5742 1.5781-6.6523-6.1445-15.242-9.5117-24.348-9.5117-19.816 0-35.938 16.121-35.938 35.938 0 9.1328 3.3828 17.742 9.5586 24.402-5.4453 5.457-12.77 12.805-12.852 12.887-0.89062 0.87891-1.3867 2.0547-1.3945 3.3047-0.007812 1.2539 0.47266 2.4336 1.3516 3.3242 0.87891 0.89062 2.0547 1.3867 3.3047 1.3945h0.03125c1.2422 0 2.4102-0.48047 3.3008-1.3594 0.097657-0.097656 8.4883-8.5156 13.496-13.531 4.6641 2.9414 9.9023 4.75 15.367 5.3203-0.082031 0.31641-0.13281 0.64844-0.13281 0.99219 0 1.3867 0.55469 2.6836 1.5586 3.6562 1.8516 1.7891 4.7266 2.1484 8.7617 2.1484 1.3633 0 2.8711-0.042968 4.8555-0.10937 1.6523-0.054688 3.3633-0.11328 4.9375-0.11328 1.0469 0 1.9336 0.023438 2.7109 0.078125 1.2266 0.082031 1.9727 0.21875 2.3984 0.33203 0.55078 1.5078 2.0039 2.5859 3.6836 2.5859 2.1523 0 3.9062-1.7539 3.9062-3.9062 0-1.6406-0.625-3.1133-1.8125-4.2578-2.2695-2.1953-5.9766-2.6445-10.844-2.6445-1.6719 0-3.5078 0.054688-5.2461 0.11328-0.47656 0.015624-1 0.035156-1.5352 0.050781 15.238-4.1641 26.469-18.129 26.469-34.668 0-6.8477-1.918-13.461-5.5586-19.207 0.45312-0.45312 0.83203-0.83203 1.1133-1.1172 0.34375 0.042969 0.69141 0.066407 1.043 0.066407 1.4609 0 2.8828-0.36719 4.1133-1.0625 1.8164-1.0234 3.1289-2.6953 3.6875-4.707 0.5625-2.0078 0.30469-4.1172-0.71875-5.9336z"/><path d="m47.98 50.457c-0.60938-0.60938-1.5977-0.60938-2.2109 0-0.60938 0.60938-0.60938 1.5977 0 2.2109l1.5625 1.5625c0.30469 0.30469 0.70312 0.45703 1.1055 0.45703 0.39844 0 0.80078-0.15234 1.1055-0.45703 0.60938-0.60938 0.60938-1.5977 0-2.2109z"/><path d="m43.293 52.02c-0.60938-0.60938-1.5977-0.60938-2.2109 0-0.60938 0.60938-0.60938 1.5977 0 2.2109l4.6875 4.6875c0.30469 0.30469 0.70312 0.45703 1.1055 0.45703 0.39844 0 0.80078-0.15234 1.1055-0.45703 0.60938-0.60938 0.60938-1.5977 0-2.2109z"/><path d="m41.73 56.707c-0.60938-0.60938-1.5977-0.60938-2.2109 0-0.60938 0.60938-0.60938 1.5977 0 2.2109l1.5625 1.5625c0.30469 0.30469 0.70312 0.45703 1.1055 0.45703 0.39844 0 0.80078-0.15234 1.1055-0.45703 0.60938-0.60938 0.60938-1.5977 0-2.2109z"/></svg></div>';
 
 const YARN_COLUMNS = {
-    thumbnail: { label: '', value: y => y.thumbnail ? `<img src="${API_URL}/api/yarns/${y.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_YARN_PLACEHOLDER },
+    thumbnail: { label: 'Photo', value: y => y.thumbnail ? `<img src="${API_URL}/api/yarns/${y.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_YARN_PLACEHOLDER },
     brand: { label: 'Brand', value: y => escapeHtml(y.brand || '—') },
     name: { label: 'Name', value: y => escapeHtml(y.name || '—') },
     color: { label: 'Color', value: y => escapeHtml(y.color || '—') },
@@ -15991,7 +16016,7 @@ const YARN_COLUMNS = {
 const DEFAULT_YARN_COL_ORDER = ['thumbnail', 'brand', 'name', 'color', 'dye_lot', 'weight_category', 'quantity', 'fiber_content', 'pattern_count', 'notes', 'created_at'];
 
 const HOOK_COLUMNS = {
-    thumbnail: { label: '', value: h => h.thumbnail ? `<img src="${API_URL}/api/hooks/${h.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_HOOK_PLACEHOLDER },
+    thumbnail: { label: 'Photo', value: h => h.thumbnail ? `<img src="${API_URL}/api/hooks/${h.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_HOOK_PLACEHOLDER },
     brand: { label: 'Brand', value: h => escapeHtml(h.brand || '—') },
     name: { label: 'Name', value: h => escapeHtml(h.name || '—') },
     size_label: { label: 'Size', value: h => escapeHtml(h.size_label || '—') },
@@ -16008,7 +16033,7 @@ const HOOK_COLUMNS = {
 const DEFAULT_HOOK_COL_ORDER = ['thumbnail', 'brand', 'name', 'size_label', 'size_mm', 'hook_type', 'craft_type', 'length', 'quantity', 'pattern_count', 'notes', 'created_at'];
 
 const PATTERN_COLUMNS = {
-    thumbnail: { label: '', value: p => p.thumbnail ? `<img src="${API_URL}/api/patterns/${p.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_PATTERN_PLACEHOLDER },
+    thumbnail: { label: 'Photo', value: p => p.thumbnail ? `<img src="${API_URL}/api/patterns/${p.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_PATTERN_PLACEHOLDER },
     name:     { label: 'Name',     value: p => escapeHtml(p.name || '—') },
     category: { label: 'Category', value: p => escapeHtml(p.category || '—') },
     type:     { label: 'Type',     value: p => p.pattern_type === 'markdown' ? 'MD' : 'PDF' },
@@ -16102,9 +16127,8 @@ function showColumnMenu(e, type) {
     menu.style.left = e.clientX + 'px';
     menu.style.top = e.clientY + 'px';
 
-    // Build menu items for all columns except thumbnail
+    // Build menu items for all columns
     for (const [key, col] of Object.entries(allCols)) {
-        if (key === 'thumbnail') continue;
         const item = document.createElement('label');
         item.className = 'column-menu-item';
         const checked = visibleCols.includes(key);
@@ -16271,6 +16295,7 @@ function sortPatternList(items, sortState) {
 }
 
 function togglePatternListSort(col) {
+    if (col === 'thumbnail') return;
     if (patternListSort.col === col) {
         patternListSort.dir = patternListSort.dir === 'asc' ? 'desc' : 'asc';
     } else {
@@ -16401,7 +16426,7 @@ function displayYarns() {
         const cbTd = (y) => inventoryEditMode ? `<td ${cbStyle}><div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('yarn',${y.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>` : '';
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="yarn">
-            <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="toggleYarnSort('${c}')" oncontextmenu="showColumnMenu(event,'yarn')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'yarn')">${YARN_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <thead><tr>${cbTh}${cols.map(c => `<th data-col="${c}"${c === 'thumbnail' ? ' class="col-thumbnail"' : ''} draggable="true" onclick="toggleYarnSort('${c}')" oncontextmenu="showColumnMenu(event,'yarn')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'yarn')">${YARN_COLUMNS[c].label}${c === 'thumbnail' ? '' : arrow(c)}</th>`).join('')}</tr></thead>
             <tbody>${filtered.map(y => `<tr onclick="handleInventoryRowClick(event,'yarn',${y.id})" oncontextmenu="showRowMenu(event,'yarn',${y.id})" class="${selectedYarnIds.has(y.id) ? 'bulk-selected' : ''}" data-item-id="${y.id}">${cbTd(y)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${YARN_COLUMNS[c].value(y)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
         initListRowLongPress('yarn');
@@ -16632,7 +16657,7 @@ function displayHooks() {
         const cbTd = (h) => inventoryEditMode ? `<td ${cbStyle}><div class="bulk-select-checkbox" onclick="event.stopPropagation(); toggleInventorySelect('hook',${h.id},this)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div></td>` : '';
         grid.className = 'inventory-list-wrap';
         grid.innerHTML = `<table class="inventory-table" data-type="hook">
-            <thead><tr>${cbTh}${cols.map(c => c === 'thumbnail' ? `<th class="col-thumbnail"></th>` : `<th data-col="${c}" draggable="true" onclick="toggleHookSort('${c}')" oncontextmenu="showColumnMenu(event,'hook')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'hook')">${HOOK_COLUMNS[c].label}${arrow(c)}</th>`).join('')}</tr></thead>
+            <thead><tr>${cbTh}${cols.map(c => `<th data-col="${c}"${c === 'thumbnail' ? ' class="col-thumbnail"' : ''} draggable="true" onclick="toggleHookSort('${c}')" oncontextmenu="showColumnMenu(event,'hook')" ondragstart="onColDragStart(event)" ondragend="onColDragEnd(event)" ondragover="onColDragOver(event)" ondragleave="onColDragLeave(event)" ondrop="onColDrop(event,'hook')">${HOOK_COLUMNS[c].label}${c === 'thumbnail' ? '' : arrow(c)}</th>`).join('')}</tr></thead>
             <tbody>${filtered.map(h => `<tr onclick="handleInventoryRowClick(event,'hook',${h.id})" oncontextmenu="showRowMenu(event,'hook',${h.id})" class="${selectedHookIds.has(h.id) ? 'bulk-selected' : ''}" data-item-id="${h.id}">${cbTd(h)}${cols.map(c => `<td${c === 'thumbnail' ? ' class="col-thumbnail"' : ''}>${HOOK_COLUMNS[c].value(h)}</td>`).join('')}</tr>`).join('')}</tbody>
         </table>`;
         initListRowLongPress('hook');
@@ -17220,6 +17245,7 @@ function sortInventory(items, sortState) {
 }
 
 function toggleYarnSort(col) {
+    if (col === 'thumbnail') return;
     if (yarnSort.col === col) {
         yarnSort.dir = yarnSort.dir === 'asc' ? 'desc' : 'asc';
     } else {
@@ -17230,6 +17256,7 @@ function toggleYarnSort(col) {
 }
 
 function toggleHookSort(col) {
+    if (col === 'thumbnail') return;
     if (hookSort.col === col) {
         hookSort.dir = hookSort.dir === 'asc' ? 'desc' : 'asc';
     } else {

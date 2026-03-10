@@ -6398,6 +6398,24 @@ async function createScheduledBackup() {
       dbExport.tables.pattern_hashtags = [];
     }
 
+    // Export user's inventory
+    const yarnsResult = await pool.query('SELECT * FROM yarns WHERE user_id = $1', [userId]);
+    dbExport.tables.yarns = yarnsResult.rows;
+
+    const hooksResult = await pool.query('SELECT * FROM hooks WHERE user_id = $1', [userId]);
+    dbExport.tables.hooks = hooksResult.rows;
+
+    const yarnIds = yarnsResult.rows.map(y => y.id);
+    const hookIds = hooksResult.rows.map(h => h.id);
+    if (yarnIds.length > 0 && patternIds.length > 0) {
+      const pyResult = await pool.query('SELECT * FROM pattern_yarns WHERE pattern_id = ANY($1)', [patternIds]);
+      dbExport.tables.pattern_yarns = pyResult.rows;
+    } else { dbExport.tables.pattern_yarns = []; }
+    if (hookIds.length > 0 && patternIds.length > 0) {
+      const phResult = await pool.query('SELECT * FROM pattern_hooks WHERE pattern_id = ANY($1)', [patternIds]);
+      dbExport.tables.pattern_hooks = phResult.rows;
+    } else { dbExport.tables.pattern_hooks = []; }
+
     // Fetch client settings from DB before creating archive
     const userSettingsResult = await pool.query(
       'SELECT client_settings FROM users WHERE id = $1', [userId]
@@ -6802,6 +6820,24 @@ app.post('/api/backups', authMiddleware, async (req, res) => {
       dbExport.tables.pattern_hashtags = [];
     }
 
+    // Export user's inventory
+    const yarnsResult = await pool.query('SELECT * FROM yarns WHERE user_id = $1', [userId]);
+    dbExport.tables.yarns = yarnsResult.rows;
+
+    const hooksResult = await pool.query('SELECT * FROM hooks WHERE user_id = $1', [userId]);
+    dbExport.tables.hooks = hooksResult.rows;
+
+    const yarnIds = yarnsResult.rows.map(y => y.id);
+    const hookIds = hooksResult.rows.map(h => h.id);
+    if (yarnIds.length > 0 && patternIds.length > 0) {
+      const pyResult = await pool.query('SELECT * FROM pattern_yarns WHERE pattern_id = ANY($1)', [patternIds]);
+      dbExport.tables.pattern_yarns = pyResult.rows;
+    } else { dbExport.tables.pattern_yarns = []; }
+    if (hookIds.length > 0 && patternIds.length > 0) {
+      const phResult = await pool.query('SELECT * FROM pattern_hooks WHERE pattern_id = ANY($1)', [patternIds]);
+      dbExport.tables.pattern_hooks = phResult.rows;
+    } else { dbExport.tables.pattern_hooks = []; }
+
     // Create zip archive
     const output = fs.createWriteStream(backupPath);
     const archive = archiver('zip', { zlib: { level: 9 } });
@@ -7023,9 +7059,13 @@ app.post('/api/backups/:filename/restore', authMiddleware, async (req, res) => {
     await client.query('BEGIN');
 
     // Clear existing user's data only
+    await client.query('DELETE FROM pattern_yarns WHERE pattern_id IN (SELECT id FROM patterns WHERE user_id = $1)', [userId]);
+    await client.query('DELETE FROM pattern_hooks WHERE pattern_id IN (SELECT id FROM patterns WHERE user_id = $1)', [userId]);
     await client.query('DELETE FROM pattern_hashtags WHERE pattern_id IN (SELECT id FROM patterns WHERE user_id = $1)', [userId]);
     await client.query('DELETE FROM counters WHERE pattern_id IN (SELECT id FROM patterns WHERE user_id = $1)', [userId]);
     await client.query('DELETE FROM patterns WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM yarns WHERE user_id = $1', [userId]);
+    await client.query('DELETE FROM hooks WHERE user_id = $1', [userId]);
     await client.query('DELETE FROM categories WHERE user_id = $1', [userId]);
 
     // Restore user's categories (assign new IDs, associate with current user)
@@ -7071,6 +7111,52 @@ app.post('/api/backups/:filename/restore', authMiddleware, async (req, res) => {
         await client.query(
           'INSERT INTO pattern_hashtags (pattern_id, hashtag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
           [newPatternId, row.hashtag_id]
+        );
+      }
+    }
+
+    // Restore yarns
+    const yarnIdMap = {};
+    for (const row of dbExport.tables.yarns || []) {
+      const result = await client.query(
+        `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, color, dye_lot, quantity, notes, thumbnail, url, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+        [userId, row.name, row.brand, row.weight_category, row.fiber_content, row.color, row.dye_lot, row.quantity, row.notes, row.thumbnail, row.url, row.created_at, row.updated_at]
+      );
+      yarnIdMap[row.id] = result.rows[0].id;
+    }
+
+    // Restore hooks
+    const hookIdMap = {};
+    for (const row of dbExport.tables.hooks || []) {
+      const result = await client.query(
+        `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label, hook_type, length, quantity, notes, thumbnail, url, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
+        [userId, row.craft_type, row.name, row.brand, row.size_mm, row.size_label, row.hook_type, row.length, row.quantity, row.notes, row.thumbnail, row.url, row.created_at, row.updated_at]
+      );
+      hookIdMap[row.id] = result.rows[0].id;
+    }
+
+    // Restore pattern_yarns junction (with mapped IDs)
+    for (const row of dbExport.tables.pattern_yarns || []) {
+      const newPatternId = patternIdMap[row.pattern_id];
+      const newYarnId = yarnIdMap[row.yarn_id];
+      if (newPatternId && newYarnId) {
+        await client.query(
+          'INSERT INTO pattern_yarns (pattern_id, yarn_id, notes) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING',
+          [newPatternId, newYarnId, row.notes]
+        );
+      }
+    }
+
+    // Restore pattern_hooks junction (with mapped IDs)
+    for (const row of dbExport.tables.pattern_hooks || []) {
+      const newPatternId = patternIdMap[row.pattern_id];
+      const newHookId = hookIdMap[row.hook_id];
+      if (newPatternId && newHookId) {
+        await client.query(
+          'INSERT INTO pattern_hooks (pattern_id, hook_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [newPatternId, newHookId]
         );
       }
     }

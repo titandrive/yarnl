@@ -5125,6 +5125,24 @@ body.global-drag-over #current::after {
     flex-shrink: 0;
 }
 
+.about-attributions {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.about-attributions p {
+    margin: 4px 0;
+}
+
+.about-attributions a {
+    color: var(--primary-color);
+    text-decoration: none;
+}
+
+.about-attributions a:hover {
+    text-decoration: underline;
+}
+
 /* Backup Section */
 .warning-banner {
     display: flex;
@@ -10608,6 +10626,11 @@ textarea.image-drag-over {
     border-radius: 8px 8px 0 0;
     margin: -12px -12px 8px -12px;
     width: calc(100% + 24px);
+    background: var(--hover-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
 }
 
 .yarn-card, .hook-card {

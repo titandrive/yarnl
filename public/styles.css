@@ -10441,6 +10441,32 @@ textarea.image-drag-over {
     box-shadow: inset 2px 0 0 var(--primary-color);
 }
 
+/* List view thumbnails */
+.col-thumbnail {
+    width: 48px;
+    min-width: 48px;
+    padding: 4px 8px;
+}
+
+.list-thumbnail {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    object-fit: cover;
+    display: block;
+}
+
+.list-thumbnail-placeholder {
+    width: 32px;
+    height: 32px;
+    border-radius: 4px;
+    background: var(--hover-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-muted);
+}
+
 /* Inventory edit mode toggle button (list view) */
 .inv-edit-btn {
     background: none;

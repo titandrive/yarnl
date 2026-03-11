@@ -17257,6 +17257,7 @@ function getHiddenColumns(type) {
 function saveHiddenColumns(type, hidden) {
     const key = type === 'pattern' ? 'patternHiddenColumns' : (type === 'yarn' ? 'yarnHiddenColumns' : 'hookHiddenColumns');
     localStorage.setItem(key, JSON.stringify(hidden));
+    syncSettingsToServer();
 }
 
 function getColumnOrder(type) {
@@ -17294,6 +17295,7 @@ function getColumnOrder(type) {
 function saveColumnOrder(type, order) {
     const key = type === 'pattern' ? 'patternColumnOrder' : (type === 'yarn' ? 'yarnColumnOrder' : 'hookColumnOrder');
     localStorage.setItem(key, JSON.stringify(order));
+    syncSettingsToServer();
 }
 
 let _dragCol = null;
@@ -18607,6 +18609,7 @@ function toggleYarnSort(col) {
         yarnSort.dir = 'asc';
     }
     localStorage.setItem('yarnSort', JSON.stringify(yarnSort));
+    syncSettingsToServer();
     displayYarns();
 }
 
@@ -18619,6 +18622,7 @@ function toggleHookSort(col) {
         hookSort.dir = 'asc';
     }
     localStorage.setItem('hookSort', JSON.stringify(hookSort));
+    syncSettingsToServer();
     displayHooks();
 }
 

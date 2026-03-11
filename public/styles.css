@@ -7963,6 +7963,9 @@ textarea.image-drag-over {
     cursor: pointer;
     font-size: 0.9rem;
     font-family: var(--font-mono);
+    display: flex;
+    align-items: center;
+    gap: 6px;
     border-bottom: 2px solid transparent;
     margin-bottom: -2px;
     transition: color 0.2s, border-color 0.2s;

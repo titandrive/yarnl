@@ -2752,7 +2752,31 @@ body.global-drag-over #current::after {
 .modal-actions-right {
     display: flex;
     gap: 10px;
+    align-items: center;
     margin-left: auto;
+}
+
+.yarn-fav-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    transition: color 0.2s;
+}
+
+.yarn-fav-btn:hover {
+    color: var(--accent-color);
+}
+
+.yarn-fav-btn.active {
+    color: var(--accent-color);
+}
+
+.yarn-fav-btn.active svg {
+    fill: var(--accent-color);
 }
 
 .modal-actions .btn-danger {
@@ -10353,7 +10377,7 @@ textarea.image-drag-over {
 
 #yarn-form .form-group,
 #hook-form .form-group {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
 }
 
 #yarn-form .form-group label,
@@ -10376,12 +10400,16 @@ textarea.image-drag-over {
 #hook-form .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 12px;
+    gap: 8px;
 }
 
 #yarn-form .form-row-3,
 #hook-form .form-row-3 {
     grid-template-columns: 1fr 1fr 1fr;
+}
+
+#yarn-form .form-row-4 {
+    grid-template-columns: 1fr 1fr 1fr 1fr;
 }
 
 #yarn-form .qty-stepper input,
@@ -10395,6 +10423,7 @@ textarea.image-drag-over {
     width: 34px;
     font-size: 1rem;
 }
+
 
 /* ── Craft type toggle ── */
 

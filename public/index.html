@@ -3392,6 +3392,16 @@ Inc in each st around (12)
             </div>
             <form id="yarn-form">
               <div id="yarn-tab-details" class="edit-modal-tab-content active">
+                <div class="form-group">
+                    <label for="yarn-url">Product URL</label>
+                    <div class="url-input-row">
+                        <input type="url" id="yarn-url" placeholder="e.g. https://www.ravelry.com/yarns/library/...">
+                        <button type="button" class="btn btn-secondary url-import-btn" id="yarn-import-img-btn" title="Auto-fill fields from product URL">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Auto Import
+                        </button>
+                    </div>
+                </div>
                 <div class="form-row">
                     <div class="form-group">
                         <label for="yarn-brand">Brand</label>
@@ -3438,49 +3448,27 @@ Inc in each st around (12)
                             <button type="button" class="qty-btn" data-target="yarn-quantity" data-dir="1" data-step="1">+</button>
                         </div>
                     </div>
-                </div>
-                <div class="form-row">
-                    <div class="form-group" style="flex: 1;">
+                    <div class="form-group">
                         <label for="yarn-fiber">Fiber Content</label>
                         <input type="text" id="yarn-fiber" placeholder="e.g. 100% Acrylic">
                     </div>
-                    <div class="form-group" style="flex: 0 0 auto;">
-                        <label>Rating</label>
-                        <div id="yarn-rating"></div>
-                    </div>
                 </div>
-                <div class="form-row form-row-2">
+                <div class="form-row form-row-4">
                     <div class="form-group">
                         <label for="yarn-yardage">Yardage</label>
                         <input type="number" id="yarn-yardage" step="0.1" min="0" placeholder="e.g. 450">
                     </div>
                     <div class="form-group">
-                        <label for="yarn-unit-weight">Unit Weight (g)</label>
+                        <label for="yarn-unit-weight">Weight (g)</label>
                         <input type="number" id="yarn-unit-weight" step="0.1" min="0" placeholder="e.g. 100">
                     </div>
-                </div>
-                <div class="form-row form-row-3">
                     <div class="form-group">
                         <label for="yarn-gauge">Gauge</label>
-                        <input type="text" id="yarn-gauge" placeholder="e.g. 22 sts / 4in">
+                        <input type="text" id="yarn-gauge" placeholder="e.g. 22 sts">
                     </div>
                     <div class="form-group">
-                        <label for="yarn-needle-size">Needle Size</label>
-                        <input type="text" id="yarn-needle-size" placeholder="e.g. US 6 / 4mm">
-                    </div>
-                    <div class="form-group">
-                        <label for="yarn-hook-size">Hook Size</label>
-                        <input type="text" id="yarn-hook-size" placeholder="e.g. 5mm / H-8">
-                    </div>
-                </div>
-                <div class="form-group">
-                    <label for="yarn-url">Product URL</label>
-                    <div class="url-input-row">
-                        <input type="url" id="yarn-url" placeholder="e.g. https://www.joann.com/...">
-                        <button type="button" class="btn btn-secondary url-import-btn" id="yarn-import-img-btn" title="Import product data from URL">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            Import via URL
-                        </button>
+                        <label for="yarn-rec-size">Rec. Size</label>
+                        <input type="text" id="yarn-rec-size" placeholder="e.g. US 3">
                     </div>
                 </div>
                 <div class="form-row" style="align-items: flex-start;">
@@ -3505,6 +3493,10 @@ Inc in each st around (12)
                     <button type="button" class="btn btn-danger" id="delete-yarn-btn" style="display: none;">Delete</button>
                     <button type="button" class="btn btn-secondary" id="duplicate-yarn-btn" style="display: none;">Duplicate</button>
                     <div class="modal-actions-right">
+                        <button type="button" class="yarn-fav-btn" id="yarn-favorite-btn" title="Favorite">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                        </button>
+                        <div id="yarn-rating"></div>
                         <button type="button" class="btn btn-secondary" id="cancel-yarn-btn">Cancel</button>
                         <button type="submit" class="btn btn-primary" id="save-yarn-btn">Add Yarn</button>
                     </div>

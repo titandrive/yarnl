@@ -17019,6 +17019,10 @@ function initInventory() {
     document.getElementById('delete-yarn-btn')?.addEventListener('click', () => { if (editingYarnId) deleteYarn(editingYarnId); });
     document.getElementById('duplicate-yarn-btn')?.addEventListener('click', () => { if (editingYarnId) { closeYarnModal(); duplicateYarn(editingYarnId); } });
     document.getElementById('yarn-import-img-btn')?.addEventListener('click', () => importImageFromUrl('yarn'));
+    document.getElementById('yarn-favorite-btn')?.addEventListener('click', () => {
+        const btn = document.getElementById('yarn-favorite-btn');
+        btn.classList.toggle('active');
+    });
     // Hook modal
     document.getElementById('hook-form')?.addEventListener('submit', (e) => { e.preventDefault(); saveHook(); });
     document.getElementById('cancel-hook-btn')?.addEventListener('click', () => closeHookModal());
@@ -17755,13 +17759,20 @@ function openYarnModal(yarnId = null) {
     document.getElementById('yarn-yardage').value = yarn?.yardage || '';
     document.getElementById('yarn-unit-weight').value = yarn?.unit_weight || '';
     document.getElementById('yarn-gauge').value = yarn?.gauge || '';
-    document.getElementById('yarn-needle-size').value = yarn?.needle_size || '';
-    document.getElementById('yarn-hook-size').value = yarn?.hook_size || '';
+    document.getElementById('yarn-rec-size').value = yarn?.needle_size || yarn?.hook_size || '';
     document.getElementById('yarn-url').value = yarn?.url || '';
     document.getElementById('yarn-notes').value = yarn?.notes || '';
 
     // Rating
     document.getElementById('yarn-rating').innerHTML = ratingInputHtml('yarn-rating-input', yarn?.rating || 0);
+
+    // Favorite button
+    const favBtn = document.getElementById('yarn-favorite-btn');
+    if (yarn?.is_favorite) {
+        favBtn.classList.add('active');
+    } else {
+        favBtn.classList.remove('active');
+    }
 
     // Thumbnail
     if (yarn?.thumbnail) {
@@ -17809,11 +17820,12 @@ async function saveYarn() {
         yardage: parseFloat(document.getElementById('yarn-yardage').value) || null,
         unit_weight: parseFloat(document.getElementById('yarn-unit-weight').value) || null,
         gauge: document.getElementById('yarn-gauge').value.trim() || null,
-        needle_size: document.getElementById('yarn-needle-size').value.trim() || null,
-        hook_size: document.getElementById('yarn-hook-size').value.trim() || null,
+        needle_size: document.getElementById('yarn-rec-size').value.trim() || null,
+        hook_size: null,
         url: document.getElementById('yarn-url').value.trim() || null,
         notes: document.getElementById('yarn-notes').value.trim() || null,
-        rating: parseInt(document.getElementById('yarn-rating-input')?.dataset.rating) || 0
+        rating: parseInt(document.getElementById('yarn-rating-input')?.dataset.rating) || 0,
+        is_favorite: document.getElementById('yarn-favorite-btn').classList.contains('active')
     };
 
     try {
@@ -18215,7 +18227,7 @@ async function importImageFromUrl(type) {
             });
         }
     } catch (error) {
-        alert(error.message || 'Could not import from URL');
+        showToast(error.message || 'Could not import from URL', 'error');
     } finally {
         btn.disabled = false;
         btn.innerHTML = origText;
@@ -18245,8 +18257,7 @@ function autoFillYarnFields(fields) {
     fill('yarn-yardage', fields.yardage);
     fill('yarn-unit-weight', fields.unit_weight);
     fill('yarn-gauge', fields.gauge);
-    fill('yarn-needle-size', fields.needle_size);
-    fill('yarn-hook-size', fields.hook_size);
+    fill('yarn-rec-size', fields.needle_size || fields.hook_size);
     return filled;
 }
 

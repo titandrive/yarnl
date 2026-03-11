@@ -1569,6 +1569,7 @@ app.get('/api/ravelry/needles', authMiddleware, async (req, res) => {
 
     const needlesData = await ravelryFetch(req.user.id, `/people/${username}/needles/list.json`);
     const needleRecords = needlesData.needle_records || [];
+    if (needleRecords.length > 0) console.log('Ravelry needle sample:', JSON.stringify(needleRecords[0], null, 2));
 
     const ravelryIds = needleRecords.map(n => n.id);
     let importedIds = new Set();
@@ -1580,16 +1581,34 @@ app.get('/api/ravelry/needles', authMiddleware, async (req, res) => {
       importedIds = new Set(imported.rows.map(r => r.ravelry_needle_id));
     }
 
-    const items = needleRecords.map(needle => ({
-      id: needle.id,
-      name: needle.name || `${needle.needle_size?.name || ''} ${needle.hook ? 'Hook' : 'Needle'}`.trim(),
-      size: needle.needle_size?.name || '',
-      size_mm: needle.needle_size?.mm || null,
-      type: needle.type?.name || '',
-      material: needle.brand || '',
-      is_hook: needle.hook || false,
-      imported: importedIds.has(needle.id)
-    }));
+    const items = needleRecords.map(needle => {
+      const nt = needle.needle_type || {};
+      const typeName = nt.type_name || ''; // "straight", "hook", etc.
+      const usSize = nt.name || '';
+      const metricSize = nt.metric_name || '';
+      const length = nt.length ? `${nt.length}"` : '';
+      const isHook = typeName === 'hook' || typeName === 'crochet';
+      const kindLabel = isHook ? 'Hook' : 'Needle';
+
+      // Size string: "US 1½ / 2.5mm" or "F / 3.75mm"
+      const sizeParts = [];
+      if (usSize) sizeParts.push(isHook ? usSize : `US ${usSize}`);
+      if (metricSize) sizeParts.push(`${metricSize}mm`);
+      const sizeStr = sizeParts.join(' / ');
+
+      const displayName = nt.description || [sizeStr, typeName, kindLabel].filter(Boolean).join(' ') || kindLabel;
+
+      return {
+        id: needle.id,
+        name: displayName,
+        size: sizeStr,
+        type: typeName,
+        length: length,
+        is_hook: isHook,
+        comment: needle.comment || '',
+        imported: importedIds.has(needle.id)
+      };
+    });
 
     res.json({ items, total: items.length });
   } catch (error) {
@@ -2056,7 +2075,13 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
             );
             if (existing.rows.length > 0) continue;
 
-            const craftType = needle.hook ? 'crochet' : 'knitting';
+            const nt = needle.needle_type || {};
+            const typeName = nt.type_name || '';
+            const isHook = typeName === 'hook' || typeName === 'crochet';
+            const craftType = isHook ? 'crochet' : 'knitting';
+            const metricSize = nt.metric_name ? parseFloat(nt.metric_name) : null;
+            const sizeLabel = nt.name || '';
+            const displayName = nt.description || `${sizeLabel} ${typeName}`.trim() || (isHook ? 'Hook' : 'Needle');
             await pool.query(
               `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label,
                hook_type, notes, ravelry_needle_id)
@@ -2064,12 +2089,12 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
               [
                 req.user.id,
                 craftType,
-                needle.name || `${needle.needle_size?.name || ''} ${craftType === 'crochet' ? 'Hook' : 'Needle'}`.trim(),
-                needle.brand || '',
-                needle.needle_size?.mm || null,
-                needle.needle_size?.name || '',
-                needle.type?.name || '',
-                needle.notes || '',
+                needle.comment || displayName,
+                '',
+                metricSize,
+                sizeLabel,
+                typeName,
+                '',
                 needle.id
               ]
             );

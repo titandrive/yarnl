@@ -1184,24 +1184,48 @@ async function initRavelryTab() {
         const disconnectBtn = document.getElementById('ravelry-disconnect-btn');
         const importArea = document.getElementById('ravelry-import-area');
 
+        const refreshBtn = document.getElementById('ravelry-refresh-btn');
+
         if (statusData.connected) {
             if (statusText) statusText.textContent = `Connected as ${statusData.username}`;
             if (connectBtn) connectBtn.style.display = 'none';
             if (disconnectBtn) disconnectBtn.style.display = '';
             if (importArea) importArea.style.display = '';
-            // Load the active tab data
-            loadRavelryTabData(ravelryState.activeTab);
+            if (refreshBtn) refreshBtn.style.display = '';
+            // Load all tabs in parallel
+            loadRavelryTabData('patterns');
+            loadRavelryTabData('yarn');
+            loadRavelryTabData('hooks');
         } else {
             if (statusText) statusText.textContent = 'Not connected';
             if (connectBtn) connectBtn.style.display = '';
             if (disconnectBtn) disconnectBtn.style.display = 'none';
             if (importArea) importArea.style.display = 'none';
+            if (refreshBtn) refreshBtn.style.display = 'none';
         }
     } catch (e) {
         console.error('Failed to check Ravelry status:', e);
     }
 
     // Setup event listeners
+    document.getElementById('ravelry-refresh-btn')?.addEventListener('click', async (e) => {
+        const btn = e.currentTarget;
+        const svg = btn.querySelector('svg');
+        svg.style.animation = 'spin 0.8s linear infinite';
+        btn.disabled = true;
+        // Reset loaded state and reload all tabs
+        ravelryState.patterns.loaded = false;
+        ravelryState.yarn.loaded = false;
+        ravelryState.hooks.loaded = false;
+        await Promise.all([
+            loadRavelryTabData('patterns'),
+            loadRavelryTabData('yarn'),
+            loadRavelryTabData('hooks')
+        ]);
+        svg.style.animation = '';
+        btn.disabled = false;
+    });
+
     document.getElementById('ravelry-connect-btn')?.addEventListener('click', () => {
         window.location.href = `${API_URL}/api/ravelry/auth`;
     });
@@ -1408,12 +1432,20 @@ function renderRavelryList(tab) {
         for (const item of data.items) {
             const sel = selected.has(item.id) ? ' selected' : '';
             const importedBadge = item.imported ? '<span class="ravelry-badge ravelry-badge-imported">Imported</span>' : '';
-            const hookLabel = item.is_hook ? 'Hook' : 'Needle';
+            const metaParts = [];
+            if (item.type) metaParts.push(escapeHtml(item.type));
+            if (item.size) metaParts.push(escapeHtml(item.size));
+            if (item.length) metaParts.push(escapeHtml(item.length));
+            if (item.material) metaParts.push(escapeHtml(item.material));
+            const metaLine = metaParts.join(' &middot; ');
+            const hookPlaceholder = `<div class="ravelry-item-photo-placeholder">${hookPlaceholderSvg(item.is_hook ? 'crochet' : 'knitting', 40)}</div>`;
             html += `<div class="ravelry-item${sel}" data-id="${item.id}">
                 <div class="ravelry-item-checkbox" data-ravelry-id="${item.id}">${checkSvg}</div>
-                <div class="ravelry-item-info" style="margin-left: 0;">
+                <div class="ravelry-item-photo">${hookPlaceholder}</div>
+                <div class="ravelry-item-info">
                     <div class="ravelry-item-name">${escapeHtml(item.name)}</div>
-                    <div class="ravelry-item-meta">${escapeHtml(hookLabel)}${item.size ? ` &middot; ${escapeHtml(item.size)}` : ''}${item.type ? ` &middot; ${escapeHtml(item.type)}` : ''}</div>
+                    ${metaLine ? `<div class="ravelry-item-meta">${metaLine}</div>` : ''}
+                    ${item.comment ? `<div class="ravelry-item-meta">${escapeHtml(item.comment)}</div>` : ''}
                 </div>
                 <div class="ravelry-item-badges">${importedBadge}</div>
             </div>`;
@@ -1579,7 +1611,10 @@ function handleRavelryImportComplete(data) {
     const importSelectedBtn = document.getElementById('ravelry-import-selected-btn');
     const importAllBtn = document.getElementById('ravelry-import-all-btn');
 
-    if (progressText) progressText.textContent = `Import complete! ${data.patterns} patterns, ${data.yarns} yarns, ${data.hooks} hooks/needles imported.`;
+    const tab = ravelryState.activeTab;
+    const count = tab === 'patterns' ? data.patterns : tab === 'yarn' ? data.yarns : data.hooks;
+    const label = tab === 'patterns' ? 'pattern' : tab === 'yarn' ? 'yarn' : 'hook/needle';
+    if (progressText) progressText.textContent = `Import complete! ${count} ${label}${count !== 1 ? 's' : ''} imported.`;
     if (progressBar) progressBar.style.width = '100%';
     if (importSelectedBtn) importSelectedBtn.disabled = false;
     if (importAllBtn) importAllBtn.disabled = false;

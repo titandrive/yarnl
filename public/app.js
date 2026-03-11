@@ -1313,14 +1313,16 @@ async function initRavelryTab() {
         const tab = ravelryState.activeTab;
         const ids = Array.from(ravelryState.selected[tab]);
         if (ids.length === 0) return;
-        if (tab === 'patterns') {
+        let importIds = ids;
+        if (tab === 'patterns' || tab === 'favorites') {
+            const items = ravelryState[tab].items;
             const noPdf = ids.filter(id => {
-                const item = ravelryState.patterns.items.find(i => i.id === id);
-                return item && !item.has_pdf;
+                const item = items.find(i => i.id === id);
+                return item && (tab === 'favorites' ? item.fav_type === 'pattern' : true) && !item.has_pdf;
             });
             if (noPdf.length > 0) {
                 const msgs = noPdf.map(id => {
-                    const item = ravelryState.patterns.items.find(i => i.id === id);
+                    const item = items.find(i => i.id === id);
                     if (!item) return null;
                     const reason = item.pdf_status === 'purchase_required'
                         ? 'must be purchased on Ravelry before it can be imported'
@@ -1328,27 +1330,11 @@ async function initRavelryTab() {
                     return `"${item.name}" ${reason}`;
                 }).filter(Boolean).join('\n');
                 showToast(msgs, 'error', 8000);
-                return;
-            }
-        } else if (tab === 'favorites') {
-            const noPdf = ids.filter(id => {
-                const item = ravelryState.favorites.items.find(i => i.id === id);
-                return item && item.fav_type === 'pattern' && !item.has_pdf;
-            });
-            if (noPdf.length > 0) {
-                const msgs = noPdf.map(id => {
-                    const item = ravelryState.favorites.items.find(i => i.id === id);
-                    if (!item) return null;
-                    const reason = item.pdf_status === 'purchase_required'
-                        ? 'must be purchased on Ravelry before it can be imported'
-                        : 'does not have a PDF and cannot be imported';
-                    return `"${item.name}" ${reason}`;
-                }).filter(Boolean).join('\n');
-                showToast(msgs, 'error', 8000);
-                return;
+                importIds = ids.filter(id => !noPdf.includes(id));
+                if (importIds.length === 0) return;
             }
         }
-        startRavelryImport(tab, ids);
+        startRavelryImport(tab, importIds);
     });
 
     // Import all (click once to confirm, click again to execute)

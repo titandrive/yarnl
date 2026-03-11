@@ -1953,6 +1953,7 @@ html[data-theme="nuked-dark"] .btn-primary {
     position: relative;
     display: flex;
     align-items: center;
+    flex: 1;
 }
 
 .search-input-wrapper input[type="text"] {

@@ -1688,7 +1688,30 @@ app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
       );
       importedPatternIds = new Set(imported.rows.map(r => r.ravelry_id));
     }
-    // For yarn favorites, we can't easily check import since they're product IDs not stash IDs
+    // Check yarn import status via stash IDs and name+brand matching
+    let importedYarnProductIds = new Set();
+    if (yarnIds.length > 0) {
+      // Match by name+brand (yarn URL imports) or via stash cross-reference (done below)
+      const yarnNames = yarnIds.map(id => {
+        const fav = favorites.find(f => (f.favorited || {}).id === id);
+        return fav?.favorited?.name || null;
+      });
+      const yarnBrands = yarnIds.map(id => {
+        const fav = favorites.find(f => (f.favorited || {}).id === id);
+        const obj = fav?.favorited || {};
+        return obj.yarn_company_name || obj.yarn_company?.name || null;
+      });
+      // Check by name+brand pairs
+      for (let i = 0; i < yarnIds.length; i++) {
+        if (yarnNames[i]) {
+          const match = await pool.query(
+            'SELECT id FROM yarns WHERE user_id = $1 AND name = $2 AND ($3::text IS NULL OR brand = $3)',
+            [req.user.id, yarnNames[i], yarnBrands[i]]
+          );
+          if (match.rows.length > 0) importedYarnProductIds.add(yarnIds[i]);
+        }
+      }
+    }
 
     // Fetch full details for favorites (list endpoint returns slim objects)
     const patternDetailMap = new Map();
@@ -1722,11 +1745,13 @@ app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
               const detail = await ravelryFetch(req.user.id, `/people/${username}/stash/${item.id}.json`);
               const skeins = (detail?.stash?.packs || []).find(p => p.primary_pack_id == null)?.skeins || 1;
               stashByYarnId.set(yarnId, {
+                stashId: item.id,
                 colorway: item.colorway_name || item.color_family_name || '',
                 skeins
               });
             } catch (e) {
               stashByYarnId.set(yarnId, {
+                stashId: item.id,
                 colorway: item.colorway_name || item.color_family_name || '',
                 skeins: 1
               });
@@ -1734,6 +1759,19 @@ app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
           }
         }
       } catch (e) {}
+
+      // Also check if stash items are imported
+      const stashIds = [...stashByYarnId.values()].map(s => s.stashId).filter(Boolean);
+      if (stashIds.length > 0) {
+        const imported = await pool.query(
+          'SELECT ravelry_stash_id FROM yarns WHERE ravelry_stash_id = ANY($1) AND user_id = $2',
+          [stashIds, req.user.id]
+        );
+        const importedStashIds = new Set(imported.rows.map(r => r.ravelry_stash_id));
+        for (const [yarnId, stash] of stashByYarnId) {
+          if (importedStashIds.has(stash.stashId)) importedYarnProductIds.add(yarnId);
+        }
+      }
     }
 
     const items = favorites.map(fav => {
@@ -1765,7 +1803,7 @@ app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
           skeins: stashMatch?.skeins || null,
           photo: fullYarn?.photos?.[0]?.medium_url || fullYarn?.photos?.[0]?.small_url
             || obj.first_photo?.medium_url || obj.first_photo?.small_url || null,
-          imported: false
+          imported: importedYarnProductIds.has(obj.id)
         };
       }
       return null;

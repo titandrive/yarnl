@@ -1217,7 +1217,7 @@ app.get('/api/ravelry/auth', authMiddleware, async (req, res) => {
     res.cookie('ravelry_user', String(req.user.id), { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
     res.cookie('ravelry_redirect', redirectUri, { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
 
-    const authUrl = `https://www.ravelry.com/oauth2/auth?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=offline&state=${state}`;
+    const authUrl = `https://www.ravelry.com/oauth2/auth?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=offline+library-pdf&state=${state}`;
     res.redirect(authUrl);
   } catch (error) {
     console.error('Ravelry auth error:', error);
@@ -1496,18 +1496,91 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                 category = cat.name || 'Uncategorized';
               }
 
-              // Insert pattern as markdown type (no PDF yet)
+              // Try to download PDF if available
+              let pdfFilename = null;
+              let patternType = 'markdown';
+              if (pattern.pdf_in_library) {
+                try {
+                  // Fetch full volume details to get attachment IDs
+                  const volumeData = await ravelryFetch(req.user.id, `/volumes/${vol.id}.json`);
+                  const attachments = volumeData.volume?.volume_attachments || [];
+                  if (attachments.length > 0) {
+                    const attachmentId = attachments[0].product_attachment_id;
+                    const downloadData = await ravelryFetch(
+                      req.user.id,
+                      `/product_attachments/${attachmentId}/generate_download_link.json`
+                    );
+                    const downloadUrl = downloadData.download_link?.url;
+                    if (downloadUrl) {
+                      const pdfResponse = await fetch(downloadUrl);
+                      if (pdfResponse.ok) {
+                        const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
+                        const categoryDir = getCategoryDir(req.user.username, category);
+                        if (!fs.existsSync(categoryDir)) fs.mkdirSync(categoryDir, { recursive: true });
+                        const sanitized = sanitizeFilename(pattern.name);
+                        pdfFilename = getUniqueFilename(categoryDir, sanitized, '.pdf');
+                        fs.writeFileSync(path.join(categoryDir, pdfFilename), pdfBuffer);
+                        patternType = 'pdf';
+
+                        // Generate thumbnail from PDF if we didn't get one from Ravelry
+                        if (!thumbnailPath) {
+                          try {
+                            const pdfThumbFilename = `thumb-${category}-${pdfFilename}.jpg`;
+                            thumbnailPath = await generateThumbnail(
+                              path.join(categoryDir, pdfFilename), pdfThumbFilename, req.user.username
+                            );
+                          } catch (e) {
+                            console.error(`Failed to generate PDF thumbnail for pattern ${pattern.id}:`, e.message);
+                          }
+                        }
+                      }
+                    }
+                  }
+                } catch (e) {
+                  console.error(`Failed to download PDF for pattern ${pattern.id}:`, e.message);
+                }
+              } else if (pattern.pdf_url && pattern.free) {
+                // Free pattern with direct PDF link
+                try {
+                  const pdfResponse = await fetch(pattern.pdf_url);
+                  if (pdfResponse.ok && pdfResponse.headers.get('content-type')?.includes('pdf')) {
+                    const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
+                    const categoryDir = getCategoryDir(req.user.username, category);
+                    if (!fs.existsSync(categoryDir)) fs.mkdirSync(categoryDir, { recursive: true });
+                    const sanitized = sanitizeFilename(pattern.name);
+                    pdfFilename = getUniqueFilename(categoryDir, sanitized, '.pdf');
+                    fs.writeFileSync(path.join(categoryDir, pdfFilename), pdfBuffer);
+                    patternType = 'pdf';
+
+                    if (!thumbnailPath) {
+                      try {
+                        const pdfThumbFilename = `thumb-${category}-${pdfFilename}.jpg`;
+                        thumbnailPath = await generateThumbnail(
+                          path.join(categoryDir, pdfFilename), pdfThumbFilename, req.user.username
+                        );
+                      } catch (e) {
+                        console.error(`Failed to generate PDF thumbnail for pattern ${pattern.id}:`, e.message);
+                      }
+                    }
+                  }
+                } catch (e) {
+                  console.error(`Failed to download free PDF for pattern ${pattern.id}:`, e.message);
+                }
+              }
+
               const description = pattern.notes_html || pattern.notes || '';
+              const filename = pdfFilename || `ravelry_${pattern.id}`;
               await pool.query(
                 `INSERT INTO patterns (name, filename, original_name, category, description, pattern_type,
                  thumbnail, user_id, ravelry_id, rating, created_at)
-                 VALUES ($1, $2, $3, $4, $5, 'markdown', $6, $7, $8, $9, $10)`,
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
                 [
                   pattern.name,
-                  `ravelry_${pattern.id}`,
+                  filename,
                   pattern.name,
                   category,
                   description,
+                  patternType,
                   thumbnailPath,
                   req.user.id,
                   pattern.id,

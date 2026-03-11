@@ -1394,6 +1394,9 @@ function extractYarnDetails(y) {
   return { yardage, unitWeight, gauge, needleSize, hookSize };
 }
 
+// Helper: force Ravelry image URLs to https (prod servers run https; Ravelry CDN sometimes returns http)
+function httpsUrl(url) { return url ? url.replace(/^http:\/\//, 'https://') : null; }
+
 // Helper: make authenticated Ravelry API request
 async function ravelryFetch(userId, endpoint) {
   const token = await refreshRavelryToken(userId);
@@ -1540,9 +1543,9 @@ app.get('/api/ravelry/library', authMiddleware, async (req, res) => {
         volume_id: vol.id,
         name: p.name || vol.title || 'Unknown Pattern',
         author: p.pattern_author?.name || vol.author_name || '',
-        photo: p.first_photo?.medium_url || p.first_photo?.small_url || p.first_photo?.square_url
+        photo: httpsUrl(p.first_photo?.medium_url || p.first_photo?.small_url || p.first_photo?.square_url
           || vol.cover_image_url || vol.square_image_url
-          || vol.first_photo?.medium_url || vol.first_photo?.small_url || vol.first_photo?.square_url || null,
+          || vol.first_photo?.medium_url || vol.first_photo?.small_url || vol.first_photo?.square_url || null),
         category: p.pattern_categories?.[0]?.name || 'Uncategorized',
         has_pdf: vol.has_downloads || vol.pdf_in_library || (p.pdf_url && p.free) || false,
         imported: importedIds.has(patternId)
@@ -1559,7 +1562,7 @@ app.get('/api/ravelry/library', authMiddleware, async (req, res) => {
         await Promise.all(chunks.map(async chunk => {
           const data = await ravelryFetch(req.user.id, `/patterns.json?ids=${chunk.join(',')}`);
           for (const p of (data.patterns || [])) {
-            const url = p.first_photo?.medium_url || p.first_photo?.small_url || p.first_photo?.square_url || null;
+            const url = httpsUrl(p.first_photo?.medium_url || p.first_photo?.small_url || p.first_photo?.square_url || null);
             if (url) photoMap[p.id] = url;
           }
         }));
@@ -1623,9 +1626,9 @@ app.get('/api/ravelry/stash', authMiddleware, async (req, res) => {
       const fullYarn = details[i]?.yarn;
       const yarn = item.yarn || {};
       // Photo from full yarn product page, fallback to stash
-      const photo = fullYarn?.photos?.[0]?.medium2_url || fullYarn?.photos?.[0]?.medium_url || fullYarn?.photos?.[0]?.small_url
+      const photo = httpsUrl(fullYarn?.photos?.[0]?.medium2_url || fullYarn?.photos?.[0]?.medium_url || fullYarn?.photos?.[0]?.small_url
         || detail?.first_photo?.medium2_url || detail?.first_photo?.medium_url || detail?.first_photo?.small_url
-        || null;
+        || null);
       return {
         id: item.id,
         name: fullYarn?.name || yarn.name || item.name || 'Unknown Yarn',
@@ -1841,8 +1844,8 @@ app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
           name: full?.name || obj.name || 'Unknown Pattern',
           author: full?.pattern_author?.name || obj.designer?.name || obj.pattern_author?.name || '',
           category: full?.pattern_categories?.[0]?.name || obj.pattern_categories?.[0]?.name || '',
-          photo: full?.photos?.[0]?.medium_url || full?.photos?.[0]?.small_url
-            || obj.first_photo?.medium_url || obj.first_photo?.small_url || null,
+          photo: httpsUrl(full?.photos?.[0]?.medium_url || full?.photos?.[0]?.small_url
+            || obj.first_photo?.medium_url || obj.first_photo?.small_url || null),
           imported: importedPatternIds.has(obj.id)
         };
       } else if (obj.type === 'yarn' || fav.type === 'yarn') {
@@ -1857,8 +1860,8 @@ app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
           colorway: stashMatch?.colorway || '',
           weight: fullYarn?.yarn_weight?.name || obj.yarn_weight?.name || '',
           skeins: stashMatch?.skeins || null,
-          photo: fullYarn?.photos?.[0]?.medium_url || fullYarn?.photos?.[0]?.small_url
-            || obj.first_photo?.medium_url || obj.first_photo?.small_url || null,
+          photo: httpsUrl(fullYarn?.photos?.[0]?.medium_url || fullYarn?.photos?.[0]?.small_url
+            || obj.first_photo?.medium_url || obj.first_photo?.small_url || null),
           imported: importedYarnProductIds.has(obj.id)
         };
       }

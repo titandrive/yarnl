@@ -1396,8 +1396,11 @@ function extractYarnDetails(y) {
   return { yardage, unitWeight, gauge, needleSize, hookSize };
 }
 
-// Helper: proxy Ravelry image URLs through our server to avoid mixed content / bad CDN certs
-function ravelryImgUrl(url) { return url ? `/api/ravelry/proxy-image?url=${encodeURIComponent(url)}` : null; }
+// Helper: proxy http:// Ravelry URLs through our server (images4.ravelry.com lacks SSL cert); pass https:// through as-is
+function ravelryImgUrl(url) {
+  if (!url) return null;
+  return url.startsWith('http:') ? `/api/ravelry/proxy-image?url=${encodeURIComponent(url)}` : url;
+}
 
 // Helper: make authenticated Ravelry API request
 async function ravelryFetch(userId, endpoint) {

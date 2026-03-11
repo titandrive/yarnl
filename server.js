@@ -1396,6 +1396,26 @@ function extractYarnDetails(y) {
   return { yardage, unitWeight, gauge, needleSize, hookSize };
 }
 
+// Helper: ensure a hashtag exists and link it to a pattern
+async function applyTag(patternId, tagName) {
+  await pool.query(
+    `INSERT INTO hashtags (name, position) SELECT $1, COALESCE(MAX(position), -1) + 1 FROM hashtags ON CONFLICT (name) DO NOTHING`,
+    [tagName]
+  );
+  const { rows } = await pool.query('SELECT id FROM hashtags WHERE name = $1', [tagName]);
+  const tagId = rows[0]?.id;
+  if (tagId) {
+    await pool.query(
+      'INSERT INTO pattern_hashtags (pattern_id, hashtag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [patternId, tagId]
+    );
+  }
+}
+function applyRavelryTag(patternId) { return applyTag(patternId, 'ravelry'); }
+
+// Helper: strip HTML tags from a string
+function stripHtml(str) { return str ? str.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : ''; }
+
 // Helper: proxy http:// Ravelry URLs through our server (images4.ravelry.com lacks SSL cert); pass https:// through as-is
 function ravelryImgUrl(url) {
   if (!url) return null;
@@ -2270,6 +2290,8 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
       }
     }
 
+    await applyRavelryTag(patternId);
+
     res.json({
       success: true,
       patternId,
@@ -2366,12 +2388,9 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                 }
               }
 
-              // Map category
-              let category = 'Uncategorized';
-              if (pattern.pattern_categories?.length > 0) {
-                const cat = pattern.pattern_categories[0];
-                category = cat.name || 'Uncategorized';
-              }
+              // Ravelry category becomes a tag, not a Yarnl category
+              const ravelryCategoryName = pattern.pattern_categories?.[0]?.name || null;
+              const category = 'Uncategorized';
 
               // Try to download PDF if available
               let pdfFilename = null;
@@ -2448,12 +2467,12 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
               }
 
               const patternName = pattern.name || vol.title || 'Unknown Pattern';
-              const description = pattern.notes_html || pattern.notes || '';
+              const description = pattern.notes || '';
               const filename = pdfFilename || `ravelry_${patternId}`;
-              await pool.query(
+              const bulkInsertResult = await pool.query(
                 `INSERT INTO patterns (name, filename, original_name, category, description, pattern_type,
                  thumbnail, user_id, ravelry_id, rating, created_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
                 [
                   patternName,
                   filename,
@@ -2468,6 +2487,11 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                   pattern.created_at || new Date()
                 ]
               );
+              const insertedId = bulkInsertResult.rows[0]?.id;
+              if (insertedId) {
+                await applyRavelryTag(insertedId);
+                if (ravelryCategoryName) await applyTag(insertedId, ravelryCategoryName.toLowerCase());
+              }
               totalImported.patterns++;
               importProgress({ step: 'patterns', status: `Importing patterns (${totalImported.patterns}/${totalPatterns})...`, current: totalImported.patterns, total: totalPatterns });
             }

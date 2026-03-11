@@ -1799,9 +1799,11 @@ async function previewRavelryUrl() {
             if (favSvg) { favSvg.setAttribute('fill', 'none'); favSvg.setAttribute('stroke', 'currentColor'); }
         }
 
-        // Full hashtag selector
+        // Full hashtag selector — pre-select #ravelry if it exists
         const hashtagContainer = document.getElementById('ravelry-import-hashtags-container');
-        if (hashtagContainer) hashtagContainer.innerHTML = createHashtagSelector('ravelry-import-hashtags', []);
+        const ravelryTag = allHashtags.find(h => h.name === 'ravelry');
+        const preSelected = ravelryTag ? [ravelryTag.id] : [];
+        if (hashtagContainer) hashtagContainer.innerHTML = createHashtagSelector('ravelry-import-hashtags', preSelected);
 
         // Ravelry suggested tags as quick-add chips
         const tagsContainer = document.getElementById('ravelry-suggested-tags');
@@ -17377,6 +17379,7 @@ const PATTERN_COLUMNS = {
     thumbnail: { label: 'Photo', value: p => p.thumbnail ? `<img src="${API_URL}/api/patterns/${p.id}/thumbnail" class="list-thumbnail" alt="">` : LIST_PATTERN_PLACEHOLDER },
     name:     { label: 'Name',     value: p => escapeHtml(p.name || '—') },
     category: { label: 'Category', value: p => escapeHtml(p.category || '—') },
+    tags:     { label: 'Tags',     value: p => (p.hashtags && p.hashtags.length > 0) ? p.hashtags.map(h => `<span class="list-tag">#${escapeHtml(h.name)}</span>`).join(' ') : '—' },
     type:     { label: 'Type',     value: p => p.pattern_type === 'markdown' ? 'MD' : 'PDF' },
     status:   { label: 'Status',   value: p => p.completed ? 'Completed' : (p.is_current ? 'In Progress' : 'New') },
     added:    { label: 'Added',    value: p => p.upload_date ? new Date(p.upload_date).toLocaleDateString() : '—' },
@@ -17388,7 +17391,7 @@ const PATTERN_COLUMNS = {
     completed_date: { label: 'Completed', value: p => p.completed_date ? new Date(p.completed_date).toLocaleDateString() : '—' },
     started_date: { label: 'Started', value: p => p.started_date ? new Date(p.started_date).toLocaleDateString() : '—' },
 };
-const DEFAULT_PATTERN_COL_ORDER = ['thumbnail', 'name', 'category', 'type', 'status', 'added', 'opened', 'time', 'description', 'favorite', 'rating', 'completed_date', 'started_date'];
+const DEFAULT_PATTERN_COL_ORDER = ['thumbnail', 'name', 'category', 'tags', 'type', 'status', 'added', 'opened', 'time', 'description', 'favorite', 'rating', 'completed_date', 'started_date'];
 
 function getColumnsConfig(type) {
     return type === 'pattern' ? PATTERN_COLUMNS : (type === 'yarn' ? YARN_COLUMNS : HOOK_COLUMNS);

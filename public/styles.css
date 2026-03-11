@@ -7894,6 +7894,12 @@ textarea.image-drag-over {
     margin-top: 15px;
 }
 
+#edit-modal .modal-actions .btn {
+    white-space: nowrap;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+}
+
 /* Toast notifications */
 .toast-container {
     position: fixed;
@@ -10949,6 +10955,17 @@ textarea.image-drag-over {
 
 .context-menu-rating svg:hover {
     transform: scale(1.2);
+}
+
+.list-tag {
+    display: inline-block;
+    background: var(--primary-color);
+    color: #fff;
+    border-radius: 10px;
+    padding: 1px 7px;
+    font-size: 0.75rem;
+    opacity: 0.85;
+    white-space: nowrap;
 }
 
 .list-url-link {

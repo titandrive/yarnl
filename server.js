@@ -1420,9 +1420,9 @@ app.get('/api/ravelry/preview', authMiddleware, async (req, res) => {
     ]);
 
     res.json({
-      patterns: library.paginator?.total_results || 0,
-      yarns: stash.paginator?.total_results || 0,
-      hooks: needles.needles?.length || 0
+      patterns: library.paginator?.results || 0,
+      yarns: stash.paginator?.results || 0,
+      hooks: needles.needle_records?.length || 0
     });
   } catch (error) {
     console.error('Ravelry preview error:', error);
@@ -1576,7 +1576,7 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
         if (importHooks) {
           broadcastEvent('ravelry-import-progress', { step: 'hooks', status: 'Importing needles/hooks...' });
           const needlesData = await ravelryFetch(req.user.id, `/people/${username}/needles/list.json`);
-          const needles = needlesData.needles || [];
+          const needles = needlesData.needle_records || [];
 
           for (const needle of needles) {
             // Check if already imported

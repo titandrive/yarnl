@@ -39,7 +39,9 @@ const SYNCED_SETTING_KEYS = [
     'backupPruneEnabled', 'backupPruneMode',
     'backupPruneValue', 'backupTime',
     // Inventory
-    'patternColumnOrder', 'yarnColumnOrder', 'hookColumnOrder'
+    'patternColumnOrder', 'yarnColumnOrder', 'hookColumnOrder',
+    'patternHiddenColumns', 'yarnHiddenColumns', 'hookHiddenColumns',
+    'yarnSort', 'hookSort'
 ];
 
 // Debounced settings sync to server
@@ -2609,8 +2611,8 @@ let inventorySubTab = localStorage.getItem('inventorySubTab') || 'yarn';
 let libraryView = localStorage.getItem('libraryView') || 'card';
 let patternListSort = { col: 'name', dir: 'asc' };
 let libraryEditMode = false;
-let yarnSort = { col: 'brand', dir: 'asc' };
-let hookSort = { col: 'brand', dir: 'asc' };
+let yarnSort = JSON.parse(localStorage.getItem('yarnSort') || '{"col":"brand","dir":"asc"}');
+let hookSort = JSON.parse(localStorage.getItem('hookSort') || '{"col":"brand","dir":"asc"}');
 let editingYarnId = null;
 let editingHookId = null;
 let selectedYarnIds = new Set();
@@ -18604,6 +18606,7 @@ function toggleYarnSort(col) {
         yarnSort.col = col;
         yarnSort.dir = 'asc';
     }
+    localStorage.setItem('yarnSort', JSON.stringify(yarnSort));
     displayYarns();
 }
 
@@ -18615,6 +18618,7 @@ function toggleHookSort(col) {
         hookSort.col = col;
         hookSort.dir = 'asc';
     }
+    localStorage.setItem('hookSort', JSON.stringify(hookSort));
     displayHooks();
 }
 

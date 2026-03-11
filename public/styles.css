@@ -10823,7 +10823,13 @@ textarea.image-drag-over {
     display: flex;
     align-items: center;
     justify-content: center;
-    color: var(--text-muted);
+    color: var(--text-color);
+    padding: 4px;
+}
+
+.list-thumbnail-placeholder svg {
+    width: 100%;
+    height: 100%;
 }
 
 /* Column visibility context menu */

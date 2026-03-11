@@ -283,6 +283,18 @@ function updateUIForUser() {
         adminBackupDivider.style.display = isAdmin ? '' : 'none';
     }
 
+    // Show/hide Ravelry nav button and add menu item based on whether it's enabled + connected
+    fetch(`${API_URL}/api/ravelry/enabled`).then(r => r.json()).then(ravelryData => {
+        const ravelryNavBtn = document.getElementById('ravelry-nav-btn');
+        const ravelryAddBtn = document.getElementById('add-ravelry-url');
+        if (ravelryNavBtn) ravelryNavBtn.style.display = ravelryData.enabled ? '' : 'none';
+        if (ravelryData.enabled && ravelryAddBtn) {
+            fetch(`${API_URL}/api/ravelry/status`).then(r => r.json()).then(statusData => {
+                ravelryAddBtn.style.display = statusData.connected ? '' : 'none';
+            }).catch(() => {});
+        }
+    }).catch(() => {});
+
     // Update current user info
     const userInfo = document.getElementById('current-user-info');
     if (userInfo && currentUser) {
@@ -1035,43 +1047,6 @@ function initUserManagement() {
         unlinkSsoBtn.addEventListener('click', handleUnlinkSso);
     }
 
-    // Setup Ravelry
-    const connectRavelryBtn = document.getElementById('connect-ravelry-btn');
-    if (connectRavelryBtn) {
-        connectRavelryBtn.addEventListener('click', () => {
-            window.location.href = `${API_URL}/api/ravelry/auth`;
-        });
-    }
-
-    const disconnectRavelryBtn = document.getElementById('disconnect-ravelry-btn');
-    if (disconnectRavelryBtn) {
-        disconnectRavelryBtn.addEventListener('click', handleDisconnectRavelry);
-    }
-
-    const ravelryImportBtn = document.getElementById('ravelry-import-btn');
-    if (ravelryImportBtn) {
-        ravelryImportBtn.addEventListener('click', openRavelryImportModal);
-    }
-
-    const closeRavelryModal = document.getElementById('close-ravelry-import-modal');
-    if (closeRavelryModal) {
-        closeRavelryModal.addEventListener('click', () => {
-            document.getElementById('ravelry-import-modal').style.display = 'none';
-        });
-    }
-
-    const cancelRavelryImport = document.getElementById('cancel-ravelry-import');
-    if (cancelRavelryImport) {
-        cancelRavelryImport.addEventListener('click', () => {
-            document.getElementById('ravelry-import-modal').style.display = 'none';
-        });
-    }
-
-    const startRavelryImport = document.getElementById('start-ravelry-import');
-    if (startRavelryImport) {
-        startRavelryImport.addEventListener('click', handleRavelryImport);
-    }
-
     loadAccountInfo();
 }
 
@@ -1160,131 +1135,441 @@ async function loadAccountInfo() {
             if (ssoHeading) ssoHeading.style.display = 'none';
             if (ssoItem) ssoItem.style.display = 'none';
         }
-        // Handle Ravelry section
-        const ravelryHeading = document.getElementById('ravelry-section-heading');
-        const ravelryItem = document.getElementById('ravelry-setting-item');
-        const ravelryImportItem = document.getElementById('ravelry-import-item');
-        const ravelryStatus = document.getElementById('ravelry-link-status');
-        const connectBtn = document.getElementById('connect-ravelry-btn');
-        const disconnectBtn = document.getElementById('disconnect-ravelry-btn');
-
-        try {
-            const ravelryEnabledRes = await fetch(`${API_URL}/api/ravelry/enabled`);
-            const ravelryEnabledData = await ravelryEnabledRes.json();
-
-            if (ravelryEnabledData.enabled) {
-                if (ravelryHeading) ravelryHeading.style.display = '';
-                if (ravelryItem) ravelryItem.style.display = '';
-
-                const statusRes = await fetch(`${API_URL}/api/ravelry/status`);
-                const statusData = await statusRes.json();
-
-                if (statusData.connected) {
-                    if (ravelryStatus) ravelryStatus.textContent = `Connected as ${statusData.username || 'unknown'}`;
-                    if (connectBtn) connectBtn.style.display = 'none';
-                    if (disconnectBtn) disconnectBtn.style.display = '';
-                    if (ravelryImportItem) ravelryImportItem.style.display = '';
-                } else {
-                    if (ravelryStatus) ravelryStatus.textContent = 'Not connected';
-                    if (connectBtn) connectBtn.style.display = '';
-                    if (disconnectBtn) disconnectBtn.style.display = 'none';
-                    if (ravelryImportItem) ravelryImportItem.style.display = 'none';
-                }
-            }
-        } catch (e) {
-            console.error('Failed to check Ravelry status:', e);
-        }
-
         // Check URL params for Ravelry connection result
         const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
         if (urlParams.get('ravelry') === 'connected') {
             showToast('Ravelry account connected successfully!', 'success');
-            history.replaceState(null, '', window.location.pathname + '#settings');
+            history.replaceState(null, '', window.location.pathname + '#settings/ravelry');
+            // Auto-switch to Ravelry tab
+            switchToSettingsSection('ravelry');
         }
     } catch (error) {
         console.error('Failed to load account info:', error);
     }
 }
 
-async function handleDisconnectRavelry() {
-    if (!confirm('Disconnect your Ravelry account? Previously imported data will remain.')) return;
+// ============ Ravelry Tab ============
+const ravelryState = {
+    activeTab: 'patterns',
+    patterns: { items: [], page: 1, pageCount: 1, total: 0, loaded: false },
+    yarn: { items: [], page: 1, pageCount: 1, total: 0, loaded: false },
+    hooks: { items: [], total: 0, loaded: false },
+    selected: { patterns: new Set(), yarn: new Set(), hooks: new Set() },
+    importing: false
+};
+
+async function initRavelryTab() {
+    // Check if Ravelry is enabled
     try {
-        const response = await fetch(`${API_URL}/api/ravelry/disconnect`, { method: 'POST' });
-        if (response.ok) {
-            showToast('Ravelry account disconnected', 'success');
-            loadAccountInfo();
-        } else {
-            showToast('Failed to disconnect Ravelry', 'error');
+        const enabledRes = await fetch(`${API_URL}/api/ravelry/enabled`);
+        const enabledData = await enabledRes.json();
+        const navBtn = document.getElementById('ravelry-nav-btn');
+        if (!enabledData.enabled) {
+            if (navBtn) navBtn.style.display = 'none';
+            return;
         }
-    } catch (error) {
-        showToast('Failed to disconnect Ravelry', 'error');
-    }
-}
-
-async function openRavelryImportModal() {
-    const modal = document.getElementById('ravelry-import-modal');
-    const loading = document.getElementById('ravelry-import-loading');
-    const options = document.getElementById('ravelry-import-options');
-    const progressArea = document.getElementById('ravelry-import-progress-area');
-    const startBtn = document.getElementById('start-ravelry-import');
-
-    modal.style.display = 'flex';
-    loading.style.display = '';
-    options.style.display = 'none';
-    progressArea.style.display = 'none';
-    startBtn.style.display = '';
-    startBtn.disabled = false;
-
-    try {
-        const response = await fetch(`${API_URL}/api/ravelry/preview`);
-        const data = await response.json();
-
-        document.getElementById('ravelry-pattern-count').textContent = data.patterns || 0;
-        document.getElementById('ravelry-yarn-count').textContent = data.yarns || 0;
-        document.getElementById('ravelry-hook-count').textContent = data.hooks || 0;
-
-        loading.style.display = 'none';
-        options.style.display = '';
-    } catch (error) {
-        loading.textContent = 'Failed to load Ravelry data. Please try again.';
-    }
-}
-
-async function handleRavelryImport() {
-    const importPatterns = document.getElementById('ravelry-import-patterns').checked;
-    const importYarns = document.getElementById('ravelry-import-yarns').checked;
-    const importHooks = document.getElementById('ravelry-import-hooks').checked;
-
-    if (!importPatterns && !importYarns && !importHooks) {
-        showToast('Select at least one category to import', 'error');
+        if (navBtn) navBtn.style.display = '';
+    } catch (e) {
         return;
     }
 
-    const options = document.getElementById('ravelry-import-options');
-    const progressArea = document.getElementById('ravelry-import-progress-area');
-    const progressText = document.getElementById('ravelry-import-progress-text');
-    const progressBar = document.getElementById('ravelry-import-progress-bar');
-    const startBtn = document.getElementById('start-ravelry-import');
-    const cancelBtn = document.getElementById('cancel-ravelry-import');
+    // Check connection status
+    try {
+        const statusRes = await fetch(`${API_URL}/api/ravelry/status`);
+        const statusData = await statusRes.json();
 
-    options.style.display = 'none';
-    progressArea.style.display = '';
-    startBtn.style.display = 'none';
-    cancelBtn.textContent = 'Close';
-    progressText.textContent = 'Starting import...';
-    progressBar.style.width = '10%';
+        const statusText = document.getElementById('ravelry-connection-status');
+        const connectBtn = document.getElementById('ravelry-connect-btn');
+        const disconnectBtn = document.getElementById('ravelry-disconnect-btn');
+        const importArea = document.getElementById('ravelry-import-area');
 
-    // Progress updates are handled by handleServerEvent via SSE
+        if (statusData.connected) {
+            if (statusText) statusText.textContent = `Connected as ${statusData.username}`;
+            if (connectBtn) connectBtn.style.display = 'none';
+            if (disconnectBtn) disconnectBtn.style.display = '';
+            if (importArea) importArea.style.display = '';
+            // Load the active tab data
+            loadRavelryTabData(ravelryState.activeTab);
+        } else {
+            if (statusText) statusText.textContent = 'Not connected';
+            if (connectBtn) connectBtn.style.display = '';
+            if (disconnectBtn) disconnectBtn.style.display = 'none';
+            if (importArea) importArea.style.display = 'none';
+        }
+    } catch (e) {
+        console.error('Failed to check Ravelry status:', e);
+    }
+
+    // Setup event listeners
+    document.getElementById('ravelry-connect-btn')?.addEventListener('click', () => {
+        window.location.href = `${API_URL}/api/ravelry/auth`;
+    });
+
+    document.getElementById('ravelry-disconnect-btn')?.addEventListener('click', async () => {
+        if (!confirm('Disconnect your Ravelry account? Previously imported data will remain.')) return;
+        try {
+            const res = await fetch(`${API_URL}/api/ravelry/disconnect`, { method: 'POST' });
+            if (res.ok) {
+                showToast('Ravelry account disconnected', 'success');
+                ravelryState.patterns.loaded = false;
+                ravelryState.yarn.loaded = false;
+                ravelryState.hooks.loaded = false;
+                initRavelryTab();
+            }
+        } catch (e) {
+            showToast('Failed to disconnect', 'error');
+        }
+    });
+
+    // Sub-tab switching
+    document.querySelectorAll('.ravelry-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const tabName = tab.dataset.ravelryTab;
+            ravelryState.activeTab = tabName;
+            document.querySelectorAll('.ravelry-tab').forEach(t => t.classList.toggle('active', t === tab));
+            document.querySelectorAll('.ravelry-list').forEach(l => {
+                l.style.display = l.dataset.ravelryTab === tabName ? '' : 'none';
+            });
+            loadRavelryTabData(tabName);
+            updateRavelrySelectAll();
+            updateRavelryImportBtn();
+            updateRavelryPagination();
+        });
+    });
+
+    // Select all
+    document.getElementById('ravelry-select-all')?.addEventListener('change', (e) => {
+        const tab = ravelryState.activeTab;
+        const data = ravelryState[tab];
+        if (e.target.checked) {
+            data.items.forEach(item => {
+                if (!item.imported) ravelryState.selected[tab].add(item.id);
+            });
+        } else {
+            ravelryState.selected[tab].clear();
+        }
+        renderRavelryList(tab);
+        updateRavelryImportBtn();
+    });
+
+    // Import selected
+    document.getElementById('ravelry-import-selected-btn')?.addEventListener('click', () => {
+        const tab = ravelryState.activeTab;
+        const ids = Array.from(ravelryState.selected[tab]);
+        if (ids.length === 0) return;
+        startRavelryImport(tab, ids);
+    });
+
+    // Import all
+    document.getElementById('ravelry-import-all-btn')?.addEventListener('click', () => {
+        const tab = ravelryState.activeTab;
+        const typeLabel = tab === 'patterns' ? 'patterns' : tab === 'yarn' ? 'yarn' : 'hooks/needles';
+        const total = ravelryState[tab].total;
+        if (!confirm(`Import all ${total} ${typeLabel} from Ravelry?`)) return;
+        startRavelryImport(tab, null);
+    });
+
+    // Pagination
+    document.getElementById('ravelry-prev-page')?.addEventListener('click', () => {
+        const tab = ravelryState.activeTab;
+        if (ravelryState[tab].page > 1) {
+            ravelryState[tab].page--;
+            ravelryState[tab].loaded = false;
+            loadRavelryTabData(tab);
+        }
+    });
+
+    document.getElementById('ravelry-next-page')?.addEventListener('click', () => {
+        const tab = ravelryState.activeTab;
+        if (ravelryState[tab].page < ravelryState[tab].pageCount) {
+            ravelryState[tab].page++;
+            ravelryState[tab].loaded = false;
+            loadRavelryTabData(tab);
+        }
+    });
+}
+
+async function loadRavelryTabData(tab) {
+    const data = ravelryState[tab];
+    if (data.loaded) return;
+
+    const listEl = document.getElementById(`ravelry-${tab}-list`);
+    if (listEl) listEl.innerHTML = '<div class="ravelry-loading">Loading...</div>';
+
+    try {
+        let url;
+        if (tab === 'patterns') {
+            url = `${API_URL}/api/ravelry/library?page=${data.page}&page_size=50`;
+        } else if (tab === 'yarn') {
+            url = `${API_URL}/api/ravelry/stash?page=${data.page}&page_size=50`;
+        } else {
+            url = `${API_URL}/api/ravelry/needles`;
+        }
+
+        const res = await fetch(url);
+        const result = await res.json();
+
+        data.items = result.items || [];
+        data.total = result.total || 0;
+        if (result.page_count) data.pageCount = result.page_count;
+        data.loaded = true;
+
+        // Update tab count
+        const countEl = document.getElementById(`ravelry-${tab}-total`);
+        if (countEl) countEl.textContent = `(${data.total})`;
+
+        renderRavelryList(tab);
+        updateRavelryPagination();
+        updateRavelrySelectAll();
+        updateRavelryImportBtn();
+    } catch (e) {
+        if (listEl) listEl.innerHTML = '<div class="ravelry-loading">Failed to load. Try again.</div>';
+    }
+}
+
+function renderRavelryList(tab) {
+    const listEl = document.getElementById(`ravelry-${tab}-list`);
+    if (!listEl) return;
+
+    const data = ravelryState[tab];
+    if (data.items.length === 0) {
+        listEl.innerHTML = '<div class="ravelry-empty">No items found on Ravelry</div>';
+        return;
+    }
+
+    const selected = ravelryState.selected[tab];
+    let html = '';
+
+    if (tab === 'patterns') {
+        for (const item of data.items) {
+            const checked = selected.has(item.id) ? 'checked' : '';
+            const imported = item.imported ? ' ravelry-item-imported' : '';
+            const disabledAttr = item.imported ? 'disabled' : '';
+            const pdfBadge = item.has_pdf ? '<span class="ravelry-badge ravelry-badge-pdf">PDF</span>' : '';
+            const importedBadge = item.imported ? '<span class="ravelry-badge ravelry-badge-imported">Imported</span>' : '';
+            html += `<div class="ravelry-item${imported}" data-id="${item.id}">
+                <label class="ravelry-item-checkbox"><input type="checkbox" ${checked} ${disabledAttr} data-ravelry-id="${item.id}"></label>
+                <div class="ravelry-item-photo">${item.photo ? `<img src="${item.photo}" alt="" loading="lazy">` : ''}</div>
+                <div class="ravelry-item-info">
+                    <div class="ravelry-item-name">${escapeHtml(item.name)}</div>
+                    <div class="ravelry-item-meta">${escapeHtml(item.author)}${item.category ? ` &middot; ${escapeHtml(item.category)}` : ''}</div>
+                </div>
+                <div class="ravelry-item-badges">${pdfBadge}${importedBadge}</div>
+            </div>`;
+        }
+    } else if (tab === 'yarn') {
+        for (const item of data.items) {
+            const checked = selected.has(item.id) ? 'checked' : '';
+            const imported = item.imported ? ' ravelry-item-imported' : '';
+            const disabledAttr = item.imported ? 'disabled' : '';
+            const importedBadge = item.imported ? '<span class="ravelry-badge ravelry-badge-imported">Imported</span>' : '';
+            html += `<div class="ravelry-item${imported}" data-id="${item.id}">
+                <label class="ravelry-item-checkbox"><input type="checkbox" ${checked} ${disabledAttr} data-ravelry-id="${item.id}"></label>
+                <div class="ravelry-item-photo">${item.photo ? `<img src="${item.photo}" alt="" loading="lazy">` : ''}</div>
+                <div class="ravelry-item-info">
+                    <div class="ravelry-item-name">${escapeHtml(item.name)}</div>
+                    <div class="ravelry-item-meta">${escapeHtml(item.brand)}${item.colorway ? ` &middot; ${escapeHtml(item.colorway)}` : ''}${item.weight ? ` &middot; ${escapeHtml(item.weight)}` : ''}</div>
+                    <div class="ravelry-item-meta">${item.skeins} skein${item.skeins !== 1 ? 's' : ''}</div>
+                </div>
+                <div class="ravelry-item-badges">${importedBadge}</div>
+            </div>`;
+        }
+    } else {
+        for (const item of data.items) {
+            const checked = selected.has(item.id) ? 'checked' : '';
+            const imported = item.imported ? ' ravelry-item-imported' : '';
+            const disabledAttr = item.imported ? 'disabled' : '';
+            const importedBadge = item.imported ? '<span class="ravelry-badge ravelry-badge-imported">Imported</span>' : '';
+            const hookLabel = item.is_hook ? 'Hook' : 'Needle';
+            html += `<div class="ravelry-item${imported}" data-id="${item.id}">
+                <label class="ravelry-item-checkbox"><input type="checkbox" ${checked} ${disabledAttr} data-ravelry-id="${item.id}"></label>
+                <div class="ravelry-item-info" style="margin-left: 0;">
+                    <div class="ravelry-item-name">${escapeHtml(item.name)}</div>
+                    <div class="ravelry-item-meta">${escapeHtml(hookLabel)}${item.size ? ` &middot; ${escapeHtml(item.size)}` : ''}${item.type ? ` &middot; ${escapeHtml(item.type)}` : ''}</div>
+                </div>
+                <div class="ravelry-item-badges">${importedBadge}</div>
+            </div>`;
+        }
+    }
+
+    listEl.innerHTML = html;
+
+    // Add checkbox listeners
+    listEl.querySelectorAll('input[data-ravelry-id]').forEach(cb => {
+        cb.addEventListener('change', (e) => {
+            const id = parseInt(e.target.dataset.ravelryId);
+            if (e.target.checked) {
+                selected.add(id);
+            } else {
+                selected.delete(id);
+            }
+            updateRavelrySelectAll();
+            updateRavelryImportBtn();
+        });
+    });
+}
+
+function updateRavelrySelectAll() {
+    const tab = ravelryState.activeTab;
+    const data = ravelryState[tab];
+    const selectableItems = data.items.filter(i => !i.imported);
+    const selected = ravelryState.selected[tab];
+    const selectAllEl = document.getElementById('ravelry-select-all');
+    if (selectAllEl) {
+        selectAllEl.checked = selectableItems.length > 0 && selectableItems.every(i => selected.has(i.id));
+        selectAllEl.indeterminate = selectableItems.some(i => selected.has(i.id)) && !selectAllEl.checked;
+    }
+}
+
+function updateRavelryImportBtn() {
+    const tab = ravelryState.activeTab;
+    const btn = document.getElementById('ravelry-import-selected-btn');
+    const count = ravelryState.selected[tab].size;
+    if (btn) {
+        btn.disabled = count === 0 || ravelryState.importing;
+        btn.textContent = count > 0 ? `Import Selected (${count})` : 'Import Selected';
+    }
+}
+
+function updateRavelryPagination() {
+    const tab = ravelryState.activeTab;
+    const data = ravelryState[tab];
+    const paginationEl = document.getElementById('ravelry-pagination');
+    if (!paginationEl) return;
+
+    if (tab === 'hooks' || data.pageCount <= 1) {
+        paginationEl.style.display = 'none';
+        return;
+    }
+
+    paginationEl.style.display = '';
+    document.getElementById('ravelry-prev-page').disabled = data.page <= 1;
+    document.getElementById('ravelry-next-page').disabled = data.page >= data.pageCount;
+    document.getElementById('ravelry-page-info').textContent = `Page ${data.page} of ${data.pageCount}`;
+}
+
+async function startRavelryImport(tab, ids) {
+    ravelryState.importing = true;
+    const progressArea = document.getElementById('ravelry-progress-area');
+    const progressText = document.getElementById('ravelry-progress-text');
+    const progressBar = document.getElementById('ravelry-progress-bar');
+    const importSelectedBtn = document.getElementById('ravelry-import-selected-btn');
+    const importAllBtn = document.getElementById('ravelry-import-all-btn');
+
+    if (progressArea) progressArea.style.display = '';
+    if (progressText) progressText.textContent = 'Starting import...';
+    if (progressBar) progressBar.style.width = '10%';
+    if (importSelectedBtn) importSelectedBtn.disabled = true;
+    if (importAllBtn) importAllBtn.disabled = true;
+
+    const body = {};
+    if (tab === 'patterns') {
+        body.importPatterns = true;
+        if (ids) body.patternIds = ids;
+    } else if (tab === 'yarn') {
+        body.importYarns = true;
+        if (ids) body.yarnIds = ids;
+    } else {
+        body.importHooks = true;
+        if (ids) body.hookIds = ids;
+    }
 
     try {
         await fetch(`${API_URL}/api/ravelry/import`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ importPatterns, importYarns, importHooks })
+            body: JSON.stringify(body)
         });
     } catch (error) {
-        progressText.textContent = 'Failed to start import';
+        if (progressText) progressText.textContent = 'Failed to start import';
         showToast('Failed to start Ravelry import', 'error');
+        ravelryState.importing = false;
+        if (importSelectedBtn) importSelectedBtn.disabled = false;
+        if (importAllBtn) importAllBtn.disabled = false;
+    }
+}
+
+function handleRavelryImportComplete(data) {
+    ravelryState.importing = false;
+    const progressText = document.getElementById('ravelry-progress-text');
+    const progressBar = document.getElementById('ravelry-progress-bar');
+    const importSelectedBtn = document.getElementById('ravelry-import-selected-btn');
+    const importAllBtn = document.getElementById('ravelry-import-all-btn');
+
+    if (progressText) progressText.textContent = `Import complete! ${data.patterns} patterns, ${data.yarns} yarns, ${data.hooks} hooks/needles imported.`;
+    if (progressBar) progressBar.style.width = '100%';
+    if (importSelectedBtn) importSelectedBtn.disabled = false;
+    if (importAllBtn) importAllBtn.disabled = false;
+
+    // Clear selections and reload data
+    ravelryState.selected.patterns.clear();
+    ravelryState.selected.yarn.clear();
+    ravelryState.selected.hooks.clear();
+    ravelryState.patterns.loaded = false;
+    ravelryState.yarn.loaded = false;
+    ravelryState.hooks.loaded = false;
+    loadRavelryTabData(ravelryState.activeTab);
+
+    // Hide progress after a delay
+    setTimeout(() => {
+        const progressArea = document.getElementById('ravelry-progress-area');
+        if (progressArea) progressArea.style.display = 'none';
+        const progressBarEl = document.getElementById('ravelry-progress-bar');
+        if (progressBarEl) progressBarEl.style.width = '0%';
+    }, 5000);
+
+    // Refresh main lists
+    if (typeof loadPatterns === 'function') loadPatterns();
+    if (typeof loadYarns === 'function') loadYarns();
+    if (typeof loadHooks === 'function') loadHooks();
+}
+
+async function handleRavelryUrlImport() {
+    const input = document.getElementById('ravelry-url-input');
+    const status = document.getElementById('ravelry-url-status');
+    const submitBtn = document.getElementById('submit-ravelry-url');
+    const url = input?.value?.trim();
+
+    if (!url) {
+        showToast('Please enter a Ravelry URL', 'error');
+        return;
+    }
+
+    if (!url.includes('ravelry.com/patterns/')) {
+        showToast('Please enter a valid Ravelry pattern URL', 'error');
+        return;
+    }
+
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Importing...'; }
+    if (status) { status.style.display = ''; status.textContent = 'Looking up pattern...'; }
+
+    try {
+        const response = await fetch(`${API_URL}/api/ravelry/import-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            if (status) status.textContent = data.error || 'Import failed';
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Import'; }
+            return;
+        }
+
+        if (data.alreadyExists) {
+            showToast(`"${data.name || 'Pattern'}" is already in your library`, 'info');
+        } else {
+            const pdfNote = data.hasPdf ? ' (with PDF)' : ' (metadata only)';
+            showToast(`Imported "${data.name}"${pdfNote}`, 'success');
+        }
+
+        document.getElementById('ravelry-url-modal').style.display = 'none';
+        if (typeof loadPatterns === 'function') loadPatterns();
+    } catch (error) {
+        if (status) status.textContent = 'Failed to import. Please try again.';
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Import'; }
     }
 }
 
@@ -1668,8 +1953,19 @@ function initRavelrySettings() {
     if (!ravelrySettingsInitialized) {
         const enabledToggle = document.getElementById('ravelry-enabled-toggle');
         if (enabledToggle) {
-            enabledToggle.addEventListener('change', () => {
+            enabledToggle.addEventListener('change', async () => {
                 document.getElementById('ravelry-config-fields').style.display = enabledToggle.checked ? 'block' : 'none';
+                // Auto-save enabled state and update nav
+                const ravelryNavBtn = document.getElementById('ravelry-nav-btn');
+                const ravelryAddBtn = document.getElementById('add-ravelry-url');
+                if (!enabledToggle.checked) {
+                    // Turning off - save immediately and hide nav
+                    await saveRavelrySettings();
+                    if (ravelryNavBtn) ravelryNavBtn.style.display = 'none';
+                    if (ravelryAddBtn) ravelryAddBtn.style.display = 'none';
+                } else {
+                    if (ravelryNavBtn) ravelryNavBtn.style.display = '';
+                }
             });
         }
 
@@ -1757,6 +2053,9 @@ async function saveRavelrySettings() {
         if (response.ok) {
             showToast('Ravelry settings saved');
             loadRavelrySettings();
+            // Update nav visibility
+            const ravelryNavBtn = document.getElementById('ravelry-nav-btn');
+            if (ravelryNavBtn) ravelryNavBtn.style.display = settings.enabled ? '' : 'none';
         } else {
             const error = await response.json();
             showToast(error.error || 'Failed to save Ravelry settings', 'error');
@@ -2806,37 +3105,27 @@ function handleServerEvent(event) {
         case 'backup_error':
             showToast(`Backup failed: ${event.data.error}`, 'error', 5000);
             break;
-        case 'ravelry-import-progress':
-            if (document.getElementById('ravelry-import-modal')?.style.display !== 'none') {
-                const progressText = document.getElementById('ravelry-import-progress-text');
-                const progressBar = document.getElementById('ravelry-import-progress-bar');
-                if (progressText) progressText.textContent = event.data.status;
-                if (progressBar && event.data.status.startsWith('Imported')) {
-                    const currentWidth = parseInt(progressBar.style.width) || 10;
-                    progressBar.style.width = Math.min(currentWidth + 30, 90) + '%';
-                }
+        case 'ravelry-import-progress': {
+            const rpt = document.getElementById('ravelry-progress-text');
+            const rpb = document.getElementById('ravelry-progress-bar');
+            if (rpt) rpt.textContent = event.data.status;
+            if (rpb && event.data.status.startsWith('Imported')) {
+                const currentWidth = parseInt(rpb.style.width) || 10;
+                rpb.style.width = Math.min(currentWidth + 30, 90) + '%';
             }
             break;
+        }
         case 'ravelry-import-complete':
-            if (document.getElementById('ravelry-import-modal')?.style.display !== 'none') {
-                const d = event.data;
-                const pt = document.getElementById('ravelry-import-progress-text');
-                const pb = document.getElementById('ravelry-import-progress-bar');
-                if (pt) pt.textContent = `Import complete! ${d.patterns} patterns, ${d.yarns} yarns, ${d.hooks} hooks/needles imported.`;
-                if (pb) pb.style.width = '100%';
-            }
             showToast('Ravelry import complete!', 'success');
-            if (typeof loadPatterns === 'function') loadPatterns();
-            if (typeof loadYarns === 'function') loadYarns();
-            if (typeof loadHooks === 'function') loadHooks();
+            handleRavelryImportComplete(event.data);
             break;
-        case 'ravelry-import-error':
-            if (document.getElementById('ravelry-import-modal')?.style.display !== 'none') {
-                const pet = document.getElementById('ravelry-import-progress-text');
-                if (pet) pet.textContent = `Import error: ${event.data.error}`;
-            }
+        case 'ravelry-import-error': {
+            const rpet = document.getElementById('ravelry-progress-text');
+            if (rpet) rpet.textContent = `Import error: ${event.data.error}`;
+            ravelryState.importing = false;
             showToast('Ravelry import failed', 'error');
             break;
+        }
         default:
             console.log('Unknown server event:', event);
     }
@@ -5746,6 +6035,8 @@ function switchToSettingsSection(section, updateHistory = true) {
     // Initialize section-specific content
     if (section === 'account') {
         loadAccountInfo();
+    } else if (section === 'ravelry') {
+        initRavelryTab();
     } else if (section === 'archive') {
         loadArchiveSettings();
     } else if (section === 'about') {
@@ -6167,6 +6458,36 @@ function initAddMenu() {
             showNewProjectPanel();
         });
     }
+
+    // Ravelry URL import
+    const ravelryUrlBtn = document.getElementById('add-ravelry-url');
+    if (ravelryUrlBtn) {
+        ravelryUrlBtn.addEventListener('click', () => {
+            addMenu.style.display = 'none';
+            const modal = document.getElementById('ravelry-url-modal');
+            const input = document.getElementById('ravelry-url-input');
+            const status = document.getElementById('ravelry-url-status');
+            const submitBtn = document.getElementById('submit-ravelry-url');
+            if (modal) modal.style.display = 'flex';
+            if (input) { input.value = ''; input.focus(); }
+            if (status) status.style.display = 'none';
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Import'; }
+        });
+    }
+
+    document.getElementById('close-ravelry-url-modal')?.addEventListener('click', () => {
+        document.getElementById('ravelry-url-modal').style.display = 'none';
+    });
+
+    document.getElementById('cancel-ravelry-url')?.addEventListener('click', () => {
+        document.getElementById('ravelry-url-modal').style.display = 'none';
+    });
+
+    document.getElementById('submit-ravelry-url')?.addEventListener('click', handleRavelryUrlImport);
+
+    document.getElementById('ravelry-url-input')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') handleRavelryUrlImport();
+    });
 
     if (closeUploadPanel) {
         closeUploadPanel.addEventListener('click', hideUploadPanel);

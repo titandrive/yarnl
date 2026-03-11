@@ -156,6 +156,7 @@
                     <button class="add-menu-item" id="add-upload-pdf">PDF</button>
                     <button class="add-menu-item" id="add-new-pattern">Markdown</button>
                     <button class="add-menu-item" id="add-new-project">Project</button>
+                    <button class="add-menu-item" id="add-ravelry-url" style="display: none;">Ravelry URL</button>
                 </div>
                 <button id="header-logout-btn" class="header-btn" aria-label="Log out" title="Log out">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transform: rotate(180deg);">
@@ -1149,6 +1150,14 @@ Inc in each st around (12)
                             <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
                         </svg>
                         <span>Admin</span>
+                    </button>
+                    <button class="settings-nav-btn" data-section="ravelry" id="ravelry-nav-btn" style="display: none;">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                            <path d="M2 17l10 5 10-5"></path>
+                            <path d="M2 12l10 5 10-5"></path>
+                        </svg>
+                        <span>Ravelry</span>
                     </button>
                     <button class="settings-nav-btn" data-section="account" id="account-nav-btn">
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2359,6 +2368,80 @@ Inc in each st around (12)
                         </div>
                     </section>
 
+                    <!-- Ravelry Section -->
+                    <section class="settings-section" data-section="ravelry" id="ravelry-section">
+                        <h3>Ravelry</h3>
+                        <p class="section-description">Import patterns, yarn, and hooks from your Ravelry account</p>
+
+                        <!-- Connection Status -->
+                        <div id="ravelry-connection-area">
+                            <div class="setting-item" id="ravelry-connect-item">
+                                <div class="setting-info">
+                                    <label>Ravelry Account</label>
+                                    <p class="setting-description" id="ravelry-connection-status">Not connected</p>
+                                </div>
+                                <button id="ravelry-connect-btn" class="btn btn-primary">Connect Ravelry</button>
+                                <button id="ravelry-disconnect-btn" class="btn btn-secondary" style="display: none;">Disconnect</button>
+                            </div>
+                        </div>
+
+                        <!-- Import Area (shown when connected) -->
+                        <div id="ravelry-import-area" style="display: none;">
+                            <!-- Sub-tabs for Patterns / Yarn / Hooks -->
+                            <div class="ravelry-tabs">
+                                <button class="ravelry-tab active" data-ravelry-tab="patterns">
+                                    Patterns <span id="ravelry-patterns-total" class="ravelry-tab-count"></span>
+                                </button>
+                                <button class="ravelry-tab" data-ravelry-tab="yarn">
+                                    Yarn Stash <span id="ravelry-yarn-total" class="ravelry-tab-count"></span>
+                                </button>
+                                <button class="ravelry-tab" data-ravelry-tab="hooks">
+                                    Hooks & Needles <span id="ravelry-hooks-total" class="ravelry-tab-count"></span>
+                                </button>
+                            </div>
+
+                            <!-- Action bar -->
+                            <div class="ravelry-actions">
+                                <label class="checkbox-label ravelry-select-all-label">
+                                    <input type="checkbox" id="ravelry-select-all">
+                                    <span>Select All</span>
+                                </label>
+                                <button id="ravelry-import-selected-btn" class="btn btn-primary" disabled>Import Selected</button>
+                                <button id="ravelry-import-all-btn" class="btn btn-secondary">Import All</button>
+                            </div>
+
+                            <!-- Progress bar (shown during import) -->
+                            <div id="ravelry-progress-area" style="display: none;">
+                                <p id="ravelry-progress-text">Starting import...</p>
+                                <div class="progress-bar-container" style="height: 6px; background: var(--border-color); border-radius: 3px; margin-top: 8px;">
+                                    <div id="ravelry-progress-bar" style="height: 100%; background: var(--primary-color); border-radius: 3px; width: 0%; transition: width 0.3s;"></div>
+                                </div>
+                            </div>
+
+                            <!-- Patterns list -->
+                            <div class="ravelry-list" id="ravelry-patterns-list" data-ravelry-tab="patterns">
+                                <div class="ravelry-loading">Loading patterns...</div>
+                            </div>
+
+                            <!-- Yarn list -->
+                            <div class="ravelry-list" id="ravelry-yarn-list" data-ravelry-tab="yarn" style="display: none;">
+                                <div class="ravelry-loading">Loading yarn stash...</div>
+                            </div>
+
+                            <!-- Hooks list -->
+                            <div class="ravelry-list" id="ravelry-hooks-list" data-ravelry-tab="hooks" style="display: none;">
+                                <div class="ravelry-loading">Loading hooks & needles...</div>
+                            </div>
+
+                            <!-- Pagination -->
+                            <div id="ravelry-pagination" class="ravelry-pagination" style="display: none;">
+                                <button id="ravelry-prev-page" class="btn btn-secondary" disabled>&laquo; Prev</button>
+                                <span id="ravelry-page-info">Page 1 of 1</span>
+                                <button id="ravelry-next-page" class="btn btn-secondary" disabled>Next &raquo;</button>
+                            </div>
+                        </div>
+                    </section>
+
                     <!-- Account Section (All Users) -->
                     <section class="settings-section" data-section="account" id="account-section">
                         <h3>Account</h3>
@@ -2420,23 +2503,6 @@ Inc in each st around (12)
                             </div>
                             <button id="link-sso-btn" class="btn btn-secondary">Link SSO Account</button>
                             <button id="unlink-sso-btn" class="btn btn-secondary" style="display: none;">Unlink</button>
-                        </div>
-
-                        <h4 class="settings-subheading" id="ravelry-section-heading" style="display: none;">Ravelry</h4>
-                        <div class="setting-item" id="ravelry-setting-item" style="display: none;">
-                            <div class="setting-info">
-                                <label>Ravelry Account</label>
-                                <p class="setting-description" id="ravelry-link-status">Not connected</p>
-                            </div>
-                            <button id="connect-ravelry-btn" class="btn btn-secondary">Connect Ravelry</button>
-                            <button id="disconnect-ravelry-btn" class="btn btn-secondary" style="display: none;">Disconnect</button>
-                        </div>
-                        <div class="setting-item" id="ravelry-import-item" style="display: none;">
-                            <div class="setting-info">
-                                <label>Import from Ravelry</label>
-                                <p class="setting-description" id="ravelry-import-status">Import your patterns, yarn stash, and hooks</p>
-                            </div>
-                            <button id="ravelry-import-btn" class="btn btn-secondary">Import</button>
                         </div>
 
                         <h4 class="settings-subheading">Session</h4>
@@ -3525,46 +3591,24 @@ Inc in each st around (12)
         </div>
     </div>
 
-    <!-- Ravelry Import Modal -->
-    <div id="ravelry-import-modal" class="modal" style="display: none;">
-        <div class="modal-content">
+
+    <!-- Ravelry URL Import Modal -->
+    <div id="ravelry-url-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 480px;">
             <div class="modal-header">
                 <h3>Import from Ravelry</h3>
-                <button type="button" class="modal-close" id="close-ravelry-import-modal">&times;</button>
+                <button type="button" class="modal-close" id="close-ravelry-url-modal">&times;</button>
             </div>
             <div class="modal-body">
-                <p id="ravelry-import-loading">Loading your Ravelry library...</p>
-                <div id="ravelry-import-options" style="display: none;">
-                    <div class="setting-item">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="ravelry-import-patterns" checked>
-                            <span>Patterns (<span id="ravelry-pattern-count">0</span> in library)</span>
-                        </label>
-                    </div>
-                    <div class="setting-item">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="ravelry-import-yarns" checked>
-                            <span>Yarn Stash (<span id="ravelry-yarn-count">0</span> items)</span>
-                        </label>
-                    </div>
-                    <div class="setting-item">
-                        <label class="checkbox-label">
-                            <input type="checkbox" id="ravelry-import-hooks" checked>
-                            <span>Hooks &amp; Needles (<span id="ravelry-hook-count">0</span> items)</span>
-                        </label>
-                    </div>
-                    <p class="setting-description">Already imported items will be skipped.</p>
+                <div class="form-group">
+                    <label for="ravelry-url-input">Ravelry Pattern URL</label>
+                    <input type="text" id="ravelry-url-input" placeholder="https://www.ravelry.com/patterns/library/pattern-name" style="width: 100%;">
                 </div>
-                <div id="ravelry-import-progress-area" style="display: none;">
-                    <p id="ravelry-import-progress-text">Starting import...</p>
-                    <div class="progress-bar-container" style="height: 6px; background: var(--border-color); border-radius: 3px; margin-top: 8px;">
-                        <div id="ravelry-import-progress-bar" style="height: 100%; background: var(--primary-color); border-radius: 3px; width: 0%; transition: width 0.3s;"></div>
-                    </div>
-                </div>
+                <p id="ravelry-url-status" class="setting-description" style="display: none;"></p>
             </div>
             <div class="modal-footer">
-                <button type="button" id="cancel-ravelry-import" class="btn btn-secondary">Cancel</button>
-                <button type="button" id="start-ravelry-import" class="btn btn-primary">Start Import</button>
+                <button type="button" id="cancel-ravelry-url" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="submit-ravelry-url" class="btn btn-primary">Import</button>
             </div>
         </div>
     </div>

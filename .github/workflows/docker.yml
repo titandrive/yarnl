@@ -27,7 +27,7 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           if [[ "$VERSION" == *-* ]]; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
-            echo "tags=titandrive/yarnl:$VERSION" >> "$GITHUB_OUTPUT"
+            echo "tags=titandrive/yarnl:$VERSION,titandrive/yarnl:dev" >> "$GITHUB_OUTPUT"
           else
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
             echo "tags=titandrive/yarnl:latest,titandrive/yarnl:$VERSION" >> "$GITHUB_OUTPUT"

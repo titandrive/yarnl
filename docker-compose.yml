@@ -33,6 +33,8 @@ services:
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-}
       - TZ=${TZ:-UTC}
+      - RAVELRY_CLIENT_ID=${RAVELRY_CLIENT_ID:-}
+      - RAVELRY_CLIENT_SECRET=${RAVELRY_CLIENT_SECRET:-}
     restart: unless-stopped
     depends_on:
       postgres:

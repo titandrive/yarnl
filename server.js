@@ -1090,11 +1090,542 @@ app.post('/api/auth/oidc/unlink', authMiddleware, async (req, res) => {
 });
 
 // ============================================
+// Ravelry OAuth 2.0 Integration
+// ============================================
+
+// Helper: get Ravelry credentials from DB settings (fallback to env vars)
+async function getRavelryCredentials() {
+  try {
+    const result = await pool.query("SELECT value FROM settings WHERE key = 'ravelry'");
+    const settings = result.rows[0]?.value;
+    if (settings?.enabled && settings?.clientId && settings?.clientSecret) {
+      return { clientId: settings.clientId, clientSecret: settings.clientSecret };
+    }
+  } catch (e) { /* fall through to env vars */ }
+  if (process.env.RAVELRY_CLIENT_ID && process.env.RAVELRY_CLIENT_SECRET) {
+    return { clientId: process.env.RAVELRY_CLIENT_ID, clientSecret: process.env.RAVELRY_CLIENT_SECRET };
+  }
+  return null;
+}
+
+// Get Ravelry admin settings (admin only)
+app.get('/api/ravelry/settings', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT value FROM settings WHERE key = 'ravelry'");
+    const settings = result.rows[0]?.value || { enabled: false, clientId: '', clientSecret: '' };
+    res.json({ ...settings, clientSecret: settings.clientSecret ? '********' : '' });
+  } catch (error) {
+    console.error('Error getting Ravelry settings:', error);
+    res.status(500).json({ error: 'Failed to get Ravelry settings' });
+  }
+});
+
+// Save Ravelry admin settings (admin only)
+app.post('/api/ravelry/settings', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { enabled, clientId, clientSecret } = req.body;
+
+    const existing = await pool.query("SELECT value FROM settings WHERE key = 'ravelry'");
+    const existingSettings = existing.rows[0]?.value || {};
+
+    const settings = {
+      enabled: enabled === true,
+      clientId: clientId || '',
+      clientSecret: clientSecret === '********' ? existingSettings.clientSecret : (clientSecret || '')
+    };
+
+    await pool.query(
+      `INSERT INTO settings (key, value, updated_at) VALUES ('ravelry', $1, NOW())
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = NOW()`,
+      [JSON.stringify(settings)]
+    );
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error saving Ravelry settings:', error);
+    res.status(500).json({ error: 'Failed to save Ravelry settings' });
+  }
+});
+
+// Test Ravelry credentials (admin only)
+app.post('/api/ravelry/test', authMiddleware, adminOnly, async (req, res) => {
+  try {
+    const { clientId, clientSecret } = req.body;
+
+    // Resolve actual secret if masked
+    let secret = clientSecret;
+    if (secret === '********') {
+      const existing = await pool.query("SELECT value FROM settings WHERE key = 'ravelry'");
+      secret = existing.rows[0]?.value?.clientSecret;
+    }
+
+    if (!clientId || !secret) {
+      return res.status(400).json({ error: 'Client ID and Secret are required' });
+    }
+
+    // Test OAuth credentials by attempting a token request with an invalid code
+    // Valid client credentials return 400 (bad code), invalid ones return 401
+    const response = await fetch('https://www.ravelry.com/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${clientId}:${secret}`).toString('base64')
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: 'test_invalid_code',
+        redirect_uri: 'https://test.invalid'
+      })
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      res.status(401).json({ error: 'Invalid credentials — check your Client ID and Secret' });
+    } else {
+      // Any other response (400, 422, etc.) means credentials were accepted but code was bad — which is expected
+      res.json({ success: true });
+    }
+  } catch (error) {
+    console.error('Ravelry test error:', error);
+    res.status(500).json({ error: 'Failed to connect to Ravelry' });
+  }
+});
+
+// Check if Ravelry integration is enabled
+app.get('/api/ravelry/enabled', async (req, res) => {
+  const creds = await getRavelryCredentials();
+  res.json({ enabled: !!creds });
+});
+
+// Initiate Ravelry OAuth flow
+app.get('/api/ravelry/auth', authMiddleware, async (req, res) => {
+  try {
+    const creds = await getRavelryCredentials();
+    if (!creds) {
+      return res.status(400).json({ error: 'Ravelry integration not configured' });
+    }
+    const { clientId } = creds;
+
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol;
+    const host = req.headers['x-forwarded-host'] || req.get('host');
+    const redirectUri = `${protocol}://${host}/api/ravelry/callback`;
+
+    // Generate state for CSRF protection
+    const crypto = require('crypto');
+    const state = crypto.randomBytes(32).toString('hex');
+
+    res.cookie('ravelry_state', state, { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('ravelry_user', String(req.user.id), { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+    res.cookie('ravelry_redirect', redirectUri, { httpOnly: true, maxAge: 300000, sameSite: 'lax' });
+
+    const authUrl = `https://www.ravelry.com/oauth2/auth?response_type=code&client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=offline&state=${state}`;
+    res.redirect(authUrl);
+  } catch (error) {
+    console.error('Ravelry auth error:', error);
+    res.redirect('/#settings?error=ravelry-auth-failed');
+  }
+});
+
+// Ravelry OAuth callback
+app.get('/api/ravelry/callback', async (req, res) => {
+  try {
+    const { code, state } = req.query;
+    const storedState = req.cookies.ravelry_state;
+    const userId = req.cookies.ravelry_user;
+    const redirectUri = req.cookies.ravelry_redirect;
+
+    if (!state || state !== storedState) {
+      return res.status(400).send('State mismatch - possible CSRF attack');
+    }
+
+    if (!userId) {
+      return res.status(400).send('Missing user context');
+    }
+
+    const creds = await getRavelryCredentials();
+    if (!creds) return res.redirect('/#settings?error=ravelry-not-configured');
+    const { clientId, clientSecret } = creds;
+
+    // Exchange code for tokens
+    const tokenResponse = await fetch('https://www.ravelry.com/oauth2/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${clientId}:${clientSecret}`).toString('base64')
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code,
+        redirect_uri: redirectUri
+      })
+    });
+
+    if (!tokenResponse.ok) {
+      const errorText = await tokenResponse.text();
+      console.error('Ravelry token exchange failed:', errorText);
+      return res.redirect('/#settings?error=ravelry-token-failed');
+    }
+
+    const tokens = await tokenResponse.json();
+
+    // Get the Ravelry username
+    const userResponse = await fetch('https://api.ravelry.com/current_user.json', {
+      headers: { 'Authorization': `Bearer ${tokens.access_token}` }
+    });
+
+    let ravelryUsername = null;
+    if (userResponse.ok) {
+      const userData = await userResponse.json();
+      ravelryUsername = userData.user?.username;
+    }
+
+    // Calculate expiry
+    const expiresAt = tokens.expires_in
+      ? new Date(Date.now() + tokens.expires_in * 1000)
+      : null;
+
+    // Store tokens
+    await pool.query(
+      `UPDATE users SET ravelry_access_token = $1, ravelry_refresh_token = $2,
+       ravelry_token_expires_at = $3, ravelry_username = $4, updated_at = NOW()
+       WHERE id = $5`,
+      [tokens.access_token, tokens.refresh_token, expiresAt, ravelryUsername, userId]
+    );
+
+    // Clear cookies
+    res.clearCookie('ravelry_state');
+    res.clearCookie('ravelry_user');
+    res.clearCookie('ravelry_redirect');
+
+    res.redirect('/#settings?ravelry=connected');
+  } catch (error) {
+    console.error('Ravelry callback error:', error);
+    res.redirect('/#settings?error=ravelry-callback-failed');
+  }
+});
+
+// Helper: refresh Ravelry token if expired
+async function refreshRavelryToken(userId) {
+  const result = await pool.query(
+    'SELECT ravelry_access_token, ravelry_refresh_token, ravelry_token_expires_at FROM users WHERE id = $1',
+    [userId]
+  );
+  const user = result.rows[0];
+  if (!user?.ravelry_access_token) return null;
+
+  // If token hasn't expired yet, return it
+  if (user.ravelry_token_expires_at && new Date(user.ravelry_token_expires_at) > new Date()) {
+    return user.ravelry_access_token;
+  }
+
+  // Try to refresh
+  if (!user.ravelry_refresh_token) return null;
+
+  const creds = await getRavelryCredentials();
+  if (!creds) return null;
+
+  const tokenResponse = await fetch('https://www.ravelry.com/oauth2/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': 'Basic ' + Buffer.from(
+        `${creds.clientId}:${creds.clientSecret}`
+      ).toString('base64')
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: user.ravelry_refresh_token
+    })
+  });
+
+  if (!tokenResponse.ok) {
+    console.error('Ravelry token refresh failed');
+    return null;
+  }
+
+  const tokens = await tokenResponse.json();
+  const expiresAt = tokens.expires_in
+    ? new Date(Date.now() + tokens.expires_in * 1000)
+    : null;
+
+  await pool.query(
+    `UPDATE users SET ravelry_access_token = $1, ravelry_refresh_token = COALESCE($2, ravelry_refresh_token),
+     ravelry_token_expires_at = $3, updated_at = NOW() WHERE id = $4`,
+    [tokens.access_token, tokens.refresh_token, expiresAt, userId]
+  );
+
+  return tokens.access_token;
+}
+
+// Helper: make authenticated Ravelry API request
+async function ravelryFetch(userId, endpoint) {
+  const token = await refreshRavelryToken(userId);
+  if (!token) throw new Error('No valid Ravelry token');
+
+  const response = await fetch(`https://api.ravelry.com${endpoint}`, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ravelry API error: ${response.status} ${response.statusText}`);
+  }
+
+  return response.json();
+}
+
+// Get Ravelry connection status
+app.get('/api/ravelry/status', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT ravelry_username, ravelry_access_token IS NOT NULL as connected FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    const user = result.rows[0];
+    res.json({
+      connected: !!user?.connected,
+      username: user?.ravelry_username || null
+    });
+  } catch (error) {
+    console.error('Ravelry status error:', error);
+    res.status(500).json({ error: 'Failed to get Ravelry status' });
+  }
+});
+
+// Disconnect Ravelry
+app.post('/api/ravelry/disconnect', authMiddleware, async (req, res) => {
+  try {
+    await pool.query(
+      `UPDATE users SET ravelry_access_token = NULL, ravelry_refresh_token = NULL,
+       ravelry_token_expires_at = NULL, ravelry_username = NULL, updated_at = NOW()
+       WHERE id = $1`,
+      [req.user.id]
+    );
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Ravelry disconnect error:', error);
+    res.status(500).json({ error: 'Failed to disconnect Ravelry' });
+  }
+});
+
+// Preview what can be imported from Ravelry
+app.get('/api/ravelry/preview', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT ravelry_username FROM users WHERE id = $1', [req.user.id]);
+    const username = result.rows[0]?.ravelry_username;
+    if (!username) return res.status(400).json({ error: 'Ravelry not connected' });
+
+    const [library, stash, needles] = await Promise.all([
+      ravelryFetch(req.user.id, `/people/${username}/library/search.json?page_size=1`),
+      ravelryFetch(req.user.id, `/people/${username}/stash/list.json?page_size=1`),
+      ravelryFetch(req.user.id, `/people/${username}/needles/list.json`)
+    ]);
+
+    res.json({
+      patterns: library.paginator?.total_results || 0,
+      yarns: stash.paginator?.total_results || 0,
+      hooks: needles.needles?.length || 0
+    });
+  } catch (error) {
+    console.error('Ravelry preview error:', error);
+    res.status(500).json({ error: 'Failed to preview Ravelry data' });
+  }
+});
+
+// Import data from Ravelry
+app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
+  try {
+    const { importPatterns, importYarns, importHooks } = req.body;
+    const result = await pool.query('SELECT ravelry_username FROM users WHERE id = $1', [req.user.id]);
+    const username = result.rows[0]?.ravelry_username;
+    if (!username) return res.status(400).json({ error: 'Ravelry not connected' });
+
+    res.json({ started: true });
+
+    // Run import in background, broadcasting progress via SSE
+    (async () => {
+      try {
+        let totalImported = { patterns: 0, yarns: 0, hooks: 0 };
+
+        if (importPatterns) {
+          broadcastEvent('ravelry-import-progress', { step: 'patterns', status: 'Importing patterns...' });
+          let page = 1;
+          let hasMore = true;
+          while (hasMore) {
+            const libraryData = await ravelryFetch(
+              req.user.id,
+              `/people/${username}/library/search.json?page_size=50&page=${page}`
+            );
+            const volumes = libraryData.volumes || [];
+            if (volumes.length === 0) break;
+
+            for (const vol of volumes) {
+              const pattern = vol.pattern;
+              if (!pattern) continue;
+
+              // Check if already imported
+              const existing = await pool.query(
+                'SELECT id FROM patterns WHERE ravelry_id = $1 AND user_id = $2',
+                [pattern.id, req.user.id]
+              );
+              if (existing.rows.length > 0) continue;
+
+              // Download thumbnail if available
+              let thumbnailPath = null;
+              if (pattern.first_photo?.medium_url) {
+                try {
+                  const imgResponse = await fetch(pattern.first_photo.medium_url);
+                  if (imgResponse.ok) {
+                    const imgBuffer = Buffer.from(await imgResponse.arrayBuffer());
+                    const userPatternsDir = getUserPatternsDir(req.user.username);
+                    if (!fs.existsSync(userPatternsDir)) fs.mkdirSync(userPatternsDir, { recursive: true });
+                    const thumbFilename = `ravelry_${pattern.id}_thumb.jpg`;
+                    const thumbPath = path.join(getUserThumbnailsDir(req.user.username), thumbFilename);
+                    const thumbDir = getUserThumbnailsDir(req.user.username);
+                    if (!fs.existsSync(thumbDir)) fs.mkdirSync(thumbDir, { recursive: true });
+                    await sharp(imgBuffer).resize(400, 400, { fit: 'cover' }).jpeg({ quality: 80 }).toFile(thumbPath);
+                    thumbnailPath = thumbFilename;
+                  }
+                } catch (e) {
+                  console.error(`Failed to download thumbnail for pattern ${pattern.id}:`, e.message);
+                }
+              }
+
+              // Map category
+              let category = 'Uncategorized';
+              if (pattern.pattern_categories?.length > 0) {
+                const cat = pattern.pattern_categories[0];
+                category = cat.name || 'Uncategorized';
+              }
+
+              // Insert pattern as markdown type (no PDF yet)
+              const description = pattern.notes_html || pattern.notes || '';
+              await pool.query(
+                `INSERT INTO patterns (name, filename, original_name, category, description, pattern_type,
+                 thumbnail, user_id, ravelry_id, rating, created_at)
+                 VALUES ($1, $2, $3, $4, $5, 'markdown', $6, $7, $8, $9, $10)`,
+                [
+                  pattern.name,
+                  `ravelry_${pattern.id}`,
+                  pattern.name,
+                  category,
+                  description,
+                  thumbnailPath,
+                  req.user.id,
+                  pattern.id,
+                  pattern.rating_average ? Math.round(pattern.rating_average) : 0,
+                  pattern.created_at || new Date()
+                ]
+              );
+              totalImported.patterns++;
+            }
+
+            hasMore = libraryData.paginator && page < libraryData.paginator.page_count;
+            page++;
+          }
+          broadcastEvent('ravelry-import-progress', { step: 'patterns', status: `Imported ${totalImported.patterns} patterns` });
+        }
+
+        if (importYarns) {
+          broadcastEvent('ravelry-import-progress', { step: 'yarns', status: 'Importing yarn stash...' });
+          let page = 1;
+          let hasMore = true;
+          while (hasMore) {
+            const stashData = await ravelryFetch(
+              req.user.id,
+              `/people/${username}/stash/list.json?page_size=50&page=${page}`
+            );
+            const stashItems = stashData.stash || [];
+            if (stashItems.length === 0) break;
+
+            for (const item of stashItems) {
+              // Check if already imported
+              const existing = await pool.query(
+                'SELECT id FROM yarns WHERE ravelry_stash_id = $1 AND user_id = $2',
+                [item.id, req.user.id]
+              );
+              if (existing.rows.length > 0) continue;
+
+              const yarn = item.yarn || {};
+              const colorway = item.colorway_name || item.color_family_name || '';
+
+              await pool.query(
+                `INSERT INTO yarns (user_id, name, brand, colorway, color, weight_category,
+                 fiber_content, quantity, notes, ravelry_stash_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                [
+                  req.user.id,
+                  yarn.name || item.name || 'Unknown Yarn',
+                  yarn.yarn_company_name || '',
+                  colorway,
+                  colorway,
+                  yarn.yarn_weight?.name || '',
+                  yarn.fiber_content || '',
+                  item.skeins || 1,
+                  item.notes || '',
+                  item.id
+                ]
+              );
+              totalImported.yarns++;
+            }
+
+            hasMore = stashData.paginator && page < stashData.paginator.page_count;
+            page++;
+          }
+          broadcastEvent('ravelry-import-progress', { step: 'yarns', status: `Imported ${totalImported.yarns} yarns` });
+        }
+
+        if (importHooks) {
+          broadcastEvent('ravelry-import-progress', { step: 'hooks', status: 'Importing needles/hooks...' });
+          const needlesData = await ravelryFetch(req.user.id, `/people/${username}/needles/list.json`);
+          const needles = needlesData.needles || [];
+
+          for (const needle of needles) {
+            // Check if already imported
+            const existing = await pool.query(
+              'SELECT id FROM hooks WHERE ravelry_needle_id = $1 AND user_id = $2',
+              [needle.id, req.user.id]
+            );
+            if (existing.rows.length > 0) continue;
+
+            const craftType = needle.hook ? 'crochet' : 'knitting';
+            await pool.query(
+              `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label,
+               hook_type, notes, ravelry_needle_id)
+               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+              [
+                req.user.id,
+                craftType,
+                needle.name || `${needle.needle_size?.name || ''} ${craftType === 'crochet' ? 'Hook' : 'Needle'}`.trim(),
+                needle.brand || '',
+                needle.needle_size?.mm || null,
+                needle.needle_size?.name || '',
+                needle.type?.name || '',
+                needle.notes || '',
+                needle.id
+              ]
+            );
+            totalImported.hooks++;
+          }
+          broadcastEvent('ravelry-import-progress', { step: 'hooks', status: `Imported ${totalImported.hooks} hooks/needles` });
+        }
+
+        broadcastEvent('ravelry-import-complete', totalImported);
+      } catch (error) {
+        console.error('Ravelry import error:', error);
+        broadcastEvent('ravelry-import-error', { error: error.message });
+      }
+    })();
+  } catch (error) {
+    console.error('Ravelry import error:', error);
+    res.status(500).json({ error: 'Failed to start import' });
+  }
+});
+
+// ============================================
 
 // Apply auth middleware to all protected API routes
 app.use('/api', (req, res, next) => {
   // Skip auth for public endpoints
-  const publicPaths = ['/auth/mode', '/auth/login', '/auth/oidc/login', '/auth/oidc/callback', '/events'];
+  const publicPaths = ['/auth/mode', '/auth/login', '/auth/oidc/login', '/auth/oidc/callback', '/ravelry/callback', '/events'];
   const isPublic = publicPaths.some(p => req.path === p || req.path.startsWith(p));
   if (isPublic) {
     return next();

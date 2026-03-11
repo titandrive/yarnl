@@ -1359,6 +1359,27 @@ async function refreshRavelryToken(userId) {
   return tokens.access_token;
 }
 
+// Helper: build size range string from Ravelry min/max size objects
+function buildSizeRange(minSize, maxSize) {
+  if (!minSize && !maxSize) return null;
+  const minName = minSize?.name?.trim();
+  const maxName = maxSize?.name?.trim();
+  if (minName && maxName && minName !== maxName) return `${minName} to ${maxName}`;
+  return minName || maxName || null;
+}
+
+// Helper: extract yarn detail fields from Ravelry yarn object
+function extractYarnDetails(y) {
+  const yardage = y.yardage || null;
+  const unitWeight = y.grams || null;
+  const gauge = y.min_gauge && y.gauge_divisor
+    ? `${y.min_gauge}${y.max_gauge ? '-' + y.max_gauge : ''} sts / ${y.gauge_divisor}in`
+    : null;
+  const needleSize = buildSizeRange(y.min_needle_size, y.max_needle_size);
+  const hookSize = buildSizeRange(y.min_hook_size, y.max_hook_size);
+  return { yardage, unitWeight, gauge, needleSize, hookSize };
+}
+
 // Helper: make authenticated Ravelry API request
 async function ravelryFetch(userId, endpoint) {
   const token = await refreshRavelryToken(userId);
@@ -1761,18 +1782,8 @@ app.post('/api/ravelry/import-yarn-url', authMiddleware, async (req, res) => {
       return `${pct}${f.fiber_type?.name || ''}`.trim();
     }).join(', ') || '';
 
-    // Extract new detail fields
-    const yardage = yarn.yardage || null;
-    const unitWeight = yarn.grams || null;
-    const gaugeVal = yarn.gauge ? `${yarn.gauge} sts / 4in` : null;
-    const needleSizes = (yarn.pattern_needle_sizes || yarn.needle_sizes || [])
-      .filter(n => n.hook === false || n.knitting === true)
-      .map(n => n.name || n.metric || n.us)
-      .filter(Boolean);
-    const hookSizes = (yarn.pattern_needle_sizes || yarn.needle_sizes || [])
-      .filter(n => n.hook === true || n.crochet === true)
-      .map(n => n.name || n.metric || n.us)
-      .filter(Boolean);
+    // Extract detail fields
+    const details = extractYarnDetails(yarn);
 
     res.json({
       fields: {
@@ -1781,11 +1792,11 @@ app.post('/api/ravelry/import-yarn-url', authMiddleware, async (req, res) => {
         weight_category: weightCategory,
         fiber_content: fiberContent,
         color: '',
-        yardage: yardage || '',
-        unit_weight: unitWeight || '',
-        gauge: gaugeVal || '',
-        needle_size: needleSizes.length > 0 ? needleSizes.join(', ') : '',
-        hook_size: hookSizes.length > 0 ? hookSizes.join(', ') : '',
+        yardage: details.yardage || '',
+        unit_weight: details.unitWeight || '',
+        gauge: details.gauge || '',
+        needle_size: details.needleSize || '',
+        hook_size: details.hookSize || '',
       },
       image,
       ravelry_yarn_id: yarn.id
@@ -2265,21 +2276,9 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
 
               const yarnUrl = `https://www.ravelry.com/yarns/library/${yarn.permalink || ''}`;
 
-              // Extract new detail fields from yarn data
+              // Extract detail fields from yarn data
               const detailYarn = detail?.yarn || yarn;
-              const yardage = detailYarn.yardage || yarn.yardage || null;
-              const unitWeight = detailYarn.grams || yarn.grams || null;
-              const gaugeVal = detailYarn.gauge ? `${detailYarn.gauge} sts / 4in` : null;
-              const needleSizes = (detailYarn.pattern_needle_sizes || detailYarn.needle_sizes || [])
-                .filter(n => n.hook === false || n.knitting === true)
-                .map(n => n.name || n.metric || n.us)
-                .filter(Boolean);
-              const hookSizes = (detailYarn.pattern_needle_sizes || detailYarn.needle_sizes || [])
-                .filter(n => n.hook === true || n.crochet === true)
-                .map(n => n.name || n.metric || n.us)
-                .filter(Boolean);
-              const needleSizeStr = needleSizes.length > 0 ? needleSizes.join(', ') : null;
-              const hookSizeStr = hookSizes.length > 0 ? hookSizes.join(', ') : null;
+              const { yardage, unitWeight, gauge: gaugeVal, needleSize: needleSizeStr, hookSize: hookSizeStr } = extractYarnDetails(detailYarn);
 
               await pool.query(
                 `INSERT INTO yarns (user_id, name, brand, colorway, color, weight_category,
@@ -2402,20 +2401,8 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
 
               const yarnUrl = yarn.permalink ? `https://www.ravelry.com/yarns/library/${yarn.permalink}` : null;
 
-              // Extract new detail fields
-              const yardage = yarn.yardage || null;
-              const unitWeight = yarn.grams || null;
-              const gaugeVal = yarn.gauge ? `${yarn.gauge} sts / 4in` : null;
-              const needleSizes = (yarn.pattern_needle_sizes || yarn.needle_sizes || [])
-                .filter(n => n.hook === false || n.knitting === true)
-                .map(n => n.name || n.metric || n.us)
-                .filter(Boolean);
-              const hookSizes = (yarn.pattern_needle_sizes || yarn.needle_sizes || [])
-                .filter(n => n.hook === true || n.crochet === true)
-                .map(n => n.name || n.metric || n.us)
-                .filter(Boolean);
-              const needleSizeStr = needleSizes.length > 0 ? needleSizes.join(', ') : null;
-              const hookSizeStr = hookSizes.length > 0 ? hookSizes.join(', ') : null;
+              // Extract detail fields
+              const { yardage, unitWeight, gauge: gaugeVal, needleSize: needleSizeStr, hookSize: hookSizeStr } = extractYarnDetails(yarn);
 
               const stashQty = stashQuantities[yarnId] || 1;
 

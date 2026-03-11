@@ -1588,6 +1588,10 @@ app.get('/api/ravelry/library', authMiddleware, async (req, res) => {
           || vol.first_photo?.medium_url || vol.first_photo?.small_url || vol.first_photo?.square_url || null),
         category: p.pattern_categories?.[0]?.name || 'Uncategorized',
         has_pdf: vol.has_downloads || vol.pdf_in_library || (p.pdf_url && p.free) || false,
+        pdf_status: (vol.has_downloads || vol.pdf_in_library) ? 'available'
+          : (p.pdf_url && p.free) ? 'free'
+          : p.pdf_url ? 'purchase_required'
+          : 'no_pdf',
         imported: importedIds.has(patternId)
       };
     }).filter(Boolean);
@@ -1831,6 +1835,18 @@ app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
     ];
     await Promise.all(detailPromises);
 
+    // Fetch library volumes to get reliable has_downloads/pdf_in_library for pattern favorites
+    const libraryVolMap = new Map();
+    if (patternIds.length > 0) {
+      try {
+        const libData = await ravelryFetch(req.user.id, `/people/${username}/library/search.json?page_size=250`);
+        for (const vol of (libData.volumes || [])) {
+          const pid = vol.pattern?.id || vol.pattern_id;
+          if (pid) libraryVolMap.set(pid, vol);
+        }
+      } catch (e) {}
+    }
+
     // Cross-reference with stash to get colorway/skeins for yarn favorites
     const stashByYarnId = new Map();
     if (yarnIds.length > 0) {
@@ -1877,6 +1893,11 @@ app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
       const obj = fav.favorited || {};
       if (obj.type === 'pattern' || fav.type === 'pattern') {
         const full = patternDetailMap.get(obj.id);
+        const vol = libraryVolMap.get(obj.id);
+        const inLibrary = !!(vol?.has_downloads || vol?.pdf_in_library);
+        const dlUrl = full?.download_location?.url || '';
+        const isDirectDownload = dlUrl.includes('/dls/');
+        const hasPdf = inLibrary || isDirectDownload;
         return {
           id: fav.id,
           fav_type: 'pattern',
@@ -1886,7 +1907,12 @@ app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
           category: full?.pattern_categories?.[0]?.name || obj.pattern_categories?.[0]?.name || '',
           photo: ravelryImgUrl(full?.photos?.[0]?.medium_url || full?.photos?.[0]?.small_url
             || obj.first_photo?.medium_url || obj.first_photo?.small_url || null),
-          imported: importedPatternIds.has(obj.id)
+          imported: importedPatternIds.has(obj.id),
+          has_pdf: hasPdf,
+          pdf_status: inLibrary ? 'available'
+            : isDirectDownload ? 'free'
+            : dlUrl ? 'purchase_required'
+            : 'no_pdf'
         };
       } else if (obj.type === 'yarn' || fav.type === 'yarn') {
         const fullYarn = yarnDetailMap.get(obj.id);

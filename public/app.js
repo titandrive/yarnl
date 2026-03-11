@@ -8463,6 +8463,13 @@ function displayPatterns() {
     // Toggle sidebar visibility based on view
     const sidebarToggle = document.getElementById('library-sidebar-toggle');
     if (sidebarToggle) sidebarToggle.style.display = libraryView === 'list' ? 'none' : '';
+    const mobileFilterBtn2 = document.getElementById('mobile-filter-btn');
+    if (mobileFilterBtn2) mobileFilterBtn2.style.display = libraryView === 'list' ? 'none' : '';
+    if (libraryView === 'list') {
+        const sidebar = document.querySelector('.library-sidebar');
+        if (sidebar) sidebar.classList.remove('mobile-visible');
+        if (mobileFilterBtn2) mobileFilterBtn2.classList.remove('active');
+    }
     const libraryLayout = document.getElementById('library-layout');
     if (libraryLayout) libraryLayout.classList.toggle('library-list-view', libraryView === 'list');
 

@@ -1362,11 +1362,26 @@ async function refreshRavelryToken(userId) {
 // Helper: make authenticated Ravelry API request
 async function ravelryFetch(userId, endpoint) {
   const token = await refreshRavelryToken(userId);
-  if (!token) throw new Error('No valid Ravelry token');
+  if (!token) {
+    const err = new Error('Ravelry session expired. Please reconnect your account.');
+    err.tokenExpired = true;
+    throw err;
+  }
 
   const response = await fetch(`https://api.ravelry.com${endpoint}`, {
     headers: { 'Authorization': `Bearer ${token}` }
   });
+
+  if (response.status === 401) {
+    // Token was accepted by our refresh but rejected by Ravelry — clear it
+    await pool.query(
+      'UPDATE users SET ravelry_access_token = NULL, ravelry_refresh_token = NULL, ravelry_token_expires_at = NULL WHERE id = $1',
+      [userId]
+    );
+    const err = new Error('Ravelry session expired. Please reconnect your account.');
+    err.tokenExpired = true;
+    throw err;
+  }
 
   if (!response.ok) {
     throw new Error(`Ravelry API error: ${response.status} ${response.statusText}`);
@@ -1485,7 +1500,8 @@ app.get('/api/ravelry/library', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Ravelry library browse error:', error);
-    res.status(500).json({ error: 'Failed to browse Ravelry library' });
+    const status = error.tokenExpired ? 401 : 500;
+    res.status(status).json({ error: error.tokenExpired ? error.message : 'Failed to browse Ravelry library' });
   }
 });
 
@@ -1525,11 +1541,6 @@ app.get('/api/ravelry/stash', authMiddleware, async (req, res) => {
 
     const items = stashItems.map((item, i) => {
       const detail = details[i]?.stash;
-      if (i === 0 && detail) {
-        console.log('Stash detail keys:', JSON.stringify(Object.keys(detail)));
-        console.log('Stash detail first_photo:', JSON.stringify(detail.first_photo));
-        console.log('Stash detail photos:', JSON.stringify(detail.photos?.map(p => Object.keys(p))));
-      }
       const yarn = item.yarn || {};
       // Try multiple photo sources
       const photo = detail?.first_photo?.medium2_url || detail?.first_photo?.medium_url
@@ -1556,7 +1567,8 @@ app.get('/api/ravelry/stash', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Ravelry stash browse error:', error);
-    res.status(500).json({ error: 'Failed to browse Ravelry stash' });
+    const status = error.tokenExpired ? 401 : 500;
+    res.status(status).json({ error: error.tokenExpired ? error.message : 'Failed to browse Ravelry stash' });
   }
 });
 
@@ -1569,8 +1581,6 @@ app.get('/api/ravelry/needles', authMiddleware, async (req, res) => {
 
     const needlesData = await ravelryFetch(req.user.id, `/people/${username}/needles/list.json`);
     const needleRecords = needlesData.needle_records || [];
-    if (needleRecords.length > 0) console.log('Ravelry needle sample:', JSON.stringify(needleRecords[0], null, 2));
-
     const ravelryIds = needleRecords.map(n => n.id);
     let importedIds = new Set();
     if (ravelryIds.length > 0) {
@@ -1613,7 +1623,158 @@ app.get('/api/ravelry/needles', authMiddleware, async (req, res) => {
     res.json({ items, total: items.length });
   } catch (error) {
     console.error('Ravelry needles browse error:', error);
-    res.status(500).json({ error: 'Failed to browse Ravelry needles' });
+    const status = error.tokenExpired ? 401 : 500;
+    res.status(status).json({ error: error.tokenExpired ? error.message : 'Failed to browse Ravelry needles' });
+  }
+});
+
+// Browse Ravelry favorites (patterns and yarns)
+app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT ravelry_username FROM users WHERE id = $1', [req.user.id]);
+    const username = result.rows[0]?.ravelry_username;
+    if (!username) return res.status(400).json({ error: 'Ravelry not connected' });
+
+    const page = parseInt(req.query.page) || 1;
+    const pageSize = parseInt(req.query.page_size) || 50;
+    const favsData = await ravelryFetch(
+      req.user.id,
+      `/people/${username}/favorites/list.json?page_size=${pageSize}&page=${page}&types=pattern+yarn`
+    );
+
+    const favorites = favsData.favorites || [];
+
+    // Separate into patterns and yarns, check import status
+    const patternIds = [];
+    const yarnIds = [];
+    for (const fav of favorites) {
+      if (fav.favorited?.type === 'pattern' || fav.type === 'pattern') {
+        const p = fav.favorited || {};
+        patternIds.push(p.id);
+      } else if (fav.favorited?.type === 'yarn' || fav.type === 'yarn') {
+        const y = fav.favorited || {};
+        yarnIds.push(y.id);
+      }
+    }
+
+    let importedPatternIds = new Set();
+    if (patternIds.length > 0) {
+      const imported = await pool.query(
+        'SELECT ravelry_id FROM patterns WHERE ravelry_id = ANY($1) AND user_id = $2 AND is_archived = false',
+        [patternIds.filter(Boolean), req.user.id]
+      );
+      importedPatternIds = new Set(imported.rows.map(r => r.ravelry_id));
+    }
+    // For yarn favorites, we can't easily check import since they're product IDs not stash IDs
+
+    const items = favorites.map(fav => {
+      const obj = fav.favorited || {};
+      if (obj.type === 'pattern' || fav.type === 'pattern') {
+        return {
+          id: fav.id,
+          fav_type: 'pattern',
+          pattern_id: obj.id,
+          name: obj.name || 'Unknown Pattern',
+          author: obj.designer?.name || obj.pattern_author?.name || '',
+          photo: obj.first_photo?.medium_url || obj.first_photo?.small_url || null,
+          imported: importedPatternIds.has(obj.id)
+        };
+      } else if (obj.type === 'yarn' || fav.type === 'yarn') {
+        return {
+          id: fav.id,
+          fav_type: 'yarn',
+          yarn_id: obj.id,
+          name: obj.name || 'Unknown Yarn',
+          author: obj.yarn_company_name || obj.yarn_company?.name || '',
+          photo: obj.first_photo?.medium_url || obj.first_photo?.small_url || null,
+          imported: false
+        };
+      }
+      return null;
+    }).filter(Boolean);
+
+    res.json({
+      items,
+      page,
+      page_count: favsData.paginator?.page_count || 1,
+      total: favsData.paginator?.results || 0
+    });
+  } catch (error) {
+    console.error('Ravelry favorites browse error:', error);
+    const status = error.tokenExpired ? 401 : 500;
+    res.status(status).json({ error: error.tokenExpired ? error.message : 'Failed to browse Ravelry favorites' });
+  }
+});
+
+// Import yarn data from a Ravelry yarn URL
+app.post('/api/ravelry/import-yarn-url', authMiddleware, async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'URL is required' });
+
+    // Parse yarn permalink from URL: ravelry.com/yarns/library/yarn-name
+    const yarnMatch = url.match(/ravelry\.com\/yarns\/library\/([^/?#]+)/);
+    if (!yarnMatch) return res.status(400).json({ error: 'Not a valid Ravelry yarn URL' });
+    const permalink = yarnMatch[1];
+
+    // Look up yarn by permalink via search
+    const searchData = await ravelryFetch(req.user.id, `/yarns/search.json?query=${encodeURIComponent(permalink.replace(/-/g, ' '))}&page_size=5`);
+    const yarns = searchData.yarns || [];
+    // Try to match by permalink
+    let yarn = yarns.find(y => y.permalink === permalink) || yarns[0];
+
+    if (!yarn) return res.status(404).json({ error: 'Yarn not found on Ravelry' });
+
+    // Fetch full yarn details
+    const yarnDetail = await ravelryFetch(req.user.id, `/yarns/${yarn.id}.json`);
+    yarn = yarnDetail.yarn || yarn;
+    // Get photo
+    let image = null;
+    const photo = yarn.first_photo || yarn.photos?.[0];
+    const photoUrl = photo?.medium2_url || photo?.medium_url || photo?.small_url || photo?.square_url || null;
+    if (photoUrl) {
+      try {
+        const imgResp = await fetch(photoUrl);
+        if (imgResp.ok) {
+          const imgBuf = Buffer.from(await imgResp.arrayBuffer());
+          const contentType = imgResp.headers.get('content-type') || 'image/jpeg';
+          image = `data:${contentType};base64,${imgBuf.toString('base64')}`;
+        }
+      } catch (e) {}
+    }
+
+    // Map yarn weight
+    const weightMap = {
+      'Thread': 'Lace', 'Cobweb': 'Lace', 'Lace': 'Lace',
+      'Light Fingering': 'Super Fine', 'Fingering': 'Super Fine',
+      'Sport': 'Fine', 'DK': 'Light', 'Worsted': 'Medium',
+      'Aran': 'Medium', 'Bulky': 'Bulky', 'Super Bulky': 'Super Bulky',
+      'Jumbo': 'Jumbo'
+    };
+    const ravelryWeight = yarn.yarn_weight?.name || '';
+    const weightCategory = weightMap[ravelryWeight] || ravelryWeight;
+
+    // Build fiber content from fiber attributes
+    const fibers = yarn.yarn_fibers || yarn.fibers || [];
+    const fiberContent = fibers.map(f =>
+      `${f.percentage}% ${f.fiber_type?.name || ''}`
+    ).join(', ') || '';
+
+    res.json({
+      fields: {
+        name: yarn.name || '',
+        brand: yarn.yarn_company_name || yarn.yarn_company?.name || '',
+        weight_category: weightCategory,
+        fiber_content: fiberContent,
+        color: '',
+      },
+      image,
+      ravelry_yarn_id: yarn.id
+    });
+  } catch (error) {
+    console.error('Ravelry yarn URL import error:', error);
+    const status = error.tokenExpired ? 401 : 500;
+    res.status(status).json({ error: error.tokenExpired ? error.message : (error.message || 'Failed to import yarn from Ravelry') });
   }
 });
 
@@ -1645,7 +1806,7 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
     }
     if (!pattern) return res.status(404).json({ error: 'Pattern not found on Ravelry' });
 
-    console.log(`URL import: pattern "${pattern.name}" (id ${pattern.id}) found`);
+
 
     // Download thumbnail
     let thumbnailPath = null;
@@ -1682,9 +1843,7 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
         `/people/${username}/library/search.json?query=${encodeURIComponent(pattern.name)}&page_size=50`
       );
       const volumes = librarySearch.volumes || [];
-      console.log(`URL import: searching library for "${pattern.name}" (id ${pattern.id}), found ${volumes.length} volumes`);
       const matchingVol = volumes.find(v => (v.pattern?.id || v.pattern_id) === pattern.id);
-      if (matchingVol) console.log(`URL import: matched volume ${matchingVol.id}, has_downloads=${matchingVol.has_downloads}, pdf_in_library=${matchingVol.pdf_in_library}`);
       if (matchingVol && (matchingVol.has_downloads || matchingVol.pdf_in_library)) {
         // Fetch volume details and download PDF
         const volumeData = await ravelryFetch(req.user.id, `/volumes/${matchingVol.id}.json`);
@@ -1727,7 +1886,6 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
     }
 
     // Try free PDF URL if no library PDF
-    console.log(`URL import: free=${pattern.free}, downloadable=${pattern.downloadable}, pdf_url=${pattern.pdf_url || 'none'}, download_location=${JSON.stringify(pattern.download_location)}`);
     if (!pdfFilename && pattern.downloadable && (pattern.pdf_url || pattern.download_location?.url)) {
       const pdfUrl = pattern.pdf_url || pattern.download_location?.url;
       try {
@@ -1737,7 +1895,6 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
           headers: { 'Authorization': `Bearer ${dlToken}` },
           redirect: 'follow'
         });
-        console.log(`URL import: PDF fetch status=${pdfResponse.status}, content-type=${pdfResponse.headers.get('content-type')}, url=${pdfResponse.url}`);
         if (pdfResponse.ok && (pdfResponse.headers.get('content-type')?.includes('pdf') || pdfResponse.url?.endsWith('.pdf'))) {
           const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
           const categoryDir = getCategoryDir(req.user.username, category);
@@ -1810,7 +1967,7 @@ app.get('/api/ravelry/import-status', authMiddleware, (req, res) => {
 // Import data from Ravelry
 app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
   try {
-    const { importPatterns, importYarns, importHooks, patternIds, yarnIds, hookIds } = req.body;
+    const { importPatterns, importYarns, importHooks, patternIds, yarnIds, hookIds, favoriteYarnIds } = req.body;
     const result = await pool.query('SELECT ravelry_username FROM users WHERE id = $1', [req.user.id]);
     const username = result.rows[0]?.ravelry_username;
     if (!username) return res.status(400).json({ error: 'Ravelry not connected' });
@@ -1896,16 +2053,10 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
               let pdfFilename = null;
               let patternType = 'markdown';
               const hasPdf = vol.has_downloads || vol.pdf_in_library || pattern.pdf_in_library;
-              console.log(`Pattern ${patternId} (${pattern.name}): has_downloads=${vol.has_downloads}, pdf_in_library=${vol.pdf_in_library || pattern.pdf_in_library}, vol.id=${vol.id}, vol keys=${JSON.stringify(Object.keys(vol))}`);
               if (hasPdf) {
                 try {
-                  // The library volume ID should work for the volumes endpoint
-                  console.log(`Trying /volumes/${vol.id}.json for pattern ${patternId}`);
                   const volumeData = await ravelryFetch(req.user.id, `/volumes/${vol.id}.json`);
-                  console.log(`Volume data keys:`, JSON.stringify(Object.keys(volumeData)));
-                  console.log(`Volume data.volume keys:`, volumeData.volume ? JSON.stringify(Object.keys(volumeData.volume)) : 'no volume');
                   const attachments = volumeData.volume?.volume_attachments || [];
-                  console.log(`Volume attachments (${attachments.length}):`, JSON.stringify(attachments));
                   if (attachments.length > 0) {
                     const attachmentId = attachments[0].product_attachment_id || attachments[0].id;
                     // generate_download_link requires POST, not GET
@@ -2028,23 +2179,72 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
               );
               if (existing.rows.length > 0) continue;
 
+              // Fetch stash detail for full data (photos, fibers, etc.)
+              let detail = null;
+              try {
+                const detailData = await ravelryFetch(req.user.id, `/people/${username}/stash/${item.id}.json`);
+                detail = detailData.stash;
+              } catch (e) {}
+
               const yarn = item.yarn || {};
               const colorway = item.colorway_name || item.color_family_name || '';
 
+              // Map weight category
+              const weightMap = {
+                'Thread': 'Lace', 'Cobweb': 'Lace', 'Lace': 'Lace',
+                'Light Fingering': 'Super Fine', 'Fingering': 'Super Fine',
+                'Sport': 'Fine', 'DK': 'Light', 'Worsted': 'Medium',
+                'Aran': 'Medium', 'Bulky': 'Bulky', 'Super Bulky': 'Super Bulky',
+                'Jumbo': 'Jumbo'
+              };
+              const ravelryWeight = yarn.yarn_weight?.name || '';
+              const weightCategory = weightMap[ravelryWeight] || ravelryWeight;
+
+              // Build fiber content
+              const fibers = detail?.yarn?.yarn_fibers || detail?.yarn?.fibers || [];
+              const fiberContent = fibers.length > 0
+                ? fibers.map(f => `${f.percentage}% ${f.fiber_type?.name || ''}`).join(', ')
+                : (yarn.fiber_content || '');
+
+              // Download thumbnail
+              let thumbnailFilename = null;
+              // Try stash photo, then yarn product photo as fallback
+              const photo = detail?.first_photo || detail?.photos?.[0]
+                || detail?.yarn?.first_photo || detail?.yarn?.photos?.[0]
+                || item.yarn?.first_photo;
+              const photoUrl = photo?.medium2_url || photo?.medium_url || photo?.small_url || photo?.square_url || null;
+              if (photoUrl) {
+                try {
+                  const imgResp = await fetch(photoUrl);
+                  if (imgResp.ok) {
+                    const imgBuf = Buffer.from(await imgResp.arrayBuffer());
+                    const ext = (imgResp.headers.get('content-type') || '').includes('png') ? '.png' : '.jpg';
+                    const thumbDir = path.join(getUserBaseDir(req.user.username), 'thumbnails');
+                    if (!fs.existsSync(thumbDir)) fs.mkdirSync(thumbDir, { recursive: true });
+                    thumbnailFilename = `yarn-rav-${item.id}${ext}`;
+                    fs.writeFileSync(path.join(thumbDir, thumbnailFilename), imgBuf);
+                  }
+                } catch (e) {}
+              }
+
+              const yarnUrl = `https://www.ravelry.com/yarns/library/${yarn.permalink || ''}`;
+
               await pool.query(
                 `INSERT INTO yarns (user_id, name, brand, colorway, color, weight_category,
-                 fiber_content, quantity, notes, ravelry_stash_id)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                 fiber_content, quantity, notes, url, thumbnail, ravelry_stash_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
                 [
                   req.user.id,
                   yarn.name || item.name || 'Unknown Yarn',
                   yarn.yarn_company_name || '',
                   colorway,
                   colorway,
-                  yarn.yarn_weight?.name || '',
-                  yarn.fiber_content || '',
+                  weightCategory,
+                  fiberContent,
                   item.skeins || 1,
                   item.notes || '',
+                  yarn.permalink ? yarnUrl : null,
+                  thumbnailFilename,
                   item.id
                 ]
               );
@@ -2058,6 +2258,74 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
           importProgress({ step: 'yarns', status: `Imported ${totalImported.yarns} yarn${totalImported.yarns !== 1 ? 's' : ''}`, current: totalImported.yarns, total: totalYarns, done: true });
         }
 
+        // Import favorite yarns (by product ID, not stash ID)
+        if (favoriteYarnIds?.length > 0) {
+          const totalFavYarns = favoriteYarnIds.length;
+          importProgress({ step: 'yarns', status: `Importing favorite yarns (0/${totalFavYarns})...`, current: 0, total: totalFavYarns });
+
+          const weightMap = {
+            'Thread': 'Lace', 'Cobweb': 'Lace', 'Lace': 'Lace',
+            'Light Fingering': 'Super Fine', 'Fingering': 'Super Fine',
+            'Sport': 'Fine', 'DK': 'Light', 'Worsted': 'Medium',
+            'Aran': 'Medium', 'Bulky': 'Bulky', 'Super Bulky': 'Super Bulky',
+            'Jumbo': 'Jumbo'
+          };
+
+          for (const yarnId of favoriteYarnIds) {
+            try {
+              const yarnDetail = await ravelryFetch(req.user.id, `/yarns/${yarnId}.json`);
+              const yarn = yarnDetail.yarn;
+              if (!yarn) continue;
+
+              const ravelryWeight = yarn.yarn_weight?.name || '';
+              const weightCategory = weightMap[ravelryWeight] || ravelryWeight;
+              const fibers = yarn.yarn_fibers || yarn.fibers || [];
+              const fiberContent = fibers.length > 0
+                ? fibers.map(f => `${f.percentage}% ${f.fiber_type?.name || ''}`).join(', ')
+                : '';
+
+              // Download thumbnail
+              let thumbnailFilename = null;
+              const photo = yarn.first_photo || yarn.photos?.[0];
+              const photoUrl = photo?.medium2_url || photo?.medium_url || photo?.small_url || photo?.square_url || null;
+              if (photoUrl) {
+                try {
+                  const imgResp = await fetch(photoUrl);
+                  if (imgResp.ok) {
+                    const imgBuf = Buffer.from(await imgResp.arrayBuffer());
+                    const ext = (imgResp.headers.get('content-type') || '').includes('png') ? '.png' : '.jpg';
+                    const thumbDir = path.join(getUserBaseDir(req.user.username), 'thumbnails');
+                    if (!fs.existsSync(thumbDir)) fs.mkdirSync(thumbDir, { recursive: true });
+                    thumbnailFilename = `yarn-fav-${yarnId}${ext}`;
+                    fs.writeFileSync(path.join(thumbDir, thumbnailFilename), imgBuf);
+                  }
+                } catch (e) {}
+              }
+
+              const yarnUrl = yarn.permalink ? `https://www.ravelry.com/yarns/library/${yarn.permalink}` : null;
+
+              await pool.query(
+                `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, url, thumbnail, is_favorite)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, true)`,
+                [
+                  req.user.id,
+                  yarn.name || 'Unknown Yarn',
+                  yarn.yarn_company_name || yarn.yarn_company?.name || '',
+                  weightCategory,
+                  fiberContent,
+                  yarnUrl,
+                  thumbnailFilename
+                ]
+              );
+              totalImported.yarns++;
+            } catch (e) {
+              console.error(`Failed to import favorite yarn ${yarnId}:`, e.message);
+            }
+            importProgress({ step: 'yarns', status: `Importing favorite yarns (${totalImported.yarns}/${totalFavYarns})...`, current: totalImported.yarns, total: totalFavYarns });
+          }
+          importProgress({ step: 'yarns', status: `Imported ${totalImported.yarns} yarn${totalImported.yarns !== 1 ? 's' : ''}`, current: totalImported.yarns, total: totalFavYarns, done: true });
+        }
+
         if (importHooks) {
           const needlesData = await ravelryFetch(req.user.id, `/people/${username}/needles/list.json`);
           const needles = needlesData.needle_records || [];
@@ -2068,13 +2336,6 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
             // Skip if specific IDs requested and this isn't one of them
             if (hookIds?.length > 0 && !hookIds.includes(needle.id)) continue;
 
-            // Check if already imported
-            const existing = await pool.query(
-              'SELECT id FROM hooks WHERE ravelry_needle_id = $1 AND user_id = $2',
-              [needle.id, req.user.id]
-            );
-            if (existing.rows.length > 0) continue;
-
             const nt = needle.needle_type || {};
             const typeName = nt.type_name || '';
             const isHook = typeName === 'hook' || typeName === 'crochet';
@@ -2082,22 +2343,26 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
             const metricSize = nt.metric_name ? parseFloat(nt.metric_name) : null;
             const sizeLabel = nt.name || '';
             const displayName = nt.description || `${sizeLabel} ${typeName}`.trim() || (isHook ? 'Hook' : 'Needle');
-            await pool.query(
-              `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label,
-               hook_type, notes, ravelry_needle_id)
-               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-              [
-                req.user.id,
-                craftType,
-                needle.comment || displayName,
-                '',
-                metricSize,
-                sizeLabel,
-                typeName,
-                '',
-                needle.id
-              ]
+
+            // Update if already imported, otherwise insert
+            const existing = await pool.query(
+              'SELECT id FROM hooks WHERE ravelry_needle_id = $1 AND user_id = $2',
+              [needle.id, req.user.id]
             );
+            if (existing.rows.length > 0) {
+              await pool.query(
+                `UPDATE hooks SET craft_type=$1, name=$2, size_mm=$3, size_label=$4, hook_type=$5
+                 WHERE ravelry_needle_id=$6 AND user_id=$7`,
+                [craftType, needle.comment || displayName, metricSize, sizeLabel, typeName, needle.id, req.user.id]
+              );
+            } else {
+              await pool.query(
+                `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label,
+                 hook_type, notes, ravelry_needle_id)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                [req.user.id, craftType, needle.comment || displayName, '', metricSize, sizeLabel, typeName, '', needle.id]
+              );
+            }
             totalImported.hooks++;
             importProgress({ step: 'hooks', status: `Importing hooks (${totalImported.hooks}/${totalHooks})...`, current: totalImported.hooks, total: totalHooks });
           }

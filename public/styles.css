@@ -8154,6 +8154,12 @@ textarea.image-drag-over {
     color: var(--text-secondary);
 }
 
+.ravelry-badge-no-pdf {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 .ravelry-loading, .ravelry-empty {
     text-align: center;
     padding: 2rem;
@@ -10966,6 +10972,12 @@ textarea.image-drag-over {
     font-size: 0.75rem;
     opacity: 0.85;
     white-space: nowrap;
+    transition: opacity 0.15s, filter 0.15s;
+}
+
+.list-tag:hover {
+    opacity: 1;
+    filter: brightness(1.2);
 }
 
 .list-url-link {

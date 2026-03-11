@@ -43,7 +43,7 @@
             document.write('<style id="early-tab-style">' + earlyStyles + '</style>');
             var viewStyles = '';
             if (localStorage.getItem('libraryView') === 'list') {
-                viewStyles += '.library-sidebar,#library-sidebar-toggle{display:none!important}';
+                viewStyles += '.library-sidebar,#library-sidebar-toggle,#mobile-filter-btn{display:none!important}';
             }
             if (localStorage.getItem('inventoryView') === 'list') {
                 viewStyles += '.inventory-sidebar,.inv-sidebar-toggle{display:none!important}';

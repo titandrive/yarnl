@@ -1631,6 +1631,9 @@ html[data-theme="nuked-dark"] .btn-primary {
     .bulk-toolbar .bulk-rating-stars {
         display: none;
     }
+    .bulk-toolbar .bulk-edit-label {
+        display: none;
+    }
     .bulk-edit-modal-content {
         max-width: none;
         width: 92%;

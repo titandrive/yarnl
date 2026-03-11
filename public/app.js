@@ -3465,7 +3465,11 @@ function handleServerEvent(event) {
             const rpet = document.getElementById('ravelry-progress-text');
             if (rpet) rpet.textContent = `Import error: ${event.data.error}`;
             ravelryState.importing = false;
-            showToast('Ravelry import failed', 'error');
+            const rImportSelBtn = document.getElementById('ravelry-import-selected-btn');
+            const rImportAllBtn = document.getElementById('ravelry-import-all-btn');
+            if (rImportSelBtn) rImportSelBtn.disabled = false;
+            if (rImportAllBtn) rImportAllBtn.disabled = false;
+            showToast(event.data.error || 'Ravelry import failed', 'error', 6000);
             break;
         }
         default:

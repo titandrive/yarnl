@@ -1554,7 +1554,7 @@ app.get('/api/ravelry/stash', authMiddleware, async (req, res) => {
         colorway: item.colorway_name || item.color_family_name || '',
         weight: yarn.yarn_weight?.name || '',
         photo,
-        skeins: item.skeins || 1,
+        skeins: (detail?.packs || []).find(p => p.primary_pack_id == null)?.skeins || 1,
         imported: importedIds.has(item.id)
       };
     });
@@ -1756,9 +1756,23 @@ app.post('/api/ravelry/import-yarn-url', authMiddleware, async (req, res) => {
 
     // Build fiber content from fiber attributes
     const fibers = yarn.yarn_fibers || yarn.fibers || [];
-    const fiberContent = fibers.map(f =>
-      `${f.percentage}% ${f.fiber_type?.name || ''}`
-    ).join(', ') || '';
+    const fiberContent = fibers.map(f => {
+      const pct = f.percentage != null ? `${f.percentage}% ` : '';
+      return `${pct}${f.fiber_type?.name || ''}`.trim();
+    }).join(', ') || '';
+
+    // Extract new detail fields
+    const yardage = yarn.yardage || null;
+    const unitWeight = yarn.grams || null;
+    const gaugeVal = yarn.gauge ? `${yarn.gauge} sts / 4in` : null;
+    const needleSizes = (yarn.pattern_needle_sizes || yarn.needle_sizes || [])
+      .filter(n => n.hook === false || n.knitting === true)
+      .map(n => n.name || n.metric || n.us)
+      .filter(Boolean);
+    const hookSizes = (yarn.pattern_needle_sizes || yarn.needle_sizes || [])
+      .filter(n => n.hook === true || n.crochet === true)
+      .map(n => n.name || n.metric || n.us)
+      .filter(Boolean);
 
     res.json({
       fields: {
@@ -1767,6 +1781,11 @@ app.post('/api/ravelry/import-yarn-url', authMiddleware, async (req, res) => {
         weight_category: weightCategory,
         fiber_content: fiberContent,
         color: '',
+        yardage: yardage || '',
+        unit_weight: unitWeight || '',
+        gauge: gaugeVal || '',
+        needle_size: needleSizes.length > 0 ? needleSizes.join(', ') : '',
+        hook_size: hookSizes.length > 0 ? hookSizes.join(', ') : '',
       },
       image,
       ravelry_yarn_id: yarn.id
@@ -2169,22 +2188,36 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
             if (stashItems.length === 0) break;
 
             for (const item of stashItems) {
-              // Skip if specific IDs requested and this isn't one of them
-              if (yarnIds?.length > 0 && !yarnIds.includes(item.id)) continue;
-
-              // Check if already imported
-              const existing = await pool.query(
-                'SELECT id FROM yarns WHERE ravelry_stash_id = $1 AND user_id = $2',
-                [item.id, req.user.id]
-              );
-              if (existing.rows.length > 0) continue;
-
-              // Fetch stash detail for full data (photos, fibers, etc.)
+              // Fetch stash detail early to get quantity and full data
               let detail = null;
               try {
                 const detailData = await ravelryFetch(req.user.id, `/people/${username}/stash/${item.id}.json`);
                 detail = detailData.stash;
               } catch (e) {}
+
+              // Get skeins from primary pack (primary_pack_id is null)
+              const primaryPack = (detail?.packs || []).find(p => p.primary_pack_id == null);
+              const totalSkeins = primaryPack?.skeins || 1;
+
+              // Skip if specific IDs requested and this isn't one of them
+              if (yarnIds?.length > 0 && !yarnIds.includes(item.id)) continue;
+
+              // Check if already imported (by stash ID or by name+brand match)
+              const existing = await pool.query(
+                `SELECT id FROM yarns WHERE user_id = $1 AND (ravelry_stash_id = $2
+                 OR (name = $3 AND brand = $4 AND name IS NOT NULL))`,
+                [req.user.id, item.id, item.yarn?.name || null, item.yarn?.yarn_company_name || null]
+              );
+              if (existing.rows.length > 0) {
+                // Update existing entry: set stash ID and correct quantity from packs
+                await pool.query(
+                  'UPDATE yarns SET ravelry_stash_id = $1, quantity = $2 WHERE id = $3',
+                  [item.id, totalSkeins, existing.rows[0].id]
+                );
+                continue;
+              }
+
+              // detail was already fetched above
 
               const yarn = item.yarn || {};
               const colorway = item.colorway_name || item.color_family_name || '';
@@ -2203,7 +2236,10 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
               // Build fiber content
               const fibers = detail?.yarn?.yarn_fibers || detail?.yarn?.fibers || [];
               const fiberContent = fibers.length > 0
-                ? fibers.map(f => `${f.percentage}% ${f.fiber_type?.name || ''}`).join(', ')
+                ? fibers.map(f => {
+                    const pct = f.percentage != null ? `${f.percentage}% ` : '';
+                    return `${pct}${f.fiber_type?.name || ''}`.trim();
+                  }).join(', ')
                 : (yarn.fiber_content || '');
 
               // Download thumbnail
@@ -2229,10 +2265,27 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
 
               const yarnUrl = `https://www.ravelry.com/yarns/library/${yarn.permalink || ''}`;
 
+              // Extract new detail fields from yarn data
+              const detailYarn = detail?.yarn || yarn;
+              const yardage = detailYarn.yardage || yarn.yardage || null;
+              const unitWeight = detailYarn.grams || yarn.grams || null;
+              const gaugeVal = detailYarn.gauge ? `${detailYarn.gauge} sts / 4in` : null;
+              const needleSizes = (detailYarn.pattern_needle_sizes || detailYarn.needle_sizes || [])
+                .filter(n => n.hook === false || n.knitting === true)
+                .map(n => n.name || n.metric || n.us)
+                .filter(Boolean);
+              const hookSizes = (detailYarn.pattern_needle_sizes || detailYarn.needle_sizes || [])
+                .filter(n => n.hook === true || n.crochet === true)
+                .map(n => n.name || n.metric || n.us)
+                .filter(Boolean);
+              const needleSizeStr = needleSizes.length > 0 ? needleSizes.join(', ') : null;
+              const hookSizeStr = hookSizes.length > 0 ? hookSizes.join(', ') : null;
+
               await pool.query(
                 `INSERT INTO yarns (user_id, name, brand, colorway, color, weight_category,
-                 fiber_content, quantity, notes, url, thumbnail, ravelry_stash_id)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                 fiber_content, quantity, notes, url, thumbnail, ravelry_stash_id,
+                 yardage, unit_weight, gauge, needle_size, hook_size)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
                 [
                   req.user.id,
                   yarn.name || item.name || 'Unknown Yarn',
@@ -2241,11 +2294,16 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                   colorway,
                   weightCategory,
                   fiberContent,
-                  item.skeins || 1,
+                  totalSkeins,
                   item.notes || '',
                   yarn.permalink ? yarnUrl : null,
                   thumbnailFilename,
-                  item.id
+                  item.id,
+                  yardage,
+                  unitWeight,
+                  gaugeVal,
+                  needleSizeStr,
+                  hookSizeStr
                 ]
               );
               totalImported.yarns++;
@@ -2263,6 +2321,30 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
           const totalFavYarns = favoriteYarnIds.length;
           importProgress({ step: 'yarns', status: `Importing favorite yarns (0/${totalFavYarns})...`, current: 0, total: totalFavYarns });
 
+          // Build stash lookup: yarn product ID → skeins count (from packs)
+          const stashQuantities = {};
+          let stashPage = 1;
+          let stashHasMore = true;
+          while (stashHasMore) {
+            try {
+              const stashCheck = await ravelryFetch(req.user.id, `/people/${username}/stash/list.json?page_size=50&page=${stashPage}`);
+              for (const s of (stashCheck.stash || [])) {
+                if (s.yarn?.id) {
+                  // Fetch detail to get packs with skeins count
+                  try {
+                    const sd = await ravelryFetch(req.user.id, `/people/${username}/stash/${s.id}.json`);
+                    const packSkeins = (sd.stash?.packs || []).find(p => p.primary_pack_id == null)?.skeins || 1;
+                    stashQuantities[s.yarn.id] = (stashQuantities[s.yarn.id] || 0) + packSkeins;
+                  } catch (e) {
+                    stashQuantities[s.yarn.id] = (stashQuantities[s.yarn.id] || 0) + 1;
+                  }
+                }
+              }
+              stashHasMore = stashCheck.paginator && stashPage < stashCheck.paginator.page_count;
+              stashPage++;
+            } catch (e) { stashHasMore = false; }
+          }
+
           const weightMap = {
             'Thread': 'Lace', 'Cobweb': 'Lace', 'Lace': 'Lace',
             'Light Fingering': 'Super Fine', 'Fingering': 'Super Fine',
@@ -2277,11 +2359,27 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
               const yarn = yarnDetail.yarn;
               if (!yarn) continue;
 
+              // Check if this yarn already exists (by name+brand match)
+              const existingFav = await pool.query(
+                `SELECT id FROM yarns WHERE user_id = $1 AND name = $2 AND brand = $3 AND name IS NOT NULL`,
+                [req.user.id, yarn.name || null, yarn.yarn_company_name || yarn.yarn_company?.name || null]
+              );
+              if (existingFav.rows.length > 0) {
+                // Just mark as favorite
+                await pool.query('UPDATE yarns SET is_favorite = true WHERE id = $1', [existingFav.rows[0].id]);
+                totalImported.yarns++;
+                importProgress({ step: 'yarns', status: `Importing favorite yarns (${totalImported.yarns}/${totalFavYarns})...`, current: totalImported.yarns, total: totalFavYarns });
+                continue;
+              }
+
               const ravelryWeight = yarn.yarn_weight?.name || '';
               const weightCategory = weightMap[ravelryWeight] || ravelryWeight;
               const fibers = yarn.yarn_fibers || yarn.fibers || [];
               const fiberContent = fibers.length > 0
-                ? fibers.map(f => `${f.percentage}% ${f.fiber_type?.name || ''}`).join(', ')
+                ? fibers.map(f => {
+                    const pct = f.percentage != null ? `${f.percentage}% ` : '';
+                    return `${pct}${f.fiber_type?.name || ''}`.trim();
+                  }).join(', ')
                 : '';
 
               // Download thumbnail
@@ -2304,9 +2402,27 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
 
               const yarnUrl = yarn.permalink ? `https://www.ravelry.com/yarns/library/${yarn.permalink}` : null;
 
+              // Extract new detail fields
+              const yardage = yarn.yardage || null;
+              const unitWeight = yarn.grams || null;
+              const gaugeVal = yarn.gauge ? `${yarn.gauge} sts / 4in` : null;
+              const needleSizes = (yarn.pattern_needle_sizes || yarn.needle_sizes || [])
+                .filter(n => n.hook === false || n.knitting === true)
+                .map(n => n.name || n.metric || n.us)
+                .filter(Boolean);
+              const hookSizes = (yarn.pattern_needle_sizes || yarn.needle_sizes || [])
+                .filter(n => n.hook === true || n.crochet === true)
+                .map(n => n.name || n.metric || n.us)
+                .filter(Boolean);
+              const needleSizeStr = needleSizes.length > 0 ? needleSizes.join(', ') : null;
+              const hookSizeStr = hookSizes.length > 0 ? hookSizes.join(', ') : null;
+
+              const stashQty = stashQuantities[yarnId] || 1;
+
               await pool.query(
-                `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, url, thumbnail, is_favorite)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, true)`,
+                `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, url, thumbnail, is_favorite,
+                 quantity, yardage, unit_weight, gauge, needle_size, hook_size)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9, $10, $11, $12, $13)`,
                 [
                   req.user.id,
                   yarn.name || 'Unknown Yarn',
@@ -2314,7 +2430,13 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                   weightCategory,
                   fiberContent,
                   yarnUrl,
-                  thumbnailFilename
+                  thumbnailFilename,
+                  stashQty,
+                  yardage,
+                  unitWeight,
+                  gaugeVal,
+                  needleSizeStr,
+                  hookSizeStr
                 ]
               );
               totalImported.yarns++;
@@ -6157,11 +6279,11 @@ app.get('/api/yarns/:id', async (req, res) => {
 
 app.post('/api/yarns', async (req, res) => {
   try {
-    const { name, brand, weight_category, fiber_content, color_hex, color, dye_lot, quantity, notes, url } = req.body;
+    const { name, brand, weight_category, fiber_content, color_hex, color, dye_lot, quantity, notes, url, yardage, unit_weight, gauge, needle_size, hook_size } = req.body;
     const result = await pool.query(
-      `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, color_hex, color, dye_lot, quantity, notes, url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-      [req.user.id, name || null, brand || null, weight_category || null, fiber_content || null, color_hex || null, color || null, dye_lot || null, quantity || 1, notes || null, url || null]
+      `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, color_hex, color, dye_lot, quantity, notes, url, yardage, unit_weight, gauge, needle_size, hook_size)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+      [req.user.id, name || null, brand || null, weight_category || null, fiber_content || null, color_hex || null, color || null, dye_lot || null, quantity || 1, notes || null, url || null, yardage || null, unit_weight || null, gauge || null, needle_size || null, hook_size || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (error) {
@@ -6175,7 +6297,7 @@ app.patch('/api/yarns/:id', async (req, res) => {
     const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
     if (!yarn) return res.status(403).json({ error: 'Not authorized' });
 
-    const fields = ['name', 'brand', 'weight_category', 'fiber_content', 'color_hex', 'color', 'dye_lot', 'quantity', 'notes', 'url', 'rating'];
+    const fields = ['name', 'brand', 'weight_category', 'fiber_content', 'color_hex', 'color', 'dye_lot', 'quantity', 'notes', 'url', 'rating', 'yardage', 'unit_weight', 'gauge', 'needle_size', 'hook_size'];
     const updates = [];
     const values = [];
     let idx = 1;
@@ -8627,9 +8749,9 @@ app.post('/api/backups/:filename/restore', authMiddleware, async (req, res) => {
     const yarnIdMap = {};
     for (const row of dbExport.tables.yarns || []) {
       const result = await client.query(
-        `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, color, dye_lot, quantity, notes, thumbnail, url, is_favorite, rating, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`,
-        [userId, row.name, row.brand, row.weight_category, row.fiber_content, row.color, row.dye_lot, row.quantity, row.notes, row.thumbnail, row.url, row.is_favorite || false, row.rating || 0, row.created_at, row.updated_at]
+        `INSERT INTO yarns (user_id, name, brand, weight_category, fiber_content, color, dye_lot, quantity, notes, thumbnail, url, is_favorite, rating, yardage, unit_weight, gauge, needle_size, hook_size, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING id`,
+        [userId, row.name, row.brand, row.weight_category, row.fiber_content, row.color, row.dye_lot, row.quantity, row.notes, row.thumbnail, row.url, row.is_favorite || false, row.rating || 0, row.yardage || null, row.unit_weight || null, row.gauge || null, row.needle_size || null, row.hook_size || null, row.created_at, row.updated_at]
       );
       yarnIdMap[row.id] = result.rows[0].id;
     }

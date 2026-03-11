@@ -1615,24 +1615,18 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
     const permalink = urlMatch[1];
 
     // Look up pattern by permalink
-    const patternData = await ravelryFetch(req.user.id, `/patterns.json?ids=${permalink}`);
-    // The API returns { pattern: {...} } when looking up by permalink
-    let pattern = patternData.pattern;
-    if (!pattern) {
-      // Try search endpoint as fallback
+    let pattern = null;
+    try {
+      const patternData = await ravelryFetch(req.user.id, `/patterns/${permalink}.json`);
+      pattern = patternData.pattern;
+    } catch (e) {
+      // Permalink lookup failed, try search as fallback
       const searchData = await ravelryFetch(req.user.id, `/patterns/search.json?query=${permalink}&page_size=1`);
       pattern = searchData.patterns?.[0];
     }
     if (!pattern) return res.status(404).json({ error: 'Pattern not found on Ravelry' });
 
-    // Check if already imported (exclude archived)
-    const existing = await pool.query(
-      'SELECT id FROM patterns WHERE ravelry_id = $1 AND user_id = $2 AND is_archived = false',
-      [pattern.id, req.user.id]
-    );
-    if (existing.rows.length > 0) {
-      return res.json({ success: true, message: 'Pattern already imported', patternId: existing.rows[0].id, alreadyExists: true });
-    }
+    console.log(`URL import: pattern "${pattern.name}" (id ${pattern.id}) found`);
 
     // Download thumbnail
     let thumbnailPath = null;
@@ -1668,8 +1662,11 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
         req.user.id,
         `/people/${username}/library/search.json?query=${encodeURIComponent(pattern.name)}&page_size=50`
       );
-      const matchingVol = (librarySearch.volumes || []).find(v => v.pattern?.id === pattern.id);
-      if (matchingVol && matchingVol.pdf_in_library) {
+      const volumes = librarySearch.volumes || [];
+      console.log(`URL import: searching library for "${pattern.name}" (id ${pattern.id}), found ${volumes.length} volumes`);
+      const matchingVol = volumes.find(v => (v.pattern?.id || v.pattern_id) === pattern.id);
+      if (matchingVol) console.log(`URL import: matched volume ${matchingVol.id}, has_downloads=${matchingVol.has_downloads}, pdf_in_library=${matchingVol.pdf_in_library}`);
+      if (matchingVol && (matchingVol.has_downloads || matchingVol.pdf_in_library)) {
         // Fetch volume details and download PDF
         const volumeData = await ravelryFetch(req.user.id, `/volumes/${matchingVol.id}.json`);
         const attachments = volumeData.volume?.volume_attachments || [];
@@ -1711,10 +1708,18 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
     }
 
     // Try free PDF URL if no library PDF
-    if (!pdfFilename && pattern.pdf_url && pattern.free) {
+    console.log(`URL import: free=${pattern.free}, downloadable=${pattern.downloadable}, pdf_url=${pattern.pdf_url || 'none'}, download_location=${JSON.stringify(pattern.download_location)}`);
+    if (!pdfFilename && pattern.downloadable && (pattern.pdf_url || pattern.download_location?.url)) {
+      const pdfUrl = pattern.pdf_url || pattern.download_location?.url;
       try {
-        const pdfResponse = await fetch(pattern.pdf_url);
-        if (pdfResponse.ok && pdfResponse.headers.get('content-type')?.includes('pdf')) {
+        // Ravelry download URLs require OAuth token and may redirect
+        const dlToken = await refreshRavelryToken(req.user.id);
+        const pdfResponse = await fetch(pdfUrl, {
+          headers: { 'Authorization': `Bearer ${dlToken}` },
+          redirect: 'follow'
+        });
+        console.log(`URL import: PDF fetch status=${pdfResponse.status}, content-type=${pdfResponse.headers.get('content-type')}, url=${pdfResponse.url}`);
+        if (pdfResponse.ok && (pdfResponse.headers.get('content-type')?.includes('pdf') || pdfResponse.url?.endsWith('.pdf'))) {
           const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
           const categoryDir = getCategoryDir(req.user.username, category);
           if (!fs.existsSync(categoryDir)) fs.mkdirSync(categoryDir, { recursive: true });
@@ -1737,8 +1742,15 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
       }
     }
 
+    if (!pdfFilename) {
+      const reason = !pattern.downloadable ? 'Pattern is not downloadable'
+        : !pattern.free && !pdfFilename ? 'Pattern is paid and not in your Ravelry library'
+        : 'Could not download PDF';
+      return res.status(400).json({ error: `${reason}. Purchase it on Ravelry or add it to your library first.` });
+    }
+
     const description = pattern.notes_html || pattern.notes || '';
-    const filename = pdfFilename || `ravelry_${pattern.id}`;
+    const filename = pdfFilename;
     const insertResult = await pool.query(
       `INSERT INTO patterns (name, filename, original_name, category, description, pattern_type,
        thumbnail, user_id, ravelry_id, rating, created_at)

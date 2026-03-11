@@ -1628,6 +1628,27 @@ async function handleRavelryUrlImport() {
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Importing...'; }
     if (status) { status.style.display = ''; status.textContent = 'Looking up pattern...'; }
 
+    // Show progress and animate status text while waiting
+    const progressWrap = document.getElementById('ravelry-url-progress');
+    const progressBar = document.getElementById('ravelry-url-progress-bar');
+    if (progressWrap) progressWrap.style.display = '';
+    if (progressBar) progressBar.style.width = '15%';
+
+    const steps = [
+        { text: 'Looking up pattern...', pct: '15%' },
+        { text: 'Fetching pattern data...', pct: '35%' },
+        { text: 'Downloading PDF...', pct: '55%' },
+        { text: 'Processing...', pct: '75%' }
+    ];
+    let stepIdx = 0;
+    const stepInterval = setInterval(() => {
+        stepIdx++;
+        if (stepIdx < steps.length) {
+            if (status) status.textContent = steps[stepIdx].text;
+            if (progressBar) progressBar.style.width = steps[stepIdx].pct;
+        }
+    }, 2000);
+
     try {
         const response = await fetch(`${API_URL}/api/ravelry/import-url`, {
             method: 'POST',
@@ -1635,10 +1656,13 @@ async function handleRavelryUrlImport() {
             body: JSON.stringify({ url })
         });
 
+        clearInterval(stepInterval);
+        if (progressBar) progressBar.style.width = '100%';
         const data = await response.json();
 
         if (!response.ok) {
             if (status) status.textContent = data.error || 'Import failed';
+            if (progressWrap) progressWrap.style.display = 'none';
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Import'; }
             return;
         }
@@ -1653,7 +1677,9 @@ async function handleRavelryUrlImport() {
         document.getElementById('ravelry-url-modal').style.display = 'none';
         if (typeof loadPatterns === 'function') loadPatterns();
     } catch (error) {
+        clearInterval(stepInterval);
         if (status) status.textContent = 'Failed to import. Please try again.';
+        if (progressWrap) progressWrap.style.display = 'none';
         if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Import'; }
     }
 }

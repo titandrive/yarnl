@@ -3608,6 +3608,9 @@ Inc in each st around (12)
                     <input type="text" id="ravelry-url-input" placeholder="https://www.ravelry.com/patterns/library/pattern-name" style="width: 100%;">
                 </div>
                 <p id="ravelry-url-status" class="setting-description" style="display: none;"></p>
+                <div id="ravelry-url-progress" style="display: none; height: 4px; background: var(--border-color); border-radius: 2px; margin-top: 8px; overflow: hidden;">
+                    <div id="ravelry-url-progress-bar" style="height: 100%; background: var(--primary-color); border-radius: 2px; width: 0%; transition: width 0.5s; animation: ravelry-url-pulse 1.5s ease-in-out infinite;"></div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" id="cancel-ravelry-url" class="btn btn-secondary">Cancel</button>

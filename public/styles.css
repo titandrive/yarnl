@@ -3171,6 +3171,16 @@ body.global-drag-over #current::after {
     opacity: 0.5;
 }
 
+.pattern-thumbnail-placeholder img,
+.list-thumbnail-placeholder img {
+    opacity: 0.5;
+}
+
+[data-theme$="-dark"] .pattern-thumbnail-placeholder img,
+[data-theme$="-dark"] .list-thumbnail-placeholder img {
+    filter: invert(1);
+}
+
 .btn-success {
     background: var(--success-color);
     color: white;
@@ -9772,6 +9782,7 @@ textarea.image-drag-over {
     padding: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
+    min-width: 0;
 }
 
 .peg-card:hover {
@@ -9878,6 +9889,9 @@ textarea.image-drag-over {
     color: var(--primary-color);
     line-height: 1.3;
     margin-bottom: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .peg-desc {

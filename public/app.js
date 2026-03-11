@@ -1461,6 +1461,7 @@ function renderRavelryList(tab) {
                 if (item.category) metaParts.push(escapeHtml(item.category));
             } else {
                 if (item.brand) metaParts.push(escapeHtml(item.brand));
+                if (item.colorway) metaParts.push(escapeHtml(item.colorway));
                 if (item.weight) metaParts.push(escapeHtml(item.weight));
             }
             html += `<div class="ravelry-item${sel}" data-id="${item.id}">
@@ -1469,6 +1470,7 @@ function renderRavelryList(tab) {
                 <div class="ravelry-item-info">
                     <div class="ravelry-item-name">${escapeHtml(item.name)}</div>
                     ${metaParts.length > 0 ? `<div class="ravelry-item-meta">${metaParts.join(' &middot; ')}</div>` : ''}
+                    ${item.fav_type === 'yarn' && item.skeins ? `<div class="ravelry-item-meta">${item.skeins} skein${item.skeins !== 1 ? 's' : ''}</div>` : ''}
                 </div>
                 <div class="ravelry-item-badges">${typeBadge}${importedBadge}</div>
             </div>`;

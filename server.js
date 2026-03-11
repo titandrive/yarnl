@@ -1690,28 +1690,81 @@ app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
     }
     // For yarn favorites, we can't easily check import since they're product IDs not stash IDs
 
+    // Fetch full details for favorites (list endpoint returns slim objects)
+    const patternDetailMap = new Map();
+    const yarnDetailMap = new Map();
+    const detailPromises = [
+      ...patternIds.filter(Boolean).map(async id => {
+        try {
+          const data = await ravelryFetch(req.user.id, `/patterns/${id}.json`);
+          if (data.pattern) patternDetailMap.set(id, data.pattern);
+        } catch (e) {}
+      }),
+      ...yarnIds.filter(Boolean).map(async id => {
+        try {
+          const data = await ravelryFetch(req.user.id, `/yarns/${id}.json`);
+          if (data.yarn) yarnDetailMap.set(id, data.yarn);
+        } catch (e) {}
+      })
+    ];
+    await Promise.all(detailPromises);
+
+    // Cross-reference with stash to get colorway/skeins for yarn favorites
+    const stashByYarnId = new Map();
+    if (yarnIds.length > 0) {
+      try {
+        const stashData = await ravelryFetch(req.user.id, `/people/${username}/stash/list.json?page_size=100`);
+        for (const item of (stashData.stash || [])) {
+          const yarnId = item.yarn?.id;
+          if (yarnId && yarnIds.includes(yarnId)) {
+            // Fetch stash detail for skeins
+            try {
+              const detail = await ravelryFetch(req.user.id, `/people/${username}/stash/${item.id}.json`);
+              const skeins = (detail?.stash?.packs || []).find(p => p.primary_pack_id == null)?.skeins || 1;
+              stashByYarnId.set(yarnId, {
+                colorway: item.colorway_name || item.color_family_name || '',
+                skeins
+              });
+            } catch (e) {
+              stashByYarnId.set(yarnId, {
+                colorway: item.colorway_name || item.color_family_name || '',
+                skeins: 1
+              });
+            }
+          }
+        }
+      } catch (e) {}
+    }
+
     const items = favorites.map(fav => {
       const obj = fav.favorited || {};
       if (obj.type === 'pattern' || fav.type === 'pattern') {
+        const full = patternDetailMap.get(obj.id);
         return {
           id: fav.id,
           fav_type: 'pattern',
           pattern_id: obj.id,
-          name: obj.name || 'Unknown Pattern',
-          author: obj.designer?.name || obj.pattern_author?.name || '',
-          category: obj.pattern_categories?.[0]?.name || '',
-          photo: obj.first_photo?.medium_url || obj.first_photo?.small_url || null,
+          name: full?.name || obj.name || 'Unknown Pattern',
+          author: full?.pattern_author?.name || obj.designer?.name || obj.pattern_author?.name || '',
+          category: full?.pattern_categories?.[0]?.name || obj.pattern_categories?.[0]?.name || '',
+          photo: full?.photos?.[0]?.medium_url || full?.photos?.[0]?.small_url
+            || obj.first_photo?.medium_url || obj.first_photo?.small_url || null,
           imported: importedPatternIds.has(obj.id)
         };
       } else if (obj.type === 'yarn' || fav.type === 'yarn') {
+        const fullYarn = yarnDetailMap.get(obj.id);
+        const stashMatch = stashByYarnId.get(obj.id);
         return {
           id: fav.id,
           fav_type: 'yarn',
           yarn_id: obj.id,
-          name: obj.name || 'Unknown Yarn',
-          brand: obj.yarn_company_name || obj.yarn_company?.name || '',
-          weight: obj.yarn_weight?.name || '',
-          photo: obj.first_photo?.medium_url || obj.first_photo?.small_url || null,
+          name: fullYarn?.name || obj.name || 'Unknown Yarn',
+          brand: fullYarn?.yarn_company?.name || obj.yarn_company_name || obj.yarn_company?.name || '',
+          colorway: stashMatch?.colorway || '',
+          weight: fullYarn?.yarn_weight?.name || obj.yarn_weight?.name || '',
+          skeins: stashMatch?.skeins || null,
+          photo: fullYarn?.photos?.[0]?.medium_url || fullYarn?.photos?.[0]?.small_url
+            || obj.first_photo?.medium_url || obj.first_photo?.small_url || null,
           imported: false
         };
       }

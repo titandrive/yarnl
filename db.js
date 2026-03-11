@@ -388,6 +388,14 @@ async function initDatabase() {
                       WHERE table_name='hooks' AND column_name='ravelry_needle_id') THEN
           ALTER TABLE hooks ADD COLUMN ravelry_needle_id INTEGER;
         END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='yarns' AND column_name='yardage') THEN
+          ALTER TABLE yarns ADD COLUMN yardage NUMERIC(8,1);
+          ALTER TABLE yarns ADD COLUMN unit_weight NUMERIC(8,1);
+          ALTER TABLE yarns ADD COLUMN gauge VARCHAR(100);
+          ALTER TABLE yarns ADD COLUMN needle_size VARCHAR(100);
+          ALTER TABLE yarns ADD COLUMN hook_size VARCHAR(100);
+        END IF;
       END $$;
     `);
 

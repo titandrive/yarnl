@@ -17161,10 +17161,15 @@ const YARN_COLUMNS = {
     notes: { label: 'Notes', value: y => y.notes ? escapeHtml(y.notes.substring(0, 50)) + (y.notes.length > 50 ? '...' : '') : '—' },
     favorite: { label: 'Fav', value: y => y.is_favorite ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="color:#f87171"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>' : '—' },
     rating: { label: 'Rating', value: y => ratingStarsHtml(y.rating) },
+    yardage: { label: 'Yardage', value: y => y.yardage ? parseFloat(y.yardage) + ' yds' : '—' },
+    unit_weight: { label: 'Unit Wt', value: y => y.unit_weight ? parseFloat(y.unit_weight) + 'g' : '—' },
+    gauge: { label: 'Gauge', value: y => escapeHtml(y.gauge || '—') },
+    needle_size: { label: 'Needle', value: y => escapeHtml(y.needle_size || '—') },
+    hook_size: { label: 'Hook', value: y => escapeHtml(y.hook_size || '—') },
     url: { label: 'URL', value: y => y.url ? `<a href="${escapeHtml(y.url)}" target="_blank" onclick="event.stopPropagation()" class="list-url-link">Link</a>` : '—' },
     created_at: { label: 'Added', value: y => y.created_at ? new Date(y.created_at).toLocaleDateString() : '—' },
 };
-const DEFAULT_YARN_COL_ORDER = ['thumbnail', 'brand', 'name', 'color', 'dye_lot', 'weight_category', 'quantity', 'fiber_content', 'favorite', 'rating', 'pattern_count', 'notes', 'created_at'];
+const DEFAULT_YARN_COL_ORDER = ['thumbnail', 'brand', 'name', 'color', 'dye_lot', 'weight_category', 'quantity', 'fiber_content', 'yardage', 'unit_weight', 'gauge', 'needle_size', 'hook_size', 'favorite', 'rating', 'pattern_count', 'notes', 'created_at'];
 
 const HOOK_COLUMNS = {
     thumbnail: { label: 'Photo', value: h => h.thumbnail ? `<img src="${API_URL}/api/hooks/${h.id}/thumbnail" class="list-thumbnail" alt="">` : `<div class="list-thumbnail-placeholder">${hookPlaceholderSvg(h.craft_type, 26)}</div>` },
@@ -17737,6 +17742,11 @@ function openYarnModal(yarnId = null) {
     document.getElementById('yarn-weight').value = yarn?.weight_category || '';
     document.getElementById('yarn-quantity').value = yarn?.quantity || 1;
     document.getElementById('yarn-fiber').value = yarn?.fiber_content || '';
+    document.getElementById('yarn-yardage').value = yarn?.yardage || '';
+    document.getElementById('yarn-unit-weight').value = yarn?.unit_weight || '';
+    document.getElementById('yarn-gauge').value = yarn?.gauge || '';
+    document.getElementById('yarn-needle-size').value = yarn?.needle_size || '';
+    document.getElementById('yarn-hook-size').value = yarn?.hook_size || '';
     document.getElementById('yarn-url').value = yarn?.url || '';
     document.getElementById('yarn-notes').value = yarn?.notes || '';
 
@@ -17786,6 +17796,11 @@ async function saveYarn() {
         weight_category: document.getElementById('yarn-weight').value || null,
         fiber_content: document.getElementById('yarn-fiber').value.trim() || null,
         quantity: parseFloat(document.getElementById('yarn-quantity').value) || 1,
+        yardage: parseFloat(document.getElementById('yarn-yardage').value) || null,
+        unit_weight: parseFloat(document.getElementById('yarn-unit-weight').value) || null,
+        gauge: document.getElementById('yarn-gauge').value.trim() || null,
+        needle_size: document.getElementById('yarn-needle-size').value.trim() || null,
+        hook_size: document.getElementById('yarn-hook-size').value.trim() || null,
         url: document.getElementById('yarn-url').value.trim() || null,
         notes: document.getElementById('yarn-notes').value.trim() || null,
         rating: parseInt(document.getElementById('yarn-rating-input')?.dataset.rating) || 0
@@ -18217,6 +18232,11 @@ function autoFillYarnFields(fields) {
             filled.push('yarn-weight');
         }
     }
+    fill('yarn-yardage', fields.yardage);
+    fill('yarn-unit-weight', fields.unit_weight);
+    fill('yarn-gauge', fields.gauge);
+    fill('yarn-needle-size', fields.needle_size);
+    fill('yarn-hook-size', fields.hook_size);
     return filled;
 }
 

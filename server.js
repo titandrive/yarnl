@@ -1551,29 +1551,31 @@ app.get('/api/ravelry/stash', authMiddleware, async (req, res) => {
       importedIds = new Set(imported.rows.map(r => r.ravelry_stash_id));
     }
 
-    // Fetch detail for each item to get photos (list endpoint doesn't include them)
-    const detailPromises = stashItems.map(item =>
-      ravelryFetch(req.user.id, `/people/${username}/stash/${item.id}.json`).catch(e => {
-        console.error(`Stash detail fetch failed for ${item.id}:`, e.message);
-        return null;
-      })
-    );
+    // Fetch stash detail (for packs/quantity) and full yarn product (for photos) in parallel
+    const detailPromises = stashItems.map(async item => {
+      const yarnId = item.yarn?.id;
+      const [stashDetail, yarnProduct] = await Promise.all([
+        ravelryFetch(req.user.id, `/people/${username}/stash/${item.id}.json`).catch(() => null),
+        yarnId ? ravelryFetch(req.user.id, `/yarns/${yarnId}.json`).catch(() => null) : null
+      ]);
+      return { stash: stashDetail?.stash, yarn: yarnProduct?.yarn };
+    });
     const details = await Promise.all(detailPromises);
 
     const items = stashItems.map((item, i) => {
       const detail = details[i]?.stash;
+      const fullYarn = details[i]?.yarn;
       const yarn = item.yarn || {};
-      // Try multiple photo sources
-      const photo = detail?.first_photo?.medium2_url || detail?.first_photo?.medium_url
-        || detail?.first_photo?.small_url
-        || (detail?.photos?.[0]?.medium2_url) || (detail?.photos?.[0]?.medium_url) || (detail?.photos?.[0]?.small_url)
+      // Photo from full yarn product page, fallback to stash
+      const photo = fullYarn?.photos?.[0]?.medium2_url || fullYarn?.photos?.[0]?.medium_url || fullYarn?.photos?.[0]?.small_url
+        || detail?.first_photo?.medium2_url || detail?.first_photo?.medium_url || detail?.first_photo?.small_url
         || null;
       return {
         id: item.id,
-        name: yarn.name || item.name || 'Unknown Yarn',
-        brand: yarn.yarn_company_name || '',
+        name: fullYarn?.name || yarn.name || item.name || 'Unknown Yarn',
+        brand: fullYarn?.yarn_company?.name || yarn.yarn_company_name || '',
         colorway: item.colorway_name || item.color_family_name || '',
-        weight: yarn.yarn_weight?.name || '',
+        weight: fullYarn?.yarn_weight?.name || yarn.yarn_weight?.name || '',
         photo,
         skeins: (detail?.packs || []).find(p => p.primary_pack_id == null)?.skeins || 1,
         imported: importedIds.has(item.id)
@@ -1697,6 +1699,7 @@ app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
           pattern_id: obj.id,
           name: obj.name || 'Unknown Pattern',
           author: obj.designer?.name || obj.pattern_author?.name || '',
+          category: obj.pattern_categories?.[0]?.name || '',
           photo: obj.first_photo?.medium_url || obj.first_photo?.small_url || null,
           imported: importedPatternIds.has(obj.id)
         };
@@ -1706,7 +1709,8 @@ app.get('/api/ravelry/favorites', authMiddleware, async (req, res) => {
           fav_type: 'yarn',
           yarn_id: obj.id,
           name: obj.name || 'Unknown Yarn',
-          author: obj.yarn_company_name || obj.yarn_company?.name || '',
+          brand: obj.yarn_company_name || obj.yarn_company?.name || '',
+          weight: obj.yarn_weight?.name || '',
           photo: obj.first_photo?.medium_url || obj.first_photo?.small_url || null,
           imported: false
         };
@@ -2228,10 +2232,20 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                 continue;
               }
 
-              // detail was already fetched above
+              // detail was already fetched above (stash detail)
 
               const yarn = item.yarn || {};
               const colorway = item.colorway_name || item.color_family_name || '';
+
+              // Fetch full yarn product data (stash detail only has slim yarn object)
+              let fullYarn = null;
+              const yarnProductId = yarn.id || detail?.yarn?.id;
+              if (yarnProductId) {
+                try {
+                  const yarnData = await ravelryFetch(req.user.id, `/yarns/${yarnProductId}.json`);
+                  fullYarn = yarnData.yarn;
+                } catch (e) {}
+              }
 
               // Map weight category
               const weightMap = {
@@ -2241,11 +2255,11 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                 'Aran': 'Medium', 'Bulky': 'Bulky', 'Super Bulky': 'Super Bulky',
                 'Jumbo': 'Jumbo'
               };
-              const ravelryWeight = yarn.yarn_weight?.name || '';
+              const ravelryWeight = fullYarn?.yarn_weight?.name || yarn.yarn_weight?.name || '';
               const weightCategory = weightMap[ravelryWeight] || ravelryWeight;
 
-              // Build fiber content
-              const fibers = detail?.yarn?.yarn_fibers || detail?.yarn?.fibers || [];
+              // Build fiber content from full yarn data
+              const fibers = fullYarn?.yarn_fibers || fullYarn?.fibers || [];
               const fiberContent = fibers.length > 0
                 ? fibers.map(f => {
                     const pct = f.percentage != null ? `${f.percentage}% ` : '';
@@ -2253,12 +2267,11 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                   }).join(', ')
                 : (yarn.fiber_content || '');
 
-              // Download thumbnail
+              // Download thumbnail — try stash photo first, then full yarn product photo
               let thumbnailFilename = null;
-              // Try stash photo, then yarn product photo as fallback
               const photo = detail?.first_photo || detail?.photos?.[0]
-                || detail?.yarn?.first_photo || detail?.yarn?.photos?.[0]
-                || item.yarn?.first_photo;
+                || fullYarn?.photos?.[0] || fullYarn?.first_photo
+                || detail?.yarn?.first_photo || item.yarn?.first_photo;
               const photoUrl = photo?.medium2_url || photo?.medium_url || photo?.small_url || photo?.square_url || null;
               if (photoUrl) {
                 try {
@@ -2274,11 +2287,11 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                 } catch (e) {}
               }
 
-              const yarnUrl = `https://www.ravelry.com/yarns/library/${yarn.permalink || ''}`;
+              const permalink = fullYarn?.permalink || yarn.permalink || '';
+              const yarnUrl = permalink ? `https://www.ravelry.com/yarns/library/${permalink}` : null;
 
-              // Extract detail fields from yarn data
-              const detailYarn = detail?.yarn || yarn;
-              const { yardage, unitWeight, gauge: gaugeVal, needleSize: needleSizeStr, hookSize: hookSizeStr } = extractYarnDetails(detailYarn);
+              // Extract detail fields from full yarn product data
+              const { yardage, unitWeight, gauge: gaugeVal, needleSize: needleSizeStr, hookSize: hookSizeStr } = extractYarnDetails(fullYarn || yarn);
 
               await pool.query(
                 `INSERT INTO yarns (user_id, name, brand, colorway, color, weight_category,
@@ -2287,15 +2300,15 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)`,
                 [
                   req.user.id,
-                  yarn.name || item.name || 'Unknown Yarn',
-                  yarn.yarn_company_name || '',
+                  fullYarn?.name || yarn.name || item.name || 'Unknown Yarn',
+                  fullYarn?.yarn_company?.name || fullYarn?.yarn_company_name || yarn.yarn_company_name || '',
                   colorway,
                   colorway,
                   weightCategory,
                   fiberContent,
                   totalSkeins,
                   item.notes || '',
-                  yarn.permalink ? yarnUrl : null,
+                  yarnUrl,
                   thumbnailFilename,
                   item.id,
                   yardage,

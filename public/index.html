@@ -2405,6 +2405,9 @@ Inc in each st around (12)
                                 <button class="ravelry-tab" data-ravelry-tab="hooks">
                                     Hooks & Needles <span id="ravelry-hooks-total" class="ravelry-tab-count"></span>
                                 </button>
+                                <button class="ravelry-tab" data-ravelry-tab="favorites">
+                                    Favorites <span id="ravelry-favorites-total" class="ravelry-tab-count"></span>
+                                </button>
                             </div>
 
                             <!-- Action bar -->
@@ -2441,6 +2444,11 @@ Inc in each st around (12)
                             <!-- Hooks list -->
                             <div class="ravelry-list" id="ravelry-hooks-list" data-ravelry-tab="hooks" style="display: none;">
                                 <div class="ravelry-loading">Loading hooks & needles...</div>
+                            </div>
+
+                            <!-- Favorites list -->
+                            <div class="ravelry-list" id="ravelry-favorites-list" data-ravelry-tab="favorites" style="display: none;">
+                                <div class="ravelry-loading">Loading favorites...</div>
                             </div>
 
                             <!-- Pagination -->
@@ -3431,9 +3439,15 @@ Inc in each st around (12)
                         </div>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label for="yarn-fiber">Fiber Content</label>
-                    <input type="text" id="yarn-fiber" placeholder="e.g. 100% Acrylic, 80/20 Cotton/Poly">
+                <div class="form-row">
+                    <div class="form-group" style="flex: 1;">
+                        <label for="yarn-fiber">Fiber Content</label>
+                        <input type="text" id="yarn-fiber" placeholder="e.g. 100% Acrylic">
+                    </div>
+                    <div class="form-group" style="flex: 0 0 auto;">
+                        <label>Rating</label>
+                        <div id="yarn-rating"></div>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="yarn-url">Product URL</label>
@@ -3444,10 +3458,6 @@ Inc in each st around (12)
                             Import via URL
                         </button>
                     </div>
-                </div>
-                <div class="form-group">
-                    <label>Rating</label>
-                    <div id="yarn-rating"></div>
                 </div>
                 <div class="form-row" style="align-items: flex-start;">
                     <div class="form-group" style="flex: 0 0 auto;">

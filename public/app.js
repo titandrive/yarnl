@@ -1154,7 +1154,8 @@ const ravelryState = {
     patterns: { items: [], page: 1, pageCount: 1, total: 0, loaded: false },
     yarn: { items: [], page: 1, pageCount: 1, total: 0, loaded: false },
     hooks: { items: [], total: 0, loaded: false },
-    selected: { patterns: new Set(), yarn: new Set(), hooks: new Set() },
+    favorites: { items: [], page: 1, pageCount: 1, total: 0, loaded: false },
+    selected: { patterns: new Set(), yarn: new Set(), hooks: new Set(), favorites: new Set() },
     importing: false,
     importingTab: null
 };
@@ -1196,6 +1197,7 @@ async function initRavelryTab() {
             loadRavelryTabData('patterns');
             loadRavelryTabData('yarn');
             loadRavelryTabData('hooks');
+            loadRavelryTabData('favorites');
         } else {
             if (statusText) statusText.textContent = 'Not connected';
             if (connectBtn) connectBtn.style.display = '';
@@ -1213,15 +1215,20 @@ async function initRavelryTab() {
         const svg = btn.querySelector('svg');
         svg.style.animation = 'spin 0.8s linear infinite';
         btn.disabled = true;
-        // Reset loaded state and reload all tabs
         ravelryState.patterns.loaded = false;
         ravelryState.yarn.loaded = false;
         ravelryState.hooks.loaded = false;
-        await Promise.all([
-            loadRavelryTabData('patterns'),
-            loadRavelryTabData('yarn'),
-            loadRavelryTabData('hooks')
-        ]);
+        ravelryState.favorites.loaded = false;
+        try {
+            await Promise.all([
+                loadRavelryTabData('patterns'),
+                loadRavelryTabData('yarn'),
+                loadRavelryTabData('hooks'),
+                loadRavelryTabData('favorites')
+            ]);
+        } catch (err) {
+            showToast(err.message || 'Failed to refresh Ravelry data', 'error');
+        }
         svg.style.animation = '';
         btn.disabled = false;
     });
@@ -1359,11 +1366,23 @@ async function loadRavelryTabData(tab) {
             url = `${API_URL}/api/ravelry/library?page=${data.page}&page_size=50`;
         } else if (tab === 'yarn') {
             url = `${API_URL}/api/ravelry/stash?page=${data.page}&page_size=50`;
+        } else if (tab === 'favorites') {
+            url = `${API_URL}/api/ravelry/favorites?page=${data.page}&page_size=50`;
         } else {
             url = `${API_URL}/api/ravelry/needles`;
         }
 
         const res = await fetch(url);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            if (res.status === 401) {
+                // Token expired — show reconnect prompt
+                if (listEl) listEl.innerHTML = '<div class="ravelry-loading">Session expired. Please disconnect and reconnect your Ravelry account.</div>';
+                showToast('Ravelry session expired. Please reconnect.', 'error');
+                return;
+            }
+            throw new Error(err.error || `HTTP ${res.status}`);
+        }
         const result = await res.json();
 
         data.items = result.items || [];
@@ -1426,6 +1445,24 @@ function renderRavelryList(tab) {
                     <div class="ravelry-item-meta">${item.skeins} skein${item.skeins !== 1 ? 's' : ''}</div>
                 </div>
                 <div class="ravelry-item-badges">${importedBadge}</div>
+            </div>`;
+        }
+    } else if (tab === 'favorites') {
+        for (const item of data.items) {
+            const sel = selected.has(item.id) ? ' selected' : '';
+            const importedBadge = item.imported ? '<span class="ravelry-badge ravelry-badge-imported">Imported</span>' : '';
+            const typeBadge = `<span class="ravelry-badge" style="background: var(--text-muted); color: var(--bg-color);">${item.fav_type === 'pattern' ? 'Pattern' : 'Yarn'}</span>`;
+            const placeholder = item.fav_type === 'yarn'
+                ? '<div class="ravelry-item-photo-placeholder"><svg viewBox="5 18 90 67" fill="currentColor"><path d="M47.6,34.1c-1.4,1-2.7,2.1-4.1,3.3c5.1,4.4,12.8,15.9,13.9,29c1.8-2.1,3.2-4.6,4.3-7.2C59.6,46.6,51.3,36.3,47.6,34.1z"/><path d="M45.2,60.8c-6.4,4.9-14,8.3-21,9.4v0c-0.2,1-0.3,2-0.4,2.9c1.2,0.6,2.4,1.1,3.6,1.6c8.2-1,15.4-5.1,19.3-7.8C46.4,64.8,45.8,62.7,45.2,60.8z"/><path d="M34.6,47.6c-2.6,3.4-4.6,6.9-6.2,10.2c4.3-1.7,8.6-4.2,12.2-7.1c-1.4-2.3-2.8-4.2-4-5.7C35.9,45.8,35.2,46.7,34.6,47.6z"/><path d="M44.8,23.1c-2.7-0.9-5.7-1.4-8.7-1.3c-4.9,3.3-9.5,8-14.3,14.4c-6.4,8.5-9.4,17.1-10.5,23.3c0.9,2.2,2.1,4.3,3.6,6.1c1-6.7,4.2-16,11.1-25.2C32.3,32.1,38.3,26.5,44.8,23.1z"/><path d="M53.3,27.6c-1.5-1.2-3.2-2.3-5-3.1c-7,3-13.4,8.6-20.1,17.5c-7.5,10-10.4,20.2-10.9,26.4c1.2,1.2,2.5,2.2,3.9,3.2c0.9-6.7,4.1-16.3,11.2-25.7C39.3,36.7,46,30.9,53.3,27.6z"/><path d="M63.3,53.9c0.4-2.1,0.5-4.4,0.4-6.6c-0.5-6.9-3.5-13.1-8.1-17.6c-1.9,0.7-3.8,1.7-5.6,2.8C54.1,35.6,60.3,43.7,63.3,53.9z"/><path d="M30.8,22.4C17.8,25.2,8.4,37.2,9.3,50.9c0.1,1.1,0.2,2.2,0.4,3.3c1.7-5.8,4.7-12.8,9.9-19.6C23.4,29.6,27.1,25.5,30.8,22.4z"/><path d="M33.9,76.2c1.4,0.1,2.9,0.2,4.4,0.1c3.1-0.2,6-0.9,8.8-2.1c0.1-1.4,0.1-2.8,0-4.2C43.9,72,39.3,74.6,33.9,76.2z"/><path d="M24.8,67.3c6.5-1.2,13.5-4.5,19.4-9.2l0,0c-0.7-1.8-1.5-3.5-2.3-5c-4.5,3.5-9.9,6.4-15.1,8.1C26,63.4,25.3,65.4,24.8,67.3z"/><path d="M91.6,80c-4.1-7.4-7.4-10.9-14.6-10.6c-2.8,0.1-5.4,1.8-8.2,3.7c-4,2.6-7.8,5.1-11.7,3c-1-0.6-1.7-1.5-2.2-2.4c-0.9,0.7-1.8,1.3-2.8,1.9c0.7,1.3,1.8,2.6,3.4,3.5c5.7,3.1,10.9-0.4,15.2-3.1c2.4-1.6,4.7-3.1,6.5-3.1c5.5-0.2,7.7,2.1,11.6,8.9c0.4,0.8,1.5,1.1,2.3,0.6C91.7,81.8,92,80.8,91.6,80z"/><path d="M50.1,72.7c0.4-0.2,0.4-0.3,0.8-0.5c0,0,0,0,0,0c0,0,0,0.1,0,0.1c1-0.7,2.1-1.4,3.1-2.3c0,0,0-0.1,0-0.1c0.3-0.2,0.6-0.5,0.9-0.7c-0.2-12.9-8-25.4-13.3-29.8c-1.1,1.1-2.1,2.2-3.2,3.5c5.5,6.3,10.7,16.6,11.4,27.1C49.8,70.9,50.1,71.7,50.1,72.7z"/></svg></div>'
+                : `<div class="ravelry-item-photo-placeholder"><img src="${API_URL}/icons/crocheting.svg" width="28" height="28" alt=""></div>`;
+            html += `<div class="ravelry-item${sel}" data-id="${item.id}">
+                <div class="ravelry-item-checkbox" data-ravelry-id="${item.id}">${checkSvg}</div>
+                <div class="ravelry-item-photo">${item.photo ? `<img src="${item.photo}" alt="" loading="lazy">` : placeholder}</div>
+                <div class="ravelry-item-info">
+                    <div class="ravelry-item-name">${escapeHtml(item.name)}</div>
+                    <div class="ravelry-item-meta">${escapeHtml(item.author || '')}</div>
+                </div>
+                <div class="ravelry-item-badges">${typeBadge}${importedBadge}</div>
             </div>`;
         }
     } else {
@@ -1549,7 +1586,28 @@ async function startRavelryImport(tab, ids) {
     if (importAllBtn) importAllBtn.disabled = true;
 
     const body = {};
-    if (tab === 'patterns') {
+    if (tab === 'favorites') {
+        // Split favorites into patterns and yarns by looking up fav_type
+        const favItems = ravelryState.favorites.items;
+        const selectedFavs = ids ? favItems.filter(f => ids.includes(f.id)) : favItems;
+        const patternIds = selectedFavs.filter(f => f.fav_type === 'pattern' && f.pattern_id).map(f => f.pattern_id);
+        const yarnFavs = selectedFavs.filter(f => f.fav_type === 'yarn' && f.yarn_id);
+        if (patternIds.length > 0) {
+            body.importPatterns = true;
+            body.patternIds = patternIds;
+        }
+        if (yarnFavs.length > 0) {
+            body.importYarns = true;
+            body.favoriteYarnIds = yarnFavs.map(f => f.yarn_id);
+        }
+        if (!body.importPatterns && !body.importYarns) {
+            if (progressArea) progressArea.style.display = 'none';
+            if (importSelectedBtn) importSelectedBtn.disabled = false;
+            if (importAllBtn) importAllBtn.disabled = false;
+            ravelryState.importing = false;
+            return;
+        }
+    } else if (tab === 'patterns') {
         body.importPatterns = true;
         if (ids) body.patternIds = ids;
     } else if (tab === 'yarn') {
@@ -1612,8 +1670,14 @@ function handleRavelryImportComplete(data) {
     const importAllBtn = document.getElementById('ravelry-import-all-btn');
 
     const tab = ravelryState.activeTab;
-    const count = tab === 'patterns' ? data.patterns : tab === 'yarn' ? data.yarns : data.hooks;
-    const label = tab === 'patterns' ? 'pattern' : tab === 'yarn' ? 'yarn' : 'hook/needle';
+    let count, label;
+    if (tab === 'favorites') {
+        count = (data.patterns || 0) + (data.yarns || 0);
+        label = 'item';
+    } else {
+        count = tab === 'patterns' ? data.patterns : tab === 'yarn' ? data.yarns : data.hooks;
+        label = tab === 'patterns' ? 'pattern' : tab === 'yarn' ? 'yarn' : 'hook/needle';
+    }
     if (progressText) progressText.textContent = `Import complete! ${count} ${label}${count !== 1 ? 's' : ''} imported.`;
     if (progressBar) progressBar.style.width = '100%';
     if (importSelectedBtn) importSelectedBtn.disabled = false;
@@ -1623,9 +1687,11 @@ function handleRavelryImportComplete(data) {
     ravelryState.selected.patterns.clear();
     ravelryState.selected.yarn.clear();
     ravelryState.selected.hooks.clear();
+    ravelryState.selected.favorites.clear();
     ravelryState.patterns.loaded = false;
     ravelryState.yarn.loaded = false;
     ravelryState.hooks.loaded = false;
+    ravelryState.favorites.loaded = false;
     loadRavelryTabData(ravelryState.activeTab);
 
     // Hide progress after a delay
@@ -18087,7 +18153,10 @@ async function importImageFromUrl(type) {
     btn.innerHTML = '<span class="spinner-small"></span> Importing…';
 
     try {
-        const response = await fetch(`${API_URL}/api/fetch-url-image`, {
+        // Use Ravelry API for Ravelry yarn URLs
+        const isRavelryYarn = type === 'yarn' && /ravelry\.com\/yarns\/library\//.test(url);
+        const endpoint = isRavelryYarn ? `${API_URL}/api/ravelry/import-yarn-url` : `${API_URL}/api/fetch-url-image`;
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ url, type })

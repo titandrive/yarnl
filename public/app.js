@@ -17763,7 +17763,9 @@ function togglePatternRowSelect(patternId, el) {
 function toggleLibraryEditMode() {
     libraryEditMode = !libraryEditMode;
     const btn = document.getElementById('library-edit-btn');
+    const mobileBtn = document.getElementById('library-mobile-edit-btn');
     if (btn) btn.classList.toggle('active', libraryEditMode);
+    if (mobileBtn) mobileBtn.classList.toggle('active', libraryEditMode);
     if (!libraryEditMode) {
         clearBulkSelection();
     }
@@ -17775,7 +17777,9 @@ function exitLibraryEditMode() {
     if (!libraryEditMode) return;
     libraryEditMode = false;
     const btn = document.getElementById('library-edit-btn');
+    const mobileBtn = document.getElementById('library-mobile-edit-btn');
     if (btn) btn.classList.remove('active');
+    if (mobileBtn) mobileBtn.classList.remove('active');
     clearBulkSelection();
     displayPatterns();
 }

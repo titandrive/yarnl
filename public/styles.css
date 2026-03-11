@@ -1814,7 +1814,7 @@ html[data-theme="nuked-dark"] .btn-primary {
     display: flex;
     gap: 8px;
     margin-bottom: 12px;
-    align-items: center;
+    align-items: stretch;
 }
 
 .library-layout {
@@ -11564,12 +11564,14 @@ textarea.image-drag-over {
         justify-content: center;
     }
 
-    #inv-mobile-edit-btn {
+    #inv-mobile-edit-btn,
+    #library-mobile-edit-btn {
         background: var(--input-bg);
         border: none;
     }
 
-    #inv-mobile-edit-btn.active {
+    #inv-mobile-edit-btn.active,
+    #library-mobile-edit-btn.active {
         background: var(--primary-color);
         color: white;
     }

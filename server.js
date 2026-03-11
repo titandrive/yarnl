@@ -1359,6 +1359,20 @@ async function refreshRavelryToken(userId) {
   return tokens.access_token;
 }
 
+// Helper: strip HTML tags from a string
+function stripHtml(str) {
+  return (str || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 // Helper: build size range string from Ravelry min/max size objects
 function buildSizeRange(minSize, maxSize) {
   if (!minSize && !maxSize) return null;
@@ -1394,7 +1408,27 @@ async function ravelryFetch(userId, endpoint) {
   });
 
   if (response.status === 401) {
-    // Token was accepted by our refresh but rejected by Ravelry — clear it
+    // Force-expire and retry once with a fresh token
+    await pool.query('UPDATE users SET ravelry_token_expires_at = NOW() WHERE id = $1', [userId]);
+    const retryToken = await refreshRavelryToken(userId);
+    if (retryToken && retryToken !== token) {
+      const retryResponse = await fetch(`https://api.ravelry.com${endpoint}`, {
+        headers: { 'Authorization': `Bearer ${retryToken}` }
+      });
+      if (retryResponse.status === 401) {
+        // Still 401 after refresh — clear tokens
+        await pool.query(
+          'UPDATE users SET ravelry_access_token = NULL, ravelry_refresh_token = NULL, ravelry_token_expires_at = NULL WHERE id = $1',
+          [userId]
+        );
+        const err = new Error('Ravelry session expired. Please reconnect your account.');
+        err.tokenExpired = true;
+        throw err;
+      }
+      if (!retryResponse.ok) throw new Error(`Ravelry API error: ${retryResponse.status} ${retryResponse.statusText}`);
+      return retryResponse.json();
+    }
+    // Couldn't get a new token
     await pool.query(
       'UPDATE users SET ravelry_access_token = NULL, ravelry_refresh_token = NULL, ravelry_token_expires_at = NULL WHERE id = $1',
       [userId]
@@ -1933,8 +1967,39 @@ app.post('/api/ravelry/preview-url', authMiddleware, async (req, res) => {
 
     const suggestedTags = (pattern.pattern_categories || []).map(c => c.name).filter(Boolean);
     const thumbnailUrl = pattern.first_photo?.medium_url || null;
-    const hasPdf = !!(pattern.downloadable && (pattern.pdf_url || pattern.download_location?.url));
-    const description = pattern.notes || '';
+    const description = stripHtml(pattern.notes_html || pattern.notes || '');
+
+    // Check if PDF is actually accessible: free pattern, or in user's library
+    let hasPdf = false;
+    let noPdfReason = null;
+
+    if (!pattern.downloadable || (!pattern.pdf_url && !pattern.download_location?.url)) {
+      noPdfReason = 'This pattern has no downloadable PDF.';
+    } else if (pattern.free) {
+      hasPdf = true;
+    } else {
+      // Paid pattern — check if it's in the user's library
+      try {
+        const librarySearch = await ravelryFetch(
+          req.user.id,
+          `/people/${username}/library/search.json?query=${encodeURIComponent(pattern.name)}&page_size=50`
+        );
+        const volumes = librarySearch.volumes || [];
+        const matchingVol = volumes.find(v => (v.pattern?.id || v.pattern_id) === pattern.id);
+        if (matchingVol && (matchingVol.has_downloads || matchingVol.pdf_in_library)) {
+          hasPdf = true;
+        } else {
+          noPdfReason = 'This is a paid pattern not found in your Ravelry library. Purchase it on Ravelry first.';
+        }
+      } catch (e) {
+        // If library check fails, be optimistic and let import try
+        hasPdf = true;
+      }
+    }
+
+    if (!hasPdf) {
+      return res.status(400).json({ error: noPdfReason });
+    }
 
     res.json({
       name: pattern.name,
@@ -2088,14 +2153,19 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
     }
 
     if (!pdfFilename) {
-      const reason = !pattern.downloadable ? 'Pattern is not downloadable'
-        : !pattern.free && !pdfFilename ? 'Pattern is paid and not in your Ravelry library'
-        : 'Could not download PDF';
-      return res.status(400).json({ error: `${reason}. Purchase it on Ravelry or add it to your library first.` });
+      let error;
+      if (!pattern.downloadable || (!pattern.pdf_url && !pattern.download_location?.url)) {
+        error = 'This pattern has no downloadable PDF on Ravelry.';
+      } else if (!pattern.free) {
+        error = 'This is a paid pattern not found in your Ravelry library. Purchase it on Ravelry first.';
+      } else {
+        error = 'Could not download the PDF. Please try again.';
+      }
+      return res.status(400).json({ error });
     }
 
     const finalName = nameOverride || pattern.name;
-    const description = descriptionOverride !== undefined ? descriptionOverride : (pattern.notes || '');
+    const description = descriptionOverride !== undefined ? descriptionOverride : stripHtml(pattern.notes_html || pattern.notes || '');
     const finalIsCurrent = isCurrent === true || isCurrent === 'true';
     const finalIsFavorite = isFavorite === true || isFavorite === 'true';
     const finalRating = ratingOverride !== undefined ? Math.max(0, Math.min(5, parseInt(ratingOverride) || 0)) : (pattern.rating_average ? Math.round(pattern.rating_average) : 0);

@@ -8996,6 +8996,20 @@ function deletePattern(id) {
     );
 }
 
+async function duplicatePattern(id) {
+    try {
+        const res = await fetch(`${API_URL}/api/patterns/${id}/duplicate`, { method: 'POST' });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+        const newPattern = await res.json();
+        showToast(`Duplicated as "${newPattern.name}"`);
+        await loadPatterns();
+        await loadCategories();
+        displayPatterns();
+    } catch (e) {
+        showToast('Failed to duplicate: ' + e.message, 'error');
+    }
+}
+
 function archivePattern(id) {
     const item = patterns.find(p => p.id == id);
     if (!item) return;
@@ -9541,6 +9555,7 @@ function initPDFViewer() {
     document.getElementById('cancel-pdf-edit').addEventListener('click', closePdfEditModal);
     document.getElementById('save-pdf-edit').addEventListener('click', savePdfEdit);
     document.getElementById('delete-pdf-pattern').addEventListener('click', deletePdfPattern);
+    document.getElementById('duplicate-pdf-pattern').addEventListener('click', () => { if (currentPattern) { closePdfEditModal(); duplicatePattern(currentPattern.id); } });
 
     // Pattern Info modal buttons
     document.getElementById('close-pattern-info-modal').addEventListener('click', closePatternInfoModal);
@@ -12871,6 +12886,8 @@ function initEditModal() {
     if (closeBtn) closeBtn.addEventListener('click', closeEditModal);
     if (cancelBtn) cancelBtn.addEventListener('click', closeEditModal);
     if (deleteBtn) deleteBtn.addEventListener('click', deleteEditPattern);
+    const dupBtn = document.getElementById('duplicate-edit-pattern');
+    if (dupBtn) dupBtn.addEventListener('click', () => { if (editingPatternId) { closeEditModal(); duplicatePattern(editingPatternId); } });
 
     if (modal) {
         modal.addEventListener('click', (e) => {
@@ -13228,6 +13245,9 @@ function initMarkdownViewerEvents() {
 
     const deleteMarkdownBtn = document.getElementById('delete-markdown-pattern');
     deleteMarkdownBtn.onclick = deleteMarkdownPattern;
+
+    const dupMarkdownBtn = document.getElementById('duplicate-markdown-pattern');
+    if (dupMarkdownBtn) dupMarkdownBtn.onclick = () => { if (currentPattern) { closeMarkdownEditModal(); duplicatePattern(currentPattern.id); } };
 
     const editModal = document.getElementById('markdown-edit-modal');
     editModal.onclick = (e) => {
@@ -16129,6 +16149,7 @@ function initInventory() {
     document.getElementById('close-yarn-modal')?.addEventListener('click', () => closeYarnModal());
     document.getElementById('yarn-modal')?.addEventListener('click', (e) => { if (e.target.id === 'yarn-modal') closeYarnModal(); });
     document.getElementById('delete-yarn-btn')?.addEventListener('click', () => { if (editingYarnId) deleteYarn(editingYarnId); });
+    document.getElementById('duplicate-yarn-btn')?.addEventListener('click', () => { if (editingYarnId) { closeYarnModal(); duplicateYarn(editingYarnId); } });
     document.getElementById('yarn-import-img-btn')?.addEventListener('click', () => importImageFromUrl('yarn'));
     // Hook modal
     document.getElementById('hook-form')?.addEventListener('submit', (e) => { e.preventDefault(); saveHook(); });
@@ -16136,6 +16157,7 @@ function initInventory() {
     document.getElementById('close-hook-modal')?.addEventListener('click', () => closeHookModal());
     document.getElementById('hook-modal')?.addEventListener('click', (e) => { if (e.target.id === 'hook-modal') closeHookModal(); });
     document.getElementById('delete-hook-btn')?.addEventListener('click', () => { if (editingHookId) deleteHook(editingHookId); });
+    document.getElementById('duplicate-hook-btn')?.addEventListener('click', () => { if (editingHookId) { closeHookModal(); duplicateHook(editingHookId); } });
     document.getElementById('hook-import-img-btn')?.addEventListener('click', () => importImageFromUrl('hook'));
 
     // Craft type toggle
@@ -16558,6 +16580,7 @@ function showRowMenu(e, type, id) {
         addRatingRow(p.rating || 0, (val) => setPatternRating(id, val));
         addDivider();
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openEditModal(id));
+        addItem('Duplicate', '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>', () => duplicatePattern(id));
         addDivider();
         addItem(enableDirectDelete ? 'Delete' : 'Archive',
             '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
@@ -16570,6 +16593,7 @@ function showRowMenu(e, type, id) {
             () => toggleYarnFavorite(id, !y.is_favorite));
         addRatingRow(y.rating || 0, (val) => setInventoryRating('yarn', id, val));
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openYarnModal(id));
+        addItem('Duplicate', '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>', () => duplicateYarn(id));
         addDivider();
         addItem('Delete', '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
             () => deleteYarn(id), true);
@@ -16581,6 +16605,7 @@ function showRowMenu(e, type, id) {
             () => toggleHookFavorite(id, !h.is_favorite));
         addRatingRow(h.rating || 0, (val) => setInventoryRating('hook', id, val));
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openHookModal(id));
+        addItem('Duplicate', '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>', () => duplicateHook(id));
         addDivider();
         addItem('Delete', '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',
             () => deleteHook(id), true);
@@ -16844,6 +16869,7 @@ function openYarnModal(yarnId = null) {
     document.getElementById('yarn-modal-title').textContent = yarn ? 'Edit Yarn' : 'Add Yarn';
     document.getElementById('save-yarn-btn').textContent = yarn ? 'Save Changes' : 'Add Yarn';
     document.getElementById('delete-yarn-btn').style.display = yarn ? '' : 'none';
+    document.getElementById('duplicate-yarn-btn').style.display = yarn ? '' : 'none';
 
     document.getElementById('yarn-brand').value = yarn?.brand || '';
     document.getElementById('yarn-name').value = yarn?.name || '';
@@ -16952,6 +16978,18 @@ function deleteYarn(yarnId) {
         async () => { try { await fetch(`${API_URL}/api/yarns/${yarnId}`, { method: 'DELETE' }); } catch(e) { console.error('Error deleting yarn:', e); } },
         () => { yarns.push(item); displayYarns(); updateTabCounts(); }
     );
+}
+
+async function duplicateYarn(id) {
+    try {
+        const res = await fetch(`${API_URL}/api/yarns/${id}/duplicate`, { method: 'POST' });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+        const newYarn = await res.json();
+        showToast(`Duplicated as "${newYarn.name}"`);
+        await loadYarns();
+    } catch (e) {
+        showToast('Failed to duplicate: ' + e.message, 'error');
+    }
 }
 
 // --- Hook CRUD ---
@@ -17096,6 +17134,7 @@ function openHookModal(hookId = null) {
         : 'Add Hook / Needle';
     document.getElementById('save-hook-btn').textContent = hook ? 'Save Changes' : 'Add';
     document.getElementById('delete-hook-btn').style.display = hook ? '' : 'none';
+    document.getElementById('duplicate-hook-btn').style.display = hook ? '' : 'none';
 
     // Set craft type toggle and populate size/type selects
     setCraftType(craftType);
@@ -17228,6 +17267,18 @@ function deleteHook(hookId) {
         async () => { try { await fetch(`${API_URL}/api/hooks/${hookId}`, { method: 'DELETE' }); } catch(e) { console.error('Error deleting hook:', e); } },
         () => { hooks.push(item); displayHooks(); updateTabCounts(); }
     );
+}
+
+async function duplicateHook(id) {
+    try {
+        const res = await fetch(`${API_URL}/api/hooks/${id}/duplicate`, { method: 'POST' });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+        const newHook = await res.json();
+        showToast(`Duplicated as "${newHook.name}"`);
+        await loadHooks();
+    } catch (e) {
+        showToast('Failed to duplicate: ' + e.message, 'error');
+    }
 }
 
 // --- URL image import ---

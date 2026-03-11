@@ -2996,6 +2996,91 @@ app.delete('/api/patterns/:id', async (req, res) => {
   }
 });
 
+// Duplicate a pattern
+app.post('/api/patterns/:id/duplicate', async (req, res) => {
+  try {
+    const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) return res.status(403).json({ error: 'Not authorized' });
+
+    const ownerUsername = pattern.owner_username || req.user.username;
+    const newName = pattern.name + ' (Copy)';
+
+    let newFilename = null;
+    let newThumbnail = null;
+
+    if (pattern.pattern_type !== 'markdown') {
+      // Copy PDF file
+      const categoryDir = getCategoryDir(ownerUsername, pattern.category);
+      const ext = path.extname(pattern.filename);
+      const base = path.basename(pattern.filename, ext);
+      newFilename = getUniqueFilename(categoryDir, base + '_copy', ext);
+      const srcPath = path.join(categoryDir, pattern.filename);
+      const destPath = path.join(categoryDir, newFilename);
+      if (fs.existsSync(srcPath)) {
+        fs.copyFileSync(srcPath, destPath);
+      }
+      // Copy annotated PDF if exists
+      const annotatedName = pattern.filename.replace(/\.pdf$/i, '.annotated.pdf');
+      const annotatedSrc = path.join(categoryDir, annotatedName);
+      if (fs.existsSync(annotatedSrc)) {
+        const newAnnotatedName = newFilename.replace(/\.pdf$/i, '.annotated.pdf');
+        fs.copyFileSync(annotatedSrc, path.join(categoryDir, newAnnotatedName));
+      }
+    }
+
+    // Copy thumbnail if exists
+    if (pattern.thumbnail) {
+      const thumbDir = getUserThumbnailsDir(ownerUsername);
+      const thumbSrc = path.join(thumbDir, pattern.thumbnail);
+      if (fs.existsSync(thumbSrc)) {
+        const thumbExt = path.extname(pattern.thumbnail);
+        const thumbBase = path.basename(pattern.thumbnail, thumbExt);
+        newThumbnail = getUniqueFilename(thumbDir, thumbBase + '_copy', thumbExt);
+        fs.copyFileSync(thumbSrc, path.join(thumbDir, newThumbnail));
+      }
+    }
+
+    // Insert new pattern record
+    const result = await pool.query(
+      `INSERT INTO patterns (name, filename, original_name, category, description, pattern_type, content,
+        thumbnail, user_id, visibility, rating, is_favorite, stitch_count, row_count)
+       SELECT $1, $2, original_name, category, description, pattern_type, content,
+        $3, user_id, visibility, rating, is_favorite, stitch_count, row_count
+       FROM patterns WHERE id = $4
+       RETURNING *`,
+      [newName, newFilename || pattern.filename, newThumbnail, req.params.id]
+    );
+    const newPattern = result.rows[0];
+
+    // Copy hashtags, yarns, hooks, counters
+    await pool.query(
+      `INSERT INTO pattern_hashtags (pattern_id, hashtag_id)
+       SELECT $1, hashtag_id FROM pattern_hashtags WHERE pattern_id = $2`,
+      [newPattern.id, req.params.id]
+    );
+    await pool.query(
+      `INSERT INTO pattern_yarns (pattern_id, yarn_id, notes)
+       SELECT $1, yarn_id, notes FROM pattern_yarns WHERE pattern_id = $2`,
+      [newPattern.id, req.params.id]
+    );
+    await pool.query(
+      `INSERT INTO pattern_hooks (pattern_id, hook_id)
+       SELECT $1, hook_id FROM pattern_hooks WHERE pattern_id = $2`,
+      [newPattern.id, req.params.id]
+    );
+    await pool.query(
+      `INSERT INTO counters (pattern_id, name, value, max_value, is_main, unlinked, position)
+       SELECT $1, name, 0, max_value, is_main, unlinked, position FROM counters WHERE pattern_id = $2`,
+      [newPattern.id, req.params.id]
+    );
+
+    res.json(newPattern);
+  } catch (error) {
+    console.error('Error duplicating pattern:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Archive a pattern (move to archive instead of deleting)
 app.post('/api/patterns/:id/archive', async (req, res) => {
   try {
@@ -4840,6 +4925,38 @@ app.delete('/api/yarns/:id', async (req, res) => {
   }
 });
 
+// Duplicate a yarn
+app.post('/api/yarns/:id/duplicate', async (req, res) => {
+  try {
+    const yarn = await verifyYarnOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!yarn) return res.status(403).json({ error: 'Not authorized' });
+
+    let newThumbnail = null;
+    if (yarn.thumbnail) {
+      const thumbDir = getUserThumbnailsDir(req.user.username);
+      const thumbSrc = path.join(thumbDir, yarn.thumbnail);
+      if (fs.existsSync(thumbSrc)) {
+        const thumbExt = path.extname(yarn.thumbnail);
+        const thumbBase = path.basename(yarn.thumbnail, thumbExt);
+        newThumbnail = getUniqueFilename(thumbDir, thumbBase + '_copy', thumbExt);
+        fs.copyFileSync(thumbSrc, path.join(thumbDir, newThumbnail));
+      }
+    }
+
+    const result = await pool.query(
+      `INSERT INTO yarns (user_id, name, brand, color, weight_category, fiber_content, color_hex, dye_lot, quantity, notes, url, thumbnail, rating, is_favorite)
+       SELECT user_id, $1, brand, color, weight_category, fiber_content, color_hex, dye_lot, quantity, notes, url, $2, rating, is_favorite
+       FROM yarns WHERE id = $3
+       RETURNING *`,
+      [(yarn.name || '') + ' (Copy)', newThumbnail, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error duplicating yarn:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Bulk delete yarns
 app.post('/api/yarns/bulk/delete', async (req, res) => {
   try {
@@ -5073,6 +5190,38 @@ app.delete('/api/hooks/:id', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting hook:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Duplicate a hook
+app.post('/api/hooks/:id/duplicate', async (req, res) => {
+  try {
+    const hook = await verifyHookOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!hook) return res.status(403).json({ error: 'Not authorized' });
+
+    let newThumbnail = null;
+    if (hook.thumbnail) {
+      const thumbDir = getUserThumbnailsDir(req.user.username);
+      const thumbSrc = path.join(thumbDir, hook.thumbnail);
+      if (fs.existsSync(thumbSrc)) {
+        const thumbExt = path.extname(hook.thumbnail);
+        const thumbBase = path.basename(hook.thumbnail, thumbExt);
+        newThumbnail = getUniqueFilename(thumbDir, thumbBase + '_copy', thumbExt);
+        fs.copyFileSync(thumbSrc, path.join(thumbDir, newThumbnail));
+      }
+    }
+
+    const result = await pool.query(
+      `INSERT INTO hooks (user_id, craft_type, name, brand, size_mm, size_label, hook_type, length, quantity, notes, url, thumbnail, rating, is_favorite)
+       SELECT user_id, craft_type, $1, brand, size_mm, size_label, hook_type, length, quantity, notes, url, $2, rating, is_favorite
+       FROM hooks WHERE id = $3
+       RETURNING *`,
+      [(hook.name || '') + ' (Copy)', newThumbnail, req.params.id]
+    );
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Error duplicating hook:', error);
     res.status(500).json({ error: error.message });
   }
 });

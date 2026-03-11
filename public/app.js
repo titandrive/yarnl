@@ -1162,6 +1162,7 @@ const ravelryState = {
     importingTab: null
 };
 
+let ravelryListenersAttached = false;
 async function initRavelryTab() {
     // Check if Ravelry is enabled
     try {
@@ -1211,7 +1212,10 @@ async function initRavelryTab() {
         console.error('Failed to check Ravelry status:', e);
     }
 
-    // Setup event listeners
+    // Setup event listeners (only once)
+    if (ravelryListenersAttached) return;
+    ravelryListenersAttached = true;
+
     document.getElementById('ravelry-refresh-btn')?.addEventListener('click', async (e) => {
         const btn = e.currentTarget;
         const svg = btn.querySelector('svg');

@@ -1531,7 +1531,7 @@ app.get('/api/ravelry/library', authMiddleware, async (req, res) => {
       importedIds = new Set(imported.rows.map(r => r.ravelry_id));
     }
 
-    const items = volumes.map(vol => {
+    let items = volumes.map(vol => {
       const p = vol.pattern || {};
       const patternId = p.id || vol.pattern_id;
       if (!patternId) return null;
@@ -1540,12 +1540,34 @@ app.get('/api/ravelry/library', authMiddleware, async (req, res) => {
         volume_id: vol.id,
         name: p.name || vol.title || 'Unknown Pattern',
         author: p.pattern_author?.name || vol.author_name || '',
-        photo: p.first_photo?.medium_url || vol.cover_image_url || vol.square_image_url || vol.first_photo?.medium_url || vol.first_photo?.square_url || null,
+        photo: p.first_photo?.medium_url || p.first_photo?.small_url || p.first_photo?.square_url
+          || vol.cover_image_url || vol.square_image_url
+          || vol.first_photo?.medium_url || vol.first_photo?.small_url || vol.first_photo?.square_url || null,
         category: p.pattern_categories?.[0]?.name || 'Uncategorized',
         has_pdf: vol.has_downloads || vol.pdf_in_library || (p.pdf_url && p.free) || false,
         imported: importedIds.has(patternId)
       };
     }).filter(Boolean);
+
+    // Batch-fetch photos for items that don't have one
+    const missingPhotoIds = items.filter(i => !i.photo).map(i => i.id);
+    if (missingPhotoIds.length > 0) {
+      try {
+        const chunks = [];
+        for (let i = 0; i < missingPhotoIds.length; i += 100) chunks.push(missingPhotoIds.slice(i, i + 100));
+        const photoMap = {};
+        await Promise.all(chunks.map(async chunk => {
+          const data = await ravelryFetch(req.user.id, `/patterns.json?ids=${chunk.join(',')}`);
+          for (const p of (data.patterns || [])) {
+            const url = p.first_photo?.medium_url || p.first_photo?.small_url || p.first_photo?.square_url || null;
+            if (url) photoMap[p.id] = url;
+          }
+        }));
+        items = items.map(i => i.photo ? i : { ...i, photo: photoMap[i.id] || null });
+      } catch (e) {
+        // Non-fatal: items just won't have photos
+      }
+    }
 
     res.json({
       items,

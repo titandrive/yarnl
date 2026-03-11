@@ -1720,35 +1720,138 @@ function handleRavelryImportComplete(data) {
     if (typeof loadHooks === 'function') loadHooks();
 }
 
-async function handleRavelryUrlImport() {
+async function previewRavelryUrl() {
     const input = document.getElementById('ravelry-url-input');
     const status = document.getElementById('ravelry-url-status');
-    const submitBtn = document.getElementById('submit-ravelry-url');
+    const previewBtn = document.getElementById('preview-ravelry-url');
     const url = input?.value?.trim();
 
-    if (!url) {
-        showToast('Please enter a Ravelry URL', 'error');
-        return;
-    }
+    if (!url) { showToast('Please enter a Ravelry URL', 'error'); return; }
+    if (!url.includes('ravelry.com/patterns/')) { showToast('Please enter a valid Ravelry pattern URL', 'error'); return; }
 
-    if (!url.includes('ravelry.com/patterns/')) {
-        showToast('Please enter a valid Ravelry pattern URL', 'error');
-        return;
+    if (status) status.style.display = 'none';
+    if (previewBtn) { previewBtn.disabled = true; previewBtn.textContent = 'Looking up...'; }
+
+    try {
+        const response = await fetch(`${API_URL}/api/ravelry/preview-url`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url })
+        });
+        let data;
+        try { data = await response.json(); } catch { data = {}; }
+
+        if (!response.ok) {
+            if (status) { status.style.display = ''; status.textContent = data.error || 'Failed to look up pattern'; }
+            if (previewBtn) { previewBtn.disabled = false; previewBtn.textContent = 'Next'; }
+            return;
+        }
+
+        // Populate step 2
+        const thumbEl = document.getElementById('ravelry-preview-thumb');
+        const pdfNoteEl = document.getElementById('ravelry-preview-pdf-note');
+        const nameInput = document.getElementById('ravelry-import-name');
+        const descInput = document.getElementById('ravelry-import-description');
+        const categorySelect = document.getElementById('ravelry-import-category');
+        const ratingEl = document.getElementById('ravelry-import-rating');
+        const favBtn = document.getElementById('ravelry-import-favorite-btn');
+
+        if (thumbEl) {
+            if (data.thumbnailUrl) { thumbEl.src = data.thumbnailUrl; thumbEl.style.display = ''; }
+            else thumbEl.style.display = 'none';
+        }
+        if (pdfNoteEl) {
+            pdfNoteEl.textContent = data.hasPdf ? '📄 PDF available' : 'No PDF — metadata only';
+            pdfNoteEl.className = 'ravelry-preview-pdf-note' + (data.hasPdf ? ' has-pdf' : ' no-pdf');
+        }
+        if (nameInput) nameInput.value = data.name || '';
+        if (descInput) descInput.value = data.description || '';
+
+        // Category: user's own categories, default to their default
+        if (categorySelect) {
+            categorySelect.innerHTML = '';
+            const cats = allCategories.length > 0 ? allCategories : ['Uncategorized'];
+            const defaultCat = getDefaultCategory();
+            cats.forEach(cat => {
+                const opt = document.createElement('option');
+                opt.value = cat;
+                opt.textContent = cat;
+                if (cat === defaultCat) opt.selected = true;
+                categorySelect.appendChild(opt);
+            });
+        }
+
+        // Rating stars (pre-fill from Ravelry average if available)
+        if (ratingEl) ratingEl.innerHTML = ratingInputHtml('ravelry-import-rating-input', data.rating || 0);
+
+        // Reset status fields
+        const isCurrentEl = document.getElementById('ravelry-import-is-current');
+        if (isCurrentEl) isCurrentEl.checked = false;
+        if (favBtn) {
+            favBtn.classList.remove('active');
+            const favSvg = favBtn.querySelector('svg');
+            if (favSvg) { favSvg.setAttribute('fill', 'none'); favSvg.setAttribute('stroke', 'currentColor'); }
+        }
+
+        // Full hashtag selector
+        const hashtagContainer = document.getElementById('ravelry-import-hashtags-container');
+        if (hashtagContainer) hashtagContainer.innerHTML = createHashtagSelector('ravelry-import-hashtags', []);
+
+        // Ravelry suggested tags as quick-add chips
+        const tagsContainer = document.getElementById('ravelry-suggested-tags');
+        if (tagsContainer) {
+            tagsContainer.innerHTML = '';
+            (data.suggestedTags || []).forEach(tag => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'ravelry-tag-chip';
+                chip.dataset.tag = tag;
+                chip.textContent = tag;
+                chip.addEventListener('click', () => chip.classList.toggle('active'));
+                tagsContainer.appendChild(chip);
+            });
+            const tagRow = document.getElementById('ravelry-tags-row');
+            if (tagRow) tagRow.style.display = data.suggestedTags?.length ? '' : 'none';
+        }
+
+        // Switch to step 2
+        document.getElementById('ravelry-url-step1').style.display = 'none';
+        document.getElementById('ravelry-url-step2').style.display = '';
+        document.getElementById('ravelry-url-back').style.display = '';
+
+    } catch (error) {
+        console.error('Ravelry preview error:', error);
+        if (status) { status.style.display = ''; status.textContent = error.message || 'Failed to look up pattern. Please try again.'; }
+        if (previewBtn) { previewBtn.disabled = false; previewBtn.textContent = 'Next'; }
     }
+}
+
+async function handleRavelryUrlImport() {
+    const input = document.getElementById('ravelry-url-input');
+    const status = document.getElementById('ravelry-import-status');
+    const submitBtn = document.getElementById('submit-ravelry-url');
+    const url = input?.value?.trim();
+    const name = document.getElementById('ravelry-import-name')?.value?.trim();
+    const category = document.getElementById('ravelry-import-category')?.value;
+    const description = document.getElementById('ravelry-import-description')?.value?.trim();
+    const isCurrent = document.getElementById('ravelry-import-is-current')?.checked || false;
+    const isFavorite = document.getElementById('ravelry-import-favorite-btn')?.classList.contains('active') || false;
+    const rating = parseInt(document.getElementById('ravelry-import-rating-input')?.dataset.rating) || 0;
+    const hashtagIds = getSelectedHashtagIds('ravelry-import-hashtags');
+    const tagNames = Array.from(document.querySelectorAll('#ravelry-suggested-tags .ravelry-tag-chip.active'))
+        .map(el => el.dataset.tag);
 
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Importing...'; }
-    if (status) { status.style.display = ''; status.textContent = 'Looking up pattern...'; }
+    if (status) { status.style.display = ''; status.textContent = 'Downloading pattern...'; }
 
-    // Show progress and animate status text while waiting
     const progressWrap = document.getElementById('ravelry-url-progress');
     const progressBar = document.getElementById('ravelry-url-progress-bar');
     if (progressWrap) progressWrap.style.display = '';
     if (progressBar) progressBar.style.width = '15%';
 
     const steps = [
-        { text: 'Looking up pattern...', pct: '15%' },
-        { text: 'Fetching pattern data...', pct: '35%' },
-        { text: 'Downloading PDF...', pct: '55%' },
+        { text: 'Downloading pattern...', pct: '15%' },
+        { text: 'Fetching PDF...', pct: '45%' },
         { text: 'Processing...', pct: '75%' }
     ];
     let stepIdx = 0;
@@ -1758,13 +1861,13 @@ async function handleRavelryUrlImport() {
             if (status) status.textContent = steps[stepIdx].text;
             if (progressBar) progressBar.style.width = steps[stepIdx].pct;
         }
-    }, 2000);
+    }, 2500);
 
     try {
         const response = await fetch(`${API_URL}/api/ravelry/import-url`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ url })
+            body: JSON.stringify({ url, name, category, description, isCurrent, isFavorite, rating, hashtagIds, tagNames })
         });
 
         clearInterval(stepInterval);
@@ -6686,32 +6789,57 @@ function initAddMenu() {
 
     // Ravelry URL import
     const ravelryUrlBtn = document.getElementById('add-ravelry-url');
+
+    function resetRavelryUrlModal() {
+        const input = document.getElementById('ravelry-url-input');
+        const status = document.getElementById('ravelry-url-status');
+        const previewBtn = document.getElementById('preview-ravelry-url');
+        const submitBtn = document.getElementById('submit-ravelry-url');
+        const progressWrap = document.getElementById('ravelry-url-progress');
+        if (input) { input.value = ''; }
+        if (status) status.style.display = 'none';
+        if (previewBtn) { previewBtn.disabled = false; previewBtn.textContent = 'Next'; }
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Import'; }
+        if (progressWrap) progressWrap.style.display = 'none';
+        document.getElementById('ravelry-url-step1').style.display = '';
+        document.getElementById('ravelry-url-step2').style.display = 'none';
+        document.getElementById('ravelry-url-back').style.display = 'none';
+    }
+
     if (ravelryUrlBtn) {
         ravelryUrlBtn.addEventListener('click', () => {
             addMenu.style.display = 'none';
             const modal = document.getElementById('ravelry-url-modal');
-            const input = document.getElementById('ravelry-url-input');
-            const status = document.getElementById('ravelry-url-status');
-            const submitBtn = document.getElementById('submit-ravelry-url');
+            resetRavelryUrlModal();
             if (modal) modal.style.display = 'flex';
-            if (input) { input.value = ''; input.focus(); }
-            if (status) status.style.display = 'none';
-            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Import'; }
+            document.getElementById('ravelry-url-input')?.focus();
         });
     }
 
     document.getElementById('close-ravelry-url-modal')?.addEventListener('click', () => {
         document.getElementById('ravelry-url-modal').style.display = 'none';
+        resetRavelryUrlModal();
     });
 
     document.getElementById('cancel-ravelry-url')?.addEventListener('click', () => {
         document.getElementById('ravelry-url-modal').style.display = 'none';
+        resetRavelryUrlModal();
+    });
+
+    document.getElementById('preview-ravelry-url')?.addEventListener('click', previewRavelryUrl);
+
+    document.getElementById('ravelry-url-back')?.addEventListener('click', () => {
+        document.getElementById('ravelry-url-step2').style.display = 'none';
+        document.getElementById('ravelry-url-step1').style.display = '';
+        document.getElementById('ravelry-url-back').style.display = 'none';
+        const previewBtn = document.getElementById('preview-ravelry-url');
+        if (previewBtn) { previewBtn.disabled = false; previewBtn.textContent = 'Next'; }
     });
 
     document.getElementById('submit-ravelry-url')?.addEventListener('click', handleRavelryUrlImport);
 
     document.getElementById('ravelry-url-input')?.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') handleRavelryUrlImport();
+        if (e.key === 'Enter') previewRavelryUrl();
     });
 
     if (closeUploadPanel) {

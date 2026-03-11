@@ -1903,10 +1903,58 @@ app.post('/api/ravelry/import-yarn-url', authMiddleware, async (req, res) => {
   }
 });
 
+// Preview a Ravelry pattern without importing
+app.post('/api/ravelry/preview-url', authMiddleware, async (req, res) => {
+  try {
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'URL is required' });
+
+    const result = await pool.query('SELECT ravelry_username FROM users WHERE id = $1', [req.user.id]);
+    const username = result.rows[0]?.ravelry_username;
+    if (!username) return res.status(400).json({ error: 'Ravelry not connected' });
+
+    const urlMatch = url.match(/ravelry\.com\/patterns\/(?:library|sources\/[^/]+)\/([^/?#]+)/);
+    if (!urlMatch) return res.status(400).json({ error: 'Invalid Ravelry pattern URL' });
+    const permalink = urlMatch[1];
+
+    let pattern = null;
+    try {
+      const patternData = await ravelryFetch(req.user.id, `/patterns/${permalink}.json`);
+      pattern = patternData.pattern;
+    } catch (e) {
+      const searchData = await ravelryFetch(req.user.id, `/patterns/search.json?query=${permalink}&page_size=1`);
+      pattern = searchData.patterns?.[0];
+    }
+    if (!pattern) return res.status(404).json({ error: 'Pattern not found on Ravelry' });
+
+    // Check if already imported
+    const existing = await pool.query('SELECT id FROM patterns WHERE ravelry_id = $1 AND user_id = $2', [pattern.id, req.user.id]);
+    const alreadyExists = existing.rows.length > 0;
+
+    const suggestedTags = (pattern.pattern_categories || []).map(c => c.name).filter(Boolean);
+    const thumbnailUrl = pattern.first_photo?.medium_url || null;
+    const hasPdf = !!(pattern.downloadable && (pattern.pdf_url || pattern.download_location?.url));
+    const description = pattern.notes || '';
+
+    res.json({
+      name: pattern.name,
+      thumbnailUrl,
+      suggestedTags,
+      hasPdf,
+      description,
+      alreadyExists,
+      patternId: alreadyExists ? existing.rows[0].id : null
+    });
+  } catch (error) {
+    console.error('Ravelry preview error:', error);
+    res.status(500).json({ error: 'Failed to fetch pattern info' });
+  }
+});
+
 // Import a single pattern from Ravelry URL
 app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
   try {
-    const { url } = req.body;
+    const { url, name: nameOverride, category: categoryOverride, description: descriptionOverride, isCurrent, isFavorite, rating: ratingOverride, hashtagIds, tagNames } = req.body;
     if (!url) return res.status(400).json({ error: 'URL is required' });
 
     const result = await pool.query('SELECT ravelry_username FROM users WHERE id = $1', [req.user.id]);
@@ -1951,11 +1999,7 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
       }
     }
 
-    // Map category
-    let category = 'Uncategorized';
-    if (pattern.pattern_categories?.length > 0) {
-      category = pattern.pattern_categories[0].name || 'Uncategorized';
-    }
+    let category = categoryOverride || 'Uncategorized';
 
     // Try to download PDF - check if user has it in library
     let pdfFilename = null;
@@ -2050,14 +2094,18 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: `${reason}. Purchase it on Ravelry or add it to your library first.` });
     }
 
-    const description = pattern.notes_html || pattern.notes || '';
+    const finalName = nameOverride || pattern.name;
+    const description = descriptionOverride !== undefined ? descriptionOverride : (pattern.notes || '');
+    const finalIsCurrent = isCurrent === true || isCurrent === 'true';
+    const finalIsFavorite = isFavorite === true || isFavorite === 'true';
+    const finalRating = ratingOverride !== undefined ? Math.max(0, Math.min(5, parseInt(ratingOverride) || 0)) : (pattern.rating_average ? Math.round(pattern.rating_average) : 0);
     const filename = pdfFilename;
     const insertResult = await pool.query(
       `INSERT INTO patterns (name, filename, original_name, category, description, pattern_type,
-       thumbnail, user_id, ravelry_id, rating, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+       thumbnail, user_id, ravelry_id, rating, is_current, is_favorite, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
       [
-        pattern.name,
+        finalName,
         filename,
         pattern.name,
         category,
@@ -2066,15 +2114,51 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
         thumbnailPath,
         req.user.id,
         pattern.id,
-        pattern.rating_average ? Math.round(pattern.rating_average) : 0,
+        finalRating,
+        finalIsCurrent,
+        finalIsFavorite,
         new Date()
       ]
     );
 
+    // Create/link tags from hashtag selector (by id)
+    const patternId = insertResult.rows[0].id;
+    if (hashtagIds && hashtagIds.length > 0) {
+      for (const hashtagId of hashtagIds) {
+        await pool.query(
+          'INSERT INTO pattern_hashtags (pattern_id, hashtag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+          [patternId, hashtagId]
+        );
+      }
+    }
+
+    // Create/link tags from Ravelry suggested chips (by name)
+    if (tagNames && tagNames.length > 0) {
+      for (const tagName of tagNames) {
+        const name = tagName.trim();
+        if (!name) continue;
+        const posResult = await pool.query('SELECT COALESCE(MAX(position), -1) + 1 AS next_pos FROM hashtags');
+        const nextPos = posResult.rows[0].next_pos;
+        const tagResult = await pool.query(
+          `INSERT INTO hashtags (name, position) VALUES ($1, $2)
+           ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING id`,
+          [name, nextPos]
+        );
+        const tagId = tagResult.rows[0]?.id
+          || (await pool.query('SELECT id FROM hashtags WHERE name = $1', [name])).rows[0]?.id;
+        if (tagId) {
+          await pool.query(
+            'INSERT INTO pattern_hashtags (pattern_id, hashtag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+            [patternId, tagId]
+          );
+        }
+      }
+    }
+
     res.json({
       success: true,
-      patternId: insertResult.rows[0].id,
-      name: pattern.name,
+      patternId,
+      name: finalName,
       hasPdf: patternType === 'pdf'
     });
   } catch (error) {

@@ -1452,7 +1452,7 @@ app.get('/api/ravelry/library', authMiddleware, async (req, res) => {
     let importedIds = new Set();
     if (ravelryIds.length > 0) {
       const imported = await pool.query(
-        'SELECT ravelry_id FROM patterns WHERE ravelry_id = ANY($1) AND user_id = $2',
+        'SELECT ravelry_id FROM patterns WHERE ravelry_id = ANY($1) AND user_id = $2 AND is_archived = false',
         [ravelryIds, req.user.id]
       );
       importedIds = new Set(imported.rows.map(r => r.ravelry_id));
@@ -1511,15 +1511,35 @@ app.get('/api/ravelry/stash', authMiddleware, async (req, res) => {
       importedIds = new Set(imported.rows.map(r => r.ravelry_stash_id));
     }
 
-    const items = stashItems.map(item => {
+    // Fetch detail for each item to get photos (list endpoint doesn't include them)
+    const detailPromises = stashItems.map(item =>
+      ravelryFetch(req.user.id, `/people/${username}/stash/${item.id}.json`).catch(e => {
+        console.error(`Stash detail fetch failed for ${item.id}:`, e.message);
+        return null;
+      })
+    );
+    const details = await Promise.all(detailPromises);
+
+    const items = stashItems.map((item, i) => {
+      const detail = details[i]?.stash;
+      if (i === 0 && detail) {
+        console.log('Stash detail keys:', JSON.stringify(Object.keys(detail)));
+        console.log('Stash detail first_photo:', JSON.stringify(detail.first_photo));
+        console.log('Stash detail photos:', JSON.stringify(detail.photos?.map(p => Object.keys(p))));
+      }
       const yarn = item.yarn || {};
+      // Try multiple photo sources
+      const photo = detail?.first_photo?.medium2_url || detail?.first_photo?.medium_url
+        || detail?.first_photo?.small_url
+        || (detail?.photos?.[0]?.medium2_url) || (detail?.photos?.[0]?.medium_url) || (detail?.photos?.[0]?.small_url)
+        || null;
       return {
         id: item.id,
         name: yarn.name || item.name || 'Unknown Yarn',
         brand: yarn.yarn_company_name || '',
         colorway: item.colorway_name || item.color_family_name || '',
         weight: yarn.yarn_weight?.name || '',
-        photo: item.first_photo?.medium_url || yarn.first_photo?.medium_url || null,
+        photo,
         skeins: item.skeins || 1,
         imported: importedIds.has(item.id)
       };
@@ -1602,9 +1622,9 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
     }
     if (!pattern) return res.status(404).json({ error: 'Pattern not found on Ravelry' });
 
-    // Check if already imported
+    // Check if already imported (exclude archived)
     const existing = await pool.query(
-      'SELECT id FROM patterns WHERE ravelry_id = $1 AND user_id = $2',
+      'SELECT id FROM patterns WHERE ravelry_id = $1 AND user_id = $2 AND is_archived = false',
       [pattern.id, req.user.id]
     );
     if (existing.rows.length > 0) {
@@ -1652,10 +1672,13 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
         const attachments = volumeData.volume?.volume_attachments || [];
         if (attachments.length > 0) {
           const attachmentId = attachments[0].product_attachment_id;
-          const downloadData = await ravelryFetch(
-            req.user.id,
-            `/product_attachments/${attachmentId}/generate_download_link.json`
-          );
+          const dlToken = await refreshRavelryToken(req.user.id);
+          const dlResponse = await fetch(`https://api.ravelry.com/product_attachments/${attachmentId}/generate_download_link.json`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${dlToken}` }
+          });
+          if (!dlResponse.ok) throw new Error(`Download link API: ${dlResponse.status}`);
+          const downloadData = await dlResponse.json();
           const downloadUrl = downloadData.download_link?.url;
           if (downloadUrl) {
             const pdfResponse = await fetch(downloadUrl);
@@ -1772,29 +1795,36 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
             if (volumes.length === 0) break;
 
             for (const vol of volumes) {
-              const pattern = vol.pattern;
-              if (!pattern) continue;
+              // Pattern may be nested or we need to use volume-level fields
+              let pattern = vol.pattern;
+              const patternId = pattern?.id || vol.pattern_id;
+              if (!patternId) continue;
 
               // Skip if specific IDs requested and this isn't one of them
-              if (patternIds?.length > 0 && !patternIds.includes(pattern.id)) continue;
+              if (patternIds?.length > 0 && !patternIds.includes(patternId)) continue;
 
-              // Check if already imported
-              const existing = await pool.query(
-                'SELECT id FROM patterns WHERE ravelry_id = $1 AND user_id = $2',
-                [pattern.id, req.user.id]
-              );
-              if (existing.rows.length > 0) continue;
+              // Fetch full pattern details if we don't have them
+              if (!pattern || !pattern.name) {
+                try {
+                  const patternData = await ravelryFetch(req.user.id, `/patterns/${patternId}.json`);
+                  pattern = patternData.pattern || {};
+                } catch (e) {
+                  console.error(`Failed to fetch pattern ${patternId}:`, e.message);
+                  pattern = { id: patternId, name: vol.title || 'Unknown Pattern' };
+                }
+              }
 
               // Download thumbnail if available
               let thumbnailPath = null;
-              if (pattern.first_photo?.medium_url) {
+              const photoUrl = pattern.first_photo?.medium_url || vol.cover_image_url || vol.square_image_url;
+              if (photoUrl) {
                 try {
-                  const imgResponse = await fetch(pattern.first_photo.medium_url);
+                  const imgResponse = await fetch(photoUrl);
                   if (imgResponse.ok) {
                     const imgBuffer = Buffer.from(await imgResponse.arrayBuffer());
                     const userPatternsDir = getUserPatternsDir(req.user.username);
                     if (!fs.existsSync(userPatternsDir)) fs.mkdirSync(userPatternsDir, { recursive: true });
-                    const thumbFilename = `ravelry_${pattern.id}_thumb.jpg`;
+                    const thumbFilename = `ravelry_${patternId}_thumb.jpg`;
                     const thumbPath = path.join(getUserThumbnailsDir(req.user.username), thumbFilename);
                     const thumbDir = getUserThumbnailsDir(req.user.username);
                     if (!fs.existsSync(thumbDir)) fs.mkdirSync(thumbDir, { recursive: true });
@@ -1802,7 +1832,7 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                     thumbnailPath = thumbFilename;
                   }
                 } catch (e) {
-                  console.error(`Failed to download thumbnail for pattern ${pattern.id}:`, e.message);
+                  console.error(`Failed to download thumbnail for pattern ${patternId}:`, e.message);
                 }
               }
 
@@ -1816,17 +1846,27 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
               // Try to download PDF if available
               let pdfFilename = null;
               let patternType = 'markdown';
-              if (pattern.pdf_in_library) {
+              const hasPdf = vol.has_downloads || vol.pdf_in_library || pattern.pdf_in_library;
+              console.log(`Pattern ${patternId} (${pattern.name}): has_downloads=${vol.has_downloads}, pdf_in_library=${vol.pdf_in_library || pattern.pdf_in_library}, vol.id=${vol.id}, vol keys=${JSON.stringify(Object.keys(vol))}`);
+              if (hasPdf) {
                 try {
-                  // Fetch full volume details to get attachment IDs
+                  // The library volume ID should work for the volumes endpoint
+                  console.log(`Trying /volumes/${vol.id}.json for pattern ${patternId}`);
                   const volumeData = await ravelryFetch(req.user.id, `/volumes/${vol.id}.json`);
+                  console.log(`Volume data keys:`, JSON.stringify(Object.keys(volumeData)));
+                  console.log(`Volume data.volume keys:`, volumeData.volume ? JSON.stringify(Object.keys(volumeData.volume)) : 'no volume');
                   const attachments = volumeData.volume?.volume_attachments || [];
+                  console.log(`Volume attachments (${attachments.length}):`, JSON.stringify(attachments));
                   if (attachments.length > 0) {
-                    const attachmentId = attachments[0].product_attachment_id;
-                    const downloadData = await ravelryFetch(
-                      req.user.id,
-                      `/product_attachments/${attachmentId}/generate_download_link.json`
-                    );
+                    const attachmentId = attachments[0].product_attachment_id || attachments[0].id;
+                    // generate_download_link requires POST, not GET
+                    const dlToken = await refreshRavelryToken(req.user.id);
+                    const dlResponse = await fetch(`https://api.ravelry.com/product_attachments/${attachmentId}/generate_download_link.json`, {
+                      method: 'POST',
+                      headers: { 'Authorization': `Bearer ${dlToken}` }
+                    });
+                    if (!dlResponse.ok) throw new Error(`Download link API: ${dlResponse.status}`);
+                    const downloadData = await dlResponse.json();
                     const downloadUrl = downloadData.download_link?.url;
                     if (downloadUrl) {
                       const pdfResponse = await fetch(downloadUrl);
@@ -1834,12 +1874,11 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                         const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
                         const categoryDir = getCategoryDir(req.user.username, category);
                         if (!fs.existsSync(categoryDir)) fs.mkdirSync(categoryDir, { recursive: true });
-                        const sanitized = sanitizeFilename(pattern.name);
+                        const sanitized = sanitizeFilename(pattern.name || vol.title || 'pattern');
                         pdfFilename = getUniqueFilename(categoryDir, sanitized, '.pdf');
                         fs.writeFileSync(path.join(categoryDir, pdfFilename), pdfBuffer);
                         patternType = 'pdf';
 
-                        // Generate thumbnail from PDF if we didn't get one from Ravelry
                         if (!thumbnailPath) {
                           try {
                             const pdfThumbFilename = `thumb-${category}-${pdfFilename}.jpg`;
@@ -1847,24 +1886,23 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                               path.join(categoryDir, pdfFilename), pdfThumbFilename, req.user.username
                             );
                           } catch (e) {
-                            console.error(`Failed to generate PDF thumbnail for pattern ${pattern.id}:`, e.message);
+                            console.error(`Failed to generate PDF thumbnail for pattern ${patternId}:`, e.message);
                           }
                         }
                       }
                     }
                   }
                 } catch (e) {
-                  console.error(`Failed to download PDF for pattern ${pattern.id}:`, e.message);
+                  console.error(`Failed to download PDF for pattern ${patternId}:`, e.message);
                 }
               } else if (pattern.pdf_url && pattern.free) {
-                // Free pattern with direct PDF link
                 try {
                   const pdfResponse = await fetch(pattern.pdf_url);
                   if (pdfResponse.ok && pdfResponse.headers.get('content-type')?.includes('pdf')) {
                     const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
                     const categoryDir = getCategoryDir(req.user.username, category);
                     if (!fs.existsSync(categoryDir)) fs.mkdirSync(categoryDir, { recursive: true });
-                    const sanitized = sanitizeFilename(pattern.name);
+                    const sanitized = sanitizeFilename(pattern.name || vol.title || 'pattern');
                     pdfFilename = getUniqueFilename(categoryDir, sanitized, '.pdf');
                     fs.writeFileSync(path.join(categoryDir, pdfFilename), pdfBuffer);
                     patternType = 'pdf';
@@ -1876,31 +1914,32 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                           path.join(categoryDir, pdfFilename), pdfThumbFilename, req.user.username
                         );
                       } catch (e) {
-                        console.error(`Failed to generate PDF thumbnail for pattern ${pattern.id}:`, e.message);
+                        console.error(`Failed to generate PDF thumbnail for pattern ${patternId}:`, e.message);
                       }
                     }
                   }
                 } catch (e) {
-                  console.error(`Failed to download free PDF for pattern ${pattern.id}:`, e.message);
+                  console.error(`Failed to download free PDF for pattern ${patternId}:`, e.message);
                 }
               }
 
+              const patternName = pattern.name || vol.title || 'Unknown Pattern';
               const description = pattern.notes_html || pattern.notes || '';
-              const filename = pdfFilename || `ravelry_${pattern.id}`;
+              const filename = pdfFilename || `ravelry_${patternId}`;
               await pool.query(
                 `INSERT INTO patterns (name, filename, original_name, category, description, pattern_type,
                  thumbnail, user_id, ravelry_id, rating, created_at)
                  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
                 [
-                  pattern.name,
+                  patternName,
                   filename,
-                  pattern.name,
+                  patternName,
                   category,
                   description,
                   patternType,
                   thumbnailPath,
                   req.user.id,
-                  pattern.id,
+                  patternId,
                   pattern.rating_average ? Math.round(pattern.rating_average) : 0,
                   pattern.created_at || new Date()
                 ]

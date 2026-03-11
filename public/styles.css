@@ -7990,9 +7990,6 @@ textarea.image-drag-over {
     background: var(--hover-bg);
 }
 
-.ravelry-item-imported {
-    opacity: 0.5;
-}
 
 .ravelry-item-checkbox {
     flex-shrink: 0;

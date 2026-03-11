@@ -1243,7 +1243,7 @@ async function initRavelryTab() {
         const data = ravelryState[tab];
         if (e.target.checked) {
             data.items.forEach(item => {
-                if (!item.imported) ravelryState.selected[tab].add(item.id);
+                ravelryState.selected[tab].add(item.id);
             });
         } else {
             ravelryState.selected[tab].clear();
@@ -1343,12 +1343,10 @@ function renderRavelryList(tab) {
     if (tab === 'patterns') {
         for (const item of data.items) {
             const checked = selected.has(item.id) ? 'checked' : '';
-            const imported = item.imported ? ' ravelry-item-imported' : '';
-            const disabledAttr = item.imported ? 'disabled' : '';
             const pdfBadge = item.has_pdf ? '<span class="ravelry-badge ravelry-badge-pdf">PDF</span>' : '';
             const importedBadge = item.imported ? '<span class="ravelry-badge ravelry-badge-imported">Imported</span>' : '';
-            html += `<div class="ravelry-item${imported}" data-id="${item.id}">
-                <label class="ravelry-item-checkbox"><input type="checkbox" ${checked} ${disabledAttr} data-ravelry-id="${item.id}"></label>
+            html += `<div class="ravelry-item" data-id="${item.id}">
+                <label class="ravelry-item-checkbox"><input type="checkbox" ${checked} data-ravelry-id="${item.id}"></label>
                 <div class="ravelry-item-photo">${item.photo ? `<img src="${item.photo}" alt="" loading="lazy">` : ''}</div>
                 <div class="ravelry-item-info">
                     <div class="ravelry-item-name">${escapeHtml(item.name)}</div>
@@ -1360,11 +1358,9 @@ function renderRavelryList(tab) {
     } else if (tab === 'yarn') {
         for (const item of data.items) {
             const checked = selected.has(item.id) ? 'checked' : '';
-            const imported = item.imported ? ' ravelry-item-imported' : '';
-            const disabledAttr = item.imported ? 'disabled' : '';
             const importedBadge = item.imported ? '<span class="ravelry-badge ravelry-badge-imported">Imported</span>' : '';
-            html += `<div class="ravelry-item${imported}" data-id="${item.id}">
-                <label class="ravelry-item-checkbox"><input type="checkbox" ${checked} ${disabledAttr} data-ravelry-id="${item.id}"></label>
+            html += `<div class="ravelry-item" data-id="${item.id}">
+                <label class="ravelry-item-checkbox"><input type="checkbox" ${checked} data-ravelry-id="${item.id}"></label>
                 <div class="ravelry-item-photo">${item.photo ? `<img src="${item.photo}" alt="" loading="lazy">` : ''}</div>
                 <div class="ravelry-item-info">
                     <div class="ravelry-item-name">${escapeHtml(item.name)}</div>
@@ -1377,12 +1373,10 @@ function renderRavelryList(tab) {
     } else {
         for (const item of data.items) {
             const checked = selected.has(item.id) ? 'checked' : '';
-            const imported = item.imported ? ' ravelry-item-imported' : '';
-            const disabledAttr = item.imported ? 'disabled' : '';
             const importedBadge = item.imported ? '<span class="ravelry-badge ravelry-badge-imported">Imported</span>' : '';
             const hookLabel = item.is_hook ? 'Hook' : 'Needle';
-            html += `<div class="ravelry-item${imported}" data-id="${item.id}">
-                <label class="ravelry-item-checkbox"><input type="checkbox" ${checked} ${disabledAttr} data-ravelry-id="${item.id}"></label>
+            html += `<div class="ravelry-item" data-id="${item.id}">
+                <label class="ravelry-item-checkbox"><input type="checkbox" ${checked} data-ravelry-id="${item.id}"></label>
                 <div class="ravelry-item-info" style="margin-left: 0;">
                     <div class="ravelry-item-name">${escapeHtml(item.name)}</div>
                     <div class="ravelry-item-meta">${escapeHtml(hookLabel)}${item.size ? ` &middot; ${escapeHtml(item.size)}` : ''}${item.type ? ` &middot; ${escapeHtml(item.type)}` : ''}</div>
@@ -1412,12 +1406,11 @@ function renderRavelryList(tab) {
 function updateRavelrySelectAll() {
     const tab = ravelryState.activeTab;
     const data = ravelryState[tab];
-    const selectableItems = data.items.filter(i => !i.imported);
     const selected = ravelryState.selected[tab];
     const selectAllEl = document.getElementById('ravelry-select-all');
     if (selectAllEl) {
-        selectAllEl.checked = selectableItems.length > 0 && selectableItems.every(i => selected.has(i.id));
-        selectAllEl.indeterminate = selectableItems.some(i => selected.has(i.id)) && !selectAllEl.checked;
+        selectAllEl.checked = data.items.length > 0 && data.items.every(i => selected.has(i.id));
+        selectAllEl.indeterminate = data.items.some(i => selected.has(i.id)) && !selectAllEl.checked;
     }
 }
 

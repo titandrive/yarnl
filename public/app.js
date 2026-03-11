@@ -17000,12 +17000,23 @@ function initInventory() {
             inventoryView = btn.dataset.view;
             localStorage.setItem('inventoryView', inventoryView);
             document.querySelectorAll('#inventory-view-toggle .view-toggle-btn, #inv-mobile-view-toggle .view-toggle-btn').forEach(b => b.classList.toggle('active', b.dataset.view === inventoryView));
+            // Hide filter button in list view (no sidebar filters)
+            const fb = document.getElementById('inv-mobile-filter-btn');
+            const dfb = document.getElementById('inventory-filter-btn');
+            if (fb) fb.style.display = inventoryView === 'list' ? 'none' : '';
+            if (dfb) dfb.style.display = inventoryView === 'list' ? 'none' : '';
             clearInventorySelection();
             exitInventoryEditMode();
             displayYarns();
             displayHooks();
         });
     });
+
+    // Set initial filter button visibility
+    const initFb = document.getElementById('inv-mobile-filter-btn');
+    const initDfb = document.getElementById('inventory-filter-btn');
+    if (initFb) initFb.style.display = inventoryView === 'list' ? 'none' : '';
+    if (initDfb) initDfb.style.display = inventoryView === 'list' ? 'none' : '';
 
     // Add buttons
     document.getElementById('add-yarn-btn')?.addEventListener('click', () => openYarnModal());
@@ -18692,8 +18703,8 @@ let inventoryEditMode = false;
 
 function toggleInventoryEditMode() {
     inventoryEditMode = !inventoryEditMode;
-    const btn = document.getElementById('inv-edit-btn');
-    if (btn) btn.classList.toggle('active', inventoryEditMode);
+    document.getElementById('inv-edit-btn')?.classList.toggle('active', inventoryEditMode);
+    document.getElementById('inv-mobile-edit-btn')?.classList.toggle('active', inventoryEditMode);
     if (!inventoryEditMode) {
         clearInventorySelection();
     }
@@ -18704,8 +18715,8 @@ function toggleInventoryEditMode() {
 function exitInventoryEditMode() {
     if (!inventoryEditMode) return;
     inventoryEditMode = false;
-    const btn = document.getElementById('inv-edit-btn');
-    if (btn) btn.classList.remove('active');
+    document.getElementById('inv-edit-btn')?.classList.remove('active');
+    document.getElementById('inv-mobile-edit-btn')?.classList.remove('active');
     clearInventorySelection();
     displayYarns();
     displayHooks();

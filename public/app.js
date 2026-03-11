@@ -8502,6 +8502,9 @@ async function toggleCurrent(id, isCurrent) {
     const pattern = patterns.find(p => String(p.id) === String(id));
     if (pattern) {
         pattern.is_current = isCurrent;
+        if (isCurrent && !pattern.started_date) {
+            pattern.started_date = new Date().toISOString();
+        }
         // Also update currentPatterns array so the In Progress page reflects the change
         if (isCurrent) {
             if (!currentPatterns.find(p => String(p.id) === String(id))) {
@@ -8540,6 +8543,11 @@ async function toggleComplete(id, completed) {
     const pattern = patterns.find(p => String(p.id) === String(id));
     if (pattern) {
         pattern.completed = completed;
+        if (completed && !pattern.completed_date) {
+            pattern.completed_date = new Date().toISOString();
+        } else if (!completed) {
+            pattern.completed_date = null;
+        }
         // Update currentPatterns: completed patterns leave in-progress, uncompleted+current ones rejoin
         const inCurrent = currentPatterns.find(p => String(p.id) === String(id));
         if (completed && inCurrent) {
@@ -11321,6 +11329,9 @@ async function savePdfEdit() {
         currentPattern.category = category;
         currentPattern.description = description;
         currentPattern.is_current = isCurrent;
+        if (isCurrent && !currentPattern.started_date) {
+            currentPattern.started_date = new Date().toISOString();
+        }
         currentPattern.rating = rating;
 
         // Update the viewer header
@@ -13835,6 +13846,9 @@ async function saveMarkdownEdit() {
         currentPattern.category = category;
         currentPattern.description = description;
         currentPattern.is_current = isCurrent;
+        if (isCurrent && !currentPattern.started_date) {
+            currentPattern.started_date = new Date().toISOString();
+        }
         currentPattern.rating = rating;
 
         // Update the viewer header

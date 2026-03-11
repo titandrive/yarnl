@@ -1,4 +1,6 @@
 const express = require('express');
+const http = require('http');
+const https = require('https');
 const compression = require('compression');
 const multer = require('multer');
 const path = require('path');
@@ -1507,21 +1509,18 @@ app.get('/api/ravelry/preview', authMiddleware, async (req, res) => {
 });
 
 // Proxy Ravelry images to avoid mixed content / CDN cert issues on https deployments
-app.get('/api/ravelry/proxy-image', authMiddleware, async (req, res) => {
+app.get('/api/ravelry/proxy-image', authMiddleware, (req, res) => {
   const { url } = req.query;
   if (!url || !/^https?:\/\/([a-z0-9-]+\.)*ravelry\.com\//i.test(url)) {
     return res.status(400).end();
   }
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return res.status(response.status).end();
-    const contentType = response.headers.get('content-type') || 'image/jpeg';
-    res.setHeader('Content-Type', contentType);
+  const client = url.startsWith('https') ? https : http;
+  client.get(url, (proxyRes) => {
+    if (proxyRes.statusCode !== 200) return res.status(proxyRes.statusCode).end();
+    res.setHeader('Content-Type', proxyRes.headers['content-type'] || 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=86400');
-    response.body.pipe(res);
-  } catch (e) {
-    res.status(502).end();
-  }
+    proxyRes.pipe(res);
+  }).on('error', () => res.status(502).end());
 });
 
 // Browse Ravelry library (patterns)

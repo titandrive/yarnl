@@ -1294,9 +1294,7 @@ async function initRavelryTab() {
             startRavelryImport(ravelryState.activeTab, null);
         } else {
             importAllBtn.dataset.confirmed = 'true';
-            const tab = ravelryState.activeTab;
-            const typeLabel = tab === 'patterns' ? 'patterns' : tab === 'yarn' ? 'yarn' : 'hooks/needles';
-            importAllBtn.textContent = `Confirm Import All ${ravelryState[tab].total} ${typeLabel}?`;
+            importAllBtn.textContent = 'Confirm Import?';
             importAllConfirmTimeout = setTimeout(() => {
                 importAllBtn.dataset.confirmed = '';
                 importAllBtn.textContent = 'Import All';

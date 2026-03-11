@@ -3636,22 +3636,89 @@ Inc in each st around (12)
     <div id="ravelry-url-modal" class="modal" style="display: none;">
         <div class="modal-content" style="max-width: 480px;">
             <div class="modal-header">
+                <button type="button" id="ravelry-url-back" class="btn-back-header" style="display:none;" title="Back">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                </button>
                 <h3>Import from Ravelry</h3>
                 <button type="button" class="modal-close" id="close-ravelry-url-modal">&times;</button>
             </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="ravelry-url-input">Ravelry Pattern URL</label>
-                    <input type="text" id="ravelry-url-input" placeholder="https://www.ravelry.com/patterns/library/pattern-name" style="width: 100%;">
+
+            <!-- Step 1: URL input -->
+            <div id="ravelry-url-step1">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="ravelry-url-input">Ravelry Pattern URL</label>
+                        <input type="text" id="ravelry-url-input" placeholder="https://www.ravelry.com/patterns/library/pattern-name" style="width: 100%;">
+                    </div>
+                    <p id="ravelry-url-status" class="setting-description" style="display: none; color: var(--danger-color);"></p>
                 </div>
-                <p id="ravelry-url-status" class="setting-description" style="display: none;"></p>
-                <div id="ravelry-url-progress" style="display: none; height: 4px; background: var(--border-color); border-radius: 2px; margin-top: 8px; overflow: hidden;">
-                    <div id="ravelry-url-progress-bar" style="height: 100%; background: var(--primary-color); border-radius: 2px; width: 0%; transition: width 0.5s; animation: ravelry-url-pulse 1.5s ease-in-out infinite;"></div>
+                <div class="modal-footer">
+                    <button type="button" id="cancel-ravelry-url" class="btn btn-secondary">Cancel</button>
+                    <button type="button" id="preview-ravelry-url" class="btn btn-primary">Next</button>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button type="button" id="cancel-ravelry-url" class="btn btn-secondary">Cancel</button>
-                <button type="button" id="submit-ravelry-url" class="btn btn-primary">Import</button>
+
+            <!-- Step 2: Onboarding / configure -->
+            <div id="ravelry-url-step2" style="display: none;">
+                <div class="modal-body ravelry-import-body" style="max-height: 70vh; overflow-y: auto; padding-right: 4px;">
+
+                    <!-- Preview header -->
+                    <div id="ravelry-import-preview" class="ravelry-import-preview">
+                        <img id="ravelry-preview-thumb" class="ravelry-preview-thumb" src="" alt="" style="display:none;">
+                        <div class="ravelry-preview-info">
+                            <div id="ravelry-preview-pdf-note" class="ravelry-preview-pdf-note"></div>
+                        </div>
+                    </div>
+
+                    <!-- Title -->
+                    <div class="form-group">
+                        <label for="ravelry-import-name">Title</label>
+                        <input type="text" id="ravelry-import-name" class="settings-input" style="width: 100%;">
+                    </div>
+
+                    <!-- Category -->
+                    <div class="form-group">
+                        <label for="ravelry-import-category">Category</label>
+                        <select id="ravelry-import-category" class="settings-input" style="width: 100%;"></select>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="form-group">
+                        <label for="ravelry-import-description">Description</label>
+                        <textarea id="ravelry-import-description" class="settings-input" rows="2" style="width: 100%; resize: vertical;"></textarea>
+                    </div>
+
+                    <!-- Tags -->
+                    <div class="form-group" style="margin-top: 12px;">
+                        <label>Tags</label>
+                        <div id="ravelry-import-hashtags-container"></div>
+                        <div id="ravelry-tags-row" style="display: none; margin-top: 8px;">
+                            <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 4px;">Suggested from Ravelry — click to add:</div>
+                            <div id="ravelry-suggested-tags" class="ravelry-tag-chips"></div>
+                        </div>
+                    </div>
+
+                    <div id="ravelry-url-progress" style="display: none; height: 4px; background: var(--border-color); border-radius: 2px; margin-top: 12px; overflow: hidden;">
+                        <div id="ravelry-url-progress-bar" style="height: 100%; background: var(--primary-color); border-radius: 2px; width: 0%; transition: width 0.5s; animation: ravelry-url-pulse 1.5s ease-in-out infinite;"></div>
+                    </div>
+                    <p id="ravelry-import-status" class="setting-description" style="display: none; margin-top: 8px;"></p>
+                </div>
+                <div class="modal-footer">
+                    <div class="ravelry-import-status-row">
+                        <label class="ravelry-import-toggle-label">
+                            <span>In Progress</span>
+                            <label class="toggle-switch small">
+                                <input type="checkbox" id="ravelry-import-is-current">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </label>
+                        <button type="button" id="ravelry-import-favorite-btn" class="ravelry-import-fav-btn" title="Favorite" onclick="this.classList.toggle('active'); const a=this.classList.contains('active'); const s=this.querySelector('svg'); if(s){s.setAttribute('fill',a?'#ec4899':'none');s.setAttribute('stroke',a?'#ec4899':'currentColor');}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                        </button>
+                        <div id="ravelry-import-rating"></div>
+                    </div>
+                    <button type="button" id="submit-ravelry-url" class="btn btn-primary">Import</button>
+                </div>
             </div>
         </div>
     </div>

@@ -11600,3 +11600,162 @@ textarea.image-drag-over {
         margin-top: 8px;
     }
 }
+
+/* Ravelry import preview (step 2) */
+.ravelry-import-preview {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.ravelry-preview-thumb {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.ravelry-preview-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.ravelry-preview-name {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-color);
+    margin-bottom: 6px;
+    word-break: break-word;
+}
+
+.ravelry-preview-pdf-note {
+    font-size: 0.78rem;
+    padding: 3px 8px;
+    border-radius: 12px;
+    display: inline-block;
+}
+
+.ravelry-preview-pdf-note.has-pdf {
+    color: var(--success-color);
+    background: color-mix(in srgb, var(--success-color) 12%, transparent);
+}
+
+.ravelry-preview-pdf-note.no-pdf {
+    color: var(--text-muted);
+    background: var(--bg-color);
+}
+
+.ravelry-tag-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.ravelry-tag-chip {
+    padding: 4px 10px;
+    border-radius: 20px;
+    border: 1px solid var(--border-color);
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.ravelry-tag-chip.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: white;
+}
+
+#ravelry-url-modal .modal-content {
+    padding: 20px;
+}
+
+#ravelry-url-modal .modal-header {
+    margin-bottom: 12px;
+}
+
+.ravelry-import-body {
+    margin-bottom: 0;
+}
+
+.ravelry-import-body .form-group {
+    margin-bottom: 8px;
+}
+
+.ravelry-import-body .form-group label {
+    margin-bottom: 3px;
+    font-size: 0.82rem;
+}
+
+#ravelry-tags-row {
+    margin-top: 6px;
+    margin-bottom: 0;
+}
+
+.ravelry-import-status-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.btn-back-header {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px 6px 4px 0;
+    display: flex;
+    align-items: center;
+    margin-right: 4px;
+    transition: color 0.15s;
+}
+
+.btn-back-header:hover {
+    color: var(--text-color);
+}
+
+.ravelry-import-toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--text-color);
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+#ravelry-import-rating .star-rating-input svg {
+    width: 16px;
+    height: 16px;
+}
+
+.ravelry-import-fav-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+    transition: color 0.2s;
+}
+
+.ravelry-import-fav-btn:hover {
+    color: var(--secondary-color);
+}
+
+.ravelry-import-fav-btn.active {
+    color: var(--secondary-color);
+}
+
+.ravelry-import-fav-btn.active svg {
+    fill: var(--secondary-color);
+    stroke: var(--secondary-color);
+}

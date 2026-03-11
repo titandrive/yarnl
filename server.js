@@ -34,6 +34,9 @@ const PORT = process.env.PORT || 3000;
 const sseClients = new Set();
 const serverEvents = new EventEmitter();
 
+// In-memory import status per user (for polling fallback)
+const ravelryImportStatus = new Map();
+
 function broadcastEvent(type, data) {
   const message = JSON.stringify({ type, data, timestamp: new Date().toISOString() });
   sseClients.forEach(client => {
@@ -1767,6 +1770,12 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
   }
 });
 
+// Ravelry import status (polling endpoint)
+app.get('/api/ravelry/import-status', authMiddleware, (req, res) => {
+  const status = ravelryImportStatus.get(req.user.id) || { active: false };
+  res.json(status);
+});
+
 // Import data from Ravelry
 app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
   try {
@@ -1775,6 +1784,12 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
     const username = result.rows[0]?.ravelry_username;
     if (!username) return res.status(400).json({ error: 'Ravelry not connected' });
 
+    const userId = req.user.id;
+    const importProgress = (data) => {
+      ravelryImportStatus.set(userId, { active: true, ...data });
+      broadcastEvent('ravelry-import-progress', data);
+    };
+    ravelryImportStatus.set(userId, { active: true, status: 'Starting import...', current: 0, total: 0 });
     res.json({ started: true });
 
     // Run import in background, broadcasting progress via SSE
@@ -1783,7 +1798,10 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
         let totalImported = { patterns: 0, yarns: 0, hooks: 0 };
 
         if (importPatterns) {
-          broadcastEvent('ravelry-import-progress', { step: 'patterns', status: 'Importing patterns...' });
+          // First, get total count for progress
+          const countData = await ravelryFetch(req.user.id, `/people/${username}/library/search.json?page_size=1&page=1`);
+          const totalPatterns = patternIds?.length > 0 ? patternIds.length : (countData.paginator?.results || 0);
+          importProgress({ step: 'patterns', status: `Importing patterns (0/${totalPatterns})...`, current: 0, total: totalPatterns });
           let page = 1;
           let hasMore = true;
           while (hasMore) {
@@ -1945,16 +1963,19 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                 ]
               );
               totalImported.patterns++;
+              importProgress({ step: 'patterns', status: `Importing patterns (${totalImported.patterns}/${totalPatterns})...`, current: totalImported.patterns, total: totalPatterns });
             }
 
             hasMore = libraryData.paginator && page < libraryData.paginator.page_count;
             page++;
           }
-          broadcastEvent('ravelry-import-progress', { step: 'patterns', status: `Imported ${totalImported.patterns} patterns` });
+          importProgress({ step: 'patterns', status: `Imported ${totalImported.patterns} pattern${totalImported.patterns !== 1 ? 's' : ''}`, current: totalImported.patterns, total: totalPatterns, done: true });
         }
 
         if (importYarns) {
-          broadcastEvent('ravelry-import-progress', { step: 'yarns', status: 'Importing yarn stash...' });
+          const yarnCountData = await ravelryFetch(req.user.id, `/people/${username}/stash/list.json?page_size=1&page=1`);
+          const totalYarns = yarnIds?.length > 0 ? yarnIds.length : (yarnCountData.paginator?.results || 0);
+          importProgress({ step: 'yarns', status: `Importing yarn (0/${totalYarns})...`, current: 0, total: totalYarns });
           let page = 1;
           let hasMore = true;
           while (hasMore) {
@@ -1997,18 +2018,20 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                 ]
               );
               totalImported.yarns++;
+              importProgress({ step: 'yarns', status: `Importing yarn (${totalImported.yarns}/${totalYarns})...`, current: totalImported.yarns, total: totalYarns });
             }
 
             hasMore = stashData.paginator && page < stashData.paginator.page_count;
             page++;
           }
-          broadcastEvent('ravelry-import-progress', { step: 'yarns', status: `Imported ${totalImported.yarns} yarns` });
+          importProgress({ step: 'yarns', status: `Imported ${totalImported.yarns} yarn${totalImported.yarns !== 1 ? 's' : ''}`, current: totalImported.yarns, total: totalYarns, done: true });
         }
 
         if (importHooks) {
-          broadcastEvent('ravelry-import-progress', { step: 'hooks', status: 'Importing needles/hooks...' });
           const needlesData = await ravelryFetch(req.user.id, `/people/${username}/needles/list.json`);
           const needles = needlesData.needle_records || [];
+          const totalHooks = hookIds?.length > 0 ? hookIds.length : needles.length;
+          importProgress({ step: 'hooks', status: `Importing hooks (0/${totalHooks})...`, current: 0, total: totalHooks });
 
           for (const needle of needles) {
             // Skip if specific IDs requested and this isn't one of them
@@ -2039,13 +2062,16 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
               ]
             );
             totalImported.hooks++;
+            importProgress({ step: 'hooks', status: `Importing hooks (${totalImported.hooks}/${totalHooks})...`, current: totalImported.hooks, total: totalHooks });
           }
-          broadcastEvent('ravelry-import-progress', { step: 'hooks', status: `Imported ${totalImported.hooks} hooks/needles` });
+          importProgress({ step: 'hooks', status: `Imported ${totalImported.hooks} hook${totalImported.hooks !== 1 ? 's' : ''}/needle${totalImported.hooks !== 1 ? 's' : ''}`, current: totalImported.hooks, total: totalHooks, done: true });
         }
 
+        ravelryImportStatus.set(userId, { active: false, status: 'complete', ...totalImported });
         broadcastEvent('ravelry-import-complete', totalImported);
       } catch (error) {
         console.error('Ravelry import error:', error);
+        ravelryImportStatus.set(userId, { active: false, status: 'error', error: error.message });
         broadcastEvent('ravelry-import-error', { error: error.message });
       }
     })();

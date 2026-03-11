@@ -2402,10 +2402,13 @@ Inc in each st around (12)
 
                             <!-- Action bar -->
                             <div class="ravelry-actions">
-                                <label class="checkbox-label ravelry-select-all-label">
-                                    <input type="checkbox" id="ravelry-select-all">
+                                <div class="ravelry-select-all-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;" id="ravelry-select-all-wrap">
+                                    <div class="ravelry-select-all-cb" id="ravelry-select-all">
+                                        <svg class="check-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                        <svg class="minus-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                                    </div>
                                     <span>Select All</span>
-                                </label>
+                                </div>
                                 <button id="ravelry-import-selected-btn" class="btn btn-primary" disabled>Import Selected</button>
                                 <button id="ravelry-import-all-btn" class="btn btn-secondary">Import All</button>
                             </div>

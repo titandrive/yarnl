@@ -7991,16 +7991,52 @@ textarea.image-drag-over {
 }
 
 
-.ravelry-item-checkbox {
+.ravelry-item-checkbox,
+.ravelry-select-all-cb {
     flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    background: var(--input-bg, rgba(0, 0, 0, 0.45));
+    border: 1.5px solid var(--border-color);
+    border-radius: 4px;
     display: flex;
     align-items: center;
+    justify-content: center;
+    cursor: pointer;
 }
 
-.ravelry-item-checkbox input[type="checkbox"] {
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
+.ravelry-item-checkbox svg,
+.ravelry-select-all-cb svg {
+    display: none;
+}
+
+.ravelry-item-checkbox:hover,
+.ravelry-select-all-cb:hover {
+    background: rgba(0, 0, 0, 0.6);
+}
+
+.ravelry-item.selected .ravelry-item-checkbox,
+.ravelry-select-all-cb.checked {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.ravelry-item.selected .ravelry-item-checkbox svg,
+.ravelry-select-all-cb.checked svg {
+    display: block;
+}
+
+.ravelry-select-all-cb.indeterminate {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.ravelry-select-all-cb.indeterminate svg.check-icon {
+    display: none;
+}
+
+.ravelry-select-all-cb.indeterminate svg.minus-icon {
+    display: block;
 }
 
 .ravelry-item-photo {
@@ -8016,6 +8052,23 @@ textarea.image-drag-over {
     width: 100%;
     height: 100%;
     object-fit: cover;
+}
+
+.ravelry-item-photo-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-color);
+    padding: 6px;
+}
+
+.ravelry-item-photo-placeholder svg,
+.ravelry-item-photo-placeholder img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: contain;
 }
 
 .ravelry-item-info {

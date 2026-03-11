@@ -269,6 +269,7 @@ function updateUIForUser() {
     }
     if (isAdmin) {
         initOIDCSettings();
+        initRavelrySettings();
         initDefaultCategories();
     }
 
@@ -966,6 +967,7 @@ function initUserManagement() {
     if (isAdmin) {
         loadUsers();
         initOIDCSettings();
+        initRavelrySettings();
         initDefaultCategories();
     }
 
@@ -1031,6 +1033,43 @@ function initUserManagement() {
     const unlinkSsoBtn = document.getElementById('unlink-sso-btn');
     if (unlinkSsoBtn) {
         unlinkSsoBtn.addEventListener('click', handleUnlinkSso);
+    }
+
+    // Setup Ravelry
+    const connectRavelryBtn = document.getElementById('connect-ravelry-btn');
+    if (connectRavelryBtn) {
+        connectRavelryBtn.addEventListener('click', () => {
+            window.location.href = `${API_URL}/api/ravelry/auth`;
+        });
+    }
+
+    const disconnectRavelryBtn = document.getElementById('disconnect-ravelry-btn');
+    if (disconnectRavelryBtn) {
+        disconnectRavelryBtn.addEventListener('click', handleDisconnectRavelry);
+    }
+
+    const ravelryImportBtn = document.getElementById('ravelry-import-btn');
+    if (ravelryImportBtn) {
+        ravelryImportBtn.addEventListener('click', openRavelryImportModal);
+    }
+
+    const closeRavelryModal = document.getElementById('close-ravelry-import-modal');
+    if (closeRavelryModal) {
+        closeRavelryModal.addEventListener('click', () => {
+            document.getElementById('ravelry-import-modal').style.display = 'none';
+        });
+    }
+
+    const cancelRavelryImport = document.getElementById('cancel-ravelry-import');
+    if (cancelRavelryImport) {
+        cancelRavelryImport.addEventListener('click', () => {
+            document.getElementById('ravelry-import-modal').style.display = 'none';
+        });
+    }
+
+    const startRavelryImport = document.getElementById('start-ravelry-import');
+    if (startRavelryImport) {
+        startRavelryImport.addEventListener('click', handleRavelryImport);
     }
 
     loadAccountInfo();
@@ -1121,8 +1160,131 @@ async function loadAccountInfo() {
             if (ssoHeading) ssoHeading.style.display = 'none';
             if (ssoItem) ssoItem.style.display = 'none';
         }
+        // Handle Ravelry section
+        const ravelryHeading = document.getElementById('ravelry-section-heading');
+        const ravelryItem = document.getElementById('ravelry-setting-item');
+        const ravelryImportItem = document.getElementById('ravelry-import-item');
+        const ravelryStatus = document.getElementById('ravelry-link-status');
+        const connectBtn = document.getElementById('connect-ravelry-btn');
+        const disconnectBtn = document.getElementById('disconnect-ravelry-btn');
+
+        try {
+            const ravelryEnabledRes = await fetch(`${API_URL}/api/ravelry/enabled`);
+            const ravelryEnabledData = await ravelryEnabledRes.json();
+
+            if (ravelryEnabledData.enabled) {
+                if (ravelryHeading) ravelryHeading.style.display = '';
+                if (ravelryItem) ravelryItem.style.display = '';
+
+                const statusRes = await fetch(`${API_URL}/api/ravelry/status`);
+                const statusData = await statusRes.json();
+
+                if (statusData.connected) {
+                    if (ravelryStatus) ravelryStatus.textContent = `Connected as ${statusData.username || 'unknown'}`;
+                    if (connectBtn) connectBtn.style.display = 'none';
+                    if (disconnectBtn) disconnectBtn.style.display = '';
+                    if (ravelryImportItem) ravelryImportItem.style.display = '';
+                } else {
+                    if (ravelryStatus) ravelryStatus.textContent = 'Not connected';
+                    if (connectBtn) connectBtn.style.display = '';
+                    if (disconnectBtn) disconnectBtn.style.display = 'none';
+                    if (ravelryImportItem) ravelryImportItem.style.display = 'none';
+                }
+            }
+        } catch (e) {
+            console.error('Failed to check Ravelry status:', e);
+        }
+
+        // Check URL params for Ravelry connection result
+        const urlParams = new URLSearchParams(window.location.hash.split('?')[1] || '');
+        if (urlParams.get('ravelry') === 'connected') {
+            showToast('Ravelry account connected successfully!', 'success');
+            history.replaceState(null, '', window.location.pathname + '#settings');
+        }
     } catch (error) {
         console.error('Failed to load account info:', error);
+    }
+}
+
+async function handleDisconnectRavelry() {
+    if (!confirm('Disconnect your Ravelry account? Previously imported data will remain.')) return;
+    try {
+        const response = await fetch(`${API_URL}/api/ravelry/disconnect`, { method: 'POST' });
+        if (response.ok) {
+            showToast('Ravelry account disconnected', 'success');
+            loadAccountInfo();
+        } else {
+            showToast('Failed to disconnect Ravelry', 'error');
+        }
+    } catch (error) {
+        showToast('Failed to disconnect Ravelry', 'error');
+    }
+}
+
+async function openRavelryImportModal() {
+    const modal = document.getElementById('ravelry-import-modal');
+    const loading = document.getElementById('ravelry-import-loading');
+    const options = document.getElementById('ravelry-import-options');
+    const progressArea = document.getElementById('ravelry-import-progress-area');
+    const startBtn = document.getElementById('start-ravelry-import');
+
+    modal.style.display = 'flex';
+    loading.style.display = '';
+    options.style.display = 'none';
+    progressArea.style.display = 'none';
+    startBtn.style.display = '';
+    startBtn.disabled = false;
+
+    try {
+        const response = await fetch(`${API_URL}/api/ravelry/preview`);
+        const data = await response.json();
+
+        document.getElementById('ravelry-pattern-count').textContent = data.patterns || 0;
+        document.getElementById('ravelry-yarn-count').textContent = data.yarns || 0;
+        document.getElementById('ravelry-hook-count').textContent = data.hooks || 0;
+
+        loading.style.display = 'none';
+        options.style.display = '';
+    } catch (error) {
+        loading.textContent = 'Failed to load Ravelry data. Please try again.';
+    }
+}
+
+async function handleRavelryImport() {
+    const importPatterns = document.getElementById('ravelry-import-patterns').checked;
+    const importYarns = document.getElementById('ravelry-import-yarns').checked;
+    const importHooks = document.getElementById('ravelry-import-hooks').checked;
+
+    if (!importPatterns && !importYarns && !importHooks) {
+        showToast('Select at least one category to import', 'error');
+        return;
+    }
+
+    const options = document.getElementById('ravelry-import-options');
+    const progressArea = document.getElementById('ravelry-import-progress-area');
+    const progressText = document.getElementById('ravelry-import-progress-text');
+    const progressBar = document.getElementById('ravelry-import-progress-bar');
+    const startBtn = document.getElementById('start-ravelry-import');
+    const cancelBtn = document.getElementById('cancel-ravelry-import');
+
+    options.style.display = 'none';
+    progressArea.style.display = '';
+    startBtn.style.display = 'none';
+    cancelBtn.textContent = 'Close';
+    progressText.textContent = 'Starting import...';
+    progressBar.style.width = '10%';
+
+    // Progress updates are handled by handleServerEvent via SSE
+
+    try {
+        await fetch(`${API_URL}/api/ravelry/import`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ importPatterns, importYarns, importHooks })
+        });
+    } catch (error) {
+        progressText.textContent = 'Failed to start import';
+        showToast('Failed to start Ravelry import', 'error');
     }
 }
 
@@ -1486,6 +1648,122 @@ function copyCallbackUrl() {
         }).catch(() => {
             showToast('Failed to copy', 'error');
         });
+    }
+}
+
+// Ravelry admin settings
+function copyRavelryCallbackUrl() {
+    const el = document.getElementById('ravelry-callback-url');
+    if (el) {
+        navigator.clipboard.writeText(el.textContent).then(() => {
+            showToast('Callback URL copied');
+        }).catch(() => {
+            showToast('Failed to copy', 'error');
+        });
+    }
+}
+
+let ravelrySettingsInitialized = false;
+function initRavelrySettings() {
+    if (!ravelrySettingsInitialized) {
+        const enabledToggle = document.getElementById('ravelry-enabled-toggle');
+        if (enabledToggle) {
+            enabledToggle.addEventListener('change', () => {
+                document.getElementById('ravelry-config-fields').style.display = enabledToggle.checked ? 'block' : 'none';
+            });
+        }
+
+        const saveBtn = document.getElementById('save-ravelry-settings-btn');
+        if (saveBtn) {
+            saveBtn.addEventListener('click', saveRavelrySettings);
+        }
+
+        const testBtn = document.getElementById('test-ravelry-btn');
+        if (testBtn) {
+            testBtn.addEventListener('click', testRavelryConnection);
+        }
+
+        ravelrySettingsInitialized = true;
+    }
+
+    loadRavelrySettings();
+}
+
+async function testRavelryConnection() {
+    const btn = document.getElementById('test-ravelry-btn');
+    const originalText = btn.textContent;
+    btn.textContent = 'Testing...';
+    btn.disabled = true;
+
+    try {
+        const response = await fetch(`${API_URL}/api/ravelry/test`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                clientId: document.getElementById('ravelry-client-id').value.trim(),
+                clientSecret: document.getElementById('ravelry-client-secret').value
+            })
+        });
+
+        if (response.ok) {
+            showToast('Ravelry credentials are valid!', 'success');
+        } else {
+            const data = await response.json();
+            showToast(data.error || 'Invalid credentials', 'error');
+        }
+    } catch (error) {
+        showToast('Failed to test connection', 'error');
+    } finally {
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+async function loadRavelrySettings() {
+    try {
+        const response = await fetch(`${API_URL}/api/ravelry/settings`);
+        if (!response.ok) return;
+        const settings = await response.json();
+
+        document.getElementById('ravelry-enabled-toggle').checked = settings.enabled;
+        document.getElementById('ravelry-client-id').value = settings.clientId || '';
+        document.getElementById('ravelry-client-secret').value = settings.clientSecret || '';
+        document.getElementById('ravelry-config-fields').style.display = settings.enabled ? 'block' : 'none';
+
+        // Set callback URL
+        const callbackEl = document.getElementById('ravelry-callback-url');
+        if (callbackEl) {
+            callbackEl.textContent = `${window.location.origin}/api/ravelry/callback`;
+        }
+    } catch (error) {
+        console.error('Failed to load Ravelry settings:', error);
+    }
+}
+
+async function saveRavelrySettings() {
+    const settings = {
+        enabled: document.getElementById('ravelry-enabled-toggle').checked,
+        clientId: document.getElementById('ravelry-client-id').value.trim(),
+        clientSecret: document.getElementById('ravelry-client-secret').value
+    };
+
+    try {
+        const response = await fetch(`${API_URL}/api/ravelry/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(settings)
+        });
+
+        if (response.ok) {
+            showToast('Ravelry settings saved');
+            loadRavelrySettings();
+        } else {
+            const error = await response.json();
+            showToast(error.error || 'Failed to save Ravelry settings', 'error');
+        }
+    } catch (error) {
+        console.error('Failed to save Ravelry settings:', error);
+        showToast('Failed to save Ravelry settings', 'error');
     }
 }
 
@@ -2527,6 +2805,37 @@ function handleServerEvent(event) {
             break;
         case 'backup_error':
             showToast(`Backup failed: ${event.data.error}`, 'error', 5000);
+            break;
+        case 'ravelry-import-progress':
+            if (document.getElementById('ravelry-import-modal')?.style.display !== 'none') {
+                const progressText = document.getElementById('ravelry-import-progress-text');
+                const progressBar = document.getElementById('ravelry-import-progress-bar');
+                if (progressText) progressText.textContent = event.data.status;
+                if (progressBar && event.data.status.startsWith('Imported')) {
+                    const currentWidth = parseInt(progressBar.style.width) || 10;
+                    progressBar.style.width = Math.min(currentWidth + 30, 90) + '%';
+                }
+            }
+            break;
+        case 'ravelry-import-complete':
+            if (document.getElementById('ravelry-import-modal')?.style.display !== 'none') {
+                const d = event.data;
+                const pt = document.getElementById('ravelry-import-progress-text');
+                const pb = document.getElementById('ravelry-import-progress-bar');
+                if (pt) pt.textContent = `Import complete! ${d.patterns} patterns, ${d.yarns} yarns, ${d.hooks} hooks/needles imported.`;
+                if (pb) pb.style.width = '100%';
+            }
+            showToast('Ravelry import complete!', 'success');
+            if (typeof loadPatterns === 'function') loadPatterns();
+            if (typeof loadYarns === 'function') loadYarns();
+            if (typeof loadHooks === 'function') loadHooks();
+            break;
+        case 'ravelry-import-error':
+            if (document.getElementById('ravelry-import-modal')?.style.display !== 'none') {
+                const pet = document.getElementById('ravelry-import-progress-text');
+                if (pet) pet.textContent = `Import error: ${event.data.error}`;
+            }
+            showToast('Ravelry import failed', 'error');
             break;
         default:
             console.log('Unknown server event:', event);

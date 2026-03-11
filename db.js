@@ -365,6 +365,32 @@ async function initDatabase() {
       END $$;
     `);
 
+    // Add Ravelry integration columns
+    await client.query(`
+      DO $$
+      BEGIN
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='users' AND column_name='ravelry_access_token') THEN
+          ALTER TABLE users ADD COLUMN ravelry_access_token TEXT;
+          ALTER TABLE users ADD COLUMN ravelry_refresh_token TEXT;
+          ALTER TABLE users ADD COLUMN ravelry_token_expires_at TIMESTAMP;
+          ALTER TABLE users ADD COLUMN ravelry_username VARCHAR(255);
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='ravelry_id') THEN
+          ALTER TABLE patterns ADD COLUMN ravelry_id INTEGER;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='yarns' AND column_name='ravelry_stash_id') THEN
+          ALTER TABLE yarns ADD COLUMN ravelry_stash_id INTEGER;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='hooks' AND column_name='ravelry_needle_id') THEN
+          ALTER TABLE hooks ADD COLUMN ravelry_needle_id INTEGER;
+        END IF;
+      END $$;
+    `);
+
     // Migrate colorway data to color column
     await client.query(`UPDATE yarns SET color = colorway WHERE color IS NULL AND colorway IS NOT NULL`);
 

@@ -2317,6 +2317,46 @@ Inc in each st around (12)
                                 <button id="reset-oidc-btn" class="btn btn-primary">Reset OIDC</button>
                             </div>
                         </div>
+
+                        <h4 class="settings-subheading">Ravelry Integration</h4>
+                        <p class="setting-description" style="margin-bottom: 1rem;">Allow users to import their library, yarn stash, and hooks from Ravelry. Register an app at <a href="https://www.ravelry.com/pro/developer" target="_blank">ravelry.com/pro/developer</a></p>
+
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Enable Ravelry</label>
+                                <p class="setting-description">Allow users to connect their Ravelry account</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="ravelry-enabled-toggle">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+
+                        <div id="ravelry-config-fields" style="display: none;">
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label>Callback URL</label>
+                                    <p class="setting-description">Click to copy — add this to your Ravelry app</p>
+                                </div>
+                                <span id="ravelry-callback-url" class="copyable-url" onclick="copyRavelryCallbackUrl()"></span>
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label for="ravelry-client-id">Client ID</label>
+                                </div>
+                                <input type="text" id="ravelry-client-id" class="settings-input settings-input-wide" placeholder="Client ID">
+                            </div>
+                            <div class="setting-item">
+                                <div class="setting-info">
+                                    <label for="ravelry-client-secret">Client Secret</label>
+                                </div>
+                                <input type="password" id="ravelry-client-secret" class="settings-input settings-input-wide" placeholder="Client Secret">
+                            </div>
+                            <div class="oidc-actions">
+                                <button id="test-ravelry-btn" class="btn btn-secondary">Test Connection</button>
+                                <button id="save-ravelry-settings-btn" class="btn btn-primary">Save Ravelry Settings</button>
+                            </div>
+                        </div>
                     </section>
 
                     <!-- Account Section (All Users) -->
@@ -2380,6 +2420,23 @@ Inc in each st around (12)
                             </div>
                             <button id="link-sso-btn" class="btn btn-secondary">Link SSO Account</button>
                             <button id="unlink-sso-btn" class="btn btn-secondary" style="display: none;">Unlink</button>
+                        </div>
+
+                        <h4 class="settings-subheading" id="ravelry-section-heading" style="display: none;">Ravelry</h4>
+                        <div class="setting-item" id="ravelry-setting-item" style="display: none;">
+                            <div class="setting-info">
+                                <label>Ravelry Account</label>
+                                <p class="setting-description" id="ravelry-link-status">Not connected</p>
+                            </div>
+                            <button id="connect-ravelry-btn" class="btn btn-secondary">Connect Ravelry</button>
+                            <button id="disconnect-ravelry-btn" class="btn btn-secondary" style="display: none;">Disconnect</button>
+                        </div>
+                        <div class="setting-item" id="ravelry-import-item" style="display: none;">
+                            <div class="setting-info">
+                                <label>Import from Ravelry</label>
+                                <p class="setting-description" id="ravelry-import-status">Import your patterns, yarn stash, and hooks</p>
+                            </div>
+                            <button id="ravelry-import-btn" class="btn btn-secondary">Import</button>
                         </div>
 
                         <h4 class="settings-subheading">Session</h4>
@@ -3464,6 +3521,50 @@ Inc in each st around (12)
                     <a href="https://github.com/titandrive/yarnl" target="_blank" class="btn btn-secondary">GitHub</a>
                     <button class="btn btn-primary" id="dismiss-changelog">Got it</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ravelry Import Modal -->
+    <div id="ravelry-import-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Import from Ravelry</h3>
+                <button type="button" class="modal-close" id="close-ravelry-import-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p id="ravelry-import-loading">Loading your Ravelry library...</p>
+                <div id="ravelry-import-options" style="display: none;">
+                    <div class="setting-item">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="ravelry-import-patterns" checked>
+                            <span>Patterns (<span id="ravelry-pattern-count">0</span> in library)</span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="ravelry-import-yarns" checked>
+                            <span>Yarn Stash (<span id="ravelry-yarn-count">0</span> items)</span>
+                        </label>
+                    </div>
+                    <div class="setting-item">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="ravelry-import-hooks" checked>
+                            <span>Hooks &amp; Needles (<span id="ravelry-hook-count">0</span> items)</span>
+                        </label>
+                    </div>
+                    <p class="setting-description">Already imported items will be skipped.</p>
+                </div>
+                <div id="ravelry-import-progress-area" style="display: none;">
+                    <p id="ravelry-import-progress-text">Starting import...</p>
+                    <div class="progress-bar-container" style="height: 6px; background: var(--border-color); border-radius: 3px; margin-top: 8px;">
+                        <div id="ravelry-import-progress-bar" style="height: 100%; background: var(--primary-color); border-radius: 3px; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" id="cancel-ravelry-import" class="btn btn-secondary">Cancel</button>
+                <button type="button" id="start-ravelry-import" class="btn btn-primary">Start Import</button>
             </div>
         </div>
     </div>

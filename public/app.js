@@ -1277,6 +1277,13 @@ async function initRavelryTab() {
         tab.addEventListener('click', () => {
             const tabName = tab.dataset.ravelryTab;
             ravelryState.activeTab = tabName;
+            const tabsContainer = tab.closest('.ravelry-tabs');
+            if (tabsContainer) {
+                const tabLeft = tab.offsetLeft;
+                const tabWidth = tab.offsetWidth;
+                const containerWidth = tabsContainer.offsetWidth;
+                tabsContainer.scrollTo({ left: tabLeft - (containerWidth / 2) + (tabWidth / 2), behavior: 'smooth' });
+            }
             document.querySelectorAll('.ravelry-tab').forEach(t => t.classList.toggle('active', t === tab));
             document.querySelectorAll('.ravelry-list').forEach(l => {
                 l.style.display = l.dataset.ravelryTab === tabName ? '' : 'none';
@@ -1294,6 +1301,33 @@ async function initRavelryTab() {
             }
         });
     });
+
+    // Swipe between Ravelry sub-tabs on mobile (stopPropagation prevents settings swipe from firing)
+    const ravelryImportArea = document.getElementById('ravelry-import-area');
+    if (ravelryImportArea) {
+        const ravelryTabOrder = ['patterns', 'yarn', 'hooks', 'favorites'];
+        let rSwipeStartX = null, rSwipeStartY = null;
+        ravelryImportArea.addEventListener('touchstart', (e) => {
+            if (e.target.closest('input, select, button, .ravelry-item-checkbox, .ravelry-select-all-cb')) return;
+            rSwipeStartX = e.touches[0].clientX;
+            rSwipeStartY = e.touches[0].clientY;
+            e.stopPropagation();
+        }, { passive: true });
+        ravelryImportArea.addEventListener('touchend', (e) => {
+            if (rSwipeStartX === null) return;
+            const diffX = e.changedTouches[0].clientX - rSwipeStartX;
+            const diffY = e.changedTouches[0].clientY - rSwipeStartY;
+            rSwipeStartX = null;
+            rSwipeStartY = null;
+            if (Math.abs(diffX) < 60 || Math.abs(diffY) > Math.abs(diffX)) return;
+            e.stopPropagation();
+            const currentIdx = ravelryTabOrder.indexOf(ravelryState.activeTab);
+            const nextIdx = diffX < 0 ? currentIdx + 1 : currentIdx - 1;
+            if (nextIdx >= 0 && nextIdx < ravelryTabOrder.length) {
+                document.querySelector(`.ravelry-tab[data-ravelry-tab="${ravelryTabOrder[nextIdx]}"]`)?.click();
+            }
+        }, { passive: true });
+    }
 
     // Select all
     (document.getElementById('ravelry-select-all-wrap') || document.getElementById('ravelry-select-all'))?.addEventListener('click', () => {

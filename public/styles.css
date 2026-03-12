@@ -2745,7 +2745,7 @@ body.global-drag-over #current::after {
 .modal-actions {
     display: flex;
     gap: 10px;
-    justify-content: flex-end;
+    justify-content: space-between;
     margin-top: 20px;
 }
 
@@ -2758,7 +2758,7 @@ body.global-drag-over #current::after {
     display: flex;
     gap: 10px;
     align-items: center;
-    margin-left: auto;
+    justify-content: flex-end;
 }
 
 .yarn-fav-btn {
@@ -7808,6 +7808,12 @@ textarea.image-drag-over {
     margin-bottom: 12px;
 }
 
+#pdf-revert-btn {
+    padding: 5px 10px;
+    font-size: 0.8rem;
+    margin-left: auto;
+}
+
 .pdf-edit-form {
     display: flex;
     flex-direction: column;
@@ -7852,6 +7858,18 @@ textarea.image-drag-over {
 
 .pdf-edit-modal-content .modal-actions {
     margin-top: 12px;
+    justify-content: space-between;
+}
+
+
+.pdf-edit-modal-content .modal-actions .btn {
+    white-space: nowrap;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+}
+
+.pdf-edit-modal-content .modal-actions .btn-danger {
+    margin-right: 0;
 }
 
 /* Library Edit Modal - Compact styling */
@@ -7894,6 +7912,11 @@ textarea.image-drag-over {
 
 #edit-modal .modal-actions {
     margin-top: 15px;
+    justify-content: space-between;
+}
+
+#edit-modal .modal-actions .btn-danger {
+    margin-right: 0;
 }
 
 #edit-modal .modal-actions .btn {
@@ -9890,14 +9913,7 @@ textarea.image-drag-over {
         margin-right: 0;
     }
 
-    #edit-modal .modal-actions-right {
-        display: flex;
-        gap: 10px;
-        margin-left: 0;
-        width: 100%;
-    }
-
-    #edit-modal .modal-actions-right .btn {
+    #edit-modal .modal-actions .btn {
         flex: 1;
     }
 }

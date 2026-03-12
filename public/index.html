@@ -66,7 +66,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=310">
+    <link rel="stylesheet" href="styles.css?v=322">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -2803,6 +2803,7 @@ Inc in each st around (12)
                 <div class="modal-content pdf-edit-modal-content">
                     <div class="modal-header">
                         <h2>Edit Pattern</h2>
+                        <button type="button" class="btn btn-secondary btn-sm" id="pdf-revert-btn">Revert Annotations</button>
                         <button class="modal-close" id="close-pdf-edit-modal">&times;</button>
                     </div>
                     <div class="edit-modal-tabs">
@@ -2857,14 +2858,11 @@ Inc in each st around (12)
                         </div>
                     </div>
                     <div class="modal-actions">
-                        <button type="button" class="btn btn-secondary" id="pdf-revert-btn">Revert Annotations</button>
                         <button type="button" class="btn btn-danger" id="delete-pdf-pattern">Delete Pattern</button>
                         <button type="button" class="btn btn-secondary" id="duplicate-pdf-pattern">Duplicate</button>
-                        <div class="modal-actions-right">
-                            <button type="button" class="btn btn-secondary" id="copy-to-account-btn" style="display:none;">Add to Account</button>
-                            <button type="button" class="btn btn-secondary" id="cancel-pdf-edit">Cancel</button>
-                            <button type="button" class="btn btn-primary" id="save-pdf-edit">Save Changes</button>
-                        </div>
+                        <button type="button" class="btn btn-secondary" id="copy-to-account-btn" style="display:none;">Add to Account</button>
+                        <button type="button" class="btn btn-secondary" id="cancel-pdf-edit">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="save-pdf-edit">Save Changes</button>
                     </div>
                 </div>
             </div>
@@ -3071,10 +3069,9 @@ Inc in each st around (12)
                 <div class="modal-actions">
                     <button type="button" class="btn btn-danger" id="delete-markdown-pattern">Delete Pattern</button>
                     <button type="button" class="btn btn-secondary" id="duplicate-markdown-pattern">Duplicate</button>
-                    <div class="modal-actions-right">
-                        <button type="button" class="btn btn-secondary" id="cancel-markdown-edit">Cancel</button>
-                        <button type="button" class="btn btn-primary" id="save-markdown-edit">Save Changes</button>
-                    </div>
+                    <button type="button" class="btn btn-secondary" id="copy-to-account-markdown-btn" style="display:none;">Add to Account</button>
+                    <button type="button" class="btn btn-secondary" id="cancel-markdown-edit">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="save-markdown-edit">Save Changes</button>
                 </div>
             </div>
         </div>
@@ -3140,11 +3137,9 @@ Inc in each st around (12)
                 <div class="modal-actions">
                     <button type="button" class="btn btn-danger" id="delete-edit-pattern">Delete Pattern</button>
                     <button type="button" class="btn btn-secondary" id="duplicate-edit-pattern">Duplicate</button>
-                    <div class="modal-actions-right">
-                        <button type="button" class="btn btn-secondary" id="copy-to-account-edit-btn" style="display:none;">Add to Account</button>
-                        <button type="button" class="btn btn-secondary" id="cancel-edit-btn">Cancel</button>
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                    </div>
+                    <button type="button" class="btn btn-secondary" id="copy-to-account-edit-btn" style="display:none;">Add to Account</button>
+                    <button type="button" class="btn btn-secondary" id="cancel-edit-btn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
                 </div>
             </form>
         </div>
@@ -3744,6 +3739,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=322"></script>
+    <script defer src="app.js?v=325"></script>
 </body>
 </html>

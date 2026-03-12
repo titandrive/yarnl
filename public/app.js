@@ -12231,6 +12231,8 @@ async function openPdfEditModal() {
         || currentPattern.user_id == null;
     const copyToAccountBtn = document.getElementById('copy-to-account-btn');
     if (copyToAccountBtn) copyToAccountBtn.style.display = isOwnPattern ? 'none' : '';
+    const dupPdfBtn = document.getElementById('duplicate-pdf-pattern');
+    if (dupPdfBtn) dupPdfBtn.style.display = isOwnPattern ? '' : 'none';
 
     resetEditModalTab('pdf-edit');
     modal.style.display = 'flex';
@@ -14385,6 +14387,9 @@ function initMarkdownViewerEvents() {
     const dupMarkdownBtn = document.getElementById('duplicate-markdown-pattern');
     if (dupMarkdownBtn) dupMarkdownBtn.onclick = () => { if (currentPattern) { closeMarkdownEditModal(); duplicatePattern(currentPattern.id); } };
 
+    const copyMdBtn = document.getElementById('copy-to-account-markdown-btn');
+    if (copyMdBtn) copyMdBtn.addEventListener('click', () => { const id = parseInt(currentPattern?.id); if (id) { closeMarkdownEditModal(); copyPatternToAccount(id); } });
+
     const editModal = document.getElementById('markdown-edit-modal');
     editModal.onclick = (e) => {
         if (e.target === editModal) closeMarkdownEditModal();
@@ -14872,6 +14877,17 @@ async function openMarkdownEditModal() {
     // Reset delete button state
     const deleteBtn = document.getElementById('delete-markdown-pattern');
     resetDeleteButton(deleteBtn, 'Delete Pattern');
+
+    // Show/hide Add to Account button
+    const mdOwner = currentPattern.owner_username || null;
+    const isMdOwnPattern = !mdOwner
+        || mdOwner === currentUser?.username
+        || String(currentPattern.user_id) === String(currentUser?.id)
+        || currentPattern.user_id == null;
+    const copyMdBtn = document.getElementById('copy-to-account-markdown-btn');
+    if (copyMdBtn) copyMdBtn.style.display = isMdOwnPattern ? 'none' : '';
+    const dupMdBtn = document.getElementById('duplicate-markdown-pattern');
+    if (dupMdBtn) dupMdBtn.style.display = isMdOwnPattern ? '' : 'none';
 
     resetEditModalTab('markdown-edit');
     modal.style.display = 'flex';

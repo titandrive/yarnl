@@ -4320,10 +4320,9 @@ app.get('/api/patterns/current', async (req, res) => {
   try {
     let result;
     if (req.user?.role === 'admin') {
-      // Admin current tab shows only their own current patterns
+      // Admin sees all is_current patterns (they can work on any user's pattern)
       result = await pool.query(
-        'SELECT * FROM patterns WHERE is_current = true AND (is_archived = false OR is_archived IS NULL) AND user_id = $1 ORDER BY updated_at DESC',
-        [req.user.id]
+        'SELECT * FROM patterns WHERE is_current = true AND (is_archived = false OR is_archived IS NULL) ORDER BY updated_at DESC'
       );
     } else if (req.user?.id) {
       result = await pool.query(
@@ -4833,6 +4832,74 @@ app.post('/api/patterns/:id/duplicate', async (req, res) => {
     res.json(newPattern);
   } catch (error) {
     console.error('Error duplicating pattern:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Copy a pattern to the requesting user's own account
+app.post('/api/patterns/:id/copy-to-account', authMiddleware, async (req, res) => {
+  try {
+    const pattern = await verifyPatternReadAccess(req.params.id, req.user?.id, req.user?.role === 'admin');
+    if (!pattern) return res.status(403).json({ error: 'Not authorized' });
+
+    const sourceUsername = pattern.owner_username;
+    const destUsername = req.user.username;
+    const newName = pattern.name + ' (Copy)';
+
+    let newFilename = null;
+    let newThumbnail = null;
+
+    if (pattern.pattern_type !== 'markdown') {
+      const srcCategoryDir = getCategoryDir(sourceUsername, pattern.category);
+      const destCategoryDir = getCategoryDir(destUsername, pattern.category);
+      if (!fs.existsSync(destCategoryDir)) fs.mkdirSync(destCategoryDir, { recursive: true });
+      const ext = path.extname(pattern.filename);
+      const base = path.basename(pattern.filename, ext);
+      newFilename = getUniqueFilename(destCategoryDir, base + '_copy', ext);
+      const srcPath = path.join(srcCategoryDir, pattern.filename);
+      if (fs.existsSync(srcPath)) {
+        fs.copyFileSync(srcPath, path.join(destCategoryDir, newFilename));
+      }
+    }
+
+    if (pattern.thumbnail) {
+      const srcThumbDir = getUserThumbnailsDir(sourceUsername);
+      const destThumbDir = getUserThumbnailsDir(destUsername);
+      if (!fs.existsSync(destThumbDir)) fs.mkdirSync(destThumbDir, { recursive: true });
+      const thumbSrc = path.join(srcThumbDir, pattern.thumbnail);
+      if (fs.existsSync(thumbSrc)) {
+        const thumbExt = path.extname(pattern.thumbnail);
+        const thumbBase = path.basename(pattern.thumbnail, thumbExt);
+        newThumbnail = getUniqueFilename(destThumbDir, thumbBase + '_copy', thumbExt);
+        fs.copyFileSync(thumbSrc, path.join(destThumbDir, newThumbnail));
+      }
+    }
+
+    const result = await pool.query(
+      `INSERT INTO patterns (name, filename, original_name, category, description, pattern_type, content,
+        thumbnail, user_id, visibility, rating, stitch_count, row_count)
+       SELECT $1, $2, original_name, category, description, pattern_type, content,
+        $3, $4, 'private', rating, stitch_count, row_count
+       FROM patterns WHERE id = $5
+       RETURNING *`,
+      [newName, newFilename || pattern.filename, newThumbnail, req.user.id, req.params.id]
+    );
+    const newPattern = result.rows[0];
+
+    await pool.query(
+      `INSERT INTO pattern_hashtags (pattern_id, hashtag_id)
+       SELECT $1, hashtag_id FROM pattern_hashtags WHERE pattern_id = $2`,
+      [newPattern.id, req.params.id]
+    );
+    await pool.query(
+      `INSERT INTO counters (pattern_id, name, value, max_value, is_main, unlinked, position)
+       SELECT $1, name, 0, max_value, is_main, unlinked, position FROM counters WHERE pattern_id = $2`,
+      [newPattern.id, req.params.id]
+    );
+
+    res.json(newPattern);
+  } catch (error) {
+    console.error('Error copying pattern to account:', error);
     res.status(500).json({ error: error.message });
   }
 });

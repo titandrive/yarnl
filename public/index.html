@@ -1092,7 +1092,7 @@ Inc in each st around (12)
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" id="delete-project-btn" class="btn btn-danger">Delete Project</button>
+                    <button type="button" id="delete-project-btn" class="btn btn-danger">Delete Pattern Project</button>
                     <button type="button" id="cancel-edit-project" class="btn btn-secondary">Cancel</button>
                     <button type="button" id="save-edit-project" class="btn btn-primary">Save Changes</button>
                 </div>
@@ -1862,7 +1862,7 @@ Inc in each st around (12)
                         <div id="backup-prune-options" style="display: none;">
                             <div class="setting-item">
                                 <div class="setting-info">
-                                    <label>Delete by</label>
+                                    <label>Delete Pattern by</label>
                                     <p class="setting-description">How to determine which backups to delete</p>
                                 </div>
                                 <select id="backup-prune-mode" class="settings-select">
@@ -1873,7 +1873,7 @@ Inc in each st around (12)
                             <div class="setting-item" id="prune-keep-container">
                                 <div class="setting-info">
                                     <label>Keep last</label>
-                                    <p class="setting-description">Delete backups beyond this count</p>
+                                    <p class="setting-description">Delete Pattern backups beyond this count</p>
                                 </div>
                                 <div class="input-with-suffix">
                                     <input type="number" id="backup-prune-value" class="settings-input" value="5" min="1" max="999">
@@ -1883,7 +1883,7 @@ Inc in each st around (12)
                             <div class="setting-item" id="prune-age-container" style="display: none;">
                                 <div class="setting-info">
                                     <label>Older than</label>
-                                    <p class="setting-description">Delete backups older than this</p>
+                                    <p class="setting-description">Delete Pattern backups older than this</p>
                                 </div>
                                 <div class="input-with-select">
                                     <input type="number" id="backup-prune-age-value" class="settings-input" value="30" min="1" max="999">
@@ -1960,7 +1960,7 @@ Inc in each st around (12)
                         <h4 class="settings-subheading">Behavior</h4>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Delete Instead of Archive</label>
+                                <label>Delete Pattern Instead of Archive</label>
                                 <p class="setting-description">Disables archive and replaces archive button with delete button that permanently deletes files</p>
                                 <p class="setting-description" id="delete-mode-warning" style="display: none; font-style: italic;">Enabling will permanently delete all archived patterns and projects</p>
                             </div>
@@ -2001,7 +2001,7 @@ Inc in each st around (12)
                                     <label><span id="archived-patterns-count">0 archived patterns</span></label>
                                 </div>
                                 <button id="delete-all-archived-btn" class="btn btn-danger" style="display: none;">
-                                    Delete All
+                                    Delete Pattern All
                                 </button>
                             </div>
 
@@ -2017,7 +2017,7 @@ Inc in each st around (12)
                                     <label><span id="archived-projects-count">0 archived projects</span></label>
                                 </div>
                                 <button id="delete-all-archived-projects-btn" class="btn btn-danger" style="display: none;">
-                                    Delete All
+                                    Delete Pattern All
                                 </button>
                             </div>
 
@@ -2767,7 +2767,7 @@ Inc in each st around (12)
                         </button>
                         <button class="mobile-bar-edit-btn mobile-edit-add">Add</button>
                         <button class="mobile-bar-edit-btn mobile-bar-edit-btn-small mobile-edit-reset">Reset</button>
-                        <button class="mobile-bar-edit-btn mobile-bar-edit-btn-small mobile-edit-delete">Delete</button>
+                        <button class="mobile-bar-edit-btn mobile-bar-edit-btn-small mobile-edit-delete">Delete Pattern</button>
                     </div>
                 </div>
             </div>
@@ -2861,6 +2861,7 @@ Inc in each st around (12)
                         <button type="button" class="btn btn-danger" id="delete-pdf-pattern">Delete Pattern</button>
                         <button type="button" class="btn btn-secondary" id="duplicate-pdf-pattern">Duplicate</button>
                         <div class="modal-actions-right">
+                            <button type="button" class="btn btn-secondary" id="copy-to-account-btn" style="display:none;">Add to Account</button>
                             <button type="button" class="btn btn-secondary" id="cancel-pdf-edit">Cancel</button>
                             <button type="button" class="btn btn-primary" id="save-pdf-edit">Save Changes</button>
                         </div>
@@ -3140,6 +3141,7 @@ Inc in each st around (12)
                     <button type="button" class="btn btn-danger" id="delete-edit-pattern">Delete Pattern</button>
                     <button type="button" class="btn btn-secondary" id="duplicate-edit-pattern">Duplicate</button>
                     <div class="modal-actions-right">
+                        <button type="button" class="btn btn-secondary" id="copy-to-account-edit-btn" style="display:none;">Add to Account</button>
                         <button type="button" class="btn btn-secondary" id="cancel-edit-btn">Cancel</button>
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                     </div>
@@ -3509,7 +3511,7 @@ Inc in each st around (12)
                 <div id="yarn-linked-patterns"></div>
               </div>
                 <div class="modal-actions">
-                    <button type="button" class="btn btn-danger" id="delete-yarn-btn" style="display: none;">Delete</button>
+                    <button type="button" class="btn btn-danger" id="delete-yarn-btn" style="display: none;">Delete Pattern</button>
                     <button type="button" class="btn btn-secondary" id="duplicate-yarn-btn" style="display: none;">Duplicate</button>
                     <div class="modal-actions-right">
                         <button type="button" class="yarn-fav-btn" id="yarn-favorite-btn" title="Favorite">
@@ -3617,7 +3619,7 @@ Inc in each st around (12)
                 <div id="hook-linked-patterns"></div>
               </div>
                 <div class="modal-actions">
-                    <button type="button" class="btn btn-danger" id="delete-hook-btn" style="display: none;">Delete</button>
+                    <button type="button" class="btn btn-danger" id="delete-hook-btn" style="display: none;">Delete Pattern</button>
                     <button type="button" class="btn btn-secondary" id="duplicate-hook-btn" style="display: none;">Duplicate</button>
                     <div class="modal-actions-right">
                         <button type="button" class="btn btn-secondary" id="cancel-hook-btn">Cancel</button>
@@ -3742,6 +3744,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=313"></script>
+    <script defer src="app.js?v=322"></script>
 </body>
 </html>

@@ -10092,6 +10092,20 @@ async function duplicatePattern(id) {
     }
 }
 
+async function copyPatternToAccount(id) {
+    try {
+        const res = await fetch(`${API_URL}/api/patterns/${id}/copy-to-account`, { method: 'POST' });
+        if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+        const newPattern = await res.json();
+        showToast(`Copied "${newPattern.name}" to your account`);
+        await loadPatterns();
+        await loadCategories();
+        displayPatterns();
+    } catch (e) {
+        showToast('Failed to copy: ' + e.message, 'error');
+    }
+}
+
 function addPatternsToNewProject(patternIds) {
     clearBulkSelection();
     switchToTab('projects', false);
@@ -10647,7 +10661,8 @@ function initPDFViewer() {
     document.getElementById('cancel-pdf-edit').addEventListener('click', closePdfEditModal);
     document.getElementById('save-pdf-edit').addEventListener('click', savePdfEdit);
     document.getElementById('delete-pdf-pattern').addEventListener('click', deletePdfPattern);
-    document.getElementById('duplicate-pdf-pattern').addEventListener('click', () => { if (currentPattern) { closePdfEditModal(); duplicatePattern(currentPattern.id); } });
+    document.getElementById('duplicate-pdf-pattern').addEventListener('click', () => { const id = parseInt(currentPattern?.id); if (id) { closePdfEditModal(); duplicatePattern(id); } });
+    document.getElementById('copy-to-account-btn').addEventListener('click', () => { const id = parseInt(currentPattern?.id); if (id) { closePdfEditModal(); copyPatternToAccount(id); } });
 
     // Pattern Info modal buttons
     document.getElementById('close-pattern-info-modal').addEventListener('click', closePatternInfoModal);
@@ -12207,6 +12222,15 @@ async function openPdfEditModal() {
         .then(r => r.json())
         .then(data => { revertBtn.disabled = !data.hasAnnotations; })
         .catch(() => { revertBtn.disabled = true; });
+
+    // Show "Copy to My Account" only when viewing someone else's pattern
+    const patternOwner = currentPattern.owner_username || null;
+    const isOwnPattern = !patternOwner
+        || patternOwner === currentUser?.username
+        || String(currentPattern.user_id) === String(currentUser?.id)
+        || currentPattern.user_id == null;
+    const copyToAccountBtn = document.getElementById('copy-to-account-btn');
+    if (copyToAccountBtn) copyToAccountBtn.style.display = isOwnPattern ? 'none' : '';
 
     resetEditModalTab('pdf-edit');
     modal.style.display = 'flex';
@@ -13986,7 +14010,9 @@ function initEditModal() {
     if (cancelBtn) cancelBtn.addEventListener('click', closeEditModal);
     if (deleteBtn) deleteBtn.addEventListener('click', deleteEditPattern);
     const dupBtn = document.getElementById('duplicate-edit-pattern');
-    if (dupBtn) dupBtn.addEventListener('click', () => { if (editingPatternId) { closeEditModal(); duplicatePattern(editingPatternId); } });
+    if (dupBtn) dupBtn.addEventListener('click', () => { const id = parseInt(editingPatternId); if (id) { closeEditModal(); duplicatePattern(id); } });
+    const copyEditBtn = document.getElementById('copy-to-account-edit-btn');
+    if (copyEditBtn) copyEditBtn.addEventListener('click', () => { const id = parseInt(editingPatternId); if (id) { closeEditModal(); copyPatternToAccount(id); } });
 
     if (modal) {
         modal.addEventListener('click', (e) => {
@@ -14064,6 +14090,17 @@ async function openEditModal(patternId) {
 
     // Rating
     document.getElementById('edit-pattern-rating').innerHTML = ratingInputHtml('edit-pattern-rating-input', pattern.rating || 0);
+
+    // Swap Duplicate for Copy to My Account when viewing someone else's pattern
+    const editPatternOwner = pattern.owner_username || null;
+    const isEditOwnPattern = !editPatternOwner
+        || editPatternOwner === currentUser?.username
+        || String(pattern.user_id) === String(currentUser?.id)
+        || pattern.user_id == null;
+    const dupBtn2 = document.getElementById('duplicate-edit-pattern');
+    const copyToAccountEditBtn = document.getElementById('copy-to-account-edit-btn');
+    if (dupBtn2) dupBtn2.style.display = isEditOwnPattern ? '' : 'none';
+    if (copyToAccountEditBtn) copyToAccountEditBtn.style.display = isEditOwnPattern ? 'none' : '';
 
     resetEditModalTab('edit');
     document.getElementById('edit-modal').style.display = 'flex';

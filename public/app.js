@@ -9633,7 +9633,7 @@ async function toggleCurrent(id, isCurrent) {
         // Also update currentPatterns array so the In Progress page reflects the change
         if (isCurrent) {
             if (!currentPatterns.find(p => String(p.id) === String(id))) {
-                currentPatterns.push(pattern);
+                currentPatterns.unshift(pattern);
             }
         } else {
             currentPatterns = currentPatterns.filter(p => String(p.id) !== String(id));

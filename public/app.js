@@ -9338,9 +9338,9 @@ function renderPatternCard(pattern, options = {}) {
             ${isOwnPattern && showStatusBadge && pattern.completed ? '<span class="completed-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span>' : ''}
             ${isOwnPattern && showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>' : ''}
             ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
-            ${pattern.rating ? `<span class="rating-badge">${ratingBadgeHtml(pattern.rating)}</span>` : (showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : '')}
+            ${!isOwnPattern && ownerName ? `<span class="owner-badge-overlay" style="background:${userColor(ownerName)}">${escapeHtml(ownerName)}</span>` : (showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : '')}
+            ${pattern.rating ? `<span class="rating-badge">${ratingBadgeHtml(pattern.rating)}</span>` : ''}
             ${isOwnPattern && showStarBadge && pattern.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span>' : ''}
-            ${!isOwnPattern && ownerName ? `<span class="owner-badge-overlay" style="background:${userColor(ownerName)}">${escapeHtml(ownerName)}</span>` : ''}
             ${pattern.thumbnail
                 ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`
                 : `<div class="pattern-thumbnail-placeholder">

@@ -2613,8 +2613,9 @@ body.global-drag-over #current::after {
 
 .pattern-card .rating-badge {
     position: absolute;
-    top: 140px;
-    left: 18px;
+    top: 87px;
+    left: 50%;
+    transform: translate(-50%, -50%);
     padding: 0;
     background: none;
     line-height: 0;
@@ -6154,7 +6155,7 @@ input[type="number"].settings-input {
 .owner-badge-overlay {
     position: absolute;
     top: 140px;
-    right: 18px;
+    left: 18px;
     font-size: 0.65rem;
     font-weight: 600;
     padding: 3px 8px;

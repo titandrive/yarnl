@@ -4322,7 +4322,11 @@ app.get('/api/patterns/current', async (req, res) => {
     if (req.user?.role === 'admin') {
       // Admin sees all is_current patterns (they can work on any user's pattern)
       result = await pool.query(
-        'SELECT * FROM patterns WHERE is_current = true AND (is_archived = false OR is_archived IS NULL) ORDER BY updated_at DESC'
+        `SELECT p.*, u.display_name as owner_display_name, u.username as owner_username
+         FROM patterns p
+         LEFT JOIN users u ON p.user_id = u.id
+         WHERE p.is_current = true AND (p.is_archived = false OR p.is_archived IS NULL)
+         ORDER BY p.updated_at DESC`
       );
     } else if (req.user?.id) {
       result = await pool.query(

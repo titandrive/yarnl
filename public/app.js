@@ -3632,8 +3632,22 @@ async function handleInitialNavigation() {
             if (!pattern && !isNaN(parseInt(slug))) {
                 pattern = patterns.find(p => p.id === parseInt(slug));
             }
+            // Handle slug-with-id format (e.g., "my-pattern-42" for duplicate slugs)
+            if (!pattern) {
+                const match = slug.match(/^(.+)-(\d+)$/);
+                if (match) {
+                    const id = parseInt(match[2]);
+                    pattern = patterns.find(p => p.id === id) || currentPatterns.find(p => p.id === id);
+                }
+            }
             if (pattern) {
                 await openPDFViewer(pattern.id, false);
+            } else {
+                // Pattern not found — fall back to default page
+                const defaultPage = localStorage.getItem('defaultPage') || 'current';
+                switchToTab(defaultPage, false);
+                history.replaceState({ view: defaultPage }, '', `#${defaultPage}`);
+                return;
             }
         } else if (hash.startsWith('settings/')) {
             const section = hash.split('/')[1];
@@ -5118,6 +5132,14 @@ async function navigateToView(view, pushHistory = true) {
         let pattern = findPatternBySlug(slug);
         if (!pattern && !isNaN(parseInt(slug))) {
             pattern = patterns.find(p => p.id === parseInt(slug));
+        }
+        // Handle slug-with-id format (e.g., "my-pattern-42" for duplicate slugs)
+        if (!pattern) {
+            const match = slug.match(/^(.+)-(\d+)$/);
+            if (match) {
+                const id = parseInt(match[2]);
+                pattern = patterns.find(p => p.id === id) || currentPatterns.find(p => p.id === id);
+            }
         }
         if (pattern) {
             await openPDFViewer(pattern.id, pushHistory);

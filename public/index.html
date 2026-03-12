@@ -1373,6 +1373,7 @@ Inc in each st around (12)
                             <select id="mascot-action-select" class="settings-select">
                                 <option value="home">Go Home</option>
                                 <option value="recent">Open Last Pattern</option>
+                                <option value="ravelry">Open Ravelry</option>
                             </select>
                         </div>
                         <div class="setting-item">
@@ -1479,11 +1480,21 @@ Inc in each st around (12)
                         </div>
                         <div class="setting-item">
                             <div class="setting-info">
-                                <label>Star Badge</label>
-                                <p class="setting-description">Show star on favorite cards</p>
+                                <label>Favorite Badge</label>
+                                <p class="setting-description">Show heart badge on favorited cards</p>
                             </div>
                             <label class="toggle-switch">
                                 <input type="checkbox" id="badge-star-checkbox" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="setting-item">
+                            <div class="setting-info">
+                                <label>Rating Badge</label>
+                                <p class="setting-description">Show star rating on cards</p>
+                            </div>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="badge-rating-checkbox" checked>
                                 <span class="toggle-slider"></span>
                             </label>
                         </div>
@@ -3739,6 +3750,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=326"></script>
+    <script defer src="app.js?v=329"></script>
 </body>
 </html>

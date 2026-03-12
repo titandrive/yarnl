@@ -17,7 +17,7 @@ const SYNCED_SETTING_KEYS = [
     'selectedMascot', 'themeMascotEnabled', 'mascotAction',
     // Library display
     'showTabCounts', 'showTypeBadge', 'showStatusBadge',
-    'showCategoryBadge', 'showStarBadge',
+    'showCategoryBadge', 'showStarBadge', 'showRatingBadge',
     'librarySort', 'libraryShowCompleted', 'libraryShowCurrent',
     'libraryShowPdf', 'libraryShowMarkdown', 'libraryHighlightMode',
     'libraryPinCurrent', 'libraryPinFavorites', 'libraryShowFilter',
@@ -2833,6 +2833,7 @@ let showTypeBadge = localStorage.getItem('showTypeBadge') !== 'false';
 let showStatusBadge = localStorage.getItem('showStatusBadge') !== 'false';
 let showCategoryBadge = localStorage.getItem('showCategoryBadge') !== 'false';
 let showStarBadge = localStorage.getItem('showStarBadge') !== 'false';
+let showRatingBadge = localStorage.getItem('showRatingBadge') !== 'false';
 let autoCurrentOnTimer = localStorage.getItem('autoCurrentOnTimer') === 'true';
 let autoTimerDefault = localStorage.getItem('autoTimerDefault') === 'true';
 let autoTimerEnabled = false;
@@ -4489,6 +4490,10 @@ function initTheme() {
                         if (id) { openPDFViewer(id); return; }
                     }
                 } catch (e) {}
+            } else if (mascotAction === 'ravelry') {
+                switchToTab('settings');
+                switchToSettingsSection('ravelry');
+                return;
             }
             const defaultPage = localStorage.getItem('defaultPage') || 'current';
             switchToTab(defaultPage);
@@ -4876,6 +4881,10 @@ function initTheme() {
             if (statusBadgeCheckbox) statusBadgeCheckbox.checked = true;
             if (categoryBadgeCheckbox) categoryBadgeCheckbox.checked = true;
             if (starBadgeCheckbox) starBadgeCheckbox.checked = true;
+            localStorage.setItem('showRatingBadge', 'true');
+            showRatingBadge = true;
+            const ratingBadgeCheckbox = document.getElementById('badge-rating-checkbox');
+            if (ratingBadgeCheckbox) ratingBadgeCheckbox.checked = true;
 
             // Reset haptic
             localStorage.setItem('hapticEnabled', 'true');
@@ -6187,7 +6196,19 @@ function initSettings() {
             localStorage.setItem('showStarBadge', showStarBadge);
             displayPatterns();
             displayCurrentPatterns();
-            showToast(showStarBadge ? 'Star badge shown' : 'Star badge hidden');
+            showToast(showStarBadge ? 'Favorite badge shown' : 'Favorite badge hidden');
+        });
+    }
+
+    const badgeRatingCheckbox = document.getElementById('badge-rating-checkbox');
+    if (badgeRatingCheckbox) {
+        badgeRatingCheckbox.checked = showRatingBadge;
+        badgeRatingCheckbox.addEventListener('change', () => {
+            showRatingBadge = badgeRatingCheckbox.checked;
+            localStorage.setItem('showRatingBadge', showRatingBadge);
+            displayPatterns();
+            displayCurrentPatterns();
+            showToast(showRatingBadge ? 'Rating badge shown' : 'Rating badge hidden');
         });
     }
 
@@ -9361,7 +9382,7 @@ function renderPatternCard(pattern, options = {}) {
             ${isOwnPattern && showStatusBadge && !pattern.completed && pattern.is_current ? '<span class="current-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="white"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg></span>' : ''}
             ${showCategoryBadge && pattern.category ? `<span class="category-badge-overlay">${escapeHtml(pattern.category)}</span>` : ''}
             ${!isOwnPattern && ownerName ? `<span class="owner-badge-overlay" style="background:${userColor(ownerName)}">${escapeHtml(ownerName)}</span>` : (showTypeBadge ? `<span class="type-badge">${typeLabel}</span>` : '')}
-            ${pattern.rating ? `<span class="rating-badge">${ratingBadgeHtml(pattern.rating)}</span>` : ''}
+            ${showRatingBadge && pattern.rating ? `<span class="rating-badge">${ratingBadgeHtml(pattern.rating)}</span>` : ''}
             ${isOwnPattern && showStarBadge && pattern.is_favorite ? '<span class="favorite-badge"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg></span>' : ''}
             ${pattern.thumbnail
                 ? `<img src="${API_URL}/api/patterns/${pattern.id}/thumbnail" class="pattern-thumbnail" alt="${escapeHtml(pattern.name)}">`

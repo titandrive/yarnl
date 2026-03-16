@@ -6466,7 +6466,7 @@ function switchToSettingsSection(section, updateHistory = true) {
     settingsNavBtns.forEach(b => {
         if (b.dataset.section === section) {
             b.classList.add('active');
-            b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            b.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
         } else {
             b.classList.remove('active');
         }

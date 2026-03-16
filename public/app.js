@@ -17963,14 +17963,20 @@ function showColumnMenu(e, type) {
     if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
     if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
 
-    // Close on click outside or Escape
-    const close = (ev) => {
-        if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escClose); }
+    // Close on click outside, Escape, or inactivity timeout
+    let autoCloseTimer = null;
+    const cleanup = () => {
+        menu.remove();
+        document.removeEventListener('mousedown', close);
+        document.removeEventListener('keydown', escClose);
+        if (autoCloseTimer) clearTimeout(autoCloseTimer);
     };
-    const escClose = (ev) => {
-        if (ev.key === 'Escape') { menu.remove(); document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escClose); }
-    };
+    const close = (ev) => { if (!menu.contains(ev.target)) cleanup(); };
+    const escClose = (ev) => { if (ev.key === 'Escape') cleanup(); };
     setTimeout(() => { document.addEventListener('mousedown', close); document.addEventListener('keydown', escClose); }, 0);
+    if (window.matchMedia('(max-width: 768px), (max-height: 500px) and (max-width: 1024px)').matches) {
+        autoCloseTimer = setTimeout(cleanup, 5000);
+    }
 }
 
 function showRowMenu(e, type, id) {
@@ -18071,14 +18077,20 @@ function showRowMenu(e, type, id) {
     if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
     if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
 
-    // Close on click outside or Escape
-    const close = (ev) => {
-        if (!menu.contains(ev.target)) { menu.remove(); document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escClose); }
+    // Close on click outside, Escape, or inactivity timeout
+    let autoCloseTimer = null;
+    const cleanup = () => {
+        menu.remove();
+        document.removeEventListener('mousedown', close);
+        document.removeEventListener('keydown', escClose);
+        if (autoCloseTimer) clearTimeout(autoCloseTimer);
     };
-    const escClose = (ev) => {
-        if (ev.key === 'Escape') { menu.remove(); document.removeEventListener('mousedown', close); document.removeEventListener('keydown', escClose); }
-    };
+    const close = (ev) => { if (!menu.contains(ev.target)) cleanup(); };
+    const escClose = (ev) => { if (ev.key === 'Escape') cleanup(); };
     setTimeout(() => { document.addEventListener('mousedown', close); document.addEventListener('keydown', escClose); }, 0);
+    if (window.matchMedia('(max-width: 768px), (max-height: 500px) and (max-width: 1024px)').matches) {
+        autoCloseTimer = setTimeout(cleanup, 5000);
+    }
 }
 
 function initListRowLongPress(type) {

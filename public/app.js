@@ -17378,7 +17378,7 @@ function initInventory() {
     document.getElementById('close-yarn-modal')?.addEventListener('click', () => closeYarnModal());
     document.getElementById('yarn-modal')?.addEventListener('click', (e) => { if (e.target.id === 'yarn-modal') closeYarnModal(); });
     document.getElementById('delete-yarn-btn')?.addEventListener('click', () => { if (editingYarnId) deleteYarn(editingYarnId); });
-    document.getElementById('duplicate-yarn-btn')?.addEventListener('click', () => { if (editingYarnId) { closeYarnModal(); duplicateYarn(editingYarnId); } });
+    document.getElementById('duplicate-yarn-btn')?.addEventListener('click', () => { if (editingYarnId) { const id = editingYarnId; closeYarnModal(); duplicateYarn(id); } });
     document.getElementById('yarn-import-img-btn')?.addEventListener('click', () => importImageFromUrl('yarn'));
     document.getElementById('yarn-favorite-btn')?.addEventListener('click', () => {
         const btn = document.getElementById('yarn-favorite-btn');
@@ -17394,7 +17394,7 @@ function initInventory() {
     document.getElementById('close-hook-modal')?.addEventListener('click', () => closeHookModal());
     document.getElementById('hook-modal')?.addEventListener('click', (e) => { if (e.target.id === 'hook-modal') closeHookModal(); });
     document.getElementById('delete-hook-btn')?.addEventListener('click', () => { if (editingHookId) deleteHook(editingHookId); });
-    document.getElementById('duplicate-hook-btn')?.addEventListener('click', () => { if (editingHookId) { closeHookModal(); duplicateHook(editingHookId); } });
+    document.getElementById('duplicate-hook-btn')?.addEventListener('click', () => { if (editingHookId) { const id = editingHookId; closeHookModal(); duplicateHook(id); } });
     document.getElementById('hook-import-img-btn')?.addEventListener('click', () => importImageFromUrl('hook'));
 
     // Craft type toggle

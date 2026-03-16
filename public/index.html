@@ -66,7 +66,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=323">
+    <link rel="stylesheet" href="styles.css?v=324">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -3411,6 +3411,12 @@ Inc in each st around (12)
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <h2 id="yarn-modal-title">Add Yarn</h2>
+                <div class="modal-header-rating">
+                    <button type="button" class="yarn-fav-btn" id="yarn-favorite-btn" title="Favorite">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                    </button>
+                    <div id="yarn-rating"></div>
+                </div>
                 <button class="modal-close" id="close-yarn-modal">&times;</button>
             </div>
             <div class="edit-modal-tabs" id="yarn-modal-tabs" style="display: none;">
@@ -3517,13 +3523,9 @@ Inc in each st around (12)
                 <div id="yarn-linked-patterns"></div>
               </div>
                 <div class="modal-actions">
-                    <button type="button" class="btn btn-danger" id="delete-yarn-btn" style="display: none;">Delete Pattern</button>
+                    <button type="button" class="btn btn-danger" id="delete-yarn-btn" style="display: none;">Delete Yarn</button>
                     <button type="button" class="btn btn-secondary" id="duplicate-yarn-btn" style="display: none;">Duplicate</button>
                     <div class="modal-actions-right">
-                        <button type="button" class="yarn-fav-btn" id="yarn-favorite-btn" title="Favorite">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
-                        </button>
-                        <div id="yarn-rating"></div>
                         <button type="button" class="btn btn-secondary" id="cancel-yarn-btn">Cancel</button>
                         <button type="submit" class="btn btn-primary" id="save-yarn-btn">Add Yarn</button>
                     </div>
@@ -3537,6 +3539,12 @@ Inc in each st around (12)
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">
                 <h2 id="hook-modal-title">Add Hook</h2>
+                <div class="modal-header-rating">
+                    <button type="button" class="yarn-fav-btn" id="hook-favorite-btn" title="Favorite">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>
+                    </button>
+                    <div id="hook-rating"></div>
+                </div>
                 <button class="modal-close" id="close-hook-modal">&times;</button>
             </div>
             <div class="edit-modal-tabs" id="hook-modal-tabs" style="display: none;">
@@ -3602,10 +3610,6 @@ Inc in each st around (12)
                         </button>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Rating</label>
-                    <div id="hook-rating"></div>
-                </div>
                 <div class="form-row" style="align-items: flex-start;">
                     <div class="form-group" style="flex: 0 0 auto;">
                         <label>Photo</label>
@@ -3625,7 +3629,7 @@ Inc in each st around (12)
                 <div id="hook-linked-patterns"></div>
               </div>
                 <div class="modal-actions">
-                    <button type="button" class="btn btn-danger" id="delete-hook-btn" style="display: none;">Delete Pattern</button>
+                    <button type="button" class="btn btn-danger" id="delete-hook-btn" style="display: none;">Delete</button>
                     <button type="button" class="btn btn-secondary" id="duplicate-hook-btn" style="display: none;">Duplicate</button>
                     <div class="modal-actions-right">
                         <button type="button" class="btn btn-secondary" id="cancel-hook-btn">Cancel</button>

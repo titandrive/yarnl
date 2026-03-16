@@ -2761,6 +2761,14 @@ body.global-drag-over #current::after {
     justify-content: flex-end;
 }
 
+.modal-header-rating {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-left: auto;
+    margin-right: 12px;
+}
+
 .yarn-fav-btn {
     background: none;
     border: none;

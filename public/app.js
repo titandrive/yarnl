@@ -17384,6 +17384,10 @@ function initInventory() {
         const btn = document.getElementById('yarn-favorite-btn');
         btn.classList.toggle('active');
     });
+    document.getElementById('hook-favorite-btn')?.addEventListener('click', () => {
+        const btn = document.getElementById('hook-favorite-btn');
+        btn.classList.toggle('active');
+    });
     // Hook modal
     document.getElementById('hook-form')?.addEventListener('submit', (e) => { e.preventDefault(); saveHook(); });
     document.getElementById('cancel-hook-btn')?.addEventListener('click', () => closeHookModal());
@@ -18398,6 +18402,7 @@ function openHookModal(hookId = null) {
         : 'Add Hook / Needle';
     document.getElementById('save-hook-btn').textContent = hook ? 'Save Changes' : 'Add';
     document.getElementById('delete-hook-btn').style.display = hook ? '' : 'none';
+    document.getElementById('delete-hook-btn').textContent = isKnitting ? 'Delete Needle' : 'Delete Hook';
     document.getElementById('duplicate-hook-btn').style.display = hook ? '' : 'none';
 
     // Set craft type toggle and populate size/type selects
@@ -18421,6 +18426,14 @@ function openHookModal(hookId = null) {
 
     // Rating
     document.getElementById('hook-rating').innerHTML = ratingInputHtml('hook-rating-input', hook?.rating || 0);
+
+    // Favorite button
+    const hookFavBtn = document.getElementById('hook-favorite-btn');
+    if (hook?.is_favorite) {
+        hookFavBtn.classList.add('active');
+    } else {
+        hookFavBtn.classList.remove('active');
+    }
 
     // Set length for knitting needles
     if (isKnitting && hook?.hook_type) {
@@ -18482,7 +18495,8 @@ async function saveHook() {
         quantity: parseInt(document.getElementById('hook-quantity').value) || 1,
         url: document.getElementById('hook-url').value.trim() || null,
         notes: document.getElementById('hook-notes').value.trim() || null,
-        rating: parseInt(document.getElementById('hook-rating-input')?.dataset.rating) || 0
+        rating: parseInt(document.getElementById('hook-rating-input')?.dataset.rating) || 0,
+        is_favorite: document.getElementById('hook-favorite-btn').classList.contains('active')
     };
 
     try {

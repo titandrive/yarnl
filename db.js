@@ -355,6 +355,10 @@ async function initDatabase() {
           ALTER TABLE patterns ADD COLUMN rating INTEGER DEFAULT 0;
         END IF;
         IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                      WHERE table_name='patterns' AND column_name='difficulty') THEN
+          ALTER TABLE patterns ADD COLUMN difficulty INTEGER DEFAULT 0;
+        END IF;
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns
                       WHERE table_name='yarns' AND column_name='rating') THEN
           ALTER TABLE yarns ADD COLUMN rating INTEGER DEFAULT 0;
         END IF;

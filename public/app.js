@@ -11188,6 +11188,9 @@ function openBulkEditModal() {
     // Rating input (default 0 = no change)
     document.getElementById('bulk-rating').innerHTML = ratingInputHtml('bulk-rating-input', 0);
 
+    // Difficulty dropdown (default empty = no change)
+    document.getElementById('bulk-difficulty').value = '';
+
     document.getElementById('bulk-edit-modal').style.display = 'flex';
 }
 
@@ -11349,6 +11352,17 @@ async function applyBulkEdit() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ patternIds, rating: bulkRating })
+        }));
+    }
+
+    // Apply difficulty change
+    const bulkDifficultyVal = document.getElementById('bulk-difficulty')?.value;
+    if (bulkDifficultyVal !== '') {
+        const bulkDifficulty = parseInt(bulkDifficultyVal) || 0;
+        promises.push(fetch(`${API_URL}/api/patterns/bulk/difficulty`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patternIds, difficulty: bulkDifficulty })
         }));
     }
 
@@ -12261,6 +12275,9 @@ async function openPdfEditModal() {
     // Populate rating
     document.getElementById('pdf-edit-pattern-rating').innerHTML = ratingInputHtml('pdf-edit-pattern-rating-input', currentPattern.rating || 0);
 
+    // Populate difficulty
+    document.getElementById('pdf-edit-difficulty').value = currentPattern.difficulty || 0;
+
     // Set current toggle state
     document.getElementById('pdf-edit-is-current').checked = currentPattern.is_current || false;
 
@@ -12375,6 +12392,7 @@ async function openPatternInfoModal() {
             { label: 'Name', value: info.name },
             { label: 'Category', value: info.category || 'Uncategorized' },
             { label: 'Rating', value: (currentPattern.rating || 0) > 0 ? ratingStarsHtml(currentPattern.rating) : '—' },
+            { label: 'Difficulty', value: (currentPattern.difficulty || 0) > 0 ? currentPattern.difficulty + '/10' : '—' },
             { label: 'Type', value: info.pattern_type === 'markdown' ? 'Markdown' : 'PDF' },
             { label: 'Date Added', value: new Date(info.upload_date).toLocaleDateString() },
             { label: 'Date Started', value: info.started_date ? new Date(info.started_date).toLocaleDateString() : '—' },
@@ -12448,6 +12466,7 @@ async function savePdfEdit() {
     const hashtagIds = getSelectedHashtagIds('pdf-edit-hashtags');
     const isCurrent = document.getElementById('pdf-edit-is-current').checked;
     const rating = parseInt(document.getElementById('pdf-edit-pattern-rating-input')?.dataset.rating) || 0;
+    const difficulty = parseInt(document.getElementById('pdf-edit-difficulty')?.value) || 0;
 
     if (!name.trim()) {
         alert('Pattern name is required');
@@ -12459,7 +12478,7 @@ async function savePdfEdit() {
         const metaResponse = await fetch(`${API_URL}/api/patterns/${currentPattern.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, category, description, rating })
+            body: JSON.stringify({ name, category, description, rating, difficulty })
         });
 
         // Update current status if changed
@@ -14352,6 +14371,9 @@ async function openEditModal(patternId) {
     // Rating
     document.getElementById('edit-pattern-rating').innerHTML = ratingInputHtml('edit-pattern-rating-input', pattern.rating || 0);
 
+    // Difficulty
+    document.getElementById('edit-difficulty').value = pattern.difficulty || 0;
+
     // Swap Duplicate for Copy to My Account when viewing someone else's pattern
     const editPatternOwner = pattern.owner_username || null;
     const isEditOwnPattern = !editPatternOwner
@@ -14388,10 +14410,11 @@ async function savePatternEdits() {
     try {
         // Update pattern details
         const rating = parseInt(document.getElementById('edit-pattern-rating-input')?.dataset.rating) || 0;
+        const difficulty = parseInt(document.getElementById('edit-difficulty')?.value) || 0;
         const response = await fetch(`${API_URL}/api/patterns/${editingPatternId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, category, description, rating })
+            body: JSON.stringify({ name, category, description, rating, difficulty })
         });
 
         if (!response.ok) {
@@ -15142,6 +15165,9 @@ async function openMarkdownEditModal() {
     // Populate rating
     document.getElementById('markdown-edit-pattern-rating').innerHTML = ratingInputHtml('markdown-edit-pattern-rating-input', currentPattern.rating || 0);
 
+    // Populate difficulty
+    document.getElementById('markdown-edit-difficulty').value = currentPattern.difficulty || 0;
+
     // Set current toggle state
     document.getElementById('markdown-edit-is-current').checked = currentPattern.is_current || false;
 
@@ -15217,6 +15243,7 @@ async function saveMarkdownEdit() {
     const hashtagIds = getSelectedHashtagIds('markdown-edit-hashtags');
     const isCurrent = document.getElementById('markdown-edit-is-current').checked;
     const rating = parseInt(document.getElementById('markdown-edit-pattern-rating-input')?.dataset.rating) || 0;
+    const difficulty = parseInt(document.getElementById('markdown-edit-difficulty')?.value) || 0;
 
     if (!name.trim()) {
         alert('Pattern name is required');
@@ -15228,7 +15255,7 @@ async function saveMarkdownEdit() {
         const metaResponse = await fetch(`${API_URL}/api/patterns/${currentPattern.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, category, description, rating })
+            body: JSON.stringify({ name, category, description, rating, difficulty })
         });
 
         // Update current status if changed
@@ -17789,10 +17816,11 @@ const PATTERN_COLUMNS = {
     description: { label: 'Description', value: p => p.description ? escapeHtml(p.description.substring(0, 50)) + (p.description.length > 50 ? '...' : '') : '—' },
     favorite: { label: 'Favorite', value: p => p.is_favorite ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color:#f87171"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path></svg>' : '—' },
     rating: { label: 'Rating', value: p => ratingStarsHtml(p.rating) },
+    difficulty: { label: 'Difficulty', value: p => p.difficulty ? p.difficulty + '/10' : '—' },
     completed_date: { label: 'Completed', value: p => p.completed_date ? new Date(p.completed_date).toLocaleDateString() : '—' },
     started_date: { label: 'Started', value: p => p.started_date ? new Date(p.started_date).toLocaleDateString() : '—' },
 };
-const DEFAULT_PATTERN_COL_ORDER = ['thumbnail', 'name', 'category', 'tags', 'type', 'status', 'added', 'opened', 'time', 'description', 'favorite', 'rating', 'completed_date', 'started_date'];
+const DEFAULT_PATTERN_COL_ORDER = ['thumbnail', 'name', 'category', 'tags', 'type', 'status', 'added', 'opened', 'time', 'description', 'favorite', 'rating', 'difficulty', 'completed_date', 'started_date'];
 
 function getColumnsConfig(type) {
     return type === 'pattern' ? PATTERN_COLUMNS : (type === 'yarn' ? YARN_COLUMNS : HOOK_COLUMNS);

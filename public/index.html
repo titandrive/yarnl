@@ -66,7 +66,7 @@
         .in-settings #settings-btn .settings-back-icon, .in-settings #settings-btn .back-label { display: inline; }
     </style>
     <link rel="preload" href="fonts/jetbrains-mono-latin.woff2" as="font" type="font/woff2" crossorigin>
-    <link rel="stylesheet" href="styles.css?v=325">
+    <link rel="stylesheet" href="styles.css?v=326">
     <style>
         [data-theme="nuked-dark"] header,
         [data-theme="nuked-dark"] header h1,
@@ -2847,6 +2847,22 @@ Inc in each st around (12)
                                 </div>
                                 <div class="edit-bottom-meta">
                                     <div id="pdf-edit-pattern-rating"></div>
+                                    <div class="edit-difficulty-select">
+                                        <label for="pdf-edit-difficulty" style="font-size:0.8rem;color:var(--text-muted)">Difficulty</label>
+                                        <select id="pdf-edit-difficulty">
+                                            <option value="0">—</option>
+                                            <option value="1">1</option>
+                                            <option value="2">2</option>
+                                            <option value="3">3</option>
+                                            <option value="4">4</option>
+                                            <option value="5">5</option>
+                                            <option value="6">6</option>
+                                            <option value="7">7</option>
+                                            <option value="8">8</option>
+                                            <option value="9">9</option>
+                                            <option value="10">10</option>
+                                        </select>
+                                    </div>
                                     <div class="mark-current-toggle">
                                         <span class="mark-current-label" style="font-size:0.8rem">In progress</span>
                                         <label class="toggle-switch small">
@@ -3057,6 +3073,22 @@ Inc in each st around (12)
                         </div>
                         <div class="edit-bottom-meta">
                             <div id="markdown-edit-pattern-rating"></div>
+                            <div class="edit-difficulty-select">
+                                <label for="markdown-edit-difficulty" style="font-size:0.8rem;color:var(--text-muted)">Difficulty</label>
+                                <select id="markdown-edit-difficulty">
+                                    <option value="0">—</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10</option>
+                                </select>
+                            </div>
                             <div class="mark-current-toggle">
                                 <span class="mark-current-label" style="font-size:0.8rem">In progress</span>
                                 <label class="toggle-switch small">
@@ -3125,6 +3157,22 @@ Inc in each st around (12)
                         </div>
                         <div class="edit-bottom-meta">
                             <div id="edit-pattern-rating"></div>
+                            <div class="edit-difficulty-select">
+                                <label for="edit-difficulty" style="font-size:0.8rem;color:var(--text-muted)">Difficulty</label>
+                                <select id="edit-difficulty">
+                                    <option value="0">—</option>
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3">3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                    <option value="8">8</option>
+                                    <option value="9">9</option>
+                                    <option value="10">10</option>
+                                </select>
+                            </div>
                             <div class="mark-current-toggle">
                                 <span class="mark-current-label" style="font-size:0.8rem">In progress</span>
                                 <label class="toggle-switch small">
@@ -3389,9 +3437,28 @@ Inc in each st around (12)
                         </button>
                     </div>
                 </div>
-                <div class="form-group">
-                    <label>Set Rating</label>
-                    <div id="bulk-rating"></div>
+                <div style="display:flex;gap:20px;align-items:flex-end">
+                    <div class="form-group" style="flex:0">
+                        <label>Set Rating</label>
+                        <div id="bulk-rating"></div>
+                    </div>
+                    <div class="form-group" style="flex:0;white-space:nowrap">
+                        <label>Set Difficulty</label>
+                        <select id="bulk-difficulty" style="width:55px;padding:3px 6px;font-size:0.85rem">
+                            <option value="">—</option>
+                            <option value="0">Clear</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
+                        </select>
+                    </div>
                 </div>
                 <hr style="border-color: var(--border-color); margin: 16px 0;">
                 <div class="form-group">
@@ -3754,6 +3821,6 @@ Inc in each st around (12)
 
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script defer src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.0/marked.min.js"></script>
-    <script defer src="app.js?v=330"></script>
+    <script defer src="app.js?v=331"></script>
 </body>
 </html>

@@ -2260,11 +2260,12 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
     const finalIsCurrent = isCurrent === true || isCurrent === 'true';
     const finalIsFavorite = isFavorite === true || isFavorite === 'true';
     const finalRating = ratingOverride !== undefined ? Math.max(0, Math.min(5, parseInt(ratingOverride) || 0)) : (pattern.rating_average ? Math.round(pattern.rating_average) : 0);
+    const finalDifficulty = pattern.difficulty_average ? Math.round(pattern.difficulty_average) : 0;
     const filename = pdfFilename;
     const insertResult = await pool.query(
       `INSERT INTO patterns (name, filename, original_name, category, description, pattern_type,
-       thumbnail, user_id, ravelry_id, rating, is_current, is_favorite, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id`,
+       thumbnail, user_id, ravelry_id, rating, difficulty, is_current, is_favorite, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING id`,
       [
         finalName,
         filename,
@@ -2276,6 +2277,7 @@ app.post('/api/ravelry/import-url', authMiddleware, async (req, res) => {
         req.user.id,
         pattern.id,
         finalRating,
+        finalDifficulty,
         finalIsCurrent,
         finalIsFavorite,
         new Date()
@@ -2497,8 +2499,8 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
               const filename = pdfFilename || `ravelry_${patternId}`;
               const bulkInsertResult = await pool.query(
                 `INSERT INTO patterns (name, filename, original_name, category, description, pattern_type,
-                 thumbnail, user_id, ravelry_id, rating, created_at)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING id`,
+                 thumbnail, user_id, ravelry_id, rating, difficulty, created_at)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING id`,
                 [
                   patternName,
                   filename,
@@ -2510,6 +2512,7 @@ app.post('/api/ravelry/import', authMiddleware, async (req, res) => {
                   req.user.id,
                   patternId,
                   pattern.rating_average ? Math.round(pattern.rating_average) : 0,
+                  pattern.difficulty_average ? Math.round(pattern.difficulty_average) : 0,
                   pattern.created_at || new Date()
                 ]
               );
@@ -3731,7 +3734,7 @@ app.post('/api/patterns', upload.single('pdf'), async (req, res) => {
 // Create a new markdown pattern
 app.post('/api/patterns/markdown', async (req, res) => {
   try {
-    const { name, category, description, content, isCurrent, rating, hashtagIds } = req.body;
+    const { name, category, description, content, isCurrent, rating, difficulty, hashtagIds } = req.body;
 
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Pattern name is required' });
@@ -3745,6 +3748,7 @@ app.post('/api/patterns/markdown', async (req, res) => {
     const patternDescription = description || '';
     const patternIsCurrent = isCurrent === true || isCurrent === 'true';
     const patternRating = Math.max(0, Math.min(5, parseInt(rating) || 0));
+    const patternDifficulty = Math.max(0, Math.min(10, parseInt(difficulty) || 0));
 
     // Ensure user directories exist
     const username = req.user.username;
@@ -3763,10 +3767,10 @@ app.post('/api/patterns/markdown', async (req, res) => {
 
     const userId = req.user.id;
     const result = await pool.query(
-      `INSERT INTO patterns (name, filename, original_name, category, description, is_current, rating, pattern_type, user_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, 'markdown', $8)
+      `INSERT INTO patterns (name, filename, original_name, category, description, is_current, rating, difficulty, pattern_type, user_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'markdown', $9)
        RETURNING *`,
-      [name.trim(), filename, filename, patternCategory, patternDescription, patternIsCurrent, patternRating, userId]
+      [name.trim(), filename, filename, patternCategory, patternDescription, patternIsCurrent, patternRating, patternDifficulty, userId]
     );
 
     const pattern = result.rows[0];
@@ -4093,6 +4097,33 @@ app.post('/api/patterns/bulk/rating', async (req, res) => {
     res.json({ success: true, count });
   } catch (error) {
     console.error('Error bulk updating rating:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/patterns/bulk/difficulty', async (req, res) => {
+  try {
+    const { patternIds, difficulty } = req.body;
+    if (!patternIds || patternIds.length === 0) {
+      return res.status(400).json({ error: 'No patterns specified' });
+    }
+
+    const clampedDifficulty = Math.max(0, Math.min(10, parseInt(difficulty) || 0));
+    let count = 0;
+    for (const patternId of patternIds) {
+      const pattern = await verifyPatternOwnership(patternId, req.user?.id, req.user?.role === 'admin');
+      if (!pattern) continue;
+
+      await pool.query(
+        `UPDATE patterns SET difficulty = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2`,
+        [clampedDifficulty, patternId]
+      );
+      count++;
+    }
+
+    res.json({ success: true, count });
+  } catch (error) {
+    console.error('Error bulk updating difficulty:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -4569,8 +4600,8 @@ app.get('/api/patterns/:id/info', async (req, res) => {
 app.patch('/api/patterns/:id', async (req, res) => {
   try {
     console.log('PATCH request body:', req.body);
-    const { name, description, category, rating } = req.body;
-    console.log('Extracted values:', { name, description, category, rating });
+    const { name, description, category, rating, difficulty } = req.body;
+    console.log('Extracted values:', { name, description, category, rating, difficulty });
 
     // Verify ownership before allowing modification
     const pattern = await verifyPatternOwnership(req.params.id, req.user?.id, req.user?.role === 'admin');
@@ -4668,6 +4699,10 @@ app.patch('/api/patterns/:id', async (req, res) => {
     if (rating !== undefined) {
       updates.push(`rating = $${paramCount++}`);
       values.push(Math.max(0, Math.min(5, parseInt(rating) || 0)));
+    }
+    if (difficulty !== undefined) {
+      updates.push(`difficulty = $${paramCount++}`);
+      values.push(Math.max(0, Math.min(10, parseInt(difficulty) || 0)));
     }
 
     // Update filename if it changed
@@ -9125,11 +9160,11 @@ app.post('/api/backups/:filename/restore', authMiddleware, async (req, res) => {
       const result = await client.query(
         `INSERT INTO patterns (name, filename, original_name, upload_date, category, description,
          is_current, stitch_count, row_count, created_at, updated_at, thumbnail, current_page,
-         completed, completed_date, notes, pattern_type, content, timer_seconds, user_id, last_opened_at, rating)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING id`,
+         completed, completed_date, notes, pattern_type, content, timer_seconds, user_id, last_opened_at, rating, difficulty)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23) RETURNING id`,
         [row.name, row.filename, row.original_name, row.upload_date, row.category, row.description,
          row.is_current, row.stitch_count, row.row_count, row.created_at, row.updated_at, row.thumbnail,
-         row.current_page, row.completed, row.completed_date, row.notes, row.pattern_type, row.content, row.timer_seconds, userId, row.last_opened_at || null, row.rating || 0]
+         row.current_page, row.completed, row.completed_date, row.notes, row.pattern_type, row.content, row.timer_seconds, userId, row.last_opened_at || null, row.rating || 0, row.difficulty || 0]
       );
       patternIdMap[row.id] = result.rows[0].id;
     }

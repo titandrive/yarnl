@@ -1392,6 +1392,22 @@ html[data-theme="nuked-dark"] .btn-primary {
     justify-content: center;
 }
 
+.edit-difficulty-select {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.edit-difficulty-select select {
+    padding: 3px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    background: var(--input-bg);
+    color: var(--text-color);
+    font-size: 0.85rem;
+    width: 50px;
+}
+
 .form-group input,
 .form-group textarea,
 .form-group select {
@@ -1681,21 +1697,36 @@ html[data-theme="nuked-dark"] .btn-primary {
 
 .bulk-edit-modal-content {
     max-width: 380px;
-    padding: 22px;
+    padding: 16px;
+}
+
+.bulk-edit-modal-content .modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 0.75rem;
 }
 
 .bulk-edit-modal-content .modal-header h2 {
-    font-size: 1.2rem;
+    font-size: 1.1rem;
+}
+
+.bulk-edit-modal-content .form-group {
+    margin-bottom: 0;
 }
 
 .bulk-edit-modal-content .form-group label {
-    font-size: 0.85rem;
-    margin-bottom: 4px;
+    font-size: 0.8rem;
+    margin-bottom: 2px;
 }
 
 .bulk-edit-modal-content .modal-footer .btn {
     padding: 8px 18px;
     font-size: 0.85rem;
+}
+
+.bulk-edit-modal-content hr {
+    margin: 6px 0 !important;
 }
 
 .bulk-status-row {

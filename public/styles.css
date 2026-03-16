@@ -4589,8 +4589,8 @@ body.global-drag-over #current::after {
         padding-bottom: 52px;
     }
 
-    /* Hide desktop counter overlay */
-    .counter-overlay {
+    /* Hide desktop counter overlay in PDF viewer (mobile uses bottom bar instead) */
+    #pdf-viewer-container .counter-overlay {
         display: none !important;
     }
 

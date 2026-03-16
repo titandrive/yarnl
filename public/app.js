@@ -11519,9 +11519,17 @@ async function openPDFViewer(patternId, pushHistory = true) {
         pdfViewerContainer.style.display = 'flex';
         requestWakeLock();
 
-        // Re-show mobile bottom bar (cleared by tab switch)
+        // Move mobile bottom bar back to PDF container and re-show (may have been in markdown container)
         const mobileBottomBar = document.getElementById('mobile-bottom-bar');
-        if (mobileBottomBar) mobileBottomBar.style.display = '';
+        if (mobileBottomBar) {
+            pdfViewerContainer.appendChild(mobileBottomBar);
+            mobileBottomBar.style.display = '';
+            // Restore page navigation buttons (hidden for markdown patterns)
+            const pagePrev = mobileBottomBar.querySelector('.mobile-page-prev');
+            const pageNext = mobileBottomBar.querySelector('.mobile-page-next');
+            if (pagePrev) pagePrev.style.display = '';
+            if (pageNext) pageNext.style.display = '';
+        }
 
         // Update header
         document.getElementById('pdf-pattern-name').textContent = pattern.name;
@@ -12849,7 +12857,8 @@ const mobileBar = (() => {
     function updateBarPadding() {
         requestAnimationFrame(() => {
             const bar = document.getElementById('mobile-bottom-bar');
-            const wrapper = document.querySelector('.pdf-viewer-wrapper');
+            const wrapper = document.querySelector('.pdf-viewer-wrapper') ||
+                            document.querySelector('.markdown-viewer-wrapper');
             if (bar && wrapper) {
                 wrapper.style.paddingBottom = bar.offsetHeight + 'px';
             }
@@ -14302,6 +14311,18 @@ async function openMarkdownViewer(pattern, pushHistory = true) {
         tabContents.forEach(c => c.style.display = 'none');
         markdownViewerContainer.style.display = 'flex';
         requestWakeLock();
+
+        // Move and show mobile bottom bar (it lives in pdf-viewer-container by default)
+        const mobileBottomBar = document.getElementById('mobile-bottom-bar');
+        if (mobileBottomBar) {
+            markdownViewerContainer.appendChild(mobileBottomBar);
+            mobileBottomBar.style.display = '';
+            // Hide page navigation buttons (markdown has no pages)
+            const pagePrev = mobileBottomBar.querySelector('.mobile-page-prev');
+            const pageNext = mobileBottomBar.querySelector('.mobile-page-next');
+            if (pagePrev) pagePrev.style.display = 'none';
+            if (pageNext) pageNext.style.display = 'none';
+        }
 
         // Update header
         document.getElementById('markdown-pattern-name').textContent = pattern.name;

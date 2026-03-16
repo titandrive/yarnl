@@ -18040,6 +18040,28 @@ function showRowMenu(e, type, id) {
         addItem('Edit', '<path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>', () => openEditModal(id));
         addItem('Duplicate', '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>', () => duplicatePattern(id));
         addItem('Add to Project', '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>', () => addPatternsToNewProject([id]));
+        if (!window.matchMedia('(max-width: 768px), (max-height: 500px) and (max-width: 1024px)').matches) {
+            const openRow = document.createElement('div');
+            openRow.className = 'column-menu-item context-menu-open-in';
+            const slug = p ? getPatternSlug(p) : id;
+            const url = window.location.origin + window.location.pathname + '#pattern/' + slug;
+            openRow.innerHTML = `<span>Open in</span>
+                <span class="context-menu-open-btns">
+                    <span class="context-menu-open-btn" data-mode="tab" title="New Tab"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v17a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1H3"></path><path d="M16 19h6"></path><path d="M19 22v-6"></path></svg></span>
+                    <span class="context-menu-open-btn" data-mode="window" title="New Window"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 9V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 1.1.9 2 2 2h4"></path><rect width="10" height="7" x="12" y="13" rx="2"></rect></svg></span>
+                </span>`;
+            openRow.addEventListener('click', (ev) => {
+                const btn = ev.target.closest('[data-mode]');
+                if (!btn) return;
+                menu.remove();
+                if (btn.dataset.mode === 'tab') {
+                    window.open(url, '_blank');
+                } else {
+                    window.open(url, '_blank', 'width=1000,height=700,menubar=no,toolbar=no,location=no,status=no');
+                }
+            });
+            menu.appendChild(openRow);
+        }
         addDivider();
         addItem(enableDirectDelete ? 'Delete' : 'Archive',
             '<polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>',

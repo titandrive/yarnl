@@ -11039,6 +11039,32 @@ textarea.image-drag-over {
     background: color-mix(in srgb, var(--danger-color, #e74c3c) 15%, transparent);
 }
 
+.context-menu-open-in {
+    gap: 6px;
+}
+
+.context-menu-open-btns {
+    display: flex;
+    gap: 2px;
+    margin-left: auto;
+}
+
+.context-menu-open-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 4px;
+    cursor: pointer;
+    color: var(--text-color);
+}
+
+.context-menu-open-btn:hover {
+    background: var(--hover-bg);
+    color: var(--primary-color);
+}
+
 .context-menu-rating {
     display: flex;
     align-items: center;

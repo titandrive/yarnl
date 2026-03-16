@@ -14145,8 +14145,42 @@ function setupScrollSync(editorEl, previewEl) {
         return before[toKey] + t * (after[toKey] - before[toKey]);
     }
 
+    // Smooth scrolling: lerp toward target instead of jumping
+    let previewTarget = null;
+    let editorTarget = null;
+    let lerpRAF = null;
+
+    function lerpStep() {
+        lerpRAF = null;
+        let needsMore = false;
+        if (previewTarget !== null) {
+            const diff = previewTarget - previewEl.scrollTop;
+            if (Math.abs(diff) < 1) {
+                previewEl.scrollTop = previewTarget;
+                previewTarget = null;
+            } else {
+                previewEl.scrollTop += diff * 0.2;
+                needsMore = true;
+            }
+        }
+        if (editorTarget !== null) {
+            const diff = editorTarget - editorEl.scrollTop;
+            if (Math.abs(diff) < 1) {
+                editorEl.scrollTop = editorTarget;
+                editorTarget = null;
+            } else {
+                editorEl.scrollTop += diff * 0.2;
+                needsMore = true;
+            }
+        }
+        if (needsMore) lerpRAF = requestAnimationFrame(lerpStep);
+    }
+
+    function startLerp() {
+        if (!lerpRAF) lerpRAF = requestAnimationFrame(lerpStep);
+    }
+
     function claimScroll(source) {
-        // Prevent the other side from responding for 150ms after user stops scrolling
         if (activeSource && activeSource !== source) return false;
         activeSource = source;
         clearTimeout(activeTimer);
@@ -14158,32 +14192,52 @@ function setupScrollSync(editorEl, previewEl) {
         if (!claimScroll('editor')) return;
         if (!scrollMap) scrollMap = buildScrollMap();
 
+        let target;
         if (!scrollMap) {
             const maxScroll = editorEl.scrollHeight - editorEl.clientHeight;
             if (maxScroll <= 0) return;
-            previewEl.scrollTop = (editorEl.scrollTop / maxScroll) * (previewEl.scrollHeight - previewEl.clientHeight);
+            target = (editorEl.scrollTop / maxScroll) * (previewEl.scrollHeight - previewEl.clientHeight);
         } else {
-            previewEl.scrollTop = interpolate(scrollMap, 'editorOffset', 'previewOffset', editorEl.scrollTop);
+            target = interpolate(scrollMap, 'editorOffset', 'previewOffset', editorEl.scrollTop);
         }
+        previewTarget = target;
+        editorTarget = null;
+        startLerp();
     }
 
     function onPreviewScroll() {
         if (!claimScroll('preview')) return;
         if (!scrollMap) scrollMap = buildScrollMap();
 
+        let target;
         if (!scrollMap) {
             const maxPreview = previewEl.scrollHeight - previewEl.clientHeight;
             if (maxPreview <= 0) return;
             const maxEditor = editorEl.scrollHeight - editorEl.clientHeight;
-            editorEl.scrollTop = (previewEl.scrollTop / maxPreview) * maxEditor;
+            target = (previewEl.scrollTop / maxPreview) * maxEditor;
         } else {
-            editorEl.scrollTop = interpolate(scrollMap, 'previewOffset', 'editorOffset', previewEl.scrollTop);
+            target = interpolate(scrollMap, 'previewOffset', 'editorOffset', previewEl.scrollTop);
         }
+        editorTarget = target;
+        previewTarget = null;
+        startLerp();
     }
 
     // Invalidate map when content changes
     const observer = new MutationObserver(() => { scrollMap = null; });
     observer.observe(previewEl, { childList: true, subtree: true });
+
+    // Invalidate map when images load (they change layout heights)
+    function onImageLoad() { scrollMap = null; }
+    function watchImages() {
+        previewEl.querySelectorAll('img').forEach(img => {
+            if (!img.complete) img.addEventListener('load', onImageLoad, { once: true });
+        });
+    }
+    watchImages();
+    // Re-watch when new content is added (covers live preview updates)
+    const imgObserver = new MutationObserver(watchImages);
+    imgObserver.observe(previewEl, { childList: true, subtree: true });
 
     editorEl.addEventListener('scroll', onEditorScroll, { passive: true });
     previewEl.addEventListener('scroll', onPreviewScroll, { passive: true });
@@ -14192,7 +14246,9 @@ function setupScrollSync(editorEl, previewEl) {
         editorEl.removeEventListener('scroll', onEditorScroll);
         previewEl.removeEventListener('scroll', onPreviewScroll);
         observer.disconnect();
+        imgObserver.disconnect();
         clearTimeout(activeTimer);
+        if (lerpRAF) cancelAnimationFrame(lerpRAF);
         if (editorEl._scrollSyncMirror) {
             editorEl._scrollSyncMirror.remove();
             editorEl._scrollSyncMirror = null;

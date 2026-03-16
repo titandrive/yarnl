@@ -18,7 +18,7 @@ const SYNCED_SETTING_KEYS = [
     // Library display
     'showTabCounts', 'showTypeBadge', 'showStatusBadge',
     'showCategoryBadge', 'showStarBadge', 'showRatingBadge',
-    'librarySort', 'libraryShowCompleted', 'libraryShowCurrent',
+    'librarySort', 'patternListSort', 'libraryShowCompleted', 'libraryShowCurrent',
     'libraryShowPdf', 'libraryShowMarkdown', 'libraryHighlightMode',
     'libraryPinCurrent', 'libraryPinFavorites', 'libraryShowFilter',
     'libraryCategoryFilter',
@@ -2794,7 +2794,10 @@ let hooks = []; // Hook inventory
 let inventoryView = localStorage.getItem('inventoryView') || 'card';
 let inventorySubTab = localStorage.getItem('inventorySubTab') || 'yarn';
 let libraryView = localStorage.getItem('libraryView') || 'card';
-let patternListSort = { col: 'name', dir: 'asc' };
+let patternListSort = (() => {
+    try { return JSON.parse(localStorage.getItem('patternListSort')) || { col: 'name', dir: 'asc' }; }
+    catch { return { col: 'name', dir: 'asc' }; }
+})();
 let libraryEditMode = false;
 let yarnSort = JSON.parse(localStorage.getItem('yarnSort') || '{"col":"brand","dir":"asc"}');
 let hookSort = JSON.parse(localStorage.getItem('hookSort') || '{"col":"brand","dir":"asc"}');
@@ -18134,6 +18137,7 @@ function togglePatternListSort(col) {
         patternListSort.col = col;
         patternListSort.dir = 'asc';
     }
+    localStorage.setItem('patternListSort', JSON.stringify(patternListSort));
     displayPatterns();
 }
 

@@ -18041,6 +18041,7 @@ function showRowMenu(e, type, id) {
         addItem('Duplicate', '<rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>', () => duplicatePattern(id));
         addItem('Add to Project', '<path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>', () => addPatternsToNewProject([id]));
         if (!window.matchMedia('(max-width: 768px), (max-height: 500px) and (max-width: 1024px)').matches) {
+            addDivider();
             const openRow = document.createElement('div');
             openRow.className = 'column-menu-item context-menu-open-in';
             const slug = p ? getPatternSlug(p) : id;

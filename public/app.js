@@ -14025,30 +14025,178 @@ function renderMarkdown(text) {
 }
 
 // Scroll sync between editor textarea and preview pane
+// Bidirectional with line-to-element mapping. Whichever side the user scrolls
+// drives the other. Uses marked.lexer() to map source tokens to preview children.
 function setupScrollSync(editorEl, previewEl) {
-    let syncing = false;
+    let activeSource = null; // 'editor' | 'preview' | null
+    let activeTimer = null;
+    let scrollMap = null;
 
-    function syncScroll(source, target) {
-        if (syncing) return;
-        syncing = true;
-        const maxScroll = source.scrollHeight - source.clientHeight;
-        const ratio = maxScroll > 0 ? source.scrollTop / maxScroll : 0;
-        const targetMax = target.scrollHeight - target.clientHeight;
-        target.scrollTop = ratio * targetMax;
-        // Reset flag after browser paints the scroll
-        requestAnimationFrame(() => { syncing = false; });
+    function buildScrollMap() {
+        if (typeof marked === 'undefined') return null;
+        const text = editorEl.value;
+        if (!text) return null;
+
+        const tokens = marked.lexer(text, { breaks: true, gfm: true });
+        const children = Array.from(previewEl.children);
+        if (children.length === 0) return null;
+
+        // Use a hidden mirror div to measure where each token starts
+        // vertically in the editor, accounting for line wrapping.
+        let mirror = editorEl._scrollSyncMirror;
+        if (!mirror) {
+            mirror = document.createElement('div');
+            mirror.style.cssText = 'position:absolute;visibility:hidden;overflow:hidden;pointer-events:none;';
+            editorEl.parentNode.appendChild(mirror);
+            editorEl._scrollSyncMirror = mirror;
+        }
+        // Copy textarea styles that affect text layout
+        const cs = getComputedStyle(editorEl);
+        mirror.style.width = cs.width;
+        mirror.style.font = cs.font;
+        mirror.style.letterSpacing = cs.letterSpacing;
+        mirror.style.wordSpacing = cs.wordSpacing;
+        mirror.style.lineHeight = cs.lineHeight;
+        mirror.style.padding = cs.padding;
+        mirror.style.border = cs.border;
+        mirror.style.boxSizing = cs.boxSizing;
+        mirror.style.whiteSpace = 'pre-wrap';
+        mirror.style.wordWrap = 'break-word';
+        mirror.style.overflowWrap = 'break-word';
+
+        // Build mirror content with marker spans at each token boundary
+        const map = [];
+        let childIdx = 0;
+        let htmlParts = [];
+        let markerIdx = 0;
+        const markers = []; // {idx, childEl, previewOffset}
+
+        for (const token of tokens) {
+            if (!token.raw) continue;
+            if (token.type === 'space') {
+                htmlParts.push(escapeHtml(token.raw));
+                continue;
+            }
+            if (childIdx >= children.length) {
+                htmlParts.push(escapeHtml(token.raw));
+                continue;
+            }
+
+            const childEl = children[childIdx];
+
+            // For lists, add a marker per list item
+            if (token.type === 'list' && token.items && token.items.length > 0) {
+                const listItems = childEl.querySelectorAll(':scope > li');
+                for (let i = 0; i < token.items.length; i++) {
+                    const item = token.items[i];
+                    const id = markerIdx++;
+                    htmlParts.push(`<span data-m="${id}"></span>`);
+                    if (i < listItems.length) {
+                        markers.push({ id, previewOffset: listItems[i].offsetTop });
+                    }
+                    htmlParts.push(escapeHtml(item.raw || ''));
+                }
+            } else {
+                const id = markerIdx++;
+                htmlParts.push(`<span data-m="${id}"></span>`);
+                markers.push({ id, previewOffset: childEl.offsetTop });
+                htmlParts.push(escapeHtml(token.raw));
+            }
+
+            childIdx++;
+        }
+
+        mirror.innerHTML = htmlParts.join('');
+
+        // Read marker positions from the mirror
+        const editorMaxScroll = mirror.scrollHeight - editorEl.clientHeight;
+        for (const m of markers) {
+            const markerEl = mirror.querySelector(`[data-m="${m.id}"]`);
+            if (markerEl) {
+                map.push({
+                    editorOffset: markerEl.offsetTop,
+                    previewOffset: m.previewOffset
+                });
+            }
+        }
+
+        // Add end sentinel
+        if (map.length > 0) {
+            map.push({
+                editorOffset: mirror.scrollHeight,
+                previewOffset: previewEl.scrollHeight
+            });
+        }
+
+        return map.length > 1 ? map : null;
     }
 
-    function onEditorScroll() { syncScroll(editorEl, previewEl); }
-    function onPreviewScroll() { syncScroll(previewEl, editorEl); }
+    function interpolate(map, fromKey, toKey, value) {
+        let before = map[0], after = map[map.length - 1];
+        for (let i = 0; i < map.length - 1; i++) {
+            if (map[i][fromKey] <= value && map[i + 1][fromKey] > value) {
+                before = map[i];
+                after = map[i + 1];
+                break;
+            }
+        }
+        const range = after[fromKey] - before[fromKey];
+        const t = range > 0 ? (value - before[fromKey]) / range : 0;
+        return before[toKey] + t * (after[toKey] - before[toKey]);
+    }
 
-    editorEl.addEventListener('scroll', onEditorScroll);
-    previewEl.addEventListener('scroll', onPreviewScroll);
+    function claimScroll(source) {
+        // Prevent the other side from responding for 150ms after user stops scrolling
+        if (activeSource && activeSource !== source) return false;
+        activeSource = source;
+        clearTimeout(activeTimer);
+        activeTimer = setTimeout(() => { activeSource = null; }, 150);
+        return true;
+    }
 
-    // Return cleanup function
+    function onEditorScroll() {
+        if (!claimScroll('editor')) return;
+        if (!scrollMap) scrollMap = buildScrollMap();
+
+        if (!scrollMap) {
+            const maxScroll = editorEl.scrollHeight - editorEl.clientHeight;
+            if (maxScroll <= 0) return;
+            previewEl.scrollTop = (editorEl.scrollTop / maxScroll) * (previewEl.scrollHeight - previewEl.clientHeight);
+        } else {
+            previewEl.scrollTop = interpolate(scrollMap, 'editorOffset', 'previewOffset', editorEl.scrollTop);
+        }
+    }
+
+    function onPreviewScroll() {
+        if (!claimScroll('preview')) return;
+        if (!scrollMap) scrollMap = buildScrollMap();
+
+        if (!scrollMap) {
+            const maxPreview = previewEl.scrollHeight - previewEl.clientHeight;
+            if (maxPreview <= 0) return;
+            const maxEditor = editorEl.scrollHeight - editorEl.clientHeight;
+            editorEl.scrollTop = (previewEl.scrollTop / maxPreview) * maxEditor;
+        } else {
+            editorEl.scrollTop = interpolate(scrollMap, 'previewOffset', 'editorOffset', previewEl.scrollTop);
+        }
+    }
+
+    // Invalidate map when content changes
+    const observer = new MutationObserver(() => { scrollMap = null; });
+    observer.observe(previewEl, { childList: true, subtree: true });
+
+    editorEl.addEventListener('scroll', onEditorScroll, { passive: true });
+    previewEl.addEventListener('scroll', onPreviewScroll, { passive: true });
+
     return function cleanup() {
         editorEl.removeEventListener('scroll', onEditorScroll);
         previewEl.removeEventListener('scroll', onPreviewScroll);
+        observer.disconnect();
+        clearTimeout(activeTimer);
+        if (editorEl._scrollSyncMirror) {
+            editorEl._scrollSyncMirror.remove();
+            editorEl._scrollSyncMirror = null;
+        }
     };
 }
 

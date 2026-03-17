@@ -17997,13 +17997,16 @@ function showColumnMenu(e, type) {
         menu.remove();
         document.removeEventListener('mousedown', close);
         document.removeEventListener('keydown', escClose);
+        window.removeEventListener('scroll', scrollClose, true);
         if (autoCloseTimer) clearTimeout(autoCloseTimer);
     };
     const close = (ev) => { if (!menu.contains(ev.target)) cleanup(); };
     const escClose = (ev) => { if (ev.key === 'Escape') cleanup(); };
+    const scrollClose = () => cleanup();
     setTimeout(() => { document.addEventListener('mousedown', close); document.addEventListener('keydown', escClose); }, 0);
     if (window.matchMedia('(max-width: 768px), (max-height: 500px) and (max-width: 1024px)').matches) {
         autoCloseTimer = setTimeout(cleanup, 5000);
+        window.addEventListener('scroll', scrollClose, true);
     }
 }
 
@@ -18134,13 +18137,16 @@ function showRowMenu(e, type, id) {
         menu.remove();
         document.removeEventListener('mousedown', close);
         document.removeEventListener('keydown', escClose);
+        window.removeEventListener('scroll', scrollClose, true);
         if (autoCloseTimer) clearTimeout(autoCloseTimer);
     };
     const close = (ev) => { if (!menu.contains(ev.target)) cleanup(); };
     const escClose = (ev) => { if (ev.key === 'Escape') cleanup(); };
+    const scrollClose = () => cleanup();
     setTimeout(() => { document.addEventListener('mousedown', close); document.addEventListener('keydown', escClose); }, 0);
     if (window.matchMedia('(max-width: 768px), (max-height: 500px) and (max-width: 1024px)').matches) {
         autoCloseTimer = setTimeout(cleanup, 5000);
+        window.addEventListener('scroll', scrollClose, true);
     }
 }
 

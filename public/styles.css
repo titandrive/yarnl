@@ -11056,6 +11056,20 @@ textarea.image-drag-over {
     height: 10px;
 }
 
+.filter-active {
+    position: relative;
+}
+.filter-active::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 6px;
+    height: 6px;
+    background: var(--primary-color);
+    border-radius: 50%;
+}
+
 .context-menu-divider {
     height: 1px;
     background: var(--border-color);

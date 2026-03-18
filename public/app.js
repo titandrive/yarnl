@@ -9598,6 +9598,18 @@ function displayPatterns() {
         if (sidebar) sidebar.classList.remove('mobile-visible');
         if (mobileFilterBtn2) mobileFilterBtn2.classList.remove('active');
     }
+    // Show/hide list filter buttons based on view
+    const listFilterBtn = document.getElementById('library-list-filter-btn');
+    const mobileListFilterBtn = document.getElementById('library-mobile-list-filter-btn');
+    const filtersActive = !showCompleted || !showCurrent || !showPdf || !showMarkdown;
+    if (listFilterBtn) {
+        listFilterBtn.style.display = libraryView === 'list' ? '' : 'none';
+        listFilterBtn.classList.toggle('filter-active', filtersActive);
+    }
+    if (mobileListFilterBtn) {
+        mobileListFilterBtn.style.display = libraryView === 'list' ? '' : 'none';
+        mobileListFilterBtn.classList.toggle('filter-active', filtersActive);
+    }
     const libraryLayout = document.getElementById('library-layout');
     if (libraryLayout) libraryLayout.classList.toggle('library-list-view', libraryView === 'list');
 
@@ -18008,6 +18020,77 @@ function showColumnMenu(e, type) {
         autoCloseTimer = setTimeout(cleanup, 5000);
         window.addEventListener('scroll', scrollClose, true);
     }
+}
+
+function showListFilterMenu(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    const existing = document.getElementById('list-filter-menu');
+    if (existing) { existing.remove(); return; }
+
+    const btn = e.currentTarget;
+    const btnRect = btn.getBoundingClientRect();
+    const menu = document.createElement('div');
+    menu.id = 'list-filter-menu';
+    menu.className = 'column-menu';
+    menu.style.left = btnRect.left + 'px';
+    menu.style.top = (btnRect.bottom + 4) + 'px';
+
+    const filters = [
+        { label: 'Status', items: [
+            { key: 'showCompleted', label: 'Completed', lsKey: 'libraryShowCompleted' },
+            { key: 'showCurrent', label: 'In Progress', lsKey: 'libraryShowCurrent' },
+        ]},
+        { label: 'Type', items: [
+            { key: 'showPdf', label: 'PDF', lsKey: 'libraryShowPdf' },
+            { key: 'showMarkdown', label: 'Markdown', lsKey: 'libraryShowMarkdown' },
+        ]},
+    ];
+
+    const vars = { showCompleted, showCurrent, showPdf, showMarkdown };
+
+    for (const section of filters) {
+        const header = document.createElement('div');
+        header.style.cssText = 'padding:6px 12px 2px;font-size:11px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:0.5px';
+        header.textContent = section.label;
+        menu.appendChild(header);
+        for (const f of section.items) {
+            const item = document.createElement('div');
+            item.className = 'column-menu-item';
+            item.innerHTML = `<input type="checkbox" ${vars[f.key] ? 'checked' : ''} data-key="${f.key}"><span class="col-check"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></span><span>${f.label}</span>`;
+            item.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                const cb = item.querySelector('input');
+                cb.checked = !cb.checked;
+                const val = cb.checked;
+                if (f.key === 'showCompleted') showCompleted = val;
+                else if (f.key === 'showCurrent') showCurrent = val;
+                else if (f.key === 'showPdf') showPdf = val;
+                else if (f.key === 'showMarkdown') showMarkdown = val;
+                localStorage.setItem(f.lsKey, val);
+                const sidebarCb = document.getElementById(f.key === 'showCompleted' ? 'show-completed' : f.key === 'showCurrent' ? 'show-current' : f.key === 'showPdf' ? 'show-pdf' : 'show-markdown');
+                if (sidebarCb) sidebarCb.checked = val;
+                displayPatterns();
+            });
+            menu.appendChild(item);
+        }
+    }
+
+    document.body.appendChild(menu);
+
+    // Keep menu in viewport
+    const rect = menu.getBoundingClientRect();
+    if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+    if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+
+    const close = (ev) => {
+        if (!menu.contains(ev.target) && !btn.contains(ev.target)) {
+            menu.remove();
+            document.removeEventListener('click', close, true);
+        }
+    };
+    setTimeout(() => document.addEventListener('click', close, true), 0);
 }
 
 function showRowMenu(e, type, id) {

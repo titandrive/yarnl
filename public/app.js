@@ -11522,8 +11522,8 @@ async function openPDFViewer(patternId, pushHistory = true) {
         autoTimerEnabled = savedAutoTimer !== null ? savedAutoTimer === 'true' : autoTimerDefault;
         autoTimerPausedInactive = false;
         updateAutoTimerButtonState();
-        if (autoTimerEnabled) {
-            // Start timer and inactivity tracking
+        if (autoTimerEnabled && pattern.timer_seconds > 0) {
+            // Start timer and inactivity tracking (only if manually started before)
             startTimer();
             if (inactivityTimeout) clearTimeout(inactivityTimeout);
             if (inactivityDelay > 0) {
@@ -14528,8 +14528,8 @@ async function openMarkdownViewer(pattern, pushHistory = true) {
         autoTimerEnabled = savedAutoTimer !== null ? savedAutoTimer === 'true' : autoTimerDefault;
         autoTimerPausedInactive = false;
         updateAutoTimerButtonState();
-        if (autoTimerEnabled) {
-            // Start timer and inactivity tracking
+        if (autoTimerEnabled && pattern.timer_seconds > 0) {
+            // Start timer and inactivity tracking (only if manually started before)
             startTimer();
             if (inactivityTimeout) clearTimeout(inactivityTimeout);
             if (inactivityDelay > 0) {

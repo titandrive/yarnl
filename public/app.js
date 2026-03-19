@@ -3142,7 +3142,20 @@ function startTimer() {
         toggleCurrent(currentPattern.id, true);
     }
 
+    let lastTick = Date.now();
     timerInterval = setInterval(() => {
+        const now = Date.now();
+        const elapsed = now - lastTick;
+        lastTick = now;
+        // If more than 5 seconds passed since last tick, device likely slept — pause timer
+        if (elapsed > 5000) {
+            stopTimer();
+            if (autoTimerEnabled) {
+                autoTimerPausedInactive = true;
+                updateAutoTimerButtonState();
+            }
+            return;
+        }
         timerSeconds++;
         updateTimerDisplay();
 

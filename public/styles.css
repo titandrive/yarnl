@@ -5088,6 +5088,48 @@ body.global-drag-over #current::after {
     .staged-file-header {
         flex-direction: column;
     }
+
+    .staged-files-list {
+        grid-template-columns: 1fr;
+    }
+
+    .staged-file-layout {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .staged-file-sidebar {
+        flex-direction: row;
+        width: 100%;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .staged-file-thumbnail {
+        width: 50px;
+        height: 65px;
+    }
+
+    .staged-file-current-toggle {
+        flex-direction: row;
+        gap: 8px;
+    }
+
+    .staged-file-info {
+        margin-bottom: 0;
+    }
+
+    .staged-file-form-row {
+        flex-direction: column;
+    }
+
+    .upload-container {
+        padding: 0 4px;
+    }
+
+    .drop-zone {
+        padding: 20px 12px;
+    }
 }
 
 /* Settings Page */

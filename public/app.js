@@ -54,17 +54,23 @@ function scheduleSyncSettings() {
     _settingsSyncTimer = setTimeout(syncSettingsToServer, 2000);
 }
 
-async function syncSettingsToServer() {
+async function syncSettingsToServer(retries = 2) {
     _settingsSyncTimer = null;
     try {
         const settings = getClientSettings();
-        await fetch(`${API_URL}/api/user/settings`, {
+        const resp = await fetch(`${API_URL}/api/user/settings`, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(settings)
         });
+        if (!resp.ok && retries > 0) {
+            setTimeout(() => syncSettingsToServer(retries - 1), 3000);
+        }
     } catch (error) {
         console.error('Settings sync failed:', error);
+        if (retries > 0) {
+            setTimeout(() => syncSettingsToServer(retries - 1), 3000);
+        }
     }
 }
 
@@ -9211,6 +9217,7 @@ function initLibraryFilters() {
         sortSelect.addEventListener('change', (e) => {
             selectedSort = e.target.value;
             localStorage.setItem('librarySort', selectedSort);
+            syncSettingsToServer();
             displayPatterns();
         });
     }
@@ -18325,6 +18332,7 @@ function togglePatternListSort(col) {
         patternListSort.dir = 'asc';
     }
     localStorage.setItem('patternListSort', JSON.stringify(patternListSort));
+    syncSettingsToServer();
     displayPatterns();
 }
 

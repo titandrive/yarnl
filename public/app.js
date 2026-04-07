@@ -9059,12 +9059,25 @@ async function handleNewHashtagInline(event, selectorId) {
 
         const newHashtag = await response.json();
 
-        // Reload hashtags
-        await loadHashtags();
+        // Save all staged files' hashtag selections before re-render
+        for (const sf of stagedFiles) {
+            const ids = getSelectedHashtagIds(`staged-${sf.id}`);
+            if (ids.length > 0) sf.hashtagIds = ids;
+        }
 
-        // Get current selections and add the new one
+        // Get current selections and add the new one (before loadHashtags re-renders)
         const currentSelections = getSelectedHashtagIds(selectorId);
         currentSelections.push(newHashtag.id);
+
+        // Update staged file data if this is a staged selector
+        if (selectorId.startsWith('staged-')) {
+            const fileId = selectorId.replace('staged-', '');
+            const stagedFile = stagedFiles.find(f => f.id === fileId);
+            if (stagedFile) stagedFile.hashtagIds = currentSelections;
+        }
+
+        // Reload hashtags (triggers renderStagedFiles which now uses saved hashtagIds)
+        await loadHashtags();
 
         // Re-render the selector with new hashtag selected
         const selector = document.querySelector(`.hashtag-selector[data-id="${selectorId}"]`);
@@ -9102,6 +9115,15 @@ async function toggleHashtagSelection(selectorId, hashtagId, isSelected) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ hashtagIds })
         });
+    }
+
+    // Save to staged file data so re-renders preserve selections
+    if (selectorId.startsWith('staged-')) {
+        const fileId = selectorId.replace('staged-', '');
+        const stagedFile = stagedFiles.find(f => f.id === fileId);
+        if (stagedFile) {
+            stagedFile.hashtagIds = getSelectedHashtagIds(selectorId);
+        }
     }
 
     // Trigger callback for staged files

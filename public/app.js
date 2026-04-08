@@ -13581,25 +13581,36 @@ function updateCounterDisplay(counterId) {
 async function incrementCounter(counterId) {
     try {
         lastUsedCounterId = counterId;
-        const response = await fetch(`${API_URL}/api/counters/${counterId}/increment`, {
-            method: 'POST'
-        });
+        const counter = counters.find(c => c.id === counterId);
+        if (!counter) return;
+
+        // Optimistic update
+        const prevValue = counter.value;
+        counter.value = (counter.max_value != null && counter.value >= counter.max_value) ? 1 : counter.value + 1;
+        updateCounterDisplay(counterId);
+
+        let mainPrevValue;
+        const main = !counter.is_main && !counter.unlinked ? counters.find(c => c.is_main) : null;
+        if (main) {
+            mainPrevValue = main.value;
+            main.value = (main.max_value != null && main.value >= main.max_value) ? 1 : main.value + 1;
+            updateCounterDisplay(main.id);
+        }
+
+        const response = await fetch(`${API_URL}/api/counters/${counterId}/increment`, { method: 'POST' });
 
         if (response.ok) {
             const data = await response.json();
             const updated = data.counter || data;
-            const counter = counters.find(c => c.id === counterId);
-            if (counter) {
-                counter.value = updated.value;
-                updateCounterDisplay(counterId);
-            }
+            if (counter.value !== updated.value) { counter.value = updated.value; updateCounterDisplay(counterId); }
             if (data.main_counter) {
-                const main = counters.find(c => c.id === data.main_counter.id);
-                if (main) {
-                    main.value = data.main_counter.value;
-                    updateCounterDisplay(main.id);
-                }
+                const m = counters.find(c => c.id === data.main_counter.id);
+                if (m && m.value !== data.main_counter.value) { m.value = data.main_counter.value; updateCounterDisplay(m.id); }
             }
+        } else {
+            counter.value = prevValue;
+            updateCounterDisplay(counterId);
+            if (main) { main.value = mainPrevValue; updateCounterDisplay(main.id); }
         }
     } catch (error) {
         console.error('Error incrementing counter:', error);
@@ -13609,25 +13620,36 @@ async function incrementCounter(counterId) {
 async function decrementCounter(counterId) {
     try {
         lastUsedCounterId = counterId;
-        const response = await fetch(`${API_URL}/api/counters/${counterId}/decrement`, {
-            method: 'POST'
-        });
+        const counter = counters.find(c => c.id === counterId);
+        if (!counter) return;
+
+        // Optimistic update
+        const prevValue = counter.value;
+        counter.value = Math.max(counter.value - 1, 0);
+        updateCounterDisplay(counterId);
+
+        let mainPrevValue;
+        const main = !counter.is_main && !counter.unlinked ? counters.find(c => c.is_main) : null;
+        if (main) {
+            mainPrevValue = main.value;
+            main.value = Math.max(main.value - 1, 0);
+            updateCounterDisplay(main.id);
+        }
+
+        const response = await fetch(`${API_URL}/api/counters/${counterId}/decrement`, { method: 'POST' });
 
         if (response.ok) {
             const data = await response.json();
             const updated = data.counter || data;
-            const counter = counters.find(c => c.id === counterId);
-            if (counter) {
-                counter.value = updated.value;
-                updateCounterDisplay(counterId);
-            }
+            if (counter.value !== updated.value) { counter.value = updated.value; updateCounterDisplay(counterId); }
             if (data.main_counter) {
-                const main = counters.find(c => c.id === data.main_counter.id);
-                if (main) {
-                    main.value = data.main_counter.value;
-                    updateCounterDisplay(main.id);
-                }
+                const m = counters.find(c => c.id === data.main_counter.id);
+                if (m && m.value !== data.main_counter.value) { m.value = data.main_counter.value; updateCounterDisplay(m.id); }
             }
+        } else {
+            counter.value = prevValue;
+            updateCounterDisplay(counterId);
+            if (main) { main.value = mainPrevValue; updateCounterDisplay(main.id); }
         }
     } catch (error) {
         console.error('Error decrementing counter:', error);

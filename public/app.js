@@ -13041,8 +13041,8 @@ const mobileBar = (() => {
             if (cardsContainer) {
                 if (carousel.length === 1) {
                     // Single card — no scrolling
-                    const existing = cardsContainer.querySelector('.mobile-counter-card');
-                    if (!existing || existing.dataset.counterId != carousel[0].id) {
+                    const existingSingle = cardsContainer.querySelectorAll('.mobile-counter-card');
+                    if (existingSingle.length !== 1 || existingSingle[0].dataset.counterId != carousel[0].id) {
                         cardsContainer.innerHTML = renderCounterHTML(carousel[0], 'mobile-counter-card', 'mobile-counter-card-label');
                     } else {
                         updateCounterInPlace(cardsContainer, carousel[0], '.mobile-counter-card');

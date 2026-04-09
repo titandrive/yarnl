@@ -13534,7 +13534,9 @@ const mobileBar = (() => {
         }
     }
 
-    return { init, update, updatePageInfo };
+    function resetIndex() { currentIndex = 0; }
+
+    return { init, update, updatePageInfo, resetIndex };
 })();
 
 async function addCounter(defaultName = 'New Counter') {
@@ -13748,9 +13750,10 @@ async function deleteCounter(counterId) {
             counters = counters.filter(c => c.id !== counterId);
 
             if (lastUsedCounterId === counterId) {
-                lastUsedCounterId = null;
+                lastUsedCounterId = counters.length > 0 ? counters[0].id : null;
             }
 
+            mobileBar.resetIndex();
             displayCounters();
             mobileBar.update();
         }

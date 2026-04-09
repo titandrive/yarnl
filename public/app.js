@@ -13508,20 +13508,8 @@ const mobileBar = (() => {
                     setPinnedIds(ids.filter(id => id !== counter.id));
                 }
                 await deleteCounter(counter.id);
-                if (counters.length === 0) {
-                    toggleEdit(false);
-                } else {
-                    editingCounterId = null;
-                    update();
-                    const carousel = getCarouselCounters();
-                    if (carousel.length > 0) {
-                        if (currentIndex >= carousel.length) currentIndex = carousel.length - 1;
-                        editingCounterId = carousel[currentIndex].id;
-                        toggleEdit(true);
-                    } else {
-                        toggleEdit(false);
-                    }
-                }
+                editingCounterId = null;
+                toggleEdit(false);
             });
             bar.querySelector('.mobile-edit-name').addEventListener('change', (e) => {
                 const counter = getEditingCounter();
@@ -13759,12 +13747,12 @@ async function deleteCounter(counterId) {
         if (response.ok) {
             counters = counters.filter(c => c.id !== counterId);
 
-            // Clear lastUsedCounterId if we deleted that counter
             if (lastUsedCounterId === counterId) {
                 lastUsedCounterId = null;
             }
 
             displayCounters();
+            mobileBar.update();
         }
     } catch (error) {
         console.error('Error deleting counter:', error);

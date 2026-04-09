@@ -13217,6 +13217,8 @@ const mobileBar = (() => {
             }
             editingCounterId = null;
             editPanel.style.display = 'none';
+            const deleteBtn = bar.querySelector('.mobile-edit-delete');
+            if (deleteBtn) { deleteBtn.classList.remove('confirming'); deleteBtn.textContent = 'Delete'; }
             update();
             displayCounters();
         }
@@ -13486,10 +13488,21 @@ const mobileBar = (() => {
                 await resetCounter(counter.id);
                 update();
             });
-            bar.querySelector('.mobile-edit-delete').addEventListener('click', async () => {
+            bar.querySelector('.mobile-edit-delete').addEventListener('click', async (e) => {
+                const btn = e.currentTarget;
+                if (!btn.classList.contains('confirming')) {
+                    btn.classList.add('confirming');
+                    btn.textContent = 'Confirm?';
+                    setTimeout(() => {
+                        btn.classList.remove('confirming');
+                        btn.textContent = 'Delete';
+                    }, 3000);
+                    return;
+                }
+                btn.classList.remove('confirming');
+                btn.textContent = 'Delete';
                 const counter = getEditingCounter();
                 if (!counter) return;
-                // Remove from pinned IDs if pinned
                 const ids = getPinnedIds();
                 if (ids.includes(counter.id)) {
                     setPinnedIds(ids.filter(id => id !== counter.id));
@@ -13500,7 +13513,6 @@ const mobileBar = (() => {
                 } else {
                     editingCounterId = null;
                     update();
-                    // Open edit panel for next counter in carousel if available
                     const carousel = getCarouselCounters();
                     if (carousel.length > 0) {
                         if (currentIndex >= carousel.length) currentIndex = carousel.length - 1;

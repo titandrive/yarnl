@@ -17584,7 +17584,10 @@ function initInventory() {
             document.getElementById('add-yarn-btn').style.display = btn.dataset.sub === 'yarn' ? '' : 'none';
             document.getElementById('add-hook-btn').style.display = btn.dataset.sub === 'hooks' ? '' : 'none';
             const mobileAddBtn = document.getElementById('inv-mobile-add-btn');
-            if (mobileAddBtn) mobileAddBtn.textContent = btn.dataset.sub === 'yarn' ? '+ Add Yarn' : '+ Add Item';
+            if (mobileAddBtn) {
+                mobileAddBtn.textContent = btn.dataset.sub === 'yarn' ? '+ Add Yarn' : '+ Add Item';
+                fitMobileAddBtn();
+            }
             // Update search placeholder
             const placeholder = btn.dataset.sub === 'yarn' ? 'Search yarn...' : 'Search hooks...';
             if (invDesktopSearch) { invDesktopSearch.placeholder = placeholder; invDesktopSearch.value = ''; }
@@ -17638,6 +17641,17 @@ function initInventory() {
             else openHookModal();
         });
     }
+
+    // Shorten "+ Add Yarn" / "+ Add Item" to "+ Add" if the bar overflows
+    function fitMobileAddBtn() {
+        const bar = document.querySelector('.inventory-mobile-bar');
+        const btn = document.getElementById('inv-mobile-add-btn');
+        if (!bar || !btn) return;
+        btn.style.flexShrink = '0'; // ensure btn doesn't already compress before measuring
+        if (bar.scrollWidth > bar.offsetWidth) btn.textContent = '+ Add';
+    }
+    fitMobileAddBtn();
+    window.addEventListener('resize', fitMobileAddBtn);
 
     // View toggle (card / list)
     document.querySelectorAll('#inventory-view-toggle .view-toggle-btn, #inv-mobile-view-toggle .view-toggle-btn').forEach(btn => {

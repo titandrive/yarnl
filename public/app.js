@@ -9528,9 +9528,10 @@ function displayPatterns() {
                 // Only search hashtags when query starts with #
                 return p.hashtags && p.hashtags.some(h => h.name.toLowerCase().includes(searchTerm));
             } else {
-                // Search name, description, and hashtags
+                // Search name, description, category, and hashtags
                 if (p.name.toLowerCase().includes(searchTerm)) return true;
                 if (p.description && p.description.toLowerCase().includes(searchTerm)) return true;
+                if (p.category && p.category.toLowerCase().includes(searchTerm)) return true;
                 if (p.hashtags && p.hashtags.some(h => h.name.toLowerCase().includes(searchTerm))) return true;
                 return false;
             }

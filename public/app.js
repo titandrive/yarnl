@@ -6466,8 +6466,11 @@ function filterSettings(query) {
     const navBtns = document.querySelectorAll('.settings-nav-btn');
     let totalMatches = 0;
 
-    // Hide nav buttons during search
-    navBtns.forEach(btn => btn.style.display = 'none');
+    // Hide nav buttons during search (save state so clearSettingsSearch can restore correctly)
+    navBtns.forEach(btn => {
+        btn.dataset.preSearchDisplay = btn.style.display;
+        btn.style.display = 'none';
+    });
 
     sections.forEach(section => {
         const items = section.querySelectorAll('.setting-item');
@@ -6533,8 +6536,13 @@ function clearSettingsSearch() {
     if (searchInput) searchInput.value = '';
     if (clearBtn) clearBtn.classList.remove('visible');
 
-    // Show nav buttons
-    navBtns.forEach(btn => btn.style.display = '');
+    // Restore nav buttons to their pre-search state (preserves visibility managed by other logic, e.g. Ravelry)
+    navBtns.forEach(btn => {
+        if ('preSearchDisplay' in btn.dataset) {
+            btn.style.display = btn.dataset.preSearchDisplay;
+            delete btn.dataset.preSearchDisplay;
+        }
+    });
 
     // Remove all search-hidden classes
     sections.forEach(section => {

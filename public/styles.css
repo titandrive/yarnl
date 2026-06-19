@@ -3452,6 +3452,28 @@ body.global-drag-over #current::after {
     background: #dc2626;
 }
 
+.timer-edit-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    box-shadow: none;
+}
+
+.timer-edit-btn:hover {
+    background: var(--hover-bg);
+    border-color: var(--text-color);
+    color: var(--text-color);
+}
+
 @keyframes pulse-danger {
     0%, 100% { transform: scale(1); }
     50% { transform: scale(1.05); }

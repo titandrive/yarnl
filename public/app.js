@@ -2944,6 +2944,35 @@ function initTimer() {
         markdownResetBtn.addEventListener('click', handleTimerReset);
     }
 
+    // Timer edit buttons (desktop)
+    const pdfTimerEditBtn = document.getElementById('pdf-timer-edit-btn');
+    if (pdfTimerEditBtn) pdfTimerEditBtn.addEventListener('click', openTimerEditModal);
+
+    const markdownTimerEditBtn = document.getElementById('markdown-timer-edit-btn');
+    if (markdownTimerEditBtn) markdownTimerEditBtn.addEventListener('click', openTimerEditModal);
+
+    // Timer edit modal
+    const timerEditModal = document.getElementById('timer-edit-modal');
+    const closeTimerEditModalBtn = document.getElementById('close-timer-edit-modal');
+    const cancelTimerEditBtn = document.getElementById('cancel-timer-edit');
+    const saveTimerEditBtn = document.getElementById('save-timer-edit');
+    const timerEditInput = document.getElementById('timer-edit-input');
+
+    if (closeTimerEditModalBtn) closeTimerEditModalBtn.addEventListener('click', closeTimerEditModal);
+    if (cancelTimerEditBtn) cancelTimerEditBtn.addEventListener('click', closeTimerEditModal);
+    if (saveTimerEditBtn) saveTimerEditBtn.addEventListener('click', saveTimerEdit);
+    if (timerEditModal) {
+        timerEditModal.addEventListener('click', (e) => {
+            if (e.target === timerEditModal) closeTimerEditModal();
+        });
+    }
+    if (timerEditInput) {
+        timerEditInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') saveTimerEdit();
+            if (e.key === 'Escape') closeTimerEditModal();
+        });
+    }
+
     // Auto timer checkboxes
     const pdfAutoTimerCheckbox = document.getElementById('pdf-auto-timer-checkbox');
     const markdownAutoTimerCheckbox = document.getElementById('markdown-auto-timer-checkbox');
@@ -3303,6 +3332,55 @@ function cancelTimerResetConfirmation() {
         timerResetTimeout = null;
     }
     updateResetButtonState();
+}
+
+function openTimerEditModal() {
+    const modal = document.getElementById('timer-edit-modal');
+    const input = document.getElementById('timer-edit-input');
+    const error = document.getElementById('timer-edit-error');
+    if (!modal || !input) return;
+    input.value = formatTime(timerSeconds);
+    if (error) error.style.display = 'none';
+    modal.style.display = 'flex';
+    setTimeout(() => { input.select(); }, 50);
+}
+
+function closeTimerEditModal() {
+    const modal = document.getElementById('timer-edit-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+function saveTimerEdit() {
+    const input = document.getElementById('timer-edit-input');
+    const error = document.getElementById('timer-edit-error');
+    if (!input) return;
+
+    const match = input.value.trim().match(/^(\d+):(\d{2}):(\d{2})$/);
+    if (!match) {
+        if (error) error.style.display = 'block';
+        input.focus();
+        return;
+    }
+
+    const hours = parseInt(match[1], 10);
+    const mins = parseInt(match[2], 10);
+    const secs = parseInt(match[3], 10);
+
+    if (mins > 59 || secs > 59) {
+        if (error) error.style.display = 'block';
+        input.focus();
+        return;
+    }
+
+    timerSeconds = hours * 3600 + mins * 60 + secs;
+
+    if (currentPattern) {
+        sessionStorage.setItem(`timerSeconds_${currentPattern.id}`, timerSeconds);
+    }
+
+    updateTimerDisplay();
+    saveTimer();
+    closeTimerEditModal();
 }
 
 function updateResetButtonState() {
@@ -13283,6 +13361,12 @@ const mobileBar = (() => {
                 }
                 handleTimerReset();
             });
+
+            const mobileTimerEditBtn = document.getElementById('mobile-timer-edit-btn');
+            if (mobileTimerEditBtn) mobileTimerEditBtn.addEventListener('click', () => {
+                menu.style.display = 'none';
+                openTimerEditModal();
+            });
         }
 
         // --- Bottom bar ---
@@ -14798,6 +14882,12 @@ function initMarkdownViewerEvents() {
             mdMobileMenu.style.display = 'none';
         }
         handleTimerReset();
+    };
+
+    const mdMobileTimerEditBtn = document.getElementById('md-mobile-timer-edit-btn');
+    if (mdMobileTimerEditBtn) mdMobileTimerEditBtn.onclick = () => {
+        mdMobileMenu.style.display = 'none';
+        openTimerEditModal();
     };
 }
 

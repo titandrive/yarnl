@@ -1174,12 +1174,7 @@ async function initRavelryTab() {
     try {
         const enabledRes = await fetch(`${API_URL}/api/ravelry/enabled`);
         const enabledData = await enabledRes.json();
-        const navBtn = document.getElementById('ravelry-nav-btn');
-        if (!enabledData.enabled) {
-            if (navBtn) navBtn.style.display = 'none';
-            return;
-        }
-        if (navBtn) navBtn.style.display = '';
+        if (!enabledData.enabled) return;
     } catch (e) {
         return;
     }

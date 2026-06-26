@@ -140,6 +140,28 @@ Most configuration is done via settings once Yarnl is up and running. There are 
 | `SECURE_COOKIES` | `false` | Set to `true` to mark session cookies as HTTPS-only |
 | `FORCE_LOCAL_LOGIN` | `false` | Force local login even when OIDC/SSO is configured |
 
+### Using an external PostgreSQL database
+
+If you run a shared PostgreSQL instance and want to point Yarnl at it instead of using the bundled container, remove the `postgres` service from your compose file and set the `POSTGRES_*` environment variables on the `yarnl` service to point at your host.
+
+Create the database and user on your PostgreSQL server:
+
+```sql
+CREATE DATABASE yarnl;
+CREATE USER yarnl WITH ENCRYPTED PASSWORD 'yourpassword';
+GRANT ALL PRIVILEGES ON DATABASE yarnl TO yarnl;
+```
+
+On **PostgreSQL 15 and later**, the default privileges on the `public` schema changed. You must also run:
+
+```sql
+GRANT CREATE ON SCHEMA public TO yarnl;
+```
+
+Without this, Yarnl will fail on first start with `permission denied for schema public`. This is not a superuser requirement — it is a schema-level privilege that any database owner can grant.
+
+Yarnl manages its own schema through a versioned migration system. On first start it creates all required tables; on subsequent starts it checks which migrations have already been applied and only runs new ones. No manual schema setup is required beyond the grants above.
+
 ### OIDC / SSO (Optional)
 
 OIDC is configured through the admin settings panel in the app (Settings > Admin > SSO). Yarnl supports any OpenID Connect provider with auto-discovery. If SSO is misconfigured and you get locked out, set `FORCE_LOCAL_LOGIN=true` to bypass SSO and log in with your local credentials.

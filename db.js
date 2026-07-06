@@ -370,6 +370,14 @@ const MIGRATIONS = [
       await client.query(`ALTER TABLE counters ADD COLUMN IF NOT EXISTS unlinked BOOLEAN DEFAULT false`);
     }
   },
+  {
+    id: 17,
+    name: 'patterns_user_id_add_cascade',
+    run: async (client) => {
+      await client.query(`ALTER TABLE patterns DROP CONSTRAINT IF EXISTS patterns_user_id_fkey`);
+      await client.query(`ALTER TABLE patterns ADD CONSTRAINT patterns_user_id_fkey FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE`);
+    }
+  },
 ];
 
 async function initDatabase() {

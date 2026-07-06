@@ -14460,8 +14460,9 @@ function initEditModal() {
 
 function deleteEditPattern() {
     if (!editingPatternId) return;
+    const id = editingPatternId;
     closeEditModal();
-    deletePattern(editingPatternId);
+    deletePattern(id);
 }
 
 async function openEditModal(patternId) {

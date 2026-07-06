@@ -27,6 +27,7 @@ const {
   getAdminUser,
   initializeAdmin,
   migratePatternOwnership,
+  cleanExpiredSessions,
 } = require('./auth');
 
 const app = express();
@@ -1412,9 +1413,6 @@ async function applyTag(patternId, tagName) {
   }
 }
 function applyRavelryTag(patternId) { return applyTag(patternId, 'ravelry'); }
-
-// Helper: strip HTML tags from a string
-function stripHtml(str) { return str ? str.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim() : ''; }
 
 // Helper: proxy http:// Ravelry URLs through our server (images4.ravelry.com lacks SSL cert); pass https:// through as-is
 function ravelryImgUrl(url) {
@@ -9805,6 +9803,11 @@ async function autoDeleteOldArchived() {
 // Run auto-delete check daily at midnight
 new Cron('0 0 * * *', () => {
   autoDeleteOldArchived();
+});
+
+// Clean up expired sessions daily at 3am
+new Cron('0 3 * * *', () => {
+  cleanExpiredSessions();
 });
 
 // Also run on startup (after a delay to ensure DB is ready)

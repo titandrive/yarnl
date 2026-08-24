@@ -7,7 +7,7 @@ RUN apk add --no-cache poppler-utils tzdata
 
 # Install dependencies
 COPY package*.json ./
-RUN npm install
+RUN npm ci --omit=dev
 
 # Copy application files
 COPY . .

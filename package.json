@@ -1,6 +1,6 @@
 {
   "name": "yarnl",
-  "version": "0.11.3",
+  "version": "0.11.4",
   "description": "Self-hosted crochet project management app",
   "main": "server.js",
   "repository": {
@@ -21,17 +21,17 @@
     "cors": "^2.8.5",
     "croner": "^9.0.0",
     "express": "^4.22.2",
-    "multer": "^2.2.0",
+    "multer": "^2.3.0",
     "openid-client": "^5.6.4",
     "pdf-parse": "^1.1.1",
     "pg": "^8.11.3",
-    "sharp": "^0.35.3",
+    "sharp": "^0.35.4",
     "unzipper": "^0.12.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
   },
   "overrides": {
-    "qs": "6.15.2"
+    "qs": "6.16.0"
   }
 }

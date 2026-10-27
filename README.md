@@ -188,6 +188,10 @@ The PostgreSQL database uses a named Docker volume (`yarnl-postgres-data`) for m
 
 ### Runtime security
 
+Package managers (including npm) are used during the Docker build and removed
+from the finished image. Yarnl starts directly with Node.js; normal use and
+Docker updates do not require npm inside the container.
+
 The Docker image uses Node.js 24.22.1, which includes the fix for
 [CVE-2026-111497](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases).
 Node.js 20 is end of life and should no longer be used to run Yarnl.

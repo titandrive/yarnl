@@ -16,22 +16,25 @@
   "dependencies": {
     "archiver": "^6.0.1",
     "bcrypt": "^6.0.0",
-    "compression": "^1.8.1",
+    "compression": "^1.8.2",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "croner": "^9.0.0",
     "express": "^4.22.2",
-    "multer": "^2.3.0",
+    "multer": "^2.5.0",
     "openid-client": "^5.6.4",
     "pdf-parse": "^1.1.1",
     "pg": "^8.11.3",
-    "sharp": "^0.35.4",
+    "sharp": "^0.35.5",
     "unzipper": "^0.12.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"
   },
   "overrides": {
-    "qs": "6.16.0"
+    "qs": "6.17.0"
+  },
+  "engines": {
+    "node": ">=24.22.1 <25"
   }
 }

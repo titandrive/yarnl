@@ -181,10 +181,36 @@ The PostgreSQL database uses a named Docker volume (`yarnl-postgres-data`) for m
 
 ### Running without Docker
 
-1. Install **Node.js** (v18+) and **PostgreSQL**
+1. Install **Node.js** (24.22.1 or a newer 24.x release) and **PostgreSQL**
 2. Install dependencies: `npm install`
 3. Set database environment variables
 4. Start the server: `npm start`
+
+### Runtime security
+
+The Docker image uses Node.js 24.22.1, which includes the fix for
+[CVE-2026-111497](https://nodejs.org/en/blog/vulnerability/october-2026-security-releases).
+Node.js 20 is end of life and should no longer be used to run Yarnl.
+
+Yarnl's server uses native `fetch()` to download product pages, images, and
+patterns, including URLs supplied by users. These responses can be Brotli
+compressed and decompressed automatically by Node.js. Treat deployments on an
+unpatched runtime as potentially affected; this is an exposure assessment, not
+confirmation of exploitation.
+
+Existing containers keep their bundled runtime until replaced. After a patched
+Yarnl image is published, pull it and recreate the container:
+
+```sh
+docker compose pull yarnl
+docker compose up -d yarnl
+docker compose exec yarnl node --version
+```
+
+For a local source build, use `docker compose build --pull yarnl` followed by
+`docker compose up -d yarnl`. Confirm the container reports Node.js 24.22.1 or
+newer within the 24.x line. Non-Docker installations must upgrade Node.js and
+reinstall dependencies before restarting Yarnl.
 
 ### Development with Docker
 

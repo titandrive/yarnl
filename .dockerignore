@@ -13,3 +13,7 @@ users
 settings-reference.md
 claude-log.md
 API.md
+
+# macOS metadata
+.DS_Store
+._*

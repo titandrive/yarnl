@@ -1,4 +1,5 @@
-FROM node:20-alpine
+# Node 24.22.1 includes the CVE-2026-111497 Brotli decoder fix.
+FROM node:24.22.1-alpine
 
 WORKDIR /app
 
